@@ -10,6 +10,24 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+#
+# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 include(../rapids_config.cmake)
 include(rapids-cmake)
@@ -18,15 +36,22 @@ include(rapids-export)
 include(rapids-find)
 
 option(BUILD_CPU_ONLY "Build CPU only components. Applies to CUVS benchmarks currently" OFF)
+option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
 
 # workaround for rapids_cuda_init_architectures not working for arch detection with
 # enable_language(CUDA)
 set(lang_list "CXX")
 
 if(NOT BUILD_CPU_ONLY)
-  include(rapids-cuda)
-  rapids_cuda_init_architectures(CUVS)
-  list(APPEND lang_list "CUDA")
+  if(CUDA_BACKEND) 
+    include(rapids-cuda)
+    rapids_cuda_init_architectures(CUVS)
+    list(APPEND lang_list "CUDA")
+  else()
+    include(rapids-hip)
+    rapids_hip_init_architectures(CUVS)
+    list(APPEND lang_list "HIP")
+  endif()
 endif()
 
 project(
@@ -138,17 +163,31 @@ if(CUDA_STATIC_MATH_LIBRARIES)
 endif()
 
 if(NOT BUILD_CPU_ONLY)
-  # CUDA runtime
-  rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
-  # * find CUDAToolkit package
-  # * determine GPU architectures
-  # * enable the CMake CUDA language
-  # * set other CUDA compilation flags
-  rapids_find_package(
-    CUDAToolkit REQUIRED
-    BUILD_EXPORT_SET cuvs-exports
-    INSTALL_EXPORT_SET cuvs-exports
-  )
+  if(CUDA_BACKEND)
+    # CUDA runtime
+    rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+    # * find CUDAToolkit package
+    # * determine GPU architectures
+    # * enable the CMake CUDA language
+    # * set other CUDA compilation flags
+    rapids_find_package(
+      CUDAToolkit REQUIRED
+      BUILD_EXPORT_SET cuvs-exports
+      INSTALL_EXPORT_SET cuvs-exports
+    )
+  else()
+    # HIP runtime
+    rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+    # * find HIP package
+    # * determine GPU architectures
+    # * enable the CMake HIP language
+    # * set other HIP compilation flags
+    rapids_find_package(
+      HIP REQUIRED
+      BUILD_EXPORT_SET cuvs-exports
+      INSTALL_EXPORT_SET cuvs-exports
+    )
+  endif()
 else()
   add_compile_definitions(BUILD_CPU_ONLY)
 endif()
@@ -164,7 +203,11 @@ if(NOT DISABLE_OPENMP)
   endif()
 endif()
 
-include(cmake/modules/ConfigureCUDA.cmake)
+if(CUDA_BACKEND)
+  include(cmake/modules/ConfigureCUDA.cmake)
+else()
+  include(cmake/modules/ConfigureHIP.cmake)
+endif()
 
 # ##################################################################################################
 # * Requirements -------------------------------------------------------------
@@ -177,7 +220,9 @@ if(NOT BUILD_CPU_ONLY)
   include(${rapids-cmake-dir}/cpm/cccl.cmake)
   rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports INSTALL_EXPORT_SET cuvs-exports)
   include(cmake/thirdparty/get_raft.cmake)
-  include(cmake/thirdparty/get_cutlass.cmake)
+  if(CUDA_BACKEND)    
+    include(cmake/thirdparty/get_cutlass.cmake)
+  endif()
 endif()
 
 if(BUILD_C_LIBRARY)
@@ -286,7 +331,7 @@ if(BUILD_SHARED_LIBS)
   )
   target_compile_options(
     cuvs-cagra-search PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                              "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+                              "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_GPU_FLAGS}>"
   )
 
   if(BUILD_MG_ALGOS)
@@ -488,7 +533,7 @@ if(BUILD_SHARED_LIBS)
   )
   target_compile_options(
     cuvs_objs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                      "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+                      "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_GPU_FLAGS}>"
   )
   target_link_libraries(
     cuvs_objs
@@ -563,10 +608,23 @@ if(BUILD_SHARED_LIBS)
 
   if(NOT BUILD_CPU_ONLY)
 
-    set(CUVS_CUSOLVER_DEPENDENCY CUDA::cusolver${_ctk_static_suffix})
-    set(CUVS_CUBLAS_DEPENDENCY CUDA::cublas${_ctk_static_suffix})
-    set(CUVS_CURAND_DEPENDENCY CUDA::curand${_ctk_static_suffix})
-    set(CUVS_CUSPARSE_DEPENDENCY CUDA::cusparse${_ctk_static_suffix})
+    if(CUDA_BACKEND)
+      set(CUVS_CUSOLVER_DEPENDENCY CUDA::cusolver${_ctk_static_suffix})
+      set(CUVS_CUBLAS_DEPENDENCY CUDA::cublas${_ctk_static_suffix})
+      set(CUVS_CURAND_DEPENDENCY CUDA::curand${_ctk_static_suffix})
+      set(CUVS_CUSPARSE_DEPENDENCY CUDA::cusparse${_ctk_static_suffix})
+    else()
+      find_package(hipsolver CONFIG PATHS "/opt/rocm/")
+      find_package(hipblas CONFIG PATHS "/opt/rocm/")
+      find_package(hipblaslt CONFIG PATHS "/opt/rocm/")
+      find_package(hiprand CONFIG PATHS "/opt/rocm/")
+      find_package(hipsparse CONFIG PATHS "/opt/rocm/")
+
+      set(CUVS_CUSOLVER_DEPENDENCY hipsolver${_ctk_static_suffix})
+      set(CUVS_CUBLAS_DEPENDENCY hipblas${_ctk_static_suffix})
+      set(CUVS_CURAND_DEPENDENCY hiprand${_ctk_static_suffix})
+      set(CUVS_CUSPARSE_DEPENDENCY hipsparse${_ctk_static_suffix})
+    endif()
 
     set(CUVS_CTK_MATH_DEPENDENCIES ${CUVS_CUBLAS_DEPENDENCY} ${CUVS_CUSOLVER_DEPENDENCY}
                                    ${CUVS_CUSPARSE_DEPENDENCY} ${CUVS_CURAND_DEPENDENCY}
@@ -580,7 +638,8 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(
       cuvs
       PUBLIC rmm::rmm raft::raft ${CUVS_CTK_MATH_DEPENDENCIES}
-      PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+      PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
+              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
               cuvs-cagra-search ${CUVS_COMMS_DEPENDENCY}
     )
 
@@ -588,7 +647,8 @@ if(BUILD_SHARED_LIBS)
       target_link_libraries(
         cuvs_static
         PUBLIC rmm::rmm raft::raft ${CUVS_CTK_MATH_DEPENDENCIES}
-        PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+        PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
+                $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
       )
     endif()
   endif()
@@ -629,10 +689,15 @@ SECTIONS
 
   if(CUVS_NVTX)
     # This enables NVTX within the project with no option to disable it downstream.
-    target_link_libraries(cuvs PUBLIC CUDA::nvtx3)
-    target_compile_definitions(cuvs PUBLIC NVTX_ENABLED)
-
-    target_link_libraries(cuvs-cagra-search PUBLIC CUDA::nvtx3)
+    if(CUDA_BACKEND)
+      target_link_libraries(cuvs PUBLIC CUDA::nvtx3)
+      target_link_libraries(cuvs-cagra-search PUBLIC CUDA::nvtx3)
+    else()
+      target_link_libraries(cuvs PUBLIC roctx64)
+      target_link_libraries(cuvs-cagra-search PUBLIC roctx64)
+    endif()
+    
+    target_compile_definitions(cuvs PUBLIC NVTX_ENABLED) 
     target_compile_definitions(cuvs-cagra-search PUBLIC NVTX_ENABLED)
   else()
     # Allow enable NVTX downstream if not set here. This creates a new option at build/install time,
@@ -671,7 +736,7 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
 
   target_compile_options(
     cuvs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                 "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+                 "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_GPU_FLAGS}>"
   )
   # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
   target_link_options(cuvs PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)

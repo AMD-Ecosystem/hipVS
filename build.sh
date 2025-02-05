@@ -1,6 +1,23 @@
 #!/bin/bash
 
 # Copyright (c) 2020-2024, NVIDIA CORPORATION.
+#
+# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
 # cuvs build scripts
 
@@ -18,7 +35,7 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python rust java docs tests bench-ann examples --uninstall  -v -g -n --compile-static-lib --allgpuarch --no-mg --no-cpu --cpu-only --no-shared-libs --no-nvtx --show_depr_warn --incl-cache-stats --time -h"
+VALIDARGS="clean libcuvs python rust java docs tests bench-ann examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-mg --no-cpu --cpu-only --no-shared-libs --no-nvtx --show_depr_warn --incl-cache-stats --time -h"
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>] [--limit-bench-ann=<targets>] [--build-metrics=<filename>]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -36,9 +53,10 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    -v                          - verbose build mode
    -g                          - build for debug
    -n                          - no install step
+   --compile-cuda              - compile for CUDA backend (default: HIP/AMD)
    --uninstall                 - uninstall files for specified targets which were built and installed prior
    --compile-static-lib        - compile static library for all components
-   --cpu-only                  - build CPU only components without CUDA. Currently only applies to bench-ann.
+   --cpu-only                  - build CPU only components without HIP/CUDA. Currently only applies to bench-ann.
    --limit-tests               - semicolon-separated list of test executables to compile (e.g. NEIGHBORS_TEST;CLUSTER_TEST)
    --limit-bench-ann           - semicolon-separated list of ann benchmark executables to compute (e.g. HNSWLIB_ANN_BENCH;RAFT_IVF_PQ_ANN_BENCH)
    --allgpuarch                - build for all supported GPU architectures
@@ -68,8 +86,10 @@ BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIR} ${RUST_BUILD_DIR} ${JAVA_BU
 # Set defaults for vars modified by flags to this script
 CMAKE_LOG_LEVEL=""
 VERBOSE_FLAG=""
+BUILD_CUDA=OFF
 BUILD_ALL_GPU_ARCH=0
-BUILD_TESTS=ON
+#TODO(AMD/HIP): Add support for tests
+BUILD_TESTS=OFF
 BUILD_MG_ALGOS=ON
 BUILD_TYPE=Release
 COMPILE_LIBRARY=OFF
@@ -82,13 +102,15 @@ TEST_TARGETS=""
 ANN_BENCH_TARGETS=""
 
 CACHE_ARGS=""
-NVTX=ON
+#TODO(AMD/HIP): Add support for nvtx
+NVTX=OFF
 LOG_COMPILE_TIME=OFF
 CLEAN=0
 UNINSTALL=0
 DISABLE_DEPRECATION_WARNINGS=ON
 CMAKE_TARGET=""
-EXTRA_CMAKE_ARGS=""
+# FIXME(HIP/AMD): rocThrust/rocPrim require CXX compiler to be equal to hipcc
+EXTRA_CMAKE_HIP_ARGS="-DCMAKE_CXX_COMPILER=hipcc"
 
 # Set defaults for vars that may not have been defined externally
 INSTALL_PREFIX=${INSTALL_PREFIX:=${PREFIX:=${CONDA_PREFIX:=$LIBCUVS_BUILD_DIR/install}}}
@@ -264,6 +286,10 @@ if hasArg -g; then
     BUILD_TYPE=Debug
 fi
 
+if hasArg --compile-cuda; then
+    BUILD_CUDA=1
+fi
+
 if hasArg --allgpuarch; then
     BUILD_ALL_GPU_ARCH=1
 fi
@@ -340,8 +366,12 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
     fi
 
     if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
-        CUVS_CMAKE_CUDA_ARCHITECTURES="NATIVE"
-        echo "Building for the architecture of the GPU in the system..."
+        CUVS_CMAKE_CUDA_ARCHITECTURES="${CUVS_CMAKE_CUDA_ARCHITECTURES:-NATIVE}"
+        if [[ "$CUVS_CMAKE_CUDA_ARCHITECTURES" == "NATIVE" ]]; then
+            echo "Building for the architecture of the GPU in the system..."
+        else
+            echo "Building for the GPU architecture(s) $CUVS_CMAKE_CUDA_ARCHITECTURES ..."
+        fi
     else
         CUVS_CMAKE_CUDA_ARCHITECTURES="RAPIDS"
         echo "Building for *ALL* supported GPU architectures..."
@@ -358,7 +388,9 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
     cmake -S ${REPODIR}/cpp -B ${LIBCUVS_BUILD_DIR} \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_CUDA_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
+          -DCMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+          -DCUDA_BACKEND=${BUILD_CUDA} \
           -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
           -DCUVS_NVTX=${NVTX} \
           -DCUDA_LOG_COMPILE_TIME=${LOG_COMPILE_TIME} \
@@ -370,6 +402,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \
           -DCMAKE_MESSAGE_LOG_LEVEL=${CMAKE_LOG_LEVEL} \
           -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
+          ${EXTRA_CMAKE_HIP_ARGS}
           ${CACHE_ARGS} \
           ${EXTRA_CMAKE_ARGS}
 
