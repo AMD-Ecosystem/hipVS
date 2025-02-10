@@ -11,24 +11,24 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc. Permission is hereby granted, free
+# of charge, to any person obtaining a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following
+# conditions: The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+# KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
+
+# NOTE(HIP/AMD): make *.cu files HIP lang files
+set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../overrides.cmake")
+
 include(../rapids_config.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
@@ -43,7 +43,7 @@ option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AM
 set(lang_list "CXX")
 
 if(NOT BUILD_CPU_ONLY)
-  if(CUDA_BACKEND) 
+  if(CUDA_BACKEND)
     include(rapids-cuda)
     rapids_cuda_init_architectures(CUVS)
     list(APPEND lang_list "CUDA")
@@ -217,10 +217,11 @@ rapids_cpm_init()
 
 if(NOT BUILD_CPU_ONLY)
   # We must find CCCL ourselves before raft so that we get the right version.
-  include(${rapids-cmake-dir}/cpm/cccl.cmake)
-  rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports INSTALL_EXPORT_SET cuvs-exports)
+  # TODO(AMD/HIP): Use RAFT's get_cccl.cmake until an AMD cccl equivalent exists
+  # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
+  # INSTALL_EXPORT_SET cuvs-exports)
   include(cmake/thirdparty/get_raft.cmake)
-  if(CUDA_BACKEND)    
+  if(CUDA_BACKEND)
     include(cmake/thirdparty/get_cutlass.cmake)
   endif()
 endif()
@@ -312,7 +313,12 @@ if(BUILD_SHARED_LIBS)
   )
 
   file(GLOB_RECURSE compute_distance_sources "src/neighbors/detail/cagra/compute_distance_*.cu")
-  set_source_files_properties(${compute_distance_sources} PROPERTIES COMPILE_FLAGS -maxrregcount=64)
+  # TODO(AMD/HIP): Use __launch_bounds__ for AMD/HIP devices
+  if(CUDA_BACKEND)
+    set_source_files_properties(
+      ${compute_distance_sources} PROPERTIES COMPILE_FLAGS -maxrregcount=64
+    )
+  endif()
 
   set_target_properties(
     cuvs-cagra-search
@@ -326,12 +332,14 @@ if(BUILD_SHARED_LIBS)
                POSITION_INDEPENDENT_CODE ON
   )
   target_link_libraries(cuvs-cagra-search PRIVATE raft::raft)
+
   target_include_directories(
     cuvs-cagra-search PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   )
   target_compile_options(
-    cuvs-cagra-search PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                              "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_GPU_FLAGS}>"
+    cuvs-cagra-search
+    PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
+            "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
   )
 
   if(BUILD_MG_ALGOS)
@@ -533,13 +541,15 @@ if(BUILD_SHARED_LIBS)
   )
   target_compile_options(
     cuvs_objs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                      "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_GPU_FLAGS}>"
+                      "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
   )
   target_link_libraries(
     cuvs_objs
-    PUBLIC raft::raft rmm::rmm rmm::rmm_logger ${CUVS_CTK_MATH_DEPENDENCIES}
+    # TODO(AMD/HIP): rmm_logger_impl requires RMM 25.04 PUBLIC raft::raft rmm::rmm rmm::rmm_logger
+    # ${CUVS_CTK_MATH_DEPENDENCIES} $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> PRIVATE
+    # rmm::rmm_logger_impl raft::raft_logger_impl
+    PUBLIC raft::raft rmm::rmm ${CUVS_CTK_MATH_DEPENDENCIES}
            $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-    PRIVATE rmm::rmm_logger_impl raft::raft_logger_impl
   )
 
   add_library(cuvs SHARED $<FILTER:$<TARGET_OBJECTS:cuvs_objs>,EXCLUDE,rmm.*logger>)
@@ -640,7 +650,8 @@ if(BUILD_SHARED_LIBS)
       PUBLIC rmm::rmm raft::raft ${CUVS_CTK_MATH_DEPENDENCIES}
       PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-              cuvs-cagra-search ${CUVS_COMMS_DEPENDENCY}
+              cuvs-cagra-search
+              ${CUVS_COMMS_DEPENDENCY}
     )
 
     if(NOT CUVS_COMPILE_DYNAMIC_ONLY)
@@ -696,8 +707,8 @@ SECTIONS
       target_link_libraries(cuvs PUBLIC roctx64)
       target_link_libraries(cuvs-cagra-search PUBLIC roctx64)
     endif()
-    
-    target_compile_definitions(cuvs PUBLIC NVTX_ENABLED) 
+
+    target_compile_definitions(cuvs PUBLIC NVTX_ENABLED)
     target_compile_definitions(cuvs-cagra-search PUBLIC NVTX_ENABLED)
   else()
     # Allow enable NVTX downstream if not set here. This creates a new option at build/install time,
@@ -736,7 +747,7 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
 
   target_compile_options(
     cuvs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                 "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_GPU_FLAGS}>"
+                 "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
   )
   # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
   target_link_options(cuvs PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
@@ -786,7 +797,9 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
     target_link_libraries(
       cuvs_c
       PUBLIC cuvs::cuvs ${CUVS_CTK_MATH_DEPENDENCIES}
-      PRIVATE raft::raft rmm::rmm_logger_impl raft::raft_logger_impl
+      # TODO(AMD/HIP): rmm_logger_impl requires RMM 25.04 PRIVATE raft::raft rmm::rmm_logger_impl
+      # raft::raft_logger_impl
+      PRIVATE raft::raft
     )
 
     # ensure CUDA symbols aren't relocated to the middle of the debug build binaries

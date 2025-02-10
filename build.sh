@@ -402,7 +402,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \
           -DCMAKE_MESSAGE_LOG_LEVEL=${CMAKE_LOG_LEVEL} \
           -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
-          ${EXTRA_CMAKE_HIP_ARGS}
+          ${EXTRA_CMAKE_HIP_ARGS} \
           ${CACHE_ARGS} \
           ${EXTRA_CMAKE_ARGS}
 
