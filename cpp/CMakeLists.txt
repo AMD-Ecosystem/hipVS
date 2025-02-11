@@ -545,9 +545,11 @@ if(BUILD_SHARED_LIBS)
   )
   target_link_libraries(
     cuvs_objs
-    # TODO(AMD/HIP): rmm_logger_impl requires RMM 25.04 PUBLIC raft::raft rmm::rmm rmm::rmm_logger
-    # ${CUVS_CTK_MATH_DEPENDENCIES} $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> PRIVATE
-    # rmm::rmm_logger_impl raft::raft_logger_impl
+    # TODO(AMD/HIP): rmm_logger_impl requires hipMM 25.04
+    #
+    # PUBLIC raft::raft rmm::rmm rmm::rmm_logger ${CUVS_CTK_MATH_DEPENDENCIES}
+    #        $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+    # PRIVATE rmm::rmm_logger_impl raft::raft_logger_impl
     PUBLIC raft::raft rmm::rmm ${CUVS_CTK_MATH_DEPENDENCIES}
            $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
   )
