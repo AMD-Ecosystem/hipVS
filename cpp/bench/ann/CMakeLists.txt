@@ -155,7 +155,6 @@ function(ConfigureAnnBench)
             ${GPU_RUNTIME_LIB}
             $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
             $<TARGET_NAME_IF_EXISTS:conda_env>
-            $<TARGET_NAME_IF_EXISTS:cuvs_bench_logger>
   )
 
   if(NOT DISABLE_OPENMP)
@@ -208,13 +207,6 @@ function(ConfigureAnnBench)
 
   add_dependencies(CUVS_ANN_BENCH_ALL ${BENCH_NAME})
 endfunction()
-
-if(CUVS_FAISS_ENABLE_GPU OR CUVS_ANN_BENCH_SINGLE_EXE)
-  add_library(cuvs_bench_logger OBJECT)
-  target_link_libraries(
-    cuvs_bench_logger PRIVATE rmm::rmm_logger_impl $<TARGET_NAME_IF_EXISTS:raft::raft_logger>
-  )
-endif()
 
 # ##################################################################################################
 # * Configure benchmark targets -------------------------------------------------------------
@@ -348,15 +340,8 @@ if(CUVS_ANN_BENCH_SINGLE_EXE)
   target_include_directories(ANN_BENCH PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
   target_link_libraries(
-    ANN_BENCH
-    PRIVATE raft::raft
-            nlohmann_json::nlohmann_json
-            benchmark::benchmark
-            dl
-            fmt::fmt-header-only
-            spdlog::spdlog_header_only
-            $<$<TARGET_EXISTS:CUDA::nvtx3>:CUDA::nvtx3>
-            cuvs_bench_logger
+    ANN_BENCH PRIVATE raft::raft nlohmann_json::nlohmann_json benchmark::benchmark dl
+                      $<$<TARGET_EXISTS:CUDA::nvtx3>:CUDA::nvtx3>
   )
   set_target_properties(
     ANN_BENCH
