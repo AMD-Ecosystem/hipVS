@@ -1,3 +1,9 @@
+# <div align="left">&nbsp;hipVS: Vector Search and Clustering on AMD GPUs</div>
+
+> [!NOTE]
+> This ROCm&trade; port is derived work based on the NVIDIA RAPIDS&reg; cuVS project. It aims to follow the latter's directory structure and API naming as closely as possible to minimize porting friction for users that are interested in using both projects.
+
+
 # <div align="left"><img src="https://rapids.ai/assets/images/rapids_logo.png" width="90px"/>&nbsp;cuVS: Vector Search and Clustering on the GPU</div>
 
 > [!note]
