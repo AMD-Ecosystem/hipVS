@@ -59,6 +59,7 @@
 #endif
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/scan.h>
 #include <thrust/transform.h>
@@ -649,9 +650,7 @@ void fit(const raft::resources& handle,
     // cub::KeyValuePair and converting them to just return the Key to be used
     // in reduce_rows_by_key prims
     KeyValueIndexOp<IndexT, DataT> conversion_op;
-    cub::TransformInputIterator<IndexT,
-                                KeyValueIndexOp<IndexT, DataT>,
-                                raft::KeyValuePair<IndexT, DataT>*>
+    thrust::transform_iterator<KeyValueIndexOp<IndexT, DataT>, raft::KeyValuePair<IndexT, DataT>*>
       itr(minClusterAndDistance.data_handle(), conversion_op);
 
     workspace.resize(n_samples, stream);
