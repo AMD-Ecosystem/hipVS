@@ -41,6 +41,7 @@
 #include <raft/core/resources.hpp>
 
 // TODO: This shouldn't be invoking anything from spatial/knn
+#include "../../../core/nvtx.hpp"
 #include "../ann_utils.cuh"
 
 #include <raft/util/bitonic_sort.cuh>
@@ -1134,6 +1135,8 @@ void optimize(
   const uint64_t graph_size          = new_graph.extent(0);
   auto input_graph_ptr               = knn_graph.data_handle();
   auto output_graph_ptr              = new_graph.data_handle();
+  raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> fun_scope(
+    "cagra::graph::optimize(%zu, %zu, %u)", graph_size, input_graph_degree, output_graph_degree);
 
   // MST optimization
   auto mst_graph               = raft::make_host_matrix<IdxT, int64_t, raft::row_major>(0, 0);
@@ -1144,6 +1147,8 @@ void optimize(
     mst_graph_num_edges_ptr[i] = 0;
   }
   if (guarantee_connectivity) {
+    raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> block_scope(
+      "cagra::graph::optimize/check_connectivity");
     mst_graph =
       raft::make_host_matrix<IdxT, int64_t, raft::row_major>(graph_size, output_graph_degree);
     RAFT_LOG_INFO("MST optimization is used to guarantee graph connectivity.");
@@ -1158,6 +1163,8 @@ void optimize(
   }
 
   {
+    raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> block_scope(
+      "cagra::graph::optimize/prune");
     //
     // Prune kNN graph
     //
@@ -1317,6 +1324,8 @@ void optimize(
   auto rev_graph_count = raft::make_host_vector<uint32_t, int64_t>(graph_size);
 
   {
+    raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> block_scope(
+      "cagra::graph::optimize/reverse");
     //
     // Make reverse graph
     //
@@ -1382,6 +1391,8 @@ void optimize(
   }
 
   {
+    raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> block_scope(
+      "cagra::graph::optimize/combine");
     //
     // Create search graphs from MST and pruned and reverse graphs
     //
@@ -1482,6 +1493,8 @@ void optimize(
 
   // Check number of incoming edges
   {
+    raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> block_scope(
+      "cagra::graph::optimize/check_edges");
     auto in_edge_count     = raft::make_host_vector<uint32_t, int64_t>(graph_size);
     auto in_edge_count_ptr = in_edge_count.data_handle();
 #pragma omp parallel for
@@ -1524,6 +1537,8 @@ void optimize(
 
   // Check duplication and out-of-range indices
   {
+    raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> block_scope(
+      "cagra::graph::optimize/check_duplicates");
     uint64_t num_dup = 0;
     uint64_t num_oor = 0;
 #pragma omp parallel for reduction(+ : num_dup) reduction(+ : num_oor)

@@ -738,6 +738,7 @@ SECTIONS
       target_link_libraries(cuvs-cagra-search PUBLIC roctx64)
     endif()
 
+    target_compile_definitions(cuvs_objs PUBLIC NVTX_ENABLED)
     target_compile_definitions(cuvs PUBLIC NVTX_ENABLED)
     target_compile_definitions(cuvs-cagra-search PUBLIC NVTX_ENABLED)
   else()
