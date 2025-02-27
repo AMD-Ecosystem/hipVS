@@ -98,11 +98,11 @@ function(find_and_configure_faiss)
     # faiss will have the conda includes/link dirs
     target_link_libraries(faiss_avx2 PRIVATE $<TARGET_NAME_IF_EXISTS:conda_env>)
   endif()
-  if(TARGET faiss_gpu AND NOT TARGET faiss::faiss_gpu)
-    add_library(faiss::faiss_gpu ALIAS faiss_gpu)
+  if(TARGET faiss_gpu_objs AND NOT TARGET faiss::faiss_gpu_objs)
+    add_library(faiss::faiss_gpu_objs ALIAS faiss_gpu_objs)
     # We need to ensure that faiss has all the conda information. So we use this approach so that
     # faiss will have the conda includes/link dirs
-    target_link_libraries(faiss_gpu PRIVATE $<TARGET_NAME_IF_EXISTS:conda_env>)
+    target_link_libraries(faiss_gpu_objs PRIVATE $<TARGET_NAME_IF_EXISTS:conda_env>)
   endif()
 
   if(faiss_ADDED)
@@ -112,7 +112,7 @@ function(find_and_configure_faiss)
                   NAMESPACE faiss::)
   endif()
 
-  # Need to tell CMake to rescan the link group of faiss::faiss_gpu and faiss
+  # Need to tell CMake to rescan the link group of faiss::faiss_gpu_objs and faiss
   # so that we get proper link order when they are static
   #
   # We don't look at the existence of `faiss_avx2` as it will always exist
@@ -121,16 +121,16 @@ function(find_and_configure_faiss)
   # a dependency to it. Adding a dependency will cause it to compile,
   # and fail due to invalid compiler flags.
   if(PKG_ENABLE_GPU AND PKG_BUILD_STATIC_LIBS AND CXX_AVX2_FOUND)
-    set(CUVS_FAISS_TARGETS "$<LINK_GROUP:RESCAN,$<LINK_LIBRARY:WHOLE_ARCHIVE,faiss_gpu>,faiss::faiss_avx2>" PARENT_SCOPE)
+    set(CUVS_FAISS_TARGETS "$<LINK_GROUP:RESCAN,$<LINK_LIBRARY:WHOLE_ARCHIVE,faiss_gpu_objs>,faiss::faiss_avx2>" PARENT_SCOPE)
   elseif(PKG_ENABLE_GPU AND  PKG_BUILD_STATIC_LIBS)
-    set(CUVS_FAISS_TARGETS "$<LINK_GROUP:RESCAN,$<LINK_LIBRARY:WHOLE_ARCHIVE,faiss_gpu>,faiss::faiss>" PARENT_SCOPE)
+    set(CUVS_FAISS_TARGETS "$<LINK_GROUP:RESCAN,$<LINK_LIBRARY:WHOLE_ARCHIVE,faiss_gpu_objs>,faiss::faiss>" PARENT_SCOPE)
   elseif(CXX_AVX2_FOUND)
     set(CUVS_FAISS_TARGETS faiss::faiss_avx2 PARENT_SCOPE)
   else()
     set(CUVS_FAISS_TARGETS faiss::faiss PARENT_SCOPE)
   endif()
 
-  foreach(_t faiss faiss_avx2 faiss_gpu)
+  foreach(_t faiss faiss_avx2 faiss_gpu_objs)
     if(TARGET ${_t})
       target_compile_options(${_t} PRIVATE -w)
     endif()
