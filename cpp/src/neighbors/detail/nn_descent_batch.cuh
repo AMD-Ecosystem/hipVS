@@ -187,14 +187,10 @@ void get_global_nearest_k(
       size_t batch_size_ = batch_size;
 
       if (i == num_batches - 1) { batch_size_ = num_rows - batch_size * i; }
-      thrust::copy(
-        raft::resource::get_thrust_policy(res),
-        nearest_clusters_idx.data_handle() + i * batch_size * k,
-        nearest_clusters_idx.data_handle() +
-          (i * batch_size + batch_size_) *
-            k,  // (HIP/AMD)Note: This was changed upstream recently as part of
-                // https://github.com/rapidsai/cuvs/commit/bd6d4a9934ad7f3f3cf2e2c6446abdbdf10ffba0
-        nearest_clusters_idxt.data_handle());
+      thrust::copy(raft::resource::get_thrust_policy(res),
+                   nearest_clusters_idx.data_handle() + i * batch_size * k,
+                   nearest_clusters_idx.data_handle() + (i * batch_size + batch_size_) * k,
+                   nearest_clusters_idxt.data_handle());
       raft::copy(global_nearest_cluster.data_handle() + i * batch_size * k,
                  nearest_clusters_idxt.data_handle(),
                  batch_size_ * k,

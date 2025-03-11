@@ -267,11 +267,9 @@ class AnnNNDescentBatchTest : public ::testing::TestWithParam<AnnNNDescentBatchI
         index_params.metric                    = ps.metric;
         index_params.graph_degree              = ps.graph_degree;
         index_params.intermediate_graph_degree = 2 * ps.graph_degree;
-        index_params.max_iterations =
-          100;  // (HIP/AMD)Note: This was changed upstream recently as part of
-                // https://github.com/rapidsai/cuvs/commit/bd6d4a9934ad7f3f3cf2e2c6446abdbdf10ffba0
-        index_params.return_distances = true;
-        index_params.n_clusters       = ps.recall_cluster.second;
+        index_params.max_iterations            = 100;
+        index_params.return_distances          = true;
+        index_params.n_clusters                = ps.recall_cluster.second;
 
         auto database_view = raft::make_device_matrix_view<const DataT, int64_t>(
           (const DataT*)database.data(), ps.n_rows, ps.dim);
@@ -315,8 +313,7 @@ class AnnNNDescentBatchTest : public ::testing::TestWithParam<AnnNNDescentBatchI
                                   ps.graph_degree,
                                   0.01,
                                   min_recall,
-                                  true,
-                                  static_cast<size_t>(ps.graph_degree * 0.1)));
+                                  true));
     }
   }
 
