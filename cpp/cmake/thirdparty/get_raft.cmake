@@ -33,6 +33,7 @@
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(RAFT_FORK "AMD-AI")
 #set(RAFT_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
+#set(RAFT_PINNED_TAG "dev_aiss/raft_cuml_features")
 set(RAFT_PINNED_TAG "amd-integration")
 
 function(find_and_configure_raft)
@@ -58,7 +59,7 @@ function(find_and_configure_raft)
     # Invoke CPM find_package()
     #-----------------------------------------------------
     rapids_cpm_find(raft ${PKG_VERSION}
-            GLOBAL_TARGETS      raft::raft raft::raft_logger raft::raft_logger_impl
+            GLOBAL_TARGETS      raft::raft
             BUILD_EXPORT_SET    cuvs-exports
             INSTALL_EXPORT_SET  cuvs-exports
             COMPONENTS          ${RAFT_COMPONENTS}

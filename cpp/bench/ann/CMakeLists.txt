@@ -11,6 +11,19 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
+# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc. Permission is hereby granted, free
+# of charge, to any person obtaining a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following
+# conditions: The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+# KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# =============================================================================
 
 list(APPEND CMAKE_MODULE_PATH "${CUVS_SOURCE_DIR}")
 
@@ -127,11 +140,9 @@ function(ConfigureAnnBench)
     PRIVATE ${ConfigureAnnBench_LINKS}
             nlohmann_json::nlohmann_json
             Threads::Threads
-            $<TARGET_NAME_IF_EXISTS:raft::raft_logger>
             $<$<BOOL:${GPU_BUILD}>:CUDA::cudart_static>
             $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
             $<TARGET_NAME_IF_EXISTS:conda_env>
-            $<TARGET_NAME_IF_EXISTS:cuvs_bench_logger>
   )
 
   set_target_properties(
@@ -176,13 +187,6 @@ function(ConfigureAnnBench)
 
   add_dependencies(CUVS_ANN_BENCH_ALL ${BENCH_NAME})
 endfunction()
-
-if(CUVS_FAISS_ENABLE_GPU OR CUVS_ANN_BENCH_SINGLE_EXE)
-  add_library(cuvs_bench_logger OBJECT)
-  target_link_libraries(
-    cuvs_bench_logger PRIVATE rmm::rmm_logger_impl $<TARGET_NAME_IF_EXISTS:raft::raft_logger>
-  )
-endif()
 
 # ##################################################################################################
 # * Configure benchmark targets -------------------------------------------------------------
@@ -316,15 +320,8 @@ if(CUVS_ANN_BENCH_SINGLE_EXE)
   target_include_directories(ANN_BENCH PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
   target_link_libraries(
-    ANN_BENCH
-    PRIVATE raft::raft
-            nlohmann_json::nlohmann_json
-            benchmark::benchmark
-            dl
-            fmt::fmt-header-only
-            spdlog::spdlog_header_only
-            $<$<TARGET_EXISTS:CUDA::nvtx3>:CUDA::nvtx3>
-            cuvs_bench_logger
+    ANN_BENCH PRIVATE raft::raft nlohmann_json::nlohmann_json benchmark::benchmark dl
+                      $<$<TARGET_EXISTS:CUDA::nvtx3>:CUDA::nvtx3> cuvs_bench_logger
   )
   set_target_properties(
     ANN_BENCH

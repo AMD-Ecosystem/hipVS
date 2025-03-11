@@ -39,11 +39,11 @@ VALIDARGS="clean libcuvs python rust java docs tests bench-ann examples --uninst
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>] [--limit-bench-ann=<targets>] [--build-metrics=<filename>]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
-   libcuvs          - build the cuvs C++ code only. Also builds the C-wrapper library
+   libcuvs          - build the cuvs/hipvs C++ code only. Also builds the C-wrapper library
                       around the C++ code.
-   python           - build the cuvs Python package
-   rust             - build the cuvs Rust bindings
-   java             - build the cuvs Java bindings
+   python           - build the cuvs/hipvs Python package
+   rust             - build the cuvs/hipvs Rust bindings
+   java             - build the cuvs/hipvs Java bindings
    docs             - build the documentation
    tests            - build the tests
    bench-ann        - build end-to-end ann benchmarks
@@ -88,9 +88,8 @@ CMAKE_LOG_LEVEL=""
 VERBOSE_FLAG=""
 BUILD_CUDA=OFF
 BUILD_ALL_GPU_ARCH=0
-#TODO(AMD/HIP): Add support for tests
-BUILD_TESTS=OFF
-BUILD_MG_ALGOS=ON
+BUILD_TESTS=OFF                     #TODO(AMD/HIP): Enable test building by default
+BUILD_MG_ALGOS=OFF                  #TODO(AMD/HIP): Enable multi-GPU support
 BUILD_TYPE=Release
 COMPILE_LIBRARY=OFF
 INSTALL_TARGET=install
@@ -102,8 +101,7 @@ TEST_TARGETS=""
 ANN_BENCH_TARGETS=""
 
 CACHE_ARGS=""
-#TODO(AMD/HIP): Add support for nvtx
-NVTX=OFF
+NVTX=OFF                            #TODO(AMD/HIP): Enable profiling markers
 LOG_COMPILE_TIME=OFF
 CLEAN=0
 UNINSTALL=0
@@ -249,24 +247,24 @@ if hasArg --uninstall; then
     fi
 
     if hasArg cuvs || (( ${NUMARGS} == 1 )); then
-      echo "Uninstalling cuvs package..."
+      echo "Uninstalling cuvs/hipvs package..."
       if [ -e ${PYLIBCUVS_BUILD_DIR}/install_manifest.txt ]; then
           xargs rm -fv < ${PYLIBCUVS_BUILD_DIR}/install_manifest.txt > /dev/null 2>&1
       fi
 
       # Try to uninstall via pip if it is installed
       if [ -x "$(command -v pip)" ]; then
-        echo "Using pip to uninstall cuvs"
+        echo "Using pip to uninstall cuvs/hipvs"
         pip uninstall -y cuvs
 
       # Otherwise, try to uninstall through conda if that's where things are installed
       elif [ -x "$(command -v conda)" ] && [ "$INSTALL_PREFIX" == "$CONDA_PREFIX" ]; then
-        echo "Using conda to uninstall cuvs"
+        echo "Using conda to uninstall cuvs/hipvs"
         conda uninstall -y cuvs
 
       # Otherwise, fail
       else
-        echo "Could not uninstall cuvs from pip or conda. cuvs package will need to be manually uninstalled"
+        echo "Could not uninstall cuvs/hipvs from pip or conda. cuvs/hipvs package will need to be manually uninstalled"
       fi
     fi
     exit 0
@@ -359,7 +357,7 @@ fi
 # Configure for building all C++ targets
 if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg bench-ann; then
     COMPILE_LIBRARY=ON
-    if (( ${BUILD_SHARED_LIBS} == "OFF" )); then
+    if [[ ${BUILD_SHARED_LIBS} == "OFF" ]]; then
         CMAKE_TARGET="${CMAKE_TARGET};"
     else
         CMAKE_TARGET="${CMAKE_TARGET};cuvs"
@@ -391,12 +389,12 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
           -DCMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DCUDA_BACKEND=${BUILD_CUDA} \
-          -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
+          -DBUILD_C_LIBRARY=OFF \       #TODO(AMD/HIP): Change to ${COMPILE_LIBRARY} in final release
           -DCUVS_NVTX=${NVTX} \
           -DCUDA_LOG_COMPILE_TIME=${LOG_COMPILE_TIME} \
           -DDISABLE_DEPRECATION_WARNINGS=${DISABLE_DEPRECATION_WARNINGS} \
           -DBUILD_TESTS=${BUILD_TESTS} \
-          -DBUILD_C_TESTS=${BUILD_TESTS} \
+          -DBUILD_C_TESTS=OFF \         #TODO(AMD/HIP): Change to ${BUILD_TESTS} in final release
           -DBUILD_CUVS_BENCH=${BUILD_CUVS_BENCH} \
           -DBUILD_CPU_ONLY=${BUILD_CPU_ONLY} \
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \
