@@ -12,6 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -21,16 +38,22 @@
 #include "coo_spmv_strategies/hash_strategy.cuh"
 
 #include <raft/core/resource/cuda_stream.hpp>
+#include <raft/core/resource/device_id.hpp>
 #include <raft/sparse/csr.hpp>
 #include <raft/sparse/detail/cusparse_wrappers.h>
 #include <raft/sparse/detail/utils.h>
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/cudart_utils.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cusparse.h>
+#else
 #include <cusparse_v2.h>
+#include <nvfunctional>
+#endif
+
 #include <limits.h>
 
-#include <nvfunctional>
 
 namespace cuvs {
 namespace distance {
@@ -111,7 +134,7 @@ inline void balanced_coo_pairwise_generalized_spmv(
   uint64_t n = (uint64_t)sizeof(value_t) * (uint64_t)config_.a_nrows * (uint64_t)config_.b_nrows;
   RAFT_CUDA_TRY(cudaMemsetAsync(out_dists, 0, n, raft::resource::get_cuda_stream(config_.handle)));
 
-  int max_cols = max_cols_per_block<value_idx, value_t>();
+  int max_cols = max_cols_per_block<value_idx, value_t>(raft::resource::get_device_id(config_.handle));
 
   if (max_cols > config_.a_ncols) {
     dense_smem_strategy<value_idx, value_t, threads_per_block> strategy(config_);
@@ -194,7 +217,7 @@ inline void balanced_coo_pairwise_generalized_spmv_rev(
   int chunk_size = 500000)
 {
   // try dense first
-  int max_cols = max_cols_per_block<value_idx, value_t>();
+  int max_cols = max_cols_per_block<value_idx, value_t>(raft::resource::get_device_id(config_.handle));
 
   if (max_cols > config_.b_ncols) {
     dense_smem_strategy<value_idx, value_t, threads_per_block> strategy(config_);

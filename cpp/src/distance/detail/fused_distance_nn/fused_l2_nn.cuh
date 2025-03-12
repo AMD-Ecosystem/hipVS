@@ -12,13 +12,32 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
 
 #include "../distance_ops/l2_exp.cuh"     // ops::l2_exp_distance_op
 #include "../pairwise_distance_base.cuh"  // PairwiseDistances
+#ifndef __HIP_PLATFORM_AMD__
 #include "cutlass_base.cuh"
+#endif
 #include "helper_structs.cuh"
 #include "simt_kernel.cuh"
 #include <raft/core/kvp.hpp>             // raft::KeyValuePair
@@ -85,60 +104,69 @@ void fusedL2NNImpl(OutT* min,
                                       KVPReduceOpT,
                                       decltype(distance_op),
                                       decltype(fin_op)>;
-
-  // Get pointer to fp32 SIMT kernel to determine the best compute architecture
-  // out of all for which the kernel was compiled for that matches closely
-  // to the current device. Other methods to determine the architecture (that do not
-  // require a pointer) can be error prone. See:
-  // https://github.com/NVIDIA/cub/issues/545
-  void* kernel_ptr   = reinterpret_cast<void*>(kernel);
-  auto runtime_arch  = arch::kernel_virtual_arch(kernel_ptr);
-  auto cutlass_range = arch::SM_range(arch::SM_80(), arch::SM_future());
-
-  if (cutlass_range.contains(runtime_arch)) {
-    // If device is SM_80 or later, use CUTLASS-based kernel.
-    using L2Op                  = cuvs::distance::detail::ops::l2_exp_cutlass_op<DataT, DataT>;
-    using kvp_cg_min_reduce_op_ = kvp_cg_min_reduce_op<DataT, IdxT, OutT>;
-    kvp_cg_min_reduce_op_ cg_reduce_op;
-    L2Op L2_dist_op(sqrt);
-
-    IdxT lda, ldb, ldd;
-    lda = k, ldb = k, ldd = n;
-
-    cutlassFusedDistanceNN<DataT,
-                           DataT,
-                           OutT,
-                           IdxT,
-                           P::Veclen,
-                           kvp_cg_min_reduce_op_,
-                           L2Op,
-                           ReduceOpT,
-                           KVPReduceOpT>(x,
-                                         y,
-                                         xn,
-                                         yn,
-                                         m,
-                                         n,
-                                         k,
-                                         lda,
-                                         ldb,
-                                         ldd,
-                                         min,
-                                         workspace,
-                                         cg_reduce_op,
-                                         L2_dist_op,
-                                         redOp,
-                                         pairRedOp,
-                                         stream);
-  } else {
-    // If device less than SM_80, use fp32 SIMT kernel.
+  #ifdef __HIP_PLATFORM_AMD__
+    //Use non-CUTLASS fp32 SIMT kernel.
     constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));
     dim3 grid                  = launchConfigGenerator<P>(m, n, shmemSize, kernel);
 
     kernel<<<grid, blk, shmemSize, stream>>>(
       min, x, y, xn, yn, m, n, k, maxVal, workspace, redOp, pairRedOp, distance_op, fin_op);
     RAFT_CUDA_TRY(cudaGetLastError());
-  }
+  #else
+    // Get pointer to fp32 SIMT kernel to determine the best compute architecture
+    // out of all for which the kernel was compiled for that matches closely
+    // to the current device. Other methods to determine the architecture (that do not
+    // require a pointer) can be error prone. See:
+    // https://github.com/NVIDIA/cub/issues/545
+    void* kernel_ptr   = reinterpret_cast<void*>(kernel);
+    auto runtime_arch  = arch::kernel_virtual_arch(kernel_ptr);
+    auto cutlass_range = arch::SM_range(arch::SM_80(), arch::SM_future());
+
+    if (cutlass_range.contains(runtime_arch)) {
+      // If device is SM_80 or later, use CUTLASS-based kernel.
+      using L2Op                  = cuvs::distance::detail::ops::l2_exp_cutlass_op<DataT, DataT>;
+      using kvp_cg_min_reduce_op_ = kvp_cg_min_reduce_op<DataT, IdxT, OutT>;
+      kvp_cg_min_reduce_op_ cg_reduce_op;
+      L2Op L2_dist_op(sqrt);
+
+      IdxT lda, ldb, ldd;
+      lda = k, ldb = k, ldd = n;
+
+      cutlassFusedDistanceNN<DataT,
+                            DataT,
+                            OutT,
+                            IdxT,
+                            P::Veclen,
+                            kvp_cg_min_reduce_op_,
+                            L2Op,
+                            ReduceOpT,
+                            KVPReduceOpT>(x,
+                                          y,
+                                          xn,
+                                          yn,
+                                          m,
+                                          n,
+                                          k,
+                                          lda,
+                                          ldb,
+                                          ldd,
+                                          min,
+                                          workspace,
+                                          cg_reduce_op,
+                                          L2_dist_op,
+                                          redOp,
+                                          pairRedOp,
+                                          stream);
+    } else {
+      // If device less than SM_80, use fp32 SIMT kernel.
+      constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));
+      dim3 grid                  = launchConfigGenerator<P>(m, n, shmemSize, kernel);
+
+      kernel<<<grid, blk, shmemSize, stream>>>(
+        min, x, y, xn, yn, m, n, k, maxVal, workspace, redOp, pairRedOp, distance_op, fin_op);
+      RAFT_CUDA_TRY(cudaGetLastError());
+    }
+  #endif
 }
 
 }  // namespace detail

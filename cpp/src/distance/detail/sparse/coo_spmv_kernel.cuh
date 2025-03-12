@@ -12,16 +12,43 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ * 
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
 
 #include <raft/core/detail/macros.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <raft/util/warp_primitives.cuh>
+
+#include <hipcub/block/block_load.hpp>
+#include <hipcub/block/block_radix_sort.hpp>
+#include <hipcub/block/block_store.hpp>
+#include <hipcub/hipcub.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_radix_sort.cuh>
 #include <cub/block/block_store.cuh>
 #include <cub/cub.cuh>
+#endif
 
 namespace cuvs {
 namespace distance {
@@ -192,10 +219,10 @@ RAFT_KERNEL balanced_coo_generalized_spmv_kernel(strategy_t strategy,
 
     bool diff_rows = next_row_b != cur_row_b;
 
-    if (__any_sync(0xffffffff, diff_rows)) {
+    if (__any_sync(raft::LANE_MASK_ALL, diff_rows)) {
       // grab the threads currently participating in loops.
       // because any other threads should have returned already.
-      unsigned int peer_group = __match_any_sync(0xffffffff, cur_row_b);
+      unsigned int peer_group = __match_any_sync<bitmask_type, value_t>(raft::LANE_MASK_ALL, cur_row_b);
       bool is_leader          = get_lowest_peer(peer_group) == lane_id;
       value_t v               = warp_red.HeadSegmentedReduce(c, is_leader, accum_func);
 

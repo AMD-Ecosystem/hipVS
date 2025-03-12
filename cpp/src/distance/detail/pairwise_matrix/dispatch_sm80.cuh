@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ 
 #pragma once
 
 #include "../pairwise_distance_cutlass_base.cuh"  // cutlassDistanceKernel
@@ -67,3 +68,4 @@ void pairwise_matrix_sm80_dispatch(OpT distance_op,
 }
 
 };  // namespace cuvs::distance::detail
+

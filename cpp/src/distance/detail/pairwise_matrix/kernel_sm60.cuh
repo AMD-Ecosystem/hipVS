@@ -35,12 +35,14 @@ template <typename Policy,
 __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL
   pairwise_matrix_kernel(OpT distance_op, pairwise_matrix_params<IdxT, DataT, OutT, FinOpT> params)
 {
+  #ifndef __HIP_PLATFORM_AMD__
   // Early exit to minimize the size of the kernel when it is not supposed to be compiled.
   constexpr SM_compat_t sm_compat_range{};
   if constexpr (!sm_compat_range.contains(raft::util::arch::SM_compute_arch())) {
     assert(false);
     return;
   }
+  #endif
 
   extern __shared__ char smem[];
 

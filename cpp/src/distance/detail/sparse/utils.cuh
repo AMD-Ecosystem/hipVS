@@ -12,15 +12,38 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ * 
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
 
 #include <raft/core/math.hpp>
+#include <raft/util/cudart_utils.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hipcub/hipcub.hpp>
+namespace cub = hipcub;
+#include <hip/hip_fp16.h>
+#else
 #include <cub/cub.cuh>
 #include <cuda_fp16.h>
-#include <cuda_pipeline.h>
+#endif
 
 namespace cuvs {
 namespace distance {
@@ -34,10 +57,10 @@ namespace sparse {
  * @return the maximum number of columns that can be stored in smem
  */
 template <typename value_idx, typename value_t, int tpb = 1024>
-inline int max_cols_per_block()
+inline int max_cols_per_block(int device_id)
 {
   // max cols = (total smem available - cub reduction smem)
-  return (raft::getSharedMemPerBlock() - ((tpb / raft::warp_size()) * sizeof(value_t))) /
+  return (raft::getSharedMemPerBlock() - ((tpb / raft::host_warp_size(device_id)) * sizeof(value_t))) /
          sizeof(value_t);
 }
 
@@ -76,7 +99,9 @@ RAFT_KERNEL faster_dot_on_csr_kernel(dot_t* __restrict__ dot,
 
       dot_t l_dot_ = 0.0;
       for (value_idx k = vec_id; k < dim; k += blockDim.x) {
+        #ifndef __HIP_PLATFORM_AMD__
         asm("prefetch.global.L2 [%0];" ::"l"(B_col + k + blockDim.x));
+        #endif
         if constexpr ((std::is_same_v<dot_t, float> && std::is_same_v<value_t, half>)) {
           l_dot_ += __half2float(s_A[k]) * __half2float(__ldcg(B_col + k));
         } else {
