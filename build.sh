@@ -383,18 +383,19 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
 
     mkdir -p ${LIBCUVS_BUILD_DIR}
     cd ${LIBCUVS_BUILD_DIR}
+    #TODO(AMD/HIP): Enable DBUILD_C_LIBRARY and DBUILD_C_TESTS in final
     cmake -S ${REPODIR}/cpp -B ${LIBCUVS_BUILD_DIR} \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_CUDA_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DCUDA_BACKEND=${BUILD_CUDA} \
-          -DBUILD_C_LIBRARY=OFF \       #TODO(AMD/HIP): Change to ${COMPILE_LIBRARY} in final release
+          -DBUILD_C_LIBRARY=OFF \
           -DCUVS_NVTX=${NVTX} \
           -DCUDA_LOG_COMPILE_TIME=${LOG_COMPILE_TIME} \
           -DDISABLE_DEPRECATION_WARNINGS=${DISABLE_DEPRECATION_WARNINGS} \
           -DBUILD_TESTS=${BUILD_TESTS} \
-          -DBUILD_C_TESTS=OFF \         #TODO(AMD/HIP): Change to ${BUILD_TESTS} in final release
+          -DBUILD_C_TESTS=OFF \
           -DBUILD_CUVS_BENCH=${BUILD_CUVS_BENCH} \
           -DBUILD_CPU_ONLY=${BUILD_CPU_ONLY} \
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \

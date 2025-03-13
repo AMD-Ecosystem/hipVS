@@ -42,7 +42,7 @@ endif()
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
   file(
     DOWNLOAD
-    "https://raw.githubusercontent.com/ROCm/ROCmDS-cmake/${RAPIDS_VERSION_MAJOR_MINOR}-update/RAPIDS.cmake"
+    "https://raw.githubusercontent.com/ROCm/ROCmDS-cmake/branch-${RAPIDS_VERSION_MAJOR_MINOR}/RAPIDS.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake"
   )
 endif()
