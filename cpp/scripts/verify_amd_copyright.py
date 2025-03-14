@@ -31,8 +31,8 @@ from pathlib import Path
 
 
 # To be updated every time we pull in upstream changes.
-# See: https://github.com/AMD-AI/raft/commit/8ef71de26b01458f02f36ad96c1b3017cf985cc5
-BASE_COMMIT_HASH = "8ef71de26b01458f02f36ad96c1b3017cf985cc5"
+# See: https://github.com/AMD-AI/hipVS/commit/2b7dce65abf8334664f00c7bb23076caaf603f6e
+BASE_COMMIT_HASH = "2b7dce65abf8334664f00c7bb23076caaf603f6e"
 
 CURRENT_YEAR = str(datetime.now().year)
 BASE_PATTERN = "Advanced Micro Devices"

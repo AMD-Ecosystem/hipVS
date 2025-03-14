@@ -39,6 +39,10 @@
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
+#ifdef __HIP_PLATFORM_AMD__
+#include <raft/cuda_runtime.h>
+#include <raft/library_types.h>
+#endif
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_scalar.hpp>
@@ -138,8 +142,12 @@ struct with_mapped_memory_t {
   {
     int dev_id, readonly_supported;
     RAFT_CUDA_TRY(cudaGetDevice(&dev_id));
+#ifdef __HIP_PLATFORM_AMD__
+    readonly_supported = false;
+#else
     RAFT_CUDA_TRY(cudaDeviceGetAttribute(
       &readonly_supported, cudaDevAttrHostRegisterReadOnlySupported, dev_id));
+#endif
     if (readonly_supported) {
       return cudaHostRegisterMapped | cudaHostRegisterReadOnly;
     } else {

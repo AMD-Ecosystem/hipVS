@@ -77,11 +77,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # * User Options  ------------------------------------------------------------
 
 option(BUILD_SHARED_LIBS "Build cuvs shared libraries" ON)
-option(TEMP_DISABLE "Temporarily disable building specific modules/files" ON) # TODO(AMD/HIP): Remove in final
+# TODO(AMD/HIP): Remove in final
+option(TEMP_DISABLE "Temporarily disable building specific modules/files" ON)
 option(BUILD_TESTS "Build cuvs unit-tests" ON)
-option(BUILD_C_LIBRARY "Build cuVS C API library" OFF) # TODO(AMD/HIP): Change to ON in final
+# TODO(AMD/HIP): Change to ON in final
+option(BUILD_C_LIBRARY "Build cuVS C API library" OFF)
 option(BUILD_CUVS_BENCH "Build cuVS ann benchmarks" OFF)
-option(BUILD_CAGRA_HNSWLIB "Build CAGRA+hnswlib interface" OFF) # TODO(AMD/HIP): Change to ON in final
+# TODO(AMD/HIP): Change to ON in final
+option(BUILD_CAGRA_HNSWLIB "Build CAGRA+hnswlib interface" OFF)
 option(BUILD_MG_ALGOS "Build with multi-GPU support" OFF) # TODO(AMD/HIP): Change to ON in final
 option(CUDA_ENABLE_KERNELINFO "Enable kernel resource usage info" OFF)
 option(CUDA_ENABLE_LINEINFO
@@ -435,7 +438,8 @@ if(BUILD_SHARED_LIBS)
     src/distance/distance.cu
     src/distance/pairwise_distance.cu
     src/distance/sparse_distance.cu
-    # src/embed/spectral.cu src/neighbors/brute_force.cu src/neighbors/brute_force_serialize.cu
+    src/neighbors/brute_force.cu
+    # src/embed/spectral.cu src/neighbors/brute_force_serialize.cu
     # src/neighbors/cagra_build_float.cu src/neighbors/cagra_build_half.cu
     # src/neighbors/cagra_build_int8.cu src/neighbors/cagra_build_uint8.cu
     # src/neighbors/cagra_extend_float.cu src/neighbors/cagra_extend_int8.cu
@@ -453,7 +457,8 @@ if(BUILD_SHARED_LIBS)
     # src/neighbors/iface/iface_pq_int8_t_int64_t.cu src/neighbors/iface/iface_pq_uint8_t_int64_t.cu
     # src/neighbors/detail/cagra/cagra_build.cpp src/neighbors/detail/cagra/topk_for_cagra/topk.cu
     # src/neighbors/dynamic_batching.cu $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:src/neighbors/hnsw.cpp>
-    # src/neighbors/ivf_flat_index.cpp src/neighbors/ivf_flat/ivf_flat_build_extend_float_int64_t.cu
+    src/neighbors/ivf_flat_index.cpp
+    # src/neighbors/ivf_flat/ivf_flat_build_extend_float_int64_t.cu
     # src/neighbors/ivf_flat/ivf_flat_build_extend_int8_t_int64_t.cu
     # src/neighbors/ivf_flat/ivf_flat_build_extend_uint8_t_int64_t.cu
     # src/neighbors/ivf_flat/ivf_flat_helpers.cu
@@ -490,20 +495,24 @@ if(BUILD_SHARED_LIBS)
     # src/neighbors/nn_descent_float.cu src/neighbors/nn_descent_half.cu
     # src/neighbors/nn_descent_index.cpp src/neighbors/nn_descent_int8.cu
     # src/neighbors/nn_descent_uint8.cu src/neighbors/reachability.cu
-    # src/neighbors/refine/detail/refine_device_float_float.cu
-    # src/neighbors/refine/detail/refine_device_half_float.cu
-    # src/neighbors/refine/detail/refine_device_int8_t_float.cu
-    # src/neighbors/refine/detail/refine_device_uint8_t_float.cu
-    # src/neighbors/refine/detail/refine_host_float_float.cpp
-    # src/neighbors/refine/detail/refine_host_half_float.cpp
-    # src/neighbors/refine/detail/refine_host_int8_t_float.cpp
-    # src/neighbors/refine/detail/refine_host_uint8_t_float.cpp src/neighbors/sample_filter.cu
-    # src/neighbors/sparse_brute_force.cu src/neighbors/vamana_build_float.cu
-    # src/neighbors/vamana_build_uint8.cu src/neighbors/vamana_build_int8.cu
-    # src/neighbors/vamana_serialize_float.cu src/neighbors/vamana_serialize_uint8.cu
-    # src/neighbors/vamana_serialize_int8.cu src/preprocessing/quantize/scalar.cu
-    # src/selection/select_k_float_int64_t.cu src/selection/select_k_float_int32_t.cu
-    # src/selection/select_k_float_uint32_t.cu src/selection/select_k_half_uint32_t.cu
+    src/neighbors/refine/detail/refine_device_float_float.cu
+    src/neighbors/refine/detail/refine_device_half_float.cu
+    src/neighbors/refine/detail/refine_device_int8_t_float.cu
+    src/neighbors/refine/detail/refine_device_uint8_t_float.cu
+    src/neighbors/refine/detail/refine_host_float_float.cpp
+    src/neighbors/refine/detail/refine_host_half_float.cpp
+    src/neighbors/refine/detail/refine_host_int8_t_float.cpp
+    src/neighbors/refine/detail/refine_host_uint8_t_float.cpp
+    src/neighbors/sample_filter.cu
+    src/neighbors/sparse_brute_force.cu
+    # src/neighbors/vamana_build_float.cu src/neighbors/vamana_build_uint8.cu
+    # src/neighbors/vamana_build_int8.cu src/neighbors/vamana_serialize_float.cu
+    # src/neighbors/vamana_serialize_uint8.cu src/neighbors/vamana_serialize_int8.cu
+    # src/preprocessing/quantize/scalar.cu
+    src/selection/select_k_float_int64_t.cu
+    src/selection/select_k_float_int32_t.cu
+    src/selection/select_k_float_uint32_t.cu
+    src/selection/select_k_half_uint32_t.cu
     src/stats/silhouette_score.cu
     # src/stats/trustworthiness_score.cu
     ${CUVS_MG_ALGOS}

@@ -16,4 +16,13 @@
 
 #include "./select_k.cuh"
 
-instantiate_cuvs_selection_select_k(half, uint32_t);
+// TODO: (HIP/AMD) Requires resolution of https://github.com/ROCm/clr/issues/147 for this specialization to be enabled.
+// ============================================================================================
+//  Exact error: message:
+//   hipVS/cpp/build/_deps/raft-src/cpp/include/raft/util/cudart_utils.hpp:476:75: note: assignment
+//   to member '__x' of union with active member 'data' is not allowed in a constant expression 476
+//   |   constexpr explicit inline __half_constexpr(uint16_t u) : __half() { __x = u; }
+// ============================================================================================
+// The default construction of the __half type is not marked constexpr.
+//
+// instantiate_cuvs_selection_select_k(half, uint32_t);

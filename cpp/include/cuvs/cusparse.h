@@ -28,6 +28,7 @@
 #endif
 
 #include <hipsparse/hipsparse.h>
+#include <raft/cusparse.h>
 
 // types
 #define cusparseAction_t      hipsparseAction_t

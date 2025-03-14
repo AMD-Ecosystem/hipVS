@@ -20,4 +20,4 @@
 # NOTE(HIP/AMD): Language rule overrides must be placed in a separate file according to
 # https://discourse.cmake.org/t/extend-list-of-file-extensions-for-a-language-globally-for-the-whole-project/7307/6
 
-set(CMAKE_HIP_SOURCE_FILE_EXTENSIONS hip;cu)
+set(CMAKE_HIP_SOURCE_FILE_EXTENSIONS hip;cu;cpp)

@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,8 @@
 #ifdef __HIP_PLATFORM_AMD__
 #include <hipcub/hipcub.hpp>
 namespace cub = hipcub;
+#include <raft/amd_warp_primitives.h>
+using namespace hip_warp_primitives;
 #else
 #include <cub/cub.cuh>
 #endif
@@ -169,8 +171,8 @@ template <typename Pair, int NumWarpQRegs, typename myWarpSelect>
 DI void updateSortedWarpQ(
   myWarpSelect& heapArr, Pair* allWarpTopKs, int rowId, int finalNumVals, int startId = 0)
 {
-  constexpr uint32_t mask = 0xffffffffu;
-  const int lid           = raft::laneId();
+  constexpr bitmask_type mask = LANE_MASK_ALL;
+  const int lid               = raft::laneId();
   // calculate srcLane such that tid 0 -> 31, 1 -> 0,... 31 -> 30.
   // warp around 0 to 31 required for NN > 32
   const auto srcLane = (warpSize + (lid - 1)) & (warpSize - 1);
@@ -179,12 +181,12 @@ DI void updateSortedWarpQ(
     Pair KVPair = allWarpTopKs[rowId * (256) + k];
 #pragma unroll
     for (int i = 0; i < NumWarpQRegs; i++) {
-      unsigned activeLanes = __ballot_sync(mask, KVPair.value < heapArr->warpK[i]);
+      bitmask_type activeLanes = __ballot_sync(mask, KVPair.value < heapArr->warpK[i]);
       if (activeLanes) {
         Pair tempKV;
         tempKV.value               = raft::shfl(heapArr->warpK[i], srcLane);
         tempKV.key                 = raft::shfl(heapArr->warpV[i], srcLane);
-        const auto firstActiveLane = __ffs(activeLanes) - 1;
+        const auto firstActiveLane = __FFS(activeLanes) - 1;
         if (firstActiveLane == lid) {
           heapArr->warpK[i] = KVPair.value;
           heapArr->warpV[i] = KVPair.key;
@@ -192,14 +194,21 @@ DI void updateSortedWarpQ(
           heapArr->warpK[i] = tempKV.value;
           heapArr->warpV[i] = tempKV.key;
         }
-        if (i == 0 && NumWarpQRegs > 1) {
-          heapArr->warpK[1] = __shfl_up_sync(mask, heapArr->warpK[1], 1);
-          heapArr->warpV[1] = __shfl_up_sync(mask, heapArr->warpV[1], 1);
-          if (lid == 0) {
-            heapArr->warpK[1] = tempKV.value;
-            heapArr->warpV[1] = tempKV.key;
+        if (i == 0) {
+          // There are cases where raft::neighbors::detail::faiss_select::WarpSelect has been
+          // instantiated with kNumWarpQRegs == 1, that is warpK & warpV are arrays of size 1. We
+          // can't index into the second element as there is no second element. This constexpr
+          // clause ensures that the following logic is only for when kNumWarpQRegs > 1 to prevent
+          // indexing out of array bounds.
+          if constexpr (NumWarpQRegs > 1) {
+            heapArr->warpK[1] = __shfl_up_sync(mask, heapArr->warpK[1], 1);
+            heapArr->warpV[1] = __shfl_up_sync(mask, heapArr->warpV[1], 1);
+            if (lid == 0) {
+              heapArr->warpK[1] = tempKV.value;
+              heapArr->warpV[1] = tempKV.key;
+            }
+            break;
           }
-          break;
         }
       }
     }
@@ -241,7 +250,8 @@ __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL fusedL2kNN(const DataT* x,
   constexpr auto keyMax   = std::numeric_limits<uint32_t>::max();
   constexpr auto Dir      = false;
   using namespace raft::neighbors::detail::faiss_select;
-  typedef WarpSelect<AccT, uint32_t, Dir, Comparator<AccT>, NumWarpQ, NumThreadQ, 32> myWarpSelect;
+  typedef WarpSelect<AccT, uint32_t, Dir, Comparator<AccT>, NumWarpQ, NumThreadQ, raft::warp_size()>
+    myWarpSelect;
 
   auto rowEpilog_lambda =
     [m, n, &distance_op, numOfNN, out_dists, out_inds, mutexes] __device__(IdxT gridStrideY) {
@@ -327,7 +337,7 @@ __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL fusedL2kNN(const DataT* x,
           const auto rowId = starty + i * Policy::AccThRows;
           if (rowId < m) {
             bool needSort = (heapArr[i]->numVals > 0);
-            needSort      = __any_sync(0xffffffff, needSort);
+            needSort      = __any_sync(LANE_MASK_ALL, needSort);
             if (needSort) { heapArr[i]->reduce(); }
           }
         }
@@ -373,10 +383,10 @@ __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL fusedL2kNN(const DataT* x,
       int smem_offset = OpT::template shared_mem_size<Policy>();
       Pair* shDumpKV  = (Pair*)(&smem[smem_offset]);
 
-      constexpr uint32_t mask = 0xffffffffu;
-      const IdxT starty       = gridStrideY + (threadIdx.x / Policy::AccThCols);
-      const IdxT startx       = gridStrideX + (threadIdx.x % Policy::AccThCols);
-      const int lid           = raft::laneId();
+      constexpr bitmask_type mask = LANE_MASK_ALL;
+      const IdxT starty           = gridStrideY + (threadIdx.x / Policy::AccThCols);
+      const IdxT startx           = gridStrideX + (threadIdx.x % Policy::AccThCols);
+      const int lid               = raft::laneId();
 
       myWarpSelect heapArr1(identity, keyMax, numOfNN);
       myWarpSelect heapArr2(identity, keyMax, numOfNN);
@@ -427,7 +437,7 @@ __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL fusedL2kNN(const DataT* x,
               needScanSort[i] = __ballot_sync(mask, myVals > 0);
               if (needScanSort[i]) {
 #pragma unroll
-                for (unsigned int k = 1; k <= 16; k *= 2) {
+                for (unsigned int k = 1; k <= (raft::warp_size() / 2); k *= 2) {
                   const unsigned int n = __shfl_up_sync(mask, numValsWarpTopK[i], k);
                   if (lid >= k) { numValsWarpTopK[i] += n; }
                 }
@@ -440,13 +450,13 @@ __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL fusedL2kNN(const DataT* x,
             if (needScanSort[i]) {
               const auto rowId = (threadIdx.x / Policy::AccThCols) + i * Policy::AccThRows;
               if (gmemRowId < m) {
-                if (needScanSort[i] & ((uint32_t)1 << lid)) {
+                if (needScanSort[i] & (static_cast<bitmask_type>(1) << lid)) {
 #pragma unroll
                   for (int j = 0; j < Policy::AccColsPerTh; ++j) {
                     const auto colId = startx + j * Policy::AccThCols;
                     if (colId < ldd) {
                       if (acc[i][j] < heapArr[i]->warpKTop) {
-                        Pair otherKV                                     = {colId, acc[i][j]};
+                        Pair otherKV = {static_cast<unsigned int>(colId), acc[i][j]};
                         allWarpTopKs[rowId * (256) + numValsWarpTopK[i]] = otherKV;
                         numValsWarpTopK[i]++;
                       }
@@ -454,7 +464,7 @@ __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL fusedL2kNN(const DataT* x,
                   }
                 }
                 __syncwarp();
-                const int finalNumVals = raft::shfl(numValsWarpTopK[i], 31);
+                const int finalNumVals = raft::shfl(numValsWarpTopK[i], raft::warp_size() - 1);
                 loadWarpQShmem<Policy, Pair>(heapArr[i], &shDumpKV[0], rowId, numOfNN);
                 updateSortedWarpQ<Pair, myWarpSelect::kNumWarpQRegisters>(
                   heapArr[i], &allWarpTopKs[0], rowId, finalNumVals);
@@ -541,7 +551,8 @@ template <typename DataT,
           typename IdxT,
           int VecLen,
           bool usePrevTopKs,
-          bool isRowMajor>
+          bool isRowMajor,
+          int _WarpSize>
 void fusedL2UnexpKnnImpl(const DataT* x,
                          const DataT* y,
                          IdxT m,
@@ -558,7 +569,7 @@ void fusedL2UnexpKnnImpl(const DataT* x,
                          void* workspace,
                          size_t& worksize)
 {
-  typedef typename raft::linalg::Policy2x8<AccT, 1>::Policy RowPolicy;
+  typedef typename raft::linalg::Policy2x8<AccT, _WarpSize, 1>::Policy RowPolicy;
   typedef typename raft::linalg::Policy4x4<AccT, VecLen>::ColPolicy ColPolicy;
 
   typedef typename std::conditional<true, RowPolicy, ColPolicy>::type KPolicy;
@@ -594,8 +605,8 @@ void fusedL2UnexpKnnImpl(const DataT* x,
                                                           usePrevTopKs,
                                                           isRowMajor>;
 
-    auto fusedL2UnexpKnnRowMajor = fusedL2UnexpKnn32RowMajor;
-    if (numOfNN <= 32) {
+    auto fusedL2UnexpKnnRowMajor = fusedL2UnexpKnn64RowMajor;
+    if (numOfNN <= 32 && raft::host_warp_size(stream) == 32) {
       fusedL2UnexpKnnRowMajor = fusedL2UnexpKnn32RowMajor;
     } else if (numOfNN <= 64) {
       fusedL2UnexpKnnRowMajor = fusedL2UnexpKnn64RowMajor;
@@ -645,6 +656,68 @@ template <typename DataT,
           typename AccT,
           typename OutT,
           typename IdxT,
+          int VecLen,
+          bool usePrevTopKs,
+          bool isRowMajor>
+inline void fusedL2UnexpKnnImplDispatcher(const DataT* x,
+                                          const DataT* y,
+                                          IdxT m,
+                                          IdxT n,
+                                          IdxT k,
+                                          IdxT lda,
+                                          IdxT ldb,
+                                          IdxT ldd,
+                                          bool sqrt,
+                                          OutT* out_dists,
+                                          IdxT* out_inds,
+                                          IdxT numOfNN,
+                                          cudaStream_t stream,
+                                          void* workspace,
+                                          size_t& worksize)
+{
+  if (host_warp_size(stream) == 64) {
+    constexpr int kWarpSize = 64;
+    fusedL2UnexpKnnImpl<DataT, AccT, OutT, IdxT, VecLen, usePrevTopKs, isRowMajor, kWarpSize>(
+      x,
+      y,
+      m,
+      n,
+      k,
+      lda,
+      ldb,
+      ldd,
+      sqrt,
+      out_dists,
+      out_inds,
+      numOfNN,
+      stream,
+      workspace,
+      worksize);
+  } else {
+    constexpr int kWarpSize = 32;
+    fusedL2UnexpKnnImpl<DataT, AccT, OutT, IdxT, VecLen, usePrevTopKs, isRowMajor, kWarpSize>(
+      x,
+      y,
+      m,
+      n,
+      k,
+      lda,
+      ldb,
+      ldd,
+      sqrt,
+      out_dists,
+      out_inds,
+      numOfNN,
+      stream,
+      workspace,
+      worksize);
+  }
+}
+
+template <typename DataT,
+          typename AccT,
+          typename OutT,
+          typename IdxT,
           bool usePrevTopKs,
           bool isRowMajor>
 void fusedL2UnexpKnn(IdxT m,
@@ -666,55 +739,65 @@ void fusedL2UnexpKnn(IdxT m,
   size_t bytesA = sizeof(DataT) * lda;
   size_t bytesB = sizeof(DataT) * ldb;
   if (16 % sizeof(DataT) == 0 && bytesA % 16 == 0 && bytesB % 16 == 0) {
-    fusedL2UnexpKnnImpl<DataT, AccT, OutT, IdxT, 16 / sizeof(DataT), usePrevTopKs, isRowMajor>(
-      x,
-      y,
-      m,
-      n,
-      k,
-      lda,
-      ldb,
-      ldd,
-      sqrt,
-      out_dists,
-      out_inds,
-      numOfNN,
-      stream,
-      workspace,
-      worksize);
+    fusedL2UnexpKnnImplDispatcher<DataT,
+                                  AccT,
+                                  OutT,
+                                  IdxT,
+                                  16 / sizeof(DataT),
+                                  usePrevTopKs,
+                                  isRowMajor>(x,
+                                              y,
+                                              m,
+                                              n,
+                                              k,
+                                              lda,
+                                              ldb,
+                                              ldd,
+                                              sqrt,
+                                              out_dists,
+                                              out_inds,
+                                              numOfNN,
+                                              stream,
+                                              workspace,
+                                              worksize);
   } else if (8 % sizeof(DataT) == 0 && bytesA % 8 == 0 && bytesB % 8 == 0) {
-    fusedL2UnexpKnnImpl<DataT, AccT, OutT, IdxT, 8 / sizeof(DataT), usePrevTopKs, isRowMajor>(
-      x,
-      y,
-      m,
-      n,
-      k,
-      lda,
-      ldb,
-      ldd,
-      sqrt,
-      out_dists,
-      out_inds,
-      numOfNN,
-      stream,
-      workspace,
-      worksize);
+    fusedL2UnexpKnnImplDispatcher<DataT,
+                                  AccT,
+                                  OutT,
+                                  IdxT,
+                                  8 / sizeof(DataT),
+                                  usePrevTopKs,
+                                  isRowMajor>(x,
+                                              y,
+                                              m,
+                                              n,
+                                              k,
+                                              lda,
+                                              ldb,
+                                              ldd,
+                                              sqrt,
+                                              out_dists,
+                                              out_inds,
+                                              numOfNN,
+                                              stream,
+                                              workspace,
+                                              worksize);
   } else {
-    fusedL2UnexpKnnImpl<DataT, AccT, OutT, IdxT, 1, usePrevTopKs, isRowMajor>(x,
-                                                                              y,
-                                                                              m,
-                                                                              n,
-                                                                              k,
-                                                                              lda,
-                                                                              ldb,
-                                                                              ldd,
-                                                                              sqrt,
-                                                                              out_dists,
-                                                                              out_inds,
-                                                                              numOfNN,
-                                                                              stream,
-                                                                              workspace,
-                                                                              worksize);
+    fusedL2UnexpKnnImplDispatcher<DataT, AccT, OutT, IdxT, 1, usePrevTopKs, isRowMajor>(x,
+                                                                                        y,
+                                                                                        m,
+                                                                                        n,
+                                                                                        k,
+                                                                                        lda,
+                                                                                        ldb,
+                                                                                        ldd,
+                                                                                        sqrt,
+                                                                                        out_dists,
+                                                                                        out_inds,
+                                                                                        numOfNN,
+                                                                                        stream,
+                                                                                        workspace,
+                                                                                        worksize);
   }
 }
 
@@ -724,7 +807,8 @@ template <typename DataT,
           typename IdxT,
           int VecLen,
           bool usePrevTopKs,
-          bool isRowMajor>
+          bool isRowMajor,
+          int _WarpSize>
 void fusedL2ExpKnnImpl(const DataT* x,
                        const DataT* y,
                        const AccT* xn,
@@ -743,7 +827,7 @@ void fusedL2ExpKnnImpl(const DataT* x,
                        void* workspace,
                        size_t& worksize)
 {
-  typedef typename raft::linalg::Policy2x8<AccT, 1>::Policy RowPolicy;
+  typedef typename raft::linalg::Policy2x8<DataT, _WarpSize, 1>::Policy RowPolicy;
   typedef typename raft::linalg::Policy4x4<AccT, VecLen>::ColPolicy ColPolicy;
 
   typedef typename std::conditional<true, RowPolicy, ColPolicy>::type KPolicy;
@@ -783,8 +867,8 @@ void fusedL2ExpKnnImpl(const DataT* x,
                                                         usePrevTopKs,
                                                         isRowMajor>;
 
-    auto fusedL2ExpKnnRowMajor = fusedL2ExpKnn32RowMajor;
-    if (numOfNN <= 32) {
+    auto fusedL2ExpKnnRowMajor = fusedL2ExpKnn64RowMajor;
+    if (numOfNN <= 32 && host_warp_size(stream) == 32) {
       fusedL2ExpKnnRowMajor = fusedL2ExpKnn32RowMajor;
     } else if (numOfNN <= 64) {
       fusedL2ExpKnnRowMajor = fusedL2ExpKnn64RowMajor;
@@ -855,6 +939,74 @@ template <typename DataT,
           typename AccT,
           typename OutT,
           typename IdxT,
+          int VecLen,
+          bool usePrevTopKs,
+          bool isRowMajor>
+void fusedL2ExpKnnImplDispatcher(const DataT* x,
+                                 const DataT* y,
+                                 const AccT* xn,
+                                 const AccT* yn,
+                                 IdxT m,
+                                 IdxT n,
+                                 IdxT k,
+                                 IdxT lda,
+                                 IdxT ldb,
+                                 IdxT ldd,
+                                 bool sqrt,
+                                 OutT* out_dists,
+                                 IdxT* out_inds,
+                                 IdxT numOfNN,
+                                 cudaStream_t stream,
+                                 void* workspace,
+                                 size_t& worksize)
+{
+  if (raft::host_warp_size(stream) == 64) {
+    constexpr int kWarpSize = 64;
+    fusedL2ExpKnnImpl<DataT, AccT, OutT, IdxT, VecLen, usePrevTopKs, isRowMajor, kWarpSize>(
+      x,
+      y,
+      xn,
+      yn,
+      m,
+      n,
+      k,
+      lda,
+      ldb,
+      ldd,
+      sqrt,
+      out_dists,
+      out_inds,
+      numOfNN,
+      stream,
+      workspace,
+      worksize);
+  } else {
+    constexpr int kWarpSize = 32;
+    fusedL2ExpKnnImpl<DataT, AccT, OutT, IdxT, VecLen, usePrevTopKs, isRowMajor, kWarpSize>(
+      x,
+      y,
+      xn,
+      yn,
+      m,
+      n,
+      k,
+      lda,
+      ldb,
+      ldd,
+      sqrt,
+      out_dists,
+      out_inds,
+      numOfNN,
+      stream,
+      workspace,
+      worksize);
+  }
+}
+
+template <typename DataT,
+          typename AccT,
+          typename OutT,
+          typename IdxT,
           bool usePrevTopKs,
           bool isRowMajor>
 void fusedL2ExpKnn(IdxT m,
@@ -878,61 +1030,71 @@ void fusedL2ExpKnn(IdxT m,
   size_t bytesA = sizeof(DataT) * lda;
   size_t bytesB = sizeof(DataT) * ldb;
   if (16 % sizeof(DataT) == 0 && bytesA % 16 == 0 && bytesB % 16 == 0) {
-    fusedL2ExpKnnImpl<DataT, AccT, OutT, IdxT, 16 / sizeof(DataT), usePrevTopKs, isRowMajor>(
-      x,
-      y,
-      xn,
-      yn,
-      m,
-      n,
-      k,
-      lda,
-      ldb,
-      ldd,
-      sqrt,
-      out_dists,
-      out_inds,
-      numOfNN,
-      stream,
-      workspace,
-      worksize);
+    fusedL2ExpKnnImplDispatcher<DataT,
+                                AccT,
+                                OutT,
+                                IdxT,
+                                16 / sizeof(DataT),
+                                usePrevTopKs,
+                                isRowMajor>(x,
+                                            y,
+                                            xn,
+                                            yn,
+                                            m,
+                                            n,
+                                            k,
+                                            lda,
+                                            ldb,
+                                            ldd,
+                                            sqrt,
+                                            out_dists,
+                                            out_inds,
+                                            numOfNN,
+                                            stream,
+                                            workspace,
+                                            worksize);
   } else if (8 % sizeof(DataT) == 0 && bytesA % 8 == 0 && bytesB % 8 == 0) {
-    fusedL2ExpKnnImpl<DataT, AccT, OutT, IdxT, 8 / sizeof(DataT), usePrevTopKs, isRowMajor>(
-      x,
-      y,
-      xn,
-      yn,
-      m,
-      n,
-      k,
-      lda,
-      ldb,
-      ldd,
-      sqrt,
-      out_dists,
-      out_inds,
-      numOfNN,
-      stream,
-      workspace,
-      worksize);
+    fusedL2ExpKnnImplDispatcher<DataT,
+                                AccT,
+                                OutT,
+                                IdxT,
+                                8 / sizeof(DataT),
+                                usePrevTopKs,
+                                isRowMajor>(x,
+                                            y,
+                                            xn,
+                                            yn,
+                                            m,
+                                            n,
+                                            k,
+                                            lda,
+                                            ldb,
+                                            ldd,
+                                            sqrt,
+                                            out_dists,
+                                            out_inds,
+                                            numOfNN,
+                                            stream,
+                                            workspace,
+                                            worksize);
   } else {
-    fusedL2ExpKnnImpl<DataT, AccT, OutT, IdxT, 1, usePrevTopKs, isRowMajor>(x,
-                                                                            y,
-                                                                            xn,
-                                                                            yn,
-                                                                            m,
-                                                                            n,
-                                                                            k,
-                                                                            lda,
-                                                                            ldb,
-                                                                            ldd,
-                                                                            sqrt,
-                                                                            out_dists,
-                                                                            out_inds,
-                                                                            numOfNN,
-                                                                            stream,
-                                                                            workspace,
-                                                                            worksize);
+    fusedL2ExpKnnImplDispatcher<DataT, AccT, OutT, IdxT, 1, usePrevTopKs, isRowMajor>(x,
+                                                                                      y,
+                                                                                      xn,
+                                                                                      yn,
+                                                                                      m,
+                                                                                      n,
+                                                                                      k,
+                                                                                      lda,
+                                                                                      ldb,
+                                                                                      ldd,
+                                                                                      sqrt,
+                                                                                      out_dists,
+                                                                                      out_inds,
+                                                                                      numOfNN,
+                                                                                      stream,
+                                                                                      workspace,
+                                                                                      worksize);
   }
 }
 

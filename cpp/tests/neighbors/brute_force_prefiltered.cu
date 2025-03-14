@@ -45,13 +45,15 @@
 #include <raft/random/rng_state.hpp>
 #include <raft/util/popc.cuh>
 
-#include <cusparse.h>
 #include <gtest/gtest.h>
 
 #ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cusparse.h>
 #include <hip/hip_fp16.h>
+#include <raft/thrust_execution_policy.h>
 #else
 #include <cuda_fp16.h>
+#include <cusparse.h>
 #endif
 #include <thrust/device_vector.h>
 #include <thrust/iterator/transform_iterator.h>
@@ -455,7 +457,7 @@ class PrefilteredBruteForceOnBitmapTest
       thrust::device_ptr<dist_t> d_output_ptr =
         thrust::device_pointer_cast(blobs_in_val.data_handle());
       thrust::device_ptr<value_t> d_value_ptr = thrust::device_pointer_cast(dataset_d.data());
-      thrust::transform(thrust::cuda::par.on(stream),
+      thrust::transform(THRUST_EXECUTION_POLICY.on(stream),
                         d_output_ptr,
                         d_output_ptr + dataset_size,
                         d_value_ptr,
@@ -469,7 +471,7 @@ class PrefilteredBruteForceOnBitmapTest
       thrust::device_ptr<dist_t> d_output_ptr =
         thrust::device_pointer_cast(blobs_in_val.data_handle() + dataset_size);
       thrust::device_ptr<value_t> d_value_ptr = thrust::device_pointer_cast(queries_d.data());
-      thrust::transform(thrust::cuda::par.on(stream),
+      thrust::transform(THRUST_EXECUTION_POLICY.on(stream),
                         d_output_ptr,
                         d_output_ptr + queries_size,
                         d_value_ptr,
@@ -885,7 +887,7 @@ class PrefilteredBruteForceOnBitsetTest
       thrust::device_ptr<dist_t> d_output_ptr =
         thrust::device_pointer_cast(blobs_in_val.data_handle());
       thrust::device_ptr<value_t> d_value_ptr = thrust::device_pointer_cast(dataset_d.data());
-      thrust::transform(thrust::cuda::par.on(stream),
+      thrust::transform(THRUST_EXECUTION_POLICY.on(stream),
                         d_output_ptr,
                         d_output_ptr + dataset_size,
                         d_value_ptr,
@@ -899,7 +901,7 @@ class PrefilteredBruteForceOnBitsetTest
       thrust::device_ptr<dist_t> d_output_ptr =
         thrust::device_pointer_cast(blobs_in_val.data_handle() + dataset_size);
       thrust::device_ptr<value_t> d_value_ptr = thrust::device_pointer_cast(queries_d.data());
-      thrust::transform(thrust::cuda::par.on(stream),
+      thrust::transform(THRUST_EXECUTION_POLICY.on(stream),
                         d_output_ptr,
                         d_output_ptr + queries_size,
                         d_value_ptr,

@@ -33,7 +33,6 @@
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(RAFT_FORK "AMD-AI")
 #set(RAFT_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
-#set(RAFT_PINNED_TAG "dev_aiss/raft_cuml_features")
 set(RAFT_PINNED_TAG "amd-integration")
 
 function(find_and_configure_raft)
