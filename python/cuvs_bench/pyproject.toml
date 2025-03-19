@@ -32,7 +32,7 @@ authors = [
     { name = "Advanced Micro Devices, Inc." },
     { name = "NVIDIA Corporation" },
 ]
-license = { text = "Apache 2.0 AND MIT" }
+license = { text = "Apache-2.0 AND MIT" }
 requires-python = ">=3.10"
 dependencies = [
     "click",

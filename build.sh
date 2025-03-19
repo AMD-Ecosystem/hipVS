@@ -35,7 +35,7 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --compile-static-lib --allgpuarch --no-shared-libs --show_depr_warn -h --cpu-only"
+VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --allgpuarch --no-shared-libs --show_depr_warn -h --cpu-only"
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-bench-ann=<targets>] [--limit-tests=<targets>] [--gpu-arch="arch"]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -45,16 +45,15 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    rust             - build the cuvs Rust bindings
    docs             - build the documentation
    tests            - build the tests
-   package          - package for CI
-   examples         - build the examples
    bench-ann        - build end-to-end ann benchmarks
+   examples         - build the examples
+   package          - package for CI
 
  and <flag> is:
    -v                          - verbose build mode
    -g                          - build for debug
    -n                          - no install step
    --uninstall                 - uninstall files for specified targets which were built and installed prior
-   --compile-static-lib        - compile static library for all components
    --limit-tests               - semicolon-separated list of test executables to compile (e.g. NEIGHBORS_TEST;CLUSTER_TEST)
    --limit-bench-ann           - semicolon-separated list of ann benchmark executables to compute (e.g. HNSWLIB_ANN_BENCH;RAFT_IVF_PQ_ANN_BENCH)
    --allgpuarch                - build for all supported GPU architectures
