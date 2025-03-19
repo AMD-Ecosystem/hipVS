@@ -121,7 +121,7 @@ repos:
                 exclude: |
                   (?x)
                       docs/source/sphinxext/github_link\.py|
-                      cpp/cmake/modules/FindAVX\.cmake|
+                      cpp/cmake/modules/FindAVX\.cmake
       - repo: https://github.com/codespell-project/codespell
         rev: v2.2.2
         hooks:
