@@ -144,6 +144,7 @@ __global__ void kern_sort(const DATA_T* const dataset,  // [dataset_chunk_size, 
     }
 
     if (metric == cuvs::distance::DistanceType::CosineExpanded) {
+#pragma unroll
       for (int offset = 1; offset < raft::warp_size(); offset *= 2) {
         norm2_dst += __shfl_xor_sync(raft::LANE_MASK_ALL, norm2_dst, offset);
       }
