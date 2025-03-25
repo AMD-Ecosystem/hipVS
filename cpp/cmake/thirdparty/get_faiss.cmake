@@ -69,7 +69,7 @@ function(find_and_configure_faiss)
   endif()
 
   rapids_cpm_find(faiss ${version} ${build_patch_only}
-    GLOBAL_TARGETS faiss faiss_avx2 faiss_gpu faiss::faiss faiss::faiss_avx2
+    GLOBAL_TARGETS faiss faiss_avx2 faiss_gpu_objs faiss::faiss faiss::faiss_avx2
     CPM_ARGS
     GIT_REPOSITORY ${repository}
     GIT_TAG ${tag}
@@ -85,6 +85,10 @@ function(find_and_configure_faiss)
     "CMAKE_MESSAGE_LOG_LEVEL VERBOSE"
     "FAISS_ENABLE_ROCM ON"
     )
+
+
+  include("${rapids-cmake-dir}/cpm/detail/display_patch_status.cmake")
+  rapids_cpm_display_patch_status(faiss)
 
   if(TARGET faiss AND NOT TARGET faiss::faiss)
     add_library(faiss::faiss ALIAS faiss)
