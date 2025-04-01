@@ -42,9 +42,67 @@ set -e
 NUMARGS=$#
 ARGS=$*
 
+function hasArg {
+    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+}
+
+if hasArg clean; then
+  rm -rf c/build
+  rm -rf cpp/build
+  exit 0
+fi
+
+function gpuArch {
+
+    if hasArg --allgpuarch && [[ -n $(echo $ARGS | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
+        echo "Error: Cannot specify both --gpu-arch and --allgpuarch"
+        echo "Use either:"
+        echo "  --gpu-arch=\"gfx90a;gfx942\"    (for specific architectures)"
+        echo "  --allgpuarch        (for all supported architectures)"
+        exit 1
+    fi
+
+    if [[ $(echo $ARGS | { grep -Eo "\-\-gpu\-arch" || true; } | wc -l ) -gt 1 ]]; then
+        echo "Error: Multiple --gpu-arch options were provided. Please combine architectures into a single option."
+        echo "Instead of: --gpu-arch=gfx90a --gpu-arch=gfx942"
+        echo "Use:       --gpu-arch=\"gfx90a;gfx942\""
+        exit 1
+    fi
+
+    if [[ -n $(echo $ARGS | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
+        GPU_ARCH_ARG=$(echo $ARGS | { grep -Eo "\-\-gpu\-arch=.+( |$)" || true; })
+        if [[ -n ${GPU_ARCH_ARG} ]]; then
+            # Extract just the architecture value
+            echo ${GPU_ARCH_ARG} | sed -e 's/--gpu-arch=//' -e 's/ .*//'
+            return
+        fi
+    fi
+
+    # Handle --allgpuarch
+    if hasArg --allgpuarch; then
+        echo "ROCMDS"
+        return
+    fi
+
+    # Default to NATIVE
+    echo "NATIVE"
+}
+
+# Set up build configuration
 PARALLEL_LEVEL=${PARALLEL_LEVEL:=`nproc`}
+
 BUILD_TYPE=${BUILD_TYPE:="Release"}
-HIPVS_CMAKE_HIP_ARCHITECTURES=${HIPVS_CMAKE_HIP_ARCHITECTURES:="NATIVE"}
+BUILD_DIR=build/
+CUVS_REPO_REL=""
+EXTRA_CMAKE_ARGS=""
+
+
+HIPVS_CMAKE_HIP_ARCHITECTURES=$(gpuArch)
+case ${HIPVS_CMAKE_HIP_ARCHITECTURES} in
+    "ROCMDS") echo "Building for *ALL* supported GPU architectures..." ;;
+    "NATIVE") echo "Building for the architecture of the GPU in the system..." ;;
+    *) echo "Building for specified GPU architectures: ${CUVS_CMAKE_CUDA_ARCHITECTURES}" ;;
+esac
 
 # Root of examples
 EXAMPLES_DIR=$(dirname "$(realpath "$0")")
@@ -54,13 +112,6 @@ if [[ ${CUVS_REPO_REL} != "" ]]; then
   CUVS_REPO_PATH="`readlink -f \"${CUVS_REPO_REL}\"`"
   echo "Using existing cuVS source tree at ${CUVS_REPO_PATH}"
   EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -DCPM_cuvs_SOURCE=${CUVS_REPO_PATH}"
-fi
-
-if [ "$1" == "clean" ]; then
-  for lang in ${EXAMPLE_LANGS}; do
-    rm -rf "${EXAMPLES_DIR}/${lang}/build"
-  done
-  exit 0
 fi
 
 ################################################################################
