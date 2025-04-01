@@ -355,19 +355,22 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || 
         CMAKE_TARGET="${CMAKE_TARGET};cuvs"
     fi
 
-    if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
-        HIPVS_CMAKE_HIP_ARCHITECTURES="${HIPVS_CMAKE_HIP_ARCHITECTURES:-NATIVE}"
-        if [[ "$HIPVS_CMAKE_HIP_ARCHITECTURES" == "NATIVE" ]]; then
-            echo "Building for the architecture of the GPU in the system..."
-        else
-            echo "Building for the GPU architecture(s) $HIPVS_CMAKE_HIP_ARCHITECTURES ..."
-        fi
-    else
-        HIPVS_CMAKE_HIP_ARCHITECTURES="RAPIDS"
-        echo "Building for *ALL* supported GPU architectures..."
+    # get the current count before the compile starts
+    CACHE_TOOL=${CACHE_TOOL:-sccache}
+    if [[ "$BUILD_REPORT_INCL_CACHE_STATS" == "ON" && -x "$(command -v ${CACHE_TOOL})" ]]; then
+        "${CACHE_TOOL}" --zero-stats
     fi
 
-    CACHE_TOOL=${CACHE_TOOL:-sccache}
+    # Set default GPU architecture if not already set by gpuArch function
+    if [[ -z "${HIPVS_CMAKE_HIP_ARCHITECTURES}" ]]; then
+        if hasArg --allgpuarch; then
+            HIPVS_CMAKE_HIP_ARCHITECTURES="RAPIDS"
+            echo "Building for *ALL* supported GPU architectures..."
+        else
+            HIPVS_CMAKE_HIP_ARCHITECTURES="NATIVE"
+            echo "Building for the architecture of the GPU in the system..."
+        fi
+    fi
 
     mkdir -p ${LIBCUVS_BUILD_DIR}
     cd ${LIBCUVS_BUILD_DIR}
@@ -412,14 +415,13 @@ if (( ${NUMARGS} == 0 )) || hasArg python; then
     # Build and install cuvs pip package
     SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
-        python -m pip install --no-build-isolation  --no-deps --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cuvs
+        python -m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cuvs
 fi
 
 # Build and (optionally) install the cuvs-bench Python package
 if (( NUMARGS == 0 )) || (hasArg bench-ann && ! hasArg -n); then
     python -m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cuvs_bench
 fi
-
 
 # Build the cuvs Rust bindings
 if (( ${NUMARGS} == 0 )) || hasArg rust; then

@@ -115,6 +115,8 @@ if [[ ${CUVS_REPO_REL} != "" ]]; then
 fi
 
 ################################################################################
+# Add individual libcuvs examples build scripts down below
+
 export CC=hipcc
 export CXX=hipcc
 
