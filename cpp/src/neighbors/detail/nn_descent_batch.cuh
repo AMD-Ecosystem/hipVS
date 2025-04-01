@@ -14,6 +14,25 @@
  * limitations under the License.
  */
 
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 #include <raft/core/resources.hpp>
 #include <raft/util/cudart_utils.hpp>
 #include <sys/types.h>
@@ -35,15 +54,14 @@
 #include <raft/matrix/sample_rows.cuh>
 
 #include <thrust/copy.h>
-
+#ifndef __HIP_PLATFORM_AMD__
 #include <vector_types.h>
+#endif
 
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <optional>
-#include <random>
-#include <type_traits>
 
 namespace cuvs::neighbors::nn_descent::detail::experimental {
 
@@ -169,11 +187,15 @@ void get_global_nearest_k(
       size_t batch_size_ = batch_size;
 
       if (i == num_batches - 1) { batch_size_ = num_rows - batch_size * i; }
-      thrust::copy(raft::resource::get_thrust_policy(res),
-                   nearest_clusters_idx.data_handle() + i * batch_size_ * k,
-                   nearest_clusters_idx.data_handle() + (i + 1) * batch_size_ * k,
-                   nearest_clusters_idxt.data_handle());
-      raft::copy(global_nearest_cluster.data_handle() + i * batch_size_ * k,
+      thrust::copy(
+        raft::resource::get_thrust_policy(res),
+        nearest_clusters_idx.data_handle() + i * batch_size * k,
+        nearest_clusters_idx.data_handle() +
+          (i * batch_size + batch_size_) *
+            k,  // (HIP/AMD)Note: This was changed upstream recently as part of
+                // https://github.com/rapidsai/cuvs/commit/bd6d4a9934ad7f3f3cf2e2c6446abdbdf10ffba0
+        nearest_clusters_idxt.data_handle());
+      raft::copy(global_nearest_cluster.data_handle() + i * batch_size * k,
                  nearest_clusters_idxt.data_handle(),
                  batch_size_ * k,
                  resource::get_cuda_stream(res));
@@ -637,9 +659,9 @@ void batch_build(raft::resources const& res,
   }
 
   size_t extended_graph_degree =
-    align32::roundUp(static_cast<size_t>(graph_degree * (graph_degree <= 32 ? 1.0 : 1.3)));
-  size_t extended_intermediate_degree = align32::roundUp(
-    static_cast<size_t>(intermediate_degree * (intermediate_degree <= 32 ? 1.0 : 1.3)));
+    align64::roundUp(static_cast<size_t>(graph_degree * (graph_degree <= 64 ? 1.0 : 1.3)));
+  size_t extended_intermediate_degree = align64::roundUp(
+    static_cast<size_t>(intermediate_degree * (intermediate_degree <= 64 ? 1.0 : 1.3)));
 
   auto int_graph = raft::make_host_matrix<int, int64_t, row_major>(
     max_cluster_size, static_cast<int64_t>(extended_graph_degree));
@@ -650,7 +672,8 @@ void batch_build(raft::resources const& res,
                            .internal_node_degree  = extended_intermediate_degree,
                            .max_iterations        = params.max_iterations,
                            .termination_threshold = params.termination_threshold,
-                           .output_graph_degree   = graph_degree};
+                           .output_graph_degree   = graph_degree,
+                           .metric                = params.metric};
 
   auto global_indices_h   = raft::make_managed_matrix<IdxT, int64_t>(res, num_rows, graph_degree);
   auto global_distances_h = raft::make_managed_matrix<float, int64_t>(res, num_rows, graph_degree);

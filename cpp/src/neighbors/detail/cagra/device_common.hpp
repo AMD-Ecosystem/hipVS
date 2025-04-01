@@ -45,6 +45,8 @@
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <hip/hip_fp16.h>
+#include <rocprim/rocprim.hpp>
+using namespace hip_warp_primitives;
 #else
 #include <cuda_fp16.h>
 #endif
@@ -272,136 +274,251 @@ RAFT_DEVICE_INLINE_FUNCTION void compute_distance_to_child_nodes(
 
 RAFT_DEVICE_INLINE_FUNCTION void lds(float& x, uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<float*>(addr);
+  x        = *ptr;
+#else
   asm volatile("ld.shared.f32 {%0}, [%1];" : "=f"(x) : "r"(addr));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void lds(half& x, uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<half*>(addr);
+  x        = *ptr;
+#else
   asm volatile("ld.shared.u16 {%0}, [%1];" : "=h"(reinterpret_cast<uint16_t&>(x)) : "r"(addr));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void lds(half2& x, uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<half2*>(addr);
+  x        = *ptr;
+#else
   asm volatile("ld.shared.u32 {%0}, [%1];" : "=r"(reinterpret_cast<uint32_t&>(x)) : "r"(addr));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[1], uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<half*>(addr);
+  x[0]     = *ptr;
+#else
   asm volatile("ld.shared.u16 {%0}, [%1];" : "=h"(*reinterpret_cast<uint16_t*>(x)) : "r"(addr));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[2], uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<half*>(addr);
+  x[0]     = ptr[0];
+  x[1]     = ptr[1];
+#else
   asm volatile("ld.shared.v2.u16 {%0, %1}, [%2];"
                : "=h"(*reinterpret_cast<uint16_t*>(x)), "=h"(*reinterpret_cast<uint16_t*>(x + 1))
                : "r"(addr));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[4], uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<half*>(addr);
+  x[0]     = ptr[0];
+  x[1]     = ptr[1];
+  x[2]     = ptr[2];
+  x[3]     = ptr[3];
+#else
   asm volatile("ld.shared.v4.u16 {%0, %1, %2, %3}, [%4];"
                : "=h"(*reinterpret_cast<uint16_t*>(x)),
                  "=h"(*reinterpret_cast<uint16_t*>(x + 1)),
                  "=h"(*reinterpret_cast<uint16_t*>(x + 2)),
                  "=h"(*reinterpret_cast<uint16_t*>(x + 3))
                : "r"(addr));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void lds(uint32_t& x, uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<uint32_t*>(addr);
+  x        = *ptr;
+#else
   asm volatile("ld.shared.u32 {%0}, [%1];" : "=r"(x) : "r"(addr));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void lds(uint32_t& x, const uint32_t* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x = *addr;
+#else
   lds(x, uint32_t(__cvta_generic_to_shared(addr)));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void lds(uint4& x, uint32_t addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<uint4*>(addr);
+  x.x      = ptr->x;
+  x.y      = ptr->y;
+  x.z      = ptr->z;
+  x.w      = ptr->w;
+#else
   asm volatile("ld.shared.v4.u32 {%0, %1, %2, %3}, [%4];"
                : "=r"(x.x), "=r"(x.y), "=r"(x.z), "=r"(x.w)
                : "r"(addr));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void lds(uint4& x, const uint4* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x.x = addr->x;
+  x.y = addr->y;
+  x.z = addr->z;
+  x.w = addr->w;
+#else
   lds(x, uint32_t(__cvta_generic_to_shared(addr)));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void sts(uint32_t addr, const half2& x)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<half2*>(addr);
+  *ptr     = x;
+#else
   asm volatile("st.shared.v2.u16 [%0], {%1, %2};"
                :
                : "r"(addr),
                  "h"(reinterpret_cast<const uint16_t&>(x.x)),
                  "h"(reinterpret_cast<const uint16_t&>(x.y)));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint4& x, const uint4* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_cg>(const_cast<uint4*>(addr));
+#else
   asm volatile("ld.global.cg.v4.u32 {%0, %1, %2, %3}, [%4];"
                : "=r"(x.x), "=r"(x.y), "=r"(x.z), "=r"(x.w)
                : "l"(addr));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint4& x, const uint4* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<uint4*>(addr));
+#else
   asm volatile("ld.global.ca.v4.u32 {%0, %1, %2, %3}, [%4];"
                : "=r"(x.x), "=r"(x.y), "=r"(x.z), "=r"(x.w)
                : "l"(addr));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint32_t& x, const uint32_t* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<uint32_t*>(addr));
+#else
   asm volatile("ld.global.ca.u32 %0, [%1];" : "=r"(x) : "l"(addr));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint32_t& x, const uint32_t* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_cg>(const_cast<uint32_t*>(addr));
+#else
   asm volatile("ld.global.cg.u32 %0, [%1];" : "=r"(x) : "l"(addr));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half& x, const half* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+#else
   asm volatile("ld.global.ca.u16 {%0}, [%1];"
                : "=h"(reinterpret_cast<uint16_t&>(x))
                : "l"(reinterpret_cast<const uint16_t*>(addr)));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[1], const half* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+#else
   asm volatile("ld.global.ca.u16 {%0}, [%1];"
                : "=h"(*reinterpret_cast<uint16_t*>(x))
                : "l"(reinterpret_cast<const uint16_t*>(addr)));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[2], const half* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+  x[1] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 1));
+#else
   asm volatile("ld.global.ca.v2.u16 {%0, %1}, [%2];"
                : "=h"(*reinterpret_cast<uint16_t*>(x)), "=h"(*reinterpret_cast<uint16_t*>(x + 1))
                : "l"(reinterpret_cast<const uint16_t*>(addr)));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[4], const half* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+  x[1] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 1));
+  x[2] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 2));
+  x[3] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 3));
+#else
   asm volatile("ld.global.ca.v4.u16 {%0, %1, %2, %3}, [%4];"
                : "=h"(*reinterpret_cast<uint16_t*>(x)),
                  "=h"(*reinterpret_cast<uint16_t*>(x + 1)),
                  "=h"(*reinterpret_cast<uint16_t*>(x + 2)),
                  "=h"(*reinterpret_cast<uint16_t*>(x + 3))
                : "l"(reinterpret_cast<const uint16_t*>(addr)));
+#endif
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2& x, const half* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<const half2*>(addr);
+  x        = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
+#else
   asm volatile("ld.global.ca.u32 %0, [%1];"
                : "=r"(reinterpret_cast<uint32_t&>(x))
                : "l"(reinterpret_cast<const uint32_t*>(addr)));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[1], const half* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<const half2*>(addr);
+  x[0]     = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
+#else
   asm volatile("ld.global.ca.u32 %0, [%1];"
                : "=r"(*reinterpret_cast<uint32_t*>(x))
                : "l"(reinterpret_cast<const uint32_t*>(addr)));
+#endif
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[2], const half* addr)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  auto ptr = reinterpret_cast<const half2*>(addr);
+  x[0]     = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
+  x[1] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr + 1));
+#else
   asm volatile("ld.global.ca.v2.u32 {%0, %1}, [%2];"
                : "=r"(*reinterpret_cast<uint32_t*>(x)), "=r"(*reinterpret_cast<uint32_t*>(x + 1))
                : "l"(reinterpret_cast<const uint32_t*>(addr)));
+#endif
 }
 
 }  // namespace device

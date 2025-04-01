@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include "detail/nn_descent.cuh"
 #include <cuvs/neighbors/nn_descent.hpp>
 #include <raft/core/logger.hpp>
@@ -40,10 +57,10 @@ bool has_enough_device_memory(raft::resources const& res,
       res, dataset.extent(0), dataset.extent(1));
     auto l2_norms_     = raft::make_device_vector<DistData_t, size_t>(res, dataset.extent(0));
     auto graph_buffer_ = raft::make_device_vector<uint32_t, size_t>(
-      res, dataset.extent(0) * idx_size * detail::DEGREE_ON_DEVICE);
+      res, dataset.extent(0) * idx_size * detail::get_degree_on_device(res));
 
     auto dists_buffer_ = raft::make_device_matrix<DistData_t, size_t, raft::row_major>(
-      res, dataset.extent(0), detail::DEGREE_ON_DEVICE);
+      res, dataset.extent(0), detail::get_degree_on_device(res));
 
     auto d_locks_ = raft::make_device_vector<int, size_t>(res, dataset.extent(0));
 

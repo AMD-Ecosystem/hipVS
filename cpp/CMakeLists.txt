@@ -369,26 +369,17 @@ if(BUILD_SHARED_LIBS)
 
   add_library(
     cuvs_objs OBJECT
-    # src/cluster/kmeans_balanced_fit_float.cu
-    # src/cluster/kmeans_fit_mg_float.cu
-    # src/cluster/kmeans_fit_mg_double.cu
-    # src/cluster/kmeans_fit_double.cu
-    # src/cluster/kmeans_fit_float.cu
-    # src/cluster/kmeans_auto_find_k_float.cu
-    # src/cluster/kmeans_fit_predict_double.cu
-    # src/cluster/kmeans_fit_predict_float.cu
-    # src/cluster/kmeans_predict_double.cu
-    # src/cluster/kmeans_predict_float.cu
-    # src/cluster/kmeans_balanced_fit_float.cu
-    # src/cluster/kmeans_balanced_fit_predict_float.cu
+    src/cluster/kmeans_balanced_fit_float.cu
+    # src/cluster/kmeans_fit_mg_float.cu src/cluster/kmeans_fit_mg_double.cu
+    # src/cluster/kmeans_fit_double.cu src/cluster/kmeans_fit_float.cu
+    # src/cluster/kmeans_auto_find_k_float.cu src/cluster/kmeans_fit_predict_double.cu
+    # src/cluster/kmeans_fit_predict_float.cu src/cluster/kmeans_predict_double.cu
+    # src/cluster/kmeans_predict_float.cu src/cluster/kmeans_balanced_fit_predict_float.cu
     # src/cluster/kmeans_balanced_predict_float.cu
-    # src/cluster/kmeans_balanced_fit_int8.cu
-    # src/cluster/kmeans_balanced_fit_predict_int8.cu
-    # src/cluster/kmeans_balanced_predict_int8.cu
-    # src/cluster/kmeans_transform_double.cu
-    # src/cluster/kmeans_transform_float.cu
-    # src/cluster/single_linkage_float.cu
-    # src/core/bitset.cu
+    src/cluster/kmeans_balanced_fit_int8.cu
+    # src/cluster/kmeans_balanced_fit_predict_int8.cu src/cluster/kmeans_balanced_predict_int8.cu
+    # src/cluster/kmeans_transform_double.cu src/cluster/kmeans_transform_float.cu
+    # src/cluster/single_linkage_float.cu src/core/bitset.cu
     src/distance/detail/kernels/gram_matrix.cu
     src/distance/detail/kernels/kernel_factory.cu
     src/distance/detail/kernels/kernel_matrices.cu
@@ -491,10 +482,14 @@ if(BUILD_SHARED_LIBS)
     # src/neighbors/ivf_pq/detail/ivf_pq_search_float_int64_t.cu
     # src/neighbors/ivf_pq/detail/ivf_pq_search_half_int64_t.cu
     # src/neighbors/ivf_pq/detail/ivf_pq_search_int8_t_int64_t.cu
-    # src/neighbors/ivf_pq/detail/ivf_pq_search_uint8_t_int64_t.cu src/neighbors/nn_descent.cu
-    # src/neighbors/nn_descent_float.cu src/neighbors/nn_descent_half.cu
-    # src/neighbors/nn_descent_index.cpp src/neighbors/nn_descent_int8.cu
-    # src/neighbors/nn_descent_uint8.cu src/neighbors/reachability.cu
+    # src/neighbors/ivf_pq/detail/ivf_pq_search_uint8_t_int64_t.cu
+    src/neighbors/nn_descent.cu
+    src/neighbors/nn_descent_float.cu
+    src/neighbors/nn_descent_half.cu
+    src/neighbors/nn_descent_index.cpp
+    src/neighbors/nn_descent_int8.cu
+    src/neighbors/nn_descent_uint8.cu
+    # src/neighbors/reachability.cu
     src/neighbors/refine/detail/refine_device_float_float.cu
     src/neighbors/refine/detail/refine_device_half_float.cu
     src/neighbors/refine/detail/refine_device_int8_t_float.cu
