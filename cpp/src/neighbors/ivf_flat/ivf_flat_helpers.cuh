@@ -73,8 +73,8 @@ RAFT_KERNEL pack_interleaved_list_kernel(const T* codes,
 {
   uint32_t tid          = blockIdx.x * blockDim.x + threadIdx.x;
   const uint32_t dst_ix = std::holds_alternative<uint32_t>(offset_or_indices)
-                            ? std::get<uint32_t>(offset_or_indices) + tid
-                            : std::get<const uint32_t*>(offset_or_indices)[tid];
+                            ? *std::get_if<uint32_t>(&offset_or_indices) + tid
+                            : *std::get_if<const uint32_t*>(&offset_or_indices)[tid];
   if (tid < n_rows) { pack_1(codes + tid * dim, list_data, dim, veclen, dst_ix); }
 }
 
@@ -89,8 +89,8 @@ RAFT_KERNEL unpack_interleaved_list_kernel(
 {
   uint32_t tid          = blockIdx.x * blockDim.x + threadIdx.x;
   const uint32_t src_ix = std::holds_alternative<uint32_t>(offset_or_indices)
-                            ? std::get<uint32_t>(offset_or_indices) + tid
-                            : std::get<const uint32_t*>(offset_or_indices)[tid];
+                            ? *std::get_if<uint32_t>(&offset_or_indices) + tid
+                            : *std::get_if<const uint32_t*>(&offset_or_indices)[tid];
   if (tid < n_rows) { unpack_1(list_data, codes + tid * dim, dim, veclen, src_ix); }
 }
 
