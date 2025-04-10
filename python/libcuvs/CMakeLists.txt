@@ -27,7 +27,7 @@
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
 
-include(../../rapids_config.cmake)
+include(../../cmake/rapids_config.cmake)
 
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../../overrides.cmake")
 
