@@ -29,4 +29,4 @@ export PIP_NO_BUILD_ISOLATION=0
 RAPIDS_PY_CUDA_SUFFIX="$(rapids-wheel-ctk-name-gen ${RAPIDS_CUDA_VERSION})"
 
 ci/build_wheel.sh libcuvs ${package_dir} cpp
-ci/validate_wheel.sh ${package_dir} final_dist libcuvs
+ci/validate_wheel.sh ${package_dir} "${RAPIDS_WHEEL_BLD_OUTPUT_DIR}"
