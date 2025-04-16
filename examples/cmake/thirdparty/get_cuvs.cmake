@@ -28,13 +28,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-set(CUVS_VERSION "0.1.0")
+# Use RAPIDS_VERSION_MAJOR_MINOR from cmake/rapids_config.cmake
+set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(CUVS_FORK "AMD-AIOSS")
-set(CUVS_PINNED_TAG "amd-integration")
-# When PINNED_TAG above doesn't match the default branch,
-# force local hipVS clone in build directory
-# even if it's already installed.
-set(CUVS_CLONE_ON_PIN ON)
+set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
 
 function(find_and_configure_cuvs)
     set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN ENABLE_NVTX BUILD_CUVS_C_LIBRARY)
@@ -72,7 +69,7 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different CUVS locally, set the CMake variable
 # CPM_cuvs_SOURCE=/path/to/local/cuvs
-find_and_configure_cuvs(VERSION  ${CUVS_VERSION}
+find_and_configure_cuvs(VERSION  ${CUVS_VERSION} # AMD cherry-pick: Do we not need ".00"?
         FORK                     ${CUVS_FORK}
         PINNED_TAG               ${CUVS_PINNED_TAG}
         CLONE_ON_PIN             ${CUVS_CLONE_ON_PIN}
