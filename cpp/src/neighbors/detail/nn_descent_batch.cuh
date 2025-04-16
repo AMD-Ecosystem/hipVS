@@ -38,7 +38,7 @@
 #include <sys/types.h>
 #undef RAFT_EXPLICIT_INSTANTIATE_ONLY
 
-#include "nn_descent.cuh"
+#include "nn_descent_gnnd.hpp"
 #include <cuvs/neighbors/brute_force.hpp>
 #include <cuvs/neighbors/nn_descent.hpp>
 
@@ -654,9 +654,10 @@ void batch_build(raft::resources const& res,
     graph_degree = intermediate_degree;
   }
 
+  // AMD cherry-pick: likely need to define roundUp64 after cherry picks are done
   size_t extended_graph_degree =
-    align64::roundUp(static_cast<size_t>(graph_degree * (graph_degree <= 64 ? 1.0 : 1.3)));
-  size_t extended_intermediate_degree = align64::roundUp(
+    roundUp64(static_cast<size_t>(graph_degree * (graph_degree <= 64 ? 1.0 : 1.3)));
+  size_t extended_intermediate_degree = roundUp64(
     static_cast<size_t>(intermediate_degree * (intermediate_degree <= 64 ? 1.0 : 1.3)));
 
   auto int_graph = raft::make_host_matrix<int, int64_t, row_major>(
