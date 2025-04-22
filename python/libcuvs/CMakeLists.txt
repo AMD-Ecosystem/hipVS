@@ -44,6 +44,8 @@ project(
   LANGUAGES ${lang_list}
 )
 
+option(USE_NCCL_RUNTIME_WHEEL "Use the NCCL wheel at runtime instead of the system library" OFF)
+
 # Check if cuVS is already available. If so, it is the user's responsibility to ensure that the
 # CMake package is also available at build time of the Python cuvs package.
 # cmake-format: off
@@ -79,6 +81,10 @@ if(CUDA_BACKEND)
       "$ORIGIN/../../nvidia/cusparse/lib"
       "$ORIGIN/../../nvidia/nvjitlink/lib"
   )
+
+  if(USE_NCCL_RUNTIME_WHEEL)
+      list(APPEND rpaths "$ORIGIN/../../nvidia/nccl/lib")
+  endif()
 else()
   set(rpaths
       "$ORIGIN/../../../../" # Assumes the following conda structure:
