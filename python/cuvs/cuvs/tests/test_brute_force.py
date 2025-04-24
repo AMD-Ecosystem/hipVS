@@ -168,7 +168,7 @@ def test_prefiltered_brute_force_knn(
     # AMD Rebase: removing changes from commit aeee6d65. Verify this test
     # works after getting cast to np.uint32 rather than a normal python int
     prefilter_bits = create_sparse_array(
-        (np.ceil(n_prefilter_rows * n_index_rows / 32).astype(np.uint32)),
+        int(np.ceil(n_prefilter_rows * n_index_rows / 32)),
         sparsity,
     )
 
