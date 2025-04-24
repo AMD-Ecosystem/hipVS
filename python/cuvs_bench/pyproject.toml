@@ -37,7 +37,7 @@ requires-python = ">=3.10"
 dependencies = [
     "click",
     "amd-hipvs",
-    "matplotlib",
+    "matplotlib>=3.9",
     "pandas",
     "pyyaml",
     "requests",
