@@ -21,6 +21,8 @@ repos:
       - repo: https://github.com/pre-commit/pre-commit-hooks
         rev: v5.0.0
         hooks:
+              - id: check-json
+                exclude: ^docs_amd/
               - id: trailing-whitespace
                 exclude: ^docs_amd/
               - id: end-of-file-fixer
