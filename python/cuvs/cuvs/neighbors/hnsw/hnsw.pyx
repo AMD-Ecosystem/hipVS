@@ -272,6 +272,10 @@ def load(IndexParams index_params, filename, dim, dtype, metric="sqeuclidean",
         dl_dtype.code = cydlpack.kDLFloat
         dl_dtype.bits = 32
         dl_dtype.lanes = 1
+    elif dtype == np.float16:
+        dl_dtype.code = cydlpack.kDLFloat
+        dl_dtype.bits = 16
+        dl_dtype.lanes = 1
     elif dtype == np.ubyte:
         dl_dtype.code = cydlpack.kDLUInt
         dl_dtype.bits = 8
@@ -281,7 +285,8 @@ def load(IndexParams index_params, filename, dim, dtype, metric="sqeuclidean",
         dl_dtype.bits = 8
         dl_dtype.lanes = 1
     else:
-        raise ValueError("Only float32 is supported for dtype")
+        raise ValueError("Only float32, float16, uint8, and int8 are supported"
+                         " for dtype")
 
     idx.index.dtype = dl_dtype
     cdef cuvsDistanceType distance_type = DISTANCE_TYPES[metric]
@@ -368,7 +373,7 @@ def extend(ExtendParams extend_params, Index index, data, resources=None):
     index : Index
         Trained HNSW index.
     data : Host array interface compliant matrix shape (n_samples, dim)
-        Supported dtype [float32, int8, uint8]
+        Supported dtype [float32, float16, int8, uint8]
     {resources_docstring}
 
     Examples
@@ -391,6 +396,7 @@ def extend(ExtendParams extend_params, Index index, data, resources=None):
 
     data_ai = wrap_array(data)
     _check_input_array(data_ai, [np.dtype('float32'),
+                                 np.dtype('float16'),
                                  np.dtype('uint8'),
                                  np.dtype('int8')])
 
@@ -507,6 +513,7 @@ def search(SearchParams search_params,
     # in RAFT to make this a single call
     queries_ai = wrap_array(queries)
     _check_input_array(queries_ai, [np.dtype('float32'),
+                                    np.dtype('float16'),
                                     np.dtype('uint8'),
                                     np.dtype('int8')])
 
