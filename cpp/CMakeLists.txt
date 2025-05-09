@@ -348,7 +348,6 @@ if(BUILD_SHARED_LIBS)
                POSITION_INDEPENDENT_CODE ON
   )
   target_link_libraries(cuvs-cagra-search PRIVATE raft::raft)
-
   target_include_directories(
     cuvs-cagra-search PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   )
@@ -448,6 +447,11 @@ if(BUILD_SHARED_LIBS)
     src/distance/sparse_distance.cu
     src/neighbors/brute_force.cu
     src/embed/spectral.cu
+    src/neighbors/ball_cover.cu
+    src/neighbors/ball_cover/detail/ball_cover/registers_eps_pass_euclidean.cu
+    src/neighbors/ball_cover/detail/ball_cover/registers_pass_one.cu
+    src/neighbors/ball_cover/detail/ball_cover/registers_pass_two.cu
+    src/neighbors/brute_force.cu
     src/neighbors/brute_force_serialize.cu
     src/neighbors/cagra_build_float.cu
     src/neighbors/cagra_build_half.cu
