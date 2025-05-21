@@ -13,18 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "greedy_search.cuh"
 #include "robust_prune.cuh"
 #include "vamana_structs.cuh"
 #include <cuvs/neighbors/vamana.hpp>
+#include <raft/core/resource/device_id.hpp>
 
 #include <raft/cluster/kmeans.cuh>
 #include <raft/cluster/kmeans_types.hpp>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
+#include <raft/core/device_resources.hpp>
 #include <raft/core/error.hpp>
 #include <raft/core/host_device_accessor.hpp>
 #include <raft/core/host_mdarray.hpp>
@@ -51,8 +70,6 @@ namespace cuvs::neighbors::vamana::detail {
 /* @defgroup vamana_build_detail vamana build
  * @{
  */
-
-static const int blockD    = 32;
 static const int maxBlocks = 10000;
 
 // generate random permutation of inserts - TODO do this on GPU / faster
@@ -91,10 +108,12 @@ void batched_insert_vamana(
   cuvs::distance::DistanceType metric)
 //  int dim)
 {
-  auto stream = raft::resource::get_cuda_stream(res);
-  int N       = dataset.extent(0);
-  int dim     = dataset.extent(1);
-  int degree  = graph.extent(1);
+  auto stream         = raft::resource::get_cuda_stream(res);
+  int N               = dataset.extent(0);
+  int dim             = dataset.extent(1);
+  int degree          = graph.extent(1);
+  int const warp_size = raft::host_warp_size(stream);
+  int const& blockD   = warp_size;
 
   // Algorithm params
   int max_batchsize = (int)(params.max_fraction * (float)N);
@@ -223,7 +242,6 @@ void batched_insert_vamana(
                                                                 metric,
                                                                 alpha,
                                                                 prune_smem_sort_size);
-
       // Write results from first prune to graph edge list
       write_graph_edges_kernel<accT, IdxT><<<num_blocks, blockD, 0, stream>>>(
         d_graph.view(), query_list_ptr.data_handle(), degree, step_size);
@@ -357,7 +375,6 @@ void batched_insert_vamana(
                                                                   metric,
                                                                   alpha,
                                                                   prune_smem_sort_size);
-
         // Write new edge lists to graph
         write_graph_edges_kernel<accT, IdxT><<<num_blocks, blockD, 0, stream>>>(
           d_graph.view(), reverse_list_ptr.data_handle(), degree, reverse_batch);
@@ -392,6 +409,11 @@ index<T, IdxT> build(
 
   const int* deg_size = std::find(std::begin(DEGREE_SIZES), std::end(DEGREE_SIZES), graph_degree);
   RAFT_EXPECTS(deg_size != std::end(DEGREE_SIZES), "Provided graph_degree not currently supported");
+  int const warp_size = raft::host_warp_size(raft::resource::get_device_id(res));
+  RAFT_EXPECTS(
+    graph_degree >= warp_size,
+    "Provided graph_degree must be greater than or equal to the device warp/wavefront size(%d)",
+    warp_size);
 
   RAFT_EXPECTS(params.visited_size > graph_degree, "visited_size must be > graph_degree");
 

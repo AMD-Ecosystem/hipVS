@@ -14,14 +14,31 @@
  * limitations under the License.
  */
 
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 #pragma once
 
 #include <climits>
 #include <cstdint>
 #include <cstdio>
 #include <float.h>
-#include <unordered_set>
-#include <vector>
 
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
@@ -34,13 +51,22 @@
 
 #include <cuvs/distance/distance.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+// Disable force‑inlining of `sort_visited` and `sort_edges_and_cands` on the HIP/AMD platform. With
+// that decorator, `amdclang++` breaks loads from shared/global memory into local registers. The
+// preprocessor now disables force‑inlining when using the HIP toolchain.
+#define VAMANA_FORCE_INLINE
+#else
+#define VAMANA_FORCE_INLINE __forceinline__
+#endif
+
 namespace cuvs::neighbors::vamana::detail {
 
 /* @defgroup vamana_structures vamana structures
  * @{
  */
 
-#define FULL_BITMASK 0xFFFFFFFF
+static constexpr bitmask_type FULL_BITMASK = raft::LANE_MASK_ALL;
 
 // Currently supported values for graph_degree.
 static const int DEGREE_SIZES[4] = {32, 64, 128, 256};
@@ -129,7 +155,7 @@ __device__ SUMTYPE l2_SEQ(Point<T, SUMTYPE>* src_vec, Point<T, SUMTYPE>* dst_vec
                        partial_sum);
   }
 
-  for (int offset = 16; offset > 0; offset /= 2) {
+  for (int offset = raft::warp_size() / 2; offset > 0; offset /= 2) {
     partial_sum += __shfl_down_sync(FULL_BITMASK, partial_sum, offset);
   }
   return partial_sum;
@@ -143,18 +169,18 @@ __device__ SUMTYPE l2_ILP2(Point<T, SUMTYPE>* src_vec, Point<T, SUMTYPE>* dst_ve
   SUMTYPE partial_sum[2] = {0, 0};
   for (int i = threadIdx.x; i < src_vec->Dim; i += 2 * blockDim.x) {
     temp_dst[0] = dst_vec->coords[i];
-    if (i + 32 < src_vec->Dim) temp_dst[1] = dst_vec->coords[i + 32];
+    if (i + raft::warp_size() < src_vec->Dim) temp_dst[1] = dst_vec->coords[i + raft::warp_size()];
 
     partial_sum[0] = fmaf(
       (src_vec[0].coords[i] - temp_dst[0]), (src_vec[0].coords[i] - temp_dst[0]), partial_sum[0]);
-    if (i + 32 < src_vec->Dim)
-      partial_sum[1] = fmaf((src_vec[0].coords[i + 32] - temp_dst[1]),
-                            (src_vec[0].coords[i + 32] - temp_dst[1]),
+    if (i + raft::warp_size() < src_vec->Dim)
+      partial_sum[1] = fmaf((src_vec[0].coords[i + raft::warp_size()] - temp_dst[1]),
+                            (src_vec[0].coords[i + raft::warp_size()] - temp_dst[1]),
                             partial_sum[1]);
   }
   partial_sum[0] += partial_sum[1];
 
-  for (int offset = 16; offset > 0; offset /= 2) {
+  for (int offset = raft::warp_size() / 2; offset > 0; offset /= 2) {
     partial_sum[0] += __shfl_down_sync(FULL_BITMASK, partial_sum[0], offset);
   }
   return partial_sum[0];
@@ -168,28 +194,30 @@ __device__ SUMTYPE l2_ILP4(Point<T, SUMTYPE>* src_vec, Point<T, SUMTYPE>* dst_ve
   SUMTYPE partial_sum[4] = {0, 0, 0, 0};
   for (int i = threadIdx.x; i < src_vec->Dim; i += 4 * blockDim.x) {
     temp_dst[0] = dst_vec->coords[i];
-    if (i + 32 < src_vec->Dim) temp_dst[1] = dst_vec->coords[i + 32];
-    if (i + 64 < src_vec->Dim) temp_dst[2] = dst_vec->coords[i + 64];
-    if (i + 96 < src_vec->Dim) temp_dst[3] = dst_vec->coords[i + 96];
+    if (i + raft::warp_size() < src_vec->Dim) temp_dst[1] = dst_vec->coords[i + raft::warp_size()];
+    if (i + raft::warp_size() * 2 < src_vec->Dim)
+      temp_dst[2] = dst_vec->coords[i + raft::warp_size() * 2];
+    if (i + raft::warp_size() * 3 < src_vec->Dim)
+      temp_dst[3] = dst_vec->coords[i + raft::warp_size() * 3];
 
     partial_sum[0] = fmaf(
       (src_vec[0].coords[i] - temp_dst[0]), (src_vec[0].coords[i] - temp_dst[0]), partial_sum[0]);
-    if (i + 32 < src_vec->Dim)
-      partial_sum[1] = fmaf((src_vec[0].coords[i + 32] - temp_dst[1]),
-                            (src_vec[0].coords[i + 32] - temp_dst[1]),
+    if (i + raft::warp_size() < src_vec->Dim)
+      partial_sum[1] = fmaf((src_vec[0].coords[i + raft::warp_size()] - temp_dst[1]),
+                            (src_vec[0].coords[i + raft::warp_size()] - temp_dst[1]),
                             partial_sum[1]);
-    if (i + 64 < src_vec->Dim)
-      partial_sum[2] = fmaf((src_vec[0].coords[i + 64] - temp_dst[2]),
-                            (src_vec[0].coords[i + 64] - temp_dst[2]),
+    if (i + raft::warp_size() * 2 < src_vec->Dim)
+      partial_sum[2] = fmaf((src_vec[0].coords[i + raft::warp_size() * 2] - temp_dst[2]),
+                            (src_vec[0].coords[i + raft::warp_size() * 2] - temp_dst[2]),
                             partial_sum[2]);
-    if (i + 96 < src_vec->Dim)
-      partial_sum[3] = fmaf((src_vec[0].coords[i + 96] - temp_dst[3]),
-                            (src_vec[0].coords[i + 96] - temp_dst[3]),
+    if (i + raft::warp_size() * 3 < src_vec->Dim)
+      partial_sum[3] = fmaf((src_vec[0].coords[i + raft::warp_size() * 3] - temp_dst[3]),
+                            (src_vec[0].coords[i + raft::warp_size() * 3] - temp_dst[3]),
                             partial_sum[3]);
   }
   partial_sum[0] += partial_sum[1] + partial_sum[2] + partial_sum[3];
 
-  for (int offset = 16; offset > 0; offset /= 2) {
+  for (int offset = raft::warp_size() / 2; offset > 0; offset /= 2) {
     partial_sum[0] += __shfl_down_sync(FULL_BITMASK, partial_sum[0], offset);
   }
 
@@ -200,9 +228,10 @@ __device__ SUMTYPE l2_ILP4(Point<T, SUMTYPE>* src_vec, Point<T, SUMTYPE>* dst_ve
 template <typename T, typename SUMTYPE>
 __forceinline__ __device__ SUMTYPE l2(Point<T, SUMTYPE>* src_vec, Point<T, SUMTYPE>* dst_vec)
 {
-  if (src_vec->Dim >= 128) {
+  assert(blockDim.x == raft::warp_size());
+  if (src_vec->Dim >= raft::warp_size() * 4) {
     return l2_ILP4<T, SUMTYPE>(src_vec, dst_vec);
-  } else if (src_vec->Dim >= 64) {
+  } else if (src_vec->Dim >= raft::warp_size() * 2) {
     return l2_ILP2<T, SUMTYPE>(src_vec, dst_vec);
   } else {
     return l2_SEQ<T, SUMTYPE>(src_vec, dst_vec);
@@ -274,6 +303,42 @@ struct QueryCandidates {
       __syncthreads();
     }
     return found;
+  }
+
+  // Remove ID & Distance pairs from this->ids where the id == index_to_filter. Also filter
+  // corresponding distance entries in this->dists.
+  inline __device__ void filter(IdxT const index_to_filter)
+  {
+    // Warp-wide filtering to remove invalid id-distance pairs from this->ids & this->dists
+    uint32_t lane_id = raft::laneId();
+
+    const int n         = size;  // Current logical length
+    unsigned dead_total = 0;     // Number of invalid indices seen so far
+    for (int idx = lane_id; idx < n; idx += raft::warp_size()) {
+      IdxT const id                = ids[idx];
+      accT const dist              = dists[idx];
+      bool const is_dead           = (id == index_to_filter);
+      bitmask_type const dead_mask = __ballot_sync(__activemask(), is_dead);
+      // Note:
+      // The expression "static_cast<bitmask_type>(1) << lane_id) - 1" gives us a bitmask with all
+      // the first *lane_id - 1* bits set to 1. By performing a *logical and* with dead_mask we
+      // essentially get a mask of all the lanes before the current lane where an invalid value was
+      // found. The __POP call simply gives a count of invalid values found in the lower lanes.
+      int dead_before_lane =
+        raft::__POPC(dead_mask & ((static_cast<bitmask_type>(1) << lane_id) - 1));
+      uint32_t base_dead = __shfl_sync(__activemask(), dead_total, 0);
+      if (!is_dead) {
+        int dst =
+          idx - int(base_dead + dead_before_lane);  // Compute the new index accounting for all the
+                                                    // invalid locations we're compacting
+        ids[dst]   = id;                            // move leftward in-place
+        dists[dst] = dist;
+      }
+      if (lane_id == 0) { dead_total += raft::__POPC(dead_mask); }
+      // Broadcast to all lanes
+      dead_total = __shfl_sync(__activemask(), dead_total, 0);
+    }
+    if (lane_id == 0) { this->size = n - static_cast<int>(dead_total); }
   }
   // For debugging
   /*
@@ -463,11 +528,16 @@ __global__ void recompute_reverse_dists(
 
   for (int i = blockIdx.x; i < unique_dests; i += gridDim.x) {
     for (int j = 0; j < reverse_list[i].size; j++) {
-      reverse_list[i].dists[j] =
+      // (HIP/AMD) Note: In the upstream version all threads in the warp were writing the same value
+      // to the same location in global memory, causing torn writes and incorrect distance values
+      // being written. The fix was to assign the first thread in the block to perform the
+      // write‑back to global memory.
+      auto const temporary =
         dist<T, accT>(&vec_ptr[(size_t)(reverse_list[i].queryId) * (size_t)dim],
                       &vec_ptr[(size_t)(reverse_list[i].ids[j]) * (size_t)dim],
                       dim,
                       metric);
+      if (threadIdx.x == 0) { reverse_list[i].dists[j] = temporary; }
     }
   }
 }

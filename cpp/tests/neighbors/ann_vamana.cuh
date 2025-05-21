@@ -13,11 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "../test_utils.cuh"
 #include "ann_utils.cuh"
+#include <algorithm>
 #include <raft/core/resource/cuda_stream.hpp>
 
 #include "naive_knn.cuh"
@@ -42,7 +60,6 @@
 
 #include <cstddef>
 #include <iostream>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -75,6 +92,26 @@ struct AnnVamanaInputs {
   int search_width;
   double min_recall;
 };
+
+inline std::ostream& operator<<(std::ostream& stream, AnnVamanaInputs const& input)
+{
+  stream << "n_rows: " << input.n_rows << ',';
+  stream << "dim: " << input.dim << ',';
+  stream << "graph_degree: " << input.graph_degree << ',';
+  stream << "visited_size: " << input.visited_size << ',';
+  stream << "max_fraction: " << input.max_fraction << ',';
+  stream << "DistanceType " << input.metric << ',';
+  stream << "host_dataset: " << input.host_dataset << ',';
+  stream << "reverse_batchsize: " << input.reverse_batchsize << ',';
+  stream << "n_queries: " << input.n_queries << ',';
+  stream << "k: " << input.k << ',';
+  stream << "cagra::search_algo: " << static_cast<int>(input.algo) << ',';
+  stream << "max_queries: " << input.max_queries << ',';
+  stream << "itopk_size: " << input.itopk_size << ',';
+  stream << "search_width: " << input.search_width << ',';
+  stream << "min_recall: " << input.min_recall;
+  return stream;
+}
 
 template <typename DataT, typename IdxT>
 inline void CheckGraph(vamana::index<DataT, IdxT>* index_,
@@ -338,6 +375,25 @@ inline std::vector<AnnVamanaInputs> generate_inputs()
   return inputs;
 }
 
-const std::vector<AnnVamanaInputs> inputs = generate_inputs();
+// Note: HIP/AMD For Wave64 devices having the graph degree be less than the device warp size is not
+// possible. We filter these inputs where the graph_degree is < current device warp size.
+inline std::vector<AnnVamanaInputs> modify_inputs_based_on_warp_size(
+  std::vector<AnnVamanaInputs> inputs)
+{
+  auto new_end = std::remove_if(inputs.begin(), inputs.end(), [](AnnVamanaInputs const& input) {
+    auto warp_size = raft::host_warp_size(0);
+    if (input.graph_degree < warp_size) {
+      std::cout << "Removing input based on wavefront/warp size(" << warp_size << ") :" << input
+                << '\n';
+      return true;
+    }
+    return false;
+  });
+  auto const new_size = new_end - inputs.begin();
+  inputs.resize(new_size);
+  return inputs;
+}
+
+const std::vector<AnnVamanaInputs> inputs = modify_inputs_based_on_warp_size(generate_inputs());
 
 }  // namespace cuvs::neighbors::vamana

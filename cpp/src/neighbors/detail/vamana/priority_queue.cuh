@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "vamana_structs.cuh"
@@ -39,7 +56,7 @@ namespace cuvs::neighbors::vamana::detail {
  * i since the heap must be complete.
  * This size is determined during vamana build with the "queue_size" parameter (default 127)
  *
- * The queue and all methods are device-side, with a work group size or 32 (one warp).
+ * The queue and all methods are device-side, with a work group size or 32/64 (one warp).
  * During search, each warp creates their own queue to search a single query at a time.
  * The device memory pointed to by `vals` is assigned during the call to `initialize`.
  * The Vamana GreedySearch call uses shared memory, but any device-accessible memory is applicable.
@@ -234,7 +251,7 @@ __device__ bool check_duplicate(const Node<accT>* pq, const int size, Node<accT>
     }
   }
 
-  unsigned mask = raft::ballot(found);
+  bitmask_type mask = raft::ballot(found);
 
   if (mask == 0)
     return false;
@@ -279,14 +296,14 @@ __inline__ __device__ void parallel_pq_max_enqueue(Node<SUMTYPE>* pq,
     int idx         = 0;
     SUMTYPE max_val = pq[0].distance;
 
-    for (int i = threadIdx.x; i < pq_size; i += 32) {
+    for (int i = threadIdx.x; i < pq_size; i += raft::warp_size()) {
       if (pq[i].distance > max_val) {
         max_val = pq[i].distance;
         idx     = i;
       }
     }
 
-    for (int offset = 16; offset > 0; offset /= 2) {
+    for (int offset = raft::warp_size() / 2; offset > 0; offset /= 2) {
       SUMTYPE new_max_val = raft::shfl_up(max_val, offset);
       int new_idx         = raft::shfl_up(idx, offset);
       if (new_max_val > max_val) {
@@ -295,7 +312,7 @@ __inline__ __device__ void parallel_pq_max_enqueue(Node<SUMTYPE>* pq,
       }
     }
 
-    if (threadIdx.x == 31) {
+    if (threadIdx.x == (raft::warp_size() - 1)) {
       *max_idx     = idx;
       *cur_max_val = max_val;
     }

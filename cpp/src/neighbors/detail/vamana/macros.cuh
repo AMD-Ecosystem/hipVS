@@ -13,19 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 namespace cuvs::neighbors::vamana::detail {
 
 /* Macros to compute the shared memory requirements for CUB primitives used by search and prune */
-#define COMPUTE_SMEM_SIZES(degree, visited_size, DEG, CANDS)                                     \
-  if (degree == DEG && visited_size <= CANDS && visited_size > CANDS / 2) {                      \
-    search_smem_sort_size = static_cast<int>(                                                    \
-      sizeof(typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, CANDS / 32>::TempStorage));  \
-                                                                                                 \
-    prune_smem_sort_size = static_cast<int>(sizeof(                                              \
-      typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, (CANDS + DEG) / 32>::TempStorage)); \
+#define COMPUTE_SMEM_SIZES(degree, visited_size, DEG, CANDS)                                       \
+  if (degree == DEG && visited_size <= CANDS && visited_size > CANDS / 2) {                        \
+    if (warp_size == 32) {                                                                         \
+      search_smem_sort_size = static_cast<int>(                                                    \
+        sizeof(typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, CANDS / 32>::TempStorage));  \
+                                                                                                   \
+      prune_smem_sort_size = static_cast<int>(sizeof(                                              \
+        typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, (CANDS + DEG) / 32>::TempStorage)); \
+    } else if (warp_size == 64) {                                                                  \
+      search_smem_sort_size = static_cast<int>(                                                    \
+        sizeof(typename cub::BlockMergeSort<DistPair<IdxT, accT>, 64, CANDS / 64>::TempStorage));  \
+                                                                                                   \
+      prune_smem_sort_size = static_cast<int>(sizeof(                                              \
+        typename cub::BlockMergeSort<DistPair<IdxT, accT>, 64, (CANDS + DEG) / 64>::TempStorage)); \
+    } else {                                                                                       \
+      RAFT_FAIL("Invalid warp size: %d", warp_size);                                               \
+    }                                                                                              \
   }
 
 // Current supported sizes for degree and visited_size. Note that visited_size must be > degree
@@ -43,11 +70,12 @@ namespace cuvs::neighbors::vamana::detail {
   COMPUTE_SMEM_SIZES(degree, visited_size, 256, 1024);
 
 /* Macros to call the CUB BlockSort primitives for supported sizes for ROBUST_PRUNE*/
-#define PRUNE_CALL_SORT(degree, visited_list, DEG, CANDS)                                  \
-  if (degree == DEG && visited_list <= CANDS && visited_list > CANDS / 2) {                \
-    using BlockSortT = cub::BlockMergeSort<DistPair<IdxT, accT>, 32, (DEG + CANDS) / 32>;  \
-    auto& sort_mem   = reinterpret_cast<typename BlockSortT::TempStorage&>(smem);          \
-    sort_edges_and_cands<accT, IdxT, DEG, CANDS>(new_nbh_list, &query_list[i], &sort_mem); \
+#define PRUNE_CALL_SORT(degree, visited_list, DEG, CANDS)                                         \
+  if (degree == DEG && visited_list <= CANDS && visited_list > CANDS / 2) {                       \
+    using BlockSortT = cub::                                                                      \
+      BlockMergeSort<DistPair<IdxT, accT>, raft::warp_size(), (DEG + CANDS) / raft::warp_size()>; \
+    auto& sort_mem = reinterpret_cast<typename BlockSortT::TempStorage&>(smem);                   \
+    sort_edges_and_cands<accT, IdxT, DEG, CANDS>(new_nbh_list, &query_list[i], &sort_mem);        \
   }
 
 #define PRUNE_SELECT_SORT(degree, visited_list)    \
@@ -64,11 +92,12 @@ namespace cuvs::neighbors::vamana::detail {
   PRUNE_CALL_SORT(degree, visited_size, 256, 1024);
 
 /* Macros to call the CUB BlockSort primitives for supported sizes for GREEDY SEARCH */
-#define SEARCH_CALL_SORT(topk, CANDS)                                             \
-  if (topk <= CANDS && topk > CANDS / 2) {                                        \
-    using BlockSortT = cub::BlockMergeSort<DistPair<IdxT, accT>, 32, CANDS / 32>; \
-    auto& sort_mem   = reinterpret_cast<typename BlockSortT::TempStorage&>(smem); \
-    sort_visited<accT, IdxT, CANDS>(&query_list[i], &sort_mem);                   \
+#define SEARCH_CALL_SORT(topk, CANDS)                                                          \
+  if (topk <= CANDS && topk > CANDS / 2) {                                                     \
+    using BlockSortT =                                                                         \
+      cub::BlockMergeSort<DistPair<IdxT, accT>, raft::warp_size(), CANDS / raft::warp_size()>; \
+    auto& sort_mem = reinterpret_cast<typename BlockSortT::TempStorage&>(smem);                \
+    sort_visited<accT, IdxT, CANDS>(&query_list[i], &sort_mem);                                \
   }
 
 // SEARCH only relies on visited_size (not degree) for shared memory.

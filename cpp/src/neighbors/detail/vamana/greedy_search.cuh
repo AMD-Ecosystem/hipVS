@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -61,12 +61,14 @@ namespace cuvs::neighbors::vamana::detail {
 /* Combines edge and candidate lists, removes duplicates, and sorts by distance
  * Uses CUB primitives, so needs to be templated. Called with Macros for supported sizes above */
 template <typename accT, typename IdxT, int CANDS>
-__forceinline__ __device__ void sort_visited(
+VAMANA_FORCE_INLINE __device__ void sort_visited(
   QueryCandidates<IdxT, accT>* query,
-  typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, (CANDS / 32)>::TempStorage* sort_mem)
+  typename cub::BlockMergeSort<DistPair<IdxT, accT>,
+                               raft::warp_size(),
+                               (CANDS / raft::warp_size())>::TempStorage* sort_mem)
 {
-  const int ELTS   = CANDS / 32;
-  using BlockSortT = cub::BlockMergeSort<DistPair<IdxT, accT>, 32, ELTS>;
+  const int ELTS   = CANDS / raft::warp_size();
+  using BlockSortT = cub::BlockMergeSort<DistPair<IdxT, accT>, raft::warp_size(), ELTS>;
   DistPair<IdxT, accT> tmp[ELTS];
   for (int i = 0; i < ELTS; i++) {
     tmp[i].idx  = query->ids[ELTS * threadIdx.x + i];
@@ -127,7 +129,7 @@ __global__ void GreedySearchKernel(
 
   union ShmemLayout {
     // All blocksort sizes have same alignment (16)
-    typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, 1>::TempStorage sort_mem;
+    typename cub::BlockMergeSort<DistPair<IdxT, accT>, raft::warp_size(), 1>::TempStorage sort_mem;
     T coords;
     Node<accT> topk_pq;
     int neighborhood_arr;
@@ -277,15 +279,15 @@ __global__ void GreedySearchKernel(
 
     }  // End cand_q_size != 0 loop
 
-    bool self_found = false;
     // Remove self edges
-    for (int j = threadIdx.x; j < query_list[i].size; j += blockDim.x) {
-      if (query_list[i].ids[j] == query_vec->id) {
-        query_list[i].dists[j] = raft::upper_bound<accT>();
-        query_list[i].ids[j]   = raft::upper_bound<IdxT>();
-        self_found             = true;  // Flag to reduce size by 1
-      }
-    }
+    // Note: (HIP/AMD) In the upstream version there was a blockDim.x strided for loop that would
+    // iterate through query_list[i].ids and check to see if it would find any ID == query_vec->id.
+    // Each thread would use a local bool to keep track of this. Subsequently in each thread where
+    // "self_found" is "true", it would try to decrement the size value of each query entry
+    // query_list[i].size. This was done without using atomic operations and since *size* resides in
+    // global memory this was a data race. The current version calls *filter* to remove the ID's
+    // equal to the query ID. The size of the candidate list correctly decremented as well.
+    query_list[i].filter(query_vec->id);
 
     for (int j = query_list[i].size + threadIdx.x; j < query_list[i].maxSize; j += blockDim.x) {
       query_list[i].ids[j]   = raft::upper_bound<IdxT>();
@@ -293,7 +295,6 @@ __global__ void GreedySearchKernel(
     }
 
     __syncthreads();
-    if (self_found) query_list[i].size--;
 
     SEARCH_SELECT_SORT(topk);
   }

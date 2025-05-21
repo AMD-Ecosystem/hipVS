@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -55,7 +55,7 @@ __forceinline__ __device__ void load_to_registers(DistPair<IdxT, accT>* tmp,
                                                   QueryCandidates<IdxT, accT>* query,
                                                   DistPair<IdxT, accT>* nbh_list)
 {
-  int cands_per_thread = CANDS / 32;
+  int cands_per_thread = CANDS / raft::warp_size();
   for (int i = 0; i < cands_per_thread; i++) {
     tmp[i].idx  = query->ids[cands_per_thread * threadIdx.x + i];
     tmp[i].dist = query->dists[cands_per_thread * threadIdx.x + i];
@@ -65,7 +65,7 @@ __forceinline__ __device__ void load_to_registers(DistPair<IdxT, accT>* tmp,
       tmp[i].dist = raft::upper_bound<accT>();
     }
   }
-  int nbh_per_thread = DEG / 32;
+  int nbh_per_thread = DEG / raft::warp_size();
   for (int i = 0; i < nbh_per_thread; i++) {
     tmp[cands_per_thread + i] = nbh_list[nbh_per_thread * threadIdx.x + i];
   }
@@ -74,13 +74,15 @@ __forceinline__ __device__ void load_to_registers(DistPair<IdxT, accT>* tmp,
 /* Combines edge and candidate lists, removes duplicates, and sorts by distance
  * Uses CUB primitives, so needs to be templated. Called with Macros for supported sizes above */
 template <typename accT, typename IdxT, int DEG, int CANDS>
-__forceinline__ __device__ void sort_edges_and_cands(
+VAMANA_FORCE_INLINE __device__ void sort_edges_and_cands(
   DistPair<IdxT, accT>* new_nbh_list,
   QueryCandidates<IdxT, accT>* query,
-  typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, (DEG + CANDS) / 32>::TempStorage* sort_mem)
+  typename cub::BlockMergeSort<DistPair<IdxT, accT>,
+                               raft::warp_size(),
+                               (DEG + CANDS) / raft::warp_size()>::TempStorage* sort_mem)
 {
-  const int ELTS   = (DEG + CANDS) / 32;
-  using BlockSortT = cub::BlockMergeSort<DistPair<IdxT, accT>, 32, ELTS>;
+  const int ELTS   = (DEG + CANDS) / raft::warp_size();
+  using BlockSortT = cub::BlockMergeSort<DistPair<IdxT, accT>, raft::warp_size(), ELTS>;
   DistPair<IdxT, accT> tmp[ELTS];
 
   load_to_registers<accT, IdxT, DEG, CANDS>(tmp, query, new_nbh_list);
@@ -96,7 +98,7 @@ __forceinline__ __device__ void sort_edges_and_cands(
     new_nbh_list[ELTS * threadIdx.x + (ELTS - 1)].idx  = raft::upper_bound<IdxT>();
     new_nbh_list[ELTS * threadIdx.x + (ELTS - 1)].dist = raft::upper_bound<accT>();
   }
-  __shfl_up_sync(0xffffffff, tmp[ELTS - 1].idx, 1);
+  __shfl_up_sync(raft::LANE_MASK_ALL, tmp[ELTS - 1].idx, 1);
   __syncthreads();
 
   for (int i = ELTS - 2; i > 0; i--) {
@@ -161,7 +163,7 @@ __global__ void RobustPruneKernel(
 
   union ShmemLayout {
     // All blocksort sizes have same alignment (16)
-    typename cub::BlockMergeSort<DistPair<IdxT, accT>, 32, 3>::TempStorage sort_mem;
+    typename cub::BlockMergeSort<DistPair<IdxT, accT>, raft::warp_size(), 3>::TempStorage sort_mem;
     T coords;
     DistPair<IdxT, accT> nbh_list;
   };

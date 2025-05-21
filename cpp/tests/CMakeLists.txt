@@ -185,6 +185,15 @@ if(BUILD_TESTS)
     PATH
     # neighbors/ann_cagra/bug_extreme_inputs_oob.cu TODO: (HIP/AMD) Extremely long runtime(> 2h)
     neighbors/ann_cagra/bug_multi_cta_crash.cu
+  )
+
+  ConfigureTest(
+    NAME
+    NEIGHBORS_ANN_VAMANA_TEST
+    PATH
+    neighbors/ann_vamana/test_float_uint32_t.cu
+    neighbors/ann_vamana/test_int8_t_uint32_t.cu
+    neighbors/ann_vamana/test_uint8_t_uint32_t.cu
     GPUS
     1
     PERCENT

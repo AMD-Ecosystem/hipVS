@@ -521,9 +521,12 @@ if(BUILD_SHARED_LIBS)
     src/neighbors/refine/detail/refine_host_uint8_t_float.cpp
     src/neighbors/sample_filter.cu
     src/neighbors/sparse_brute_force.cu
-    # src/neighbors/vamana_build_float.cu src/neighbors/vamana_build_uint8.cu
-    # src/neighbors/vamana_build_int8.cu src/neighbors/vamana_serialize_float.cu
-    # src/neighbors/vamana_serialize_uint8.cu src/neighbors/vamana_serialize_int8.cu
+    src/neighbors/vamana_build_float.cu
+    src/neighbors/vamana_build_uint8.cu
+    src/neighbors/vamana_build_int8.cu
+    src/neighbors/vamana_serialize_float.cu
+    src/neighbors/vamana_serialize_uint8.cu
+    src/neighbors/vamana_serialize_int8.cu
     # src/preprocessing/quantize/scalar.cu
     src/selection/select_k_float_int64_t.cu
     src/selection/select_k_float_int32_t.cu
