@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/handle.hpp>
@@ -87,19 +104,20 @@ RAFT_KERNEL init_adj(AdjacencyPattern pattern,
   }
 }
 
-template <typename DataT, typename ReduceOpT, int NWARPS>
-__launch_bounds__(32 * NWARPS, 2) RAFT_KERNEL referenceKernel(raft::KeyValuePair<int, DataT>* min,
-                                                              DataT* x,
-                                                              DataT* y,
-                                                              bool* adj,
-                                                              int* group_idxs,
-                                                              int m,
-                                                              int n,
-                                                              int k,
-                                                              int num_groups,
-                                                              bool sqrt,
-                                                              int* workspace,
-                                                              DataT maxVal)
+template <typename DataT, typename ReduceOpT, int NWARPS, int WARP_SIZE>
+__launch_bounds__(WARP_SIZE* NWARPS, 2) RAFT_KERNEL
+  referenceKernel(raft::KeyValuePair<int, DataT>* min,
+                  DataT* x,
+                  DataT* y,
+                  bool* adj,
+                  int* group_idxs,
+                  int m,
+                  int n,
+                  int k,
+                  int num_groups,
+                  bool sqrt,
+                  int* workspace,
+                  DataT maxVal)
 {
   const int m_stride = blockDim.y * gridDim.y;
   const int m_offset = threadIdx.y + blockIdx.y * blockDim.y;
@@ -222,22 +240,39 @@ auto reference(const raft::handle_t& handle, Inputs<DataT> inp, const Params& p)
   RAFT_CUDA_TRY(cudaGetLastError());
 
   // Launch reference kernel
-  const int nwarps = 16;
-  static const dim3 TPB(32, nwarps, 1);
+  const int nwarps     = 16;
+  auto const warp_size = raft::host_warp_size(stream);
+  static const dim3 TPB(warp_size, nwarps, 1);
   dim3 nblks(1, 200, 1);
-  referenceKernel<DataT, decltype(op), nwarps>
-    <<<nblks, TPB, 0, stream>>>(out.data_handle(),
-                                inp.x.data_handle(),
-                                inp.y.data_handle(),
-                                inp.adj.data_handle(),
-                                inp.group_idxs.data_handle(),
-                                m,
-                                n,
-                                k,
-                                num_groups,
-                                p.sqrt,
-                                (int*)workspace.data(),
-                                std::numeric_limits<DataT>::max());
+  if (warp_size == 32) {
+    referenceKernel<DataT, decltype(op), nwarps, 32>
+      <<<nblks, TPB, 0, stream>>>(out.data_handle(),
+                                  inp.x.data_handle(),
+                                  inp.y.data_handle(),
+                                  inp.adj.data_handle(),
+                                  inp.group_idxs.data_handle(),
+                                  m,
+                                  n,
+                                  k,
+                                  num_groups,
+                                  p.sqrt,
+                                  (int*)workspace.data(),
+                                  std::numeric_limits<DataT>::max());
+  } else {
+    referenceKernel<DataT, decltype(op), nwarps, 64>
+      <<<nblks, TPB, 0, stream>>>(out.data_handle(),
+                                  inp.x.data_handle(),
+                                  inp.y.data_handle(),
+                                  inp.adj.data_handle(),
+                                  inp.group_idxs.data_handle(),
+                                  m,
+                                  n,
+                                  k,
+                                  num_groups,
+                                  p.sqrt,
+                                  (int*)workspace.data(),
+                                  std::numeric_limits<DataT>::max());
+  }
   RAFT_CUDA_TRY(cudaGetLastError());
 
   return out;

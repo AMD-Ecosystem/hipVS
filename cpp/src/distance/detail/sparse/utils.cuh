@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -60,7 +60,8 @@ template <typename value_idx, typename value_t, int tpb = 1024>
 inline int max_cols_per_block(int device_id)
 {
   // max cols = (total smem available - cub reduction smem)
-  return (raft::getSharedMemPerBlock() - ((tpb / raft::host_warp_size(device_id)) * sizeof(value_t))) /
+  return (raft::getSharedMemPerBlock() -
+          ((tpb / raft::host_warp_size(device_id)) * sizeof(value_t))) /
          sizeof(value_t);
 }
 
@@ -75,7 +76,7 @@ RAFT_KERNEL faster_dot_on_csr_kernel(dot_t* __restrict__ dot,
                                      const value_idx dim)
 {
   auto vec_id  = threadIdx.x;
-  auto lane_id = threadIdx.x & 0x1f;
+  auto lane_id = raft::laneId();
 
   extern __shared__ char smem[];
   value_t* s_A      = (value_t*)smem;
@@ -99,9 +100,9 @@ RAFT_KERNEL faster_dot_on_csr_kernel(dot_t* __restrict__ dot,
 
       dot_t l_dot_ = 0.0;
       for (value_idx k = vec_id; k < dim; k += blockDim.x) {
-        #ifndef __HIP_PLATFORM_AMD__
+#ifndef __HIP_PLATFORM_AMD__
         asm("prefetch.global.L2 [%0];" ::"l"(B_col + k + blockDim.x));
-        #endif
+#endif
         if constexpr ((std::is_same_v<dot_t, float> && std::is_same_v<value_t, half>)) {
           l_dot_ += __half2float(s_A[k]) * __half2float(__ldcg(B_col + k));
         } else {

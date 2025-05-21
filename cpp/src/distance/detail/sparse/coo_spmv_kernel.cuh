@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -54,9 +54,9 @@ namespace cuvs {
 namespace distance {
 namespace detail {
 namespace sparse {
-__device__ __inline__ unsigned int get_lowest_peer(unsigned int peer_group)
+__device__ __inline__ unsigned int get_lowest_peer(bitmask_type peer_group)
 {
-  return __ffs(peer_group) - 1;
+  return raft::__FFS(peer_group) - 1;
 }
 
 /**
@@ -219,10 +219,10 @@ RAFT_KERNEL balanced_coo_generalized_spmv_kernel(strategy_t strategy,
 
     bool diff_rows = next_row_b != cur_row_b;
 
-    if (__any_sync(raft::LANE_MASK_ALL, diff_rows)) {
+    if (__any_sync(__activemask(), diff_rows)) {
       // grab the threads currently participating in loops.
       // because any other threads should have returned already.
-      unsigned int peer_group = __match_any_sync<bitmask_type, value_t>(raft::LANE_MASK_ALL, cur_row_b);
+      bitmask_type peer_group = __match_any_sync<bitmask_type, value_t>(__activemask(), cur_row_b);
       bool is_leader          = get_lowest_peer(peer_group) == lane_id;
       value_t v               = warp_red.HeadSegmentedReduce(c, is_leader, accum_func);
 

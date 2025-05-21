@@ -217,6 +217,34 @@ if(BUILD_TESTS)
     neighbors/ann_brute_force/test_half.cu GPUS 1 PERCENT 100
   )
 
+  ConfigureTest(
+    NAME
+    DISTANCE_TEST
+    PATH
+    distance/dist_canberra.cu
+    distance/dist_correlation.cu
+    distance/dist_cos.cu
+    distance/dist_hamming.cu
+    distance/dist_hellinger.cu
+    distance/dist_inner_product.cu
+    distance/dist_jensen_shannon.cu
+    distance/dist_kl_divergence.cu
+    distance/dist_l1.cu
+    distance/dist_l2_exp.cu
+    distance/dist_l2_sqrt_exp.cu
+    distance/dist_l_inf.cu
+    distance/dist_lp_unexp.cu
+    distance/dist_russell_rao.cu
+    distance/gram.cu
+    distance/masked_nn.cu
+    distance/sparse_distance.cu
+    sparse/neighbors/cross_component_nn.cu
+    GPUS
+    1
+    PERCENT
+    100
+  )
+
 endif()
 
 if(BUILD_UPSTREAM_TESTS)
