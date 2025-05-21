@@ -31,8 +31,14 @@ include(../../rapids_config.cmake)
 
 # We always need CUDA for cuvs because the cuvs dependency brings in a header-only cuco dependency
 # that enables CUDA unconditionally.
-include(rapids-cuda)
-rapids_cuda_init_architectures(cuvs_py)
+set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../../overrides.cmake")
+option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
+set(lang_list "C" "CXX")
+if(CUDA_BACKEND)
+  list(APPEND lang_list "CUDA")
+else()
+  list(APPEND lang_list "HIP")
+endif()
 
 project(
   cuvs_py
@@ -41,7 +47,7 @@ project(
             # language to be enabled here. The test project that is built in scikit-build to verify
             # various linking options for the python library is hardcoded to build with C, so until
             # that is fixed we need to keep C.
-            C CXX CUDA
+            ${lang_list}
 )
 
 # ##################################################################################################
