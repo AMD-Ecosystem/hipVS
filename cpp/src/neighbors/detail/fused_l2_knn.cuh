@@ -426,7 +426,7 @@ __launch_bounds__(Policy::Nthreads, 2) RAFT_KERNEL fusedL2kNN(const DataT* x,
         anyWarpTopKs = __syncthreads_or(anyWarpTopKs > 0);
         if (anyWarpTopKs) {
           Pair* allWarpTopKs = (Pair*)(&smem[0]);
-          uint32_t needScanSort[Policy::AccRowsPerTh];
+          bitmask_type needScanSort[Policy::AccRowsPerTh];
 
 #pragma unroll
           for (int i = 0; i < Policy::AccRowsPerTh; ++i) {
@@ -827,7 +827,7 @@ void fusedL2ExpKnnImpl(const DataT* x,
                        void* workspace,
                        size_t& worksize)
 {
-  typedef typename raft::linalg::Policy2x8<DataT, _WarpSize, 1>::Policy RowPolicy;
+  typedef typename raft::linalg::Policy2x8<AccT, _WarpSize, 1>::Policy RowPolicy;
   typedef typename raft::linalg::Policy4x4<AccT, VecLen>::ColPolicy ColPolicy;
 
   typedef typename std::conditional<true, RowPolicy, ColPolicy>::type KPolicy;

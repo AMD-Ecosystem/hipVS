@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include <cstddef>
@@ -321,15 +338,14 @@ auto eval_distances(raft::resources const& handle,
       raft::make_device_matrix_view<const T, IdxT>(x, n_rows, n_cols),
       y.view(),
       raft::make_device_vector_view<const IdxT, IdxT>(neighbors + i * k, k));
-
-    dim3 block_dim(16, 32, 1);
+    auto stream = raft::resource::get_cuda_stream(handle);
+    dim3 block_dim(16, raft::host_warp_size(stream), 1);
     auto grid_y =
       static_cast<uint16_t>(std::min<size_t>(raft::ceildiv<size_t>(k, block_dim.y), 32768));
     dim3 grid_dim(raft::ceildiv<size_t>(n_rows, block_dim.x), grid_y, 1);
 
-    naive_distance_kernel<DistT, T, IdxT>
-      <<<grid_dim, block_dim, 0, raft::resource::get_cuda_stream(handle)>>>(
-        naive_dist.data_handle(), queries + i * n_cols, y.data_handle(), 1, k, n_cols, metric);
+    naive_distance_kernel<DistT, T, IdxT><<<grid_dim, block_dim, 0, stream>>>(
+      naive_dist.data_handle(), queries + i * n_cols, y.data_handle(), 1, k, n_cols, metric);
 
     if (!devArrMatch(distances + i * k,
                      naive_dist.data_handle(),
