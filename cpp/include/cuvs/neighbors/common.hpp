@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include <cstdint>
@@ -224,7 +241,11 @@ auto make_strided_dataset(const raft::resources& res, const SrcT& src, uint32_t 
   RAFT_EXPECTS(src.extent(1) <= required_stride,
                "The input row length must be not larger than the desired stride.");
   cudaPointerAttributes ptr_attrs;
-  RAFT_CUDA_TRY(cudaPointerGetAttributes(&ptr_attrs, src.data_handle()));
+  if (src.data_handle()) {
+    RAFT_CUDA_TRY(cudaPointerGetAttributes(&ptr_attrs, src.data_handle()));
+  } else {
+    ptr_attrs.devicePointer = nullptr;
+  }
   auto* device_ptr             = reinterpret_cast<value_type*>(ptr_attrs.devicePointer);
   const uint32_t src_stride    = src.stride(0) > 0 ? src.stride(0) : src.extent(1);
   const bool device_accessible = device_ptr != nullptr;
@@ -253,14 +274,16 @@ auto make_strided_dataset(const raft::resources& res, const SrcT& src, uint32_t 
                                 0,
                                 out_array.size() * sizeof(value_type),
                                 raft::resource::get_cuda_stream(res)));
-  RAFT_CUDA_TRY(cudaMemcpy2DAsync(out_array.data_handle(),
-                                  sizeof(value_type) * required_stride,
-                                  src.data_handle(),
-                                  sizeof(value_type) * src_stride,
-                                  sizeof(value_type) * src.extent(1),
-                                  src.extent(0),
-                                  cudaMemcpyDefault,
-                                  raft::resource::get_cuda_stream(res)));
+  if (src.data_handle()) {
+    RAFT_CUDA_TRY(cudaMemcpy2DAsync(out_array.data_handle(),
+                                    sizeof(value_type) * required_stride,
+                                    src.data_handle(),
+                                    sizeof(value_type) * src_stride,
+                                    sizeof(value_type) * src.extent(1),
+                                    src.extent(0),
+                                    cudaMemcpyDefault,
+                                    raft::resource::get_cuda_stream(res)));
+  }
 
   return std::make_unique<out_owning_type>(std::move(out_array), out_layout);
 }

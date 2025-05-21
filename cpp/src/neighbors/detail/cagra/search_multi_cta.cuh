@@ -13,6 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "bitonic.hpp"
@@ -115,23 +134,24 @@ struct search : public search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_
 
   void set_params(raft::resources const& res, const search_params& params)
   {
-    size_t global_itopk_size                = itopk_size;
-    constexpr unsigned multi_cta_itopk_size = 32;
-    this->itopk_size                        = multi_cta_itopk_size;
-    search_width                            = 1;
+    int const warp_size           = raft::host_warp_size(raft::resource::get_cuda_stream(res));
+    size_t global_itopk_size      = itopk_size;
+    unsigned multi_cta_itopk_size = warp_size;
+    this->itopk_size              = multi_cta_itopk_size;
+    search_width                  = 1;
     RAFT_LOG_DEBUG("params.itopk_size: %lu", (uint64_t)params.itopk_size);
     RAFT_LOG_DEBUG("global_itopk_size: %lu", (uint64_t)global_itopk_size);
     num_cta_per_query =
       max(params.search_width, raft::ceildiv(global_itopk_size, (size_t)multi_cta_itopk_size));
     result_buffer_size = itopk_size + (search_width * graph_degree);
-    typedef raft::Pow2<32> AlignBytes;
-    unsigned result_buffer_size_32 = AlignBytes::roundUp(result_buffer_size);
+    typedef raft::Pow2<64> AlignBytes;
+    unsigned result_buffer_size_64 = AlignBytes::roundUp(result_buffer_size);
     // constexpr unsigned max_result_buffer_size = 256;
-    RAFT_EXPECTS(result_buffer_size_32 <= 256, "Result buffer size cannot exceed 256");
+    RAFT_EXPECTS(result_buffer_size_64 <= 256, "Result buffer size cannot exceed 256");
 
     smem_size =
       dataset_desc.smem_ws_size_in_bytes +
-      (sizeof(INDEX_T) + sizeof(DISTANCE_T)) * (result_buffer_size_32) +
+      (sizeof(INDEX_T) + sizeof(DISTANCE_T)) * (result_buffer_size_64) +
       sizeof(INDEX_T) * hashmap::get_size(small_hash_bitlen) +  // local_visited_hashmap_ptr
       sizeof(INDEX_T) * search_width +                          // parent_indices_buffer
       sizeof(int);                                              // result_position
@@ -140,7 +160,7 @@ struct search : public search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_
     //
     // Determine the thread block size
     //
-    constexpr unsigned min_block_size = 64;
+    unsigned min_block_size           = warp_size * 2;
     constexpr unsigned max_block_size = 1024;
     uint32_t block_size               = thread_block_size;
     if (block_size == 0) {
@@ -150,7 +170,7 @@ struct search : public search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_
       // If block size is 32, upper limit of shared memory size per
       // thread block is set to 4096. This is GPU generation dependent.
       constexpr unsigned ulimit_smem_size_cta32 = 4096;
-      while (smem_size > ulimit_smem_size_cta32 / 32 * block_size) {
+      while (smem_size > ulimit_smem_size_cta32 / warp_size * block_size) {
         block_size *= 2;
       }
 

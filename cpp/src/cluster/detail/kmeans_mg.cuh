@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "../kmeans.cuh"
@@ -37,8 +54,9 @@
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
-
+#ifndef __HIP_PLATFORM_AMD__
 #include <cuda/functional>
+#endif
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/reduce.h>
@@ -60,6 +78,22 @@ namespace cuvs::cluster::kmeans::mg::detail {
     }                                                        \
     if (isRoot) { RAFT_LOG_DEBUG(fmt, ##__VA_ARGS__); }      \
   } while (0)
+
+namespace cuda {
+template <typename ReturnType, typename Callable>
+static inline auto proclaim_return_type(Callable&& callable)
+{
+#ifdef __HIP_PLATFORM_AMD__
+  // (HIP/AMD)This is a temporary WAR until we have "proclaim_return_type" available from libhipcxx.
+  // amdclang++ is able to deduce the return type of all the device lambdas used in this file,
+  // therefore this band-aid is acceptable.
+  // See: https://github.com/AMD-AI/hipVS/issues/19
+  return std::forward<Callable>(callable);
+#else
+  return ::cuda::proclaim_return_type<ReturnType>(std::forward<Callable>(callable));
+#endif
+}
+}  // namespace cuda
 
 template <typename IndexT, typename DataT>
 struct KeyValueIndexOp {

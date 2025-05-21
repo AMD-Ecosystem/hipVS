@@ -13,6 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "compute_distance-ext.cuh"
@@ -215,17 +233,18 @@ RAFT_KERNEL pickup_next_parents_kernel(
 
   const std::size_t ldb   = hashmap::get_size(hash_bitlen);
   const uint32_t query_id = blockIdx.x;
-  if (threadIdx.x < 32) {
+  if (threadIdx.x < raft::warp_size()) {
     // pickup next parents with single warp
-    for (std::uint32_t i = threadIdx.x; i < parent_list_size; i += 32) {
+    for (std::uint32_t i = threadIdx.x; i < parent_list_size; i += raft::warp_size()) {
       parent_list_ptr[i + (ldd * query_id)] = utils::get_max_value<INDEX_T>();
     }
     std::uint32_t parent_candidates_size_max = parent_candidates_size;
-    if (parent_candidates_size % 32) {
-      parent_candidates_size_max += 32 - (parent_candidates_size % 32);
+    if (parent_candidates_size % raft::warp_size()) {
+      parent_candidates_size_max +=
+        raft::warp_size() - (parent_candidates_size % raft::warp_size());
     }
     std::uint32_t num_new_parents = 0;
-    for (std::uint32_t j = threadIdx.x; j < parent_candidates_size_max; j += 32) {
+    for (std::uint32_t j = threadIdx.x; j < parent_candidates_size_max; j += raft::warp_size()) {
       INDEX_T index;
       int new_parent = 0;
       if (j < parent_candidates_size) {
@@ -234,22 +253,24 @@ RAFT_KERNEL pickup_next_parents_kernel(
           new_parent = 1;
         }
       }
-      const std::uint32_t ballot_mask = __ballot_sync(0xffffffff, new_parent);
+      const bitmask_type ballot_mask = __ballot_sync(raft::LANE_MASK_ALL, new_parent);
       if (new_parent) {
-        const auto i = __popc(ballot_mask & ((1 << threadIdx.x) - 1)) + num_new_parents;
+        const auto i =
+          raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1)) +
+          num_new_parents;
         if (i < parent_list_size) {
           parent_list_ptr[i + (ldd * query_id)] = j;
           parent_candidates_ptr[j + (lds * query_id)] |=
             index_msb_1_mask;  // set most significant bit as used node
         }
       }
-      num_new_parents += __popc(ballot_mask);
+      num_new_parents += raft::__POPC(ballot_mask);
       if (num_new_parents >= parent_list_size) { break; }
     }
     if ((num_new_parents > 0) && (threadIdx.x == 0)) { *terminate_flag = 0; }
   } else if (small_hash_bitlen) {
     // reset small-hash
-    hashmap::init(visited_hashmap_ptr + (ldb * query_id), hash_bitlen, 32);
+    hashmap::init(visited_hashmap_ptr + (ldb * query_id), hash_bitlen, raft::warp_size());
   }
 
   if (small_hash_bitlen) {
@@ -277,7 +298,7 @@ void pickup_next_parents(INDEX_T* const parent_candidates_ptr,  // [num_queries,
                          std::uint32_t* const terminate_flag,
                          cudaStream_t cuda_stream = 0)
 {
-  std::uint32_t block_size = 32;
+  std::uint32_t block_size = raft::host_warp_size(cuda_stream);
   if (small_hash_bitlen) {
     block_size = 128;
     while (parent_candidates_size > block_size) {

@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include <cuvs/neighbors/common.hpp>
@@ -187,9 +204,16 @@ __device__ void run_on_list(
   Action action)
 {
   for (uint32_t ix = threadIdx.x + blockDim.x * blockIdx.x; ix < len; ix += blockDim.x) {
+    // (HIP/AMD): TODO: Revert the std::get_if call once amdclang++ correctly handle std::get or the
+    // std::get implementation is fixed. Background: `std::get` in the libstdc++ implementation
+    // calls an inline function "__throw_bad_variant_access" that isn't marked either
+    // __host__/__device__ and is thus considered a host function by default. amdclang++ thus
+    // complains: "error: reference to __host__ function '__throw_bad_variant_access' in __host__
+    // __device__ function". It is not clear how nvcc handles this but in our case we have to work
+    // around this by calling `std::get_if` which does not call `__throw_bad_variant_access`.
     const uint32_t src_ix = std::holds_alternative<uint32_t>(offset_or_indices)
-                              ? std::get<uint32_t>(offset_or_indices) + ix
-                              : std::get<const uint32_t*>(offset_or_indices)[ix];
+                              ? *std::get_if<uint32_t>(&offset_or_indices) + ix
+                              : *std::get_if<const uint32_t*>(&offset_or_indices)[ix];
     run_on_vector<PqBits>(in_list_data, src_ix, ix, pq_dim, action);
   }
 }
@@ -208,9 +232,18 @@ __device__ void write_list(
   uint32_t stride     = subwarp_align::div(blockDim.x);
   uint32_t ix         = subwarp_align::div(threadIdx.x + blockDim.x * blockIdx.x);
   for (; ix < len; ix += stride) {
+    // (HIP/AMD): TODO: Revert the std::get_if call once amdclang++ correctly handle std::get or the
+    // std::get implementation is fixed. Background: `std::get` in the libstdc++ implementation
+    // calls an inline function "__throw_bad_variant_access" that isn't marked either
+    // __host__/__device__ and is thus considered a host function by default. amdclang++ thus
+    // complains: "error: reference to __host__ function '__throw_bad_variant_access' in __host__
+    // __device__ function". It is not clear how nvcc handles this but in our case we have to work
+    // around this by calling `std::get_if` which does not call `__throw_bad_variant_access`.
     const uint32_t dst_ix = std::holds_alternative<uint32_t>(offset_or_indices)
-                              ? std::get<uint32_t>(offset_or_indices) + ix
-                              : std::get<const uint32_t*>(offset_or_indices)[ix];
+                              ? *std::get_if<uint32_t>(&offset_or_indices) +
+                                  ix  // Using std::get in a device function is questionable since
+                                      // it throws. hipcc/amdclang++ seems to flag this as an issue.
+                              : *std::get_if<const uint32_t*>(&offset_or_indices)[ix];
     write_vector<PqBits, SubWarpSize>(out_list_data, dst_ix, ix, pq_dim, action);
   }
 }

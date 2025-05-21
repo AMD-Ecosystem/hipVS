@@ -11,18 +11,18 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-# Modifications Copyright (c) 2024 Advanced Micro Devices, Inc. Permission is hereby granted, free
-# of charge, to any person obtaining a copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following
-# conditions: The above copyright notice and this permission notice shall be included in all copies
-# or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-# KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+# Modifications Copyright (c) 2024-2025 Advanced Micro Devices, Inc. Permission is hereby granted,
+# free of charge, to any person obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so, subject to the
+# following conditions: The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT
+# WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # ==============================================================================
 
 # NOTE(HIP/AMD): make *.cu files HIP lang files
@@ -109,6 +109,78 @@ endfunction()
 # ##################################################################################################
 
 if(BUILD_TESTS)
+
+  ConfigureTest(
+    NAME CLUSTER_TEST PATH cluster/kmeans.cu cluster/kmeans_balanced.cu cluster/kmeans_find_k.cu
+    cluster/linkage.cu GPUS 1 PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_TEST PATH neighbors/brute_force.cu neighbors/brute_force_prefiltered.cu
+    neighbors/sparse_brute_force.cu neighbors/refine.cu GPUS 1 PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_ANN_CAGRA_FLOAT_UINT32_TEST PATH neighbors/ann_cagra/test_float_uint32_t.cu GPUS
+    1 PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_ANN_CAGRA_HALF_UINT32_TEST PATH neighbors/ann_cagra/test_half_uint32_t.cu GPUS 1
+    PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_ANN_CAGRA_INT8_UINT32_TEST PATH neighbors/ann_cagra/test_int8_t_uint32_t.cu GPUS
+    1 PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_ANN_CAGRA_UINT8_UINT32_TEST PATH neighbors/ann_cagra/test_uint8_t_uint32_t.cu
+    GPUS 1 PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME
+    NEIGHBORS_ANN_NN_DESCENT_TEST
+    PATH
+    neighbors/ann_nn_descent/test_float_uint32_t.cu
+    neighbors/ann_nn_descent/test_int8_t_uint32_t.cu
+    neighbors/ann_nn_descent/test_uint8_t_uint32_t.cu
+    GPUS
+    1
+    PERCENT
+    100
+  )
+
+  ConfigureTest(
+    NAME
+    NEIGHBORS_ANN_IVF_PQ_TEST
+    PATH
+    neighbors/ann_ivf_pq/test_float_int64_t.cu
+    neighbors/ann_ivf_pq/test_int8_t_int64_t.cu
+    neighbors/ann_ivf_pq/test_uint8_t_int64_t.cu
+    GPUS
+    1
+    PERCENT
+    100
+  )
+
+  ConfigureTest(
+    NAME
+    NEIGHBORS_ANN_CAGRA_TEST_BUGS
+    PATH
+    # neighbors/ann_cagra/bug_extreme_inputs_oob.cu TODO: (HIP/AMD) Extremely long runtime(> 2h)
+    neighbors/ann_cagra/bug_multi_cta_crash.cu
+    GPUS
+    1
+    PERCENT
+    100
+  )
+
+endif()
+
+if(BUILD_UPSTREAM_TESTS)
   ConfigureTest(
     NAME NEIGHBORS_TEST PATH neighbors/brute_force.cu neighbors/brute_force_prefiltered.cu
     neighbors/sparse_brute_force.cu neighbors/refine.cu GPUS 1 PERCENT 100
@@ -248,7 +320,7 @@ if(BUILD_TESTS)
     distance/gram.cu
     distance/masked_nn.cu
     distance/sparse_distance.cu
-    # sparse/neighbors/cross_component_nn.cu #TODO(AMD/HIP): Enable when neighbors hipified
+    sparse/neighbors/cross_component_nn.cu
     GPUS
     1
     PERCENT
@@ -265,15 +337,7 @@ if(BUILD_TESTS)
   )
 
   ConfigureTest(
-    NAME
-    STATS_TEST
-    PATH
-    # stats/trustworthiness.cu #TODO(AMD/HIP): Enable when neighbors hipified
-    stats/silhouette_score.cu
-    GPUS
-    1
-    PERCENT
-    100
+    NAME STATS_TEST PATH stats/trustworthiness.cu stats/silhouette_score.cu GPUS 1 PERCENT 100
   )
 endif()
 

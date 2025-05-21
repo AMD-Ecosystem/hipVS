@@ -13,6 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "bitonic.hpp"
@@ -109,8 +127,8 @@ struct search : search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_T> {
     num_itopk_candidates = search_width * graph_degree;
     result_buffer_size   = itopk_size + num_itopk_candidates;
 
-    typedef raft::Pow2<32> AlignBytes;
-    unsigned result_buffer_size_32 = AlignBytes::roundUp(result_buffer_size);
+    typedef raft::Pow2<64> AlignBytes;
+    unsigned result_buffer_size_64 = AlignBytes::roundUp(result_buffer_size);
 
     constexpr unsigned max_itopk = 512;
     RAFT_EXPECTS(itopk_size <= max_itopk, "itopk_size cannot be larger than %u", max_itopk);
@@ -120,14 +138,14 @@ struct search : search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_T> {
     //
     // Determine the thread block size
     //
-    constexpr unsigned min_block_size       = 64;  // 32 or 64
+    const unsigned min_block_size = raft::host_warp_size(raft::resource::get_cuda_stream(res)) * 2;
     constexpr unsigned min_block_size_radix = 256;
     constexpr unsigned max_block_size       = 1024;
     //
     const std::uint32_t topk_ws_size = 3;
     const std::uint32_t base_smem_size =
       dataset_desc.smem_ws_size_in_bytes +
-      (sizeof(INDEX_T) + sizeof(DISTANCE_T)) * result_buffer_size_32 +
+      (sizeof(INDEX_T) + sizeof(DISTANCE_T)) * result_buffer_size_64 +
       sizeof(INDEX_T) * hashmap::get_size(small_hash_bitlen) + sizeof(INDEX_T) * search_width +
       sizeof(std::uint32_t) * topk_ws_size + sizeof(std::uint32_t);
 
@@ -144,7 +162,7 @@ struct search : search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_T> {
 
     if (!std::is_same_v<SAMPLE_FILTER_T, cuvs::neighbors::filtering::none_sample_filter>) {
       // For filtering postprocess
-      using scan_op_t = cub::WarpScan<unsigned>;
+      using scan_op_t = cub::WarpScan<unsigned, 64>;
       additional_smem_size =
         std::max<std::uint32_t>(additional_smem_size, sizeof(scan_op_t::TempStorage));
     }

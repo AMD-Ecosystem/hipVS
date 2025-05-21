@@ -41,6 +41,7 @@
 #include <raft/core/logger.hpp>
 
 #ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/library_types.h>
 #include <hip/hip_fp16.h>
 #else
 #include <cuda_fp16.h>

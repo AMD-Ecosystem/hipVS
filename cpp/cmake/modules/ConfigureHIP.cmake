@@ -58,5 +58,5 @@ endif()
 # Debug options
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   message(VERBOSE "CUVS: Building with debugging flags")
-  list(APPEND CUVS_GPU_FLAGS -g -rdynamic)
+  list(APPEND CUVS_GPU_FLAGS -g)
 endif()

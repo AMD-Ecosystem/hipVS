@@ -13,8 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include "topk_core.cuh"
+#include <raft/util/cudart_utils.hpp>
 
 namespace cuvs::neighbors::cagra::detail {
 
@@ -95,36 +113,36 @@ void _cuann_find_topk(uint32_t topK,
   } while (0)
 
   // V: vecLen
-#define SET_KERNEL_V(V, ValT)                                \
-  do {                                                       \
-    if (topK <= 32) {                                        \
-      SET_KERNEL_VKT(V, 32, 32, ValT);                       \
-    } else if (topK <= 64) {                                 \
-      SET_KERNEL_VKT(V, 64, 32, ValT);                       \
-    } else if (topK <= 96) {                                 \
-      SET_KERNEL_VKT(V, 96, 32, ValT);                       \
-    } else if (topK <= 128) {                                \
-      SET_KERNEL_VKT(V, 128, 32, ValT);                      \
-    } else if (topK <= 192) {                                \
-      SET_KERNEL_VKT(V, 192, 64, ValT);                      \
-    } else if (topK <= 256) {                                \
-      SET_KERNEL_VKT(V, 256, 64, ValT);                      \
-    } else if (topK <= 384) {                                \
-      SET_KERNEL_VKT(V, 384, 128, ValT);                     \
-    } else if (topK <= 512) {                                \
-      SET_KERNEL_VKT(V, 512, 128, ValT);                     \
-    } else if (topK <= 768) {                                \
-      SET_KERNEL_VKT(V, 768, 256, ValT);                     \
-    } else if (topK <= 1024) {                               \
-      SET_KERNEL_VKT(V, 1024, 256, ValT);                    \
+#define SET_KERNEL_V(V, ValT)                                       \
+  do {                                                              \
+    if (topK <= 32 && raft::host_warp_size(stream) == 32) {         \
+      SET_KERNEL_VKT(V, 32, 32, ValT);                              \
+    } else if (topK <= 64 && raft::host_warp_size(stream) == 32) {  \
+      SET_KERNEL_VKT(V, 64, 32, ValT);                              \
+    } else if (topK <= 96 && raft::host_warp_size(stream) == 32) {  \
+      SET_KERNEL_VKT(V, 96, 32, ValT);                              \
+    } else if (topK <= 128 && raft::host_warp_size(stream) == 32) { \
+      SET_KERNEL_VKT(V, 128, 32, ValT);                             \
+    } else if (topK <= 192) {                                       \
+      SET_KERNEL_VKT(V, 192, 64, ValT);                             \
+    } else if (topK <= 256) {                                       \
+      SET_KERNEL_VKT(V, 256, 64, ValT);                             \
+    } else if (topK <= 384) {                                       \
+      SET_KERNEL_VKT(V, 384, 128, ValT);                            \
+    } else if (topK <= 512) {                                       \
+      SET_KERNEL_VKT(V, 512, 128, ValT);                            \
+    } else if (topK <= 768) {                                       \
+      SET_KERNEL_VKT(V, 768, 256, ValT);                            \
+    } else if (topK <= 1024) {                                      \
+      SET_KERNEL_VKT(V, 1024, 256, ValT);                           \
     } \
         /* else if (topK <= 1536) { SET_KERNEL_VKT(V, 1536, 512); } */ \
         /* else if (topK <= 2048) { SET_KERNEL_VKT(V, 2048, 512); } */ \
         /* else if (topK <= 3072) { SET_KERNEL_VKT(V, 3072, 1024); } */ \
         /* else if (topK <= 4096) { SET_KERNEL_VKT(V, 4096, 1024); } */ \
-        else {                                                      \
-      RAFT_FAIL("topk must be lower than or equal to 1024"); \
-    }                                                        \
+        else {                                                             \
+      RAFT_FAIL("topk must be lower than or equal to 1024");        \
+    }                                                               \
   } while (0)
 
   int _vecLen = _get_vecLen(ldIK, 2);

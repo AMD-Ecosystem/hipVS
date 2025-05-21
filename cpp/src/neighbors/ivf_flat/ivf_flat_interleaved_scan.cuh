@@ -14,6 +14,24 @@
  * limitations under the License.
  */
 
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "../ivf_common.cuh"
@@ -895,7 +913,7 @@ RAFT_KERNEL __launch_bounds__(kThreadsPerBlock)
       uint32_t sample_offset = 0;
       if (probe_id > 0) { sample_offset = chunk_indices[probe_id - 1]; }
       assert(list_length == chunk_indices[probe_id] - sample_offset);
-      assert(sample_offset + list_length <= max_samples);
+      if constexpr (!kManageLocalTopK) { assert(sample_offset + list_length <= max_samples); }
 
       constexpr int kUnroll        = raft::WarpSize / Veclen;
       constexpr uint32_t kNumWarps = kThreadsPerBlock / raft::WarpSize;
@@ -1037,15 +1055,24 @@ void launch_kernel(Lambda lambda,
                                                    Lambda,
                                                    PostLambda>;
   const int max_query_smem = 16384;
-  int query_smem_elems     = std::min<int>(max_query_smem / sizeof(T),
-                                       raft::Pow2<Veclen * raft::WarpSize>::roundUp(index.dim()));
-  int smem_size            = query_smem_elems * sizeof(T);
+  int warp_size            = raft::host_warp_size(stream);
+  int query_smem_elems     = [&]() {
+    if (warp_size == 64) {
+      return std::min<int>(max_query_smem / sizeof(T),
+                           raft::Pow2<Veclen * 64>::roundUp(index.dim()));
+    } else {
+      ASSERT(warp_size == 32, "Invalid warp size");
+      return std::min<int>(max_query_smem / sizeof(T),
+                           raft::Pow2<Veclen * 32>::roundUp(index.dim()));
+    }
+  }();
+  int smem_size = query_smem_elems * sizeof(T);
 
   if constexpr (Capacity > 0) {
-    constexpr int kSubwarpSize = std::min<int>(Capacity, raft::WarpSize);
+    int sub_warp_size = std::min<int>(Capacity, warp_size);
     auto block_merge_mem =
       raft::matrix::detail::select::warpsort::calc_smem_size_for_block_wide<float, IdxT>(
-        kThreadsPerBlock / kSubwarpSize, k);
+        kThreadsPerBlock / sub_warp_size, k);
     smem_size += std::max<int>(smem_size, block_merge_mem);
   }
 

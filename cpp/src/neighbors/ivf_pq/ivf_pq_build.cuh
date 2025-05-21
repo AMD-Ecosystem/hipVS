@@ -46,6 +46,7 @@
 // TODO (cjnolet): This should be using an exposed API instead of circumventing the public APIs.
 #include "../../cluster/kmeans_balanced.cuh"
 
+#include <limits>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/logger.hpp>
 #include <raft/core/mdspan.hpp>
@@ -170,15 +171,21 @@ void flat_compute_residuals(
   auto dim     = rotation_matrix.extent(1);
   auto rot_dim = rotation_matrix.extent(0);
   rmm::device_uvector<float> tmp(n_rows * dim, stream, device_memory);
-  auto tmp_view = raft::make_device_vector_view<float, IdxT>(tmp.data(), tmp.size());
-  raft::linalg::map_offset(handle, tmp_view, [centers, dataset, labels, dim] __device__(size_t i) {
-    auto row_ix = i / dim;
-    auto el_ix  = i % dim;
-    auto label  = std::holds_alternative<uint32_t>(labels)
-                    ? std::get<uint32_t>(labels)
-                    : std::get<const uint32_t*>(labels)[row_ix];
-    return utils::mapping<float>{}(dataset[i]) - centers(label, el_ix);
-  });
+  auto tmp_view             = raft::make_device_vector_view<float, IdxT>(tmp.data(), tmp.size());
+  const uint32_t* label_ptr = nullptr;
+  uint32_t offset{};
+  if (std::holds_alternative<uint32_t>(labels)) {
+    offset = std::get<uint32_t>(labels);
+  } else {
+    label_ptr = std::get<const uint32_t*>(labels);
+  }
+  raft::linalg::map_offset(
+    handle, tmp_view, [centers, dataset, label_ptr, offset, dim] __device__(size_t i) {
+      auto row_ix = i / dim;
+      auto el_ix  = i % dim;
+      auto label  = label_ptr == nullptr ? offset : label_ptr[row_ix];
+      return utils::mapping<float>{}(dataset[i]) - centers(label, el_ix);
+    });
 
   float alpha = 1.0f;
   float beta  = 0.0f;
@@ -1136,8 +1143,8 @@ struct encode_vectors {
     // reduce among threads
 #pragma unroll
     for (uint32_t stride = SubWarpSize >> 1; stride > 0; stride >>= 1) {
-      const auto other_dist = raft::shfl_xor(min_dist, stride, SubWarpSize);
-      const auto other_code = raft::shfl_xor(code, stride, SubWarpSize);
+      const auto other_dist = raft::shfl_xor(min_dist, stride, SubWarpSize, __activemask());
+      const auto other_code = raft::shfl_xor(code, stride, SubWarpSize, __activemask());
       if (other_dist < min_dist) {
         min_dist = other_dist;
         code     = other_code;
@@ -1147,10 +1154,19 @@ struct encode_vectors {
   }
 };
 
+template <typename IdxT>
+struct SrcOffsetOrIndices {
+  enum { Offset, Indices } type;
+  union {
+    IdxT offset;
+    IdxT const* indices;
+  };
+};
+
 template <uint32_t BlockSize, uint32_t PqBits, typename IdxT>
 __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kernel(
   raft::device_matrix_view<const float, IdxT, raft::row_major> new_vectors,
-  std::variant<IdxT, const IdxT*> src_offset_or_indices,
+  SrcOffsetOrIndices<IdxT> src_offset_or_indices,
   const uint32_t* new_labels,
   raft::device_vector_view<uint32_t, uint32_t, raft::row_major> list_sizes,
   raft::device_vector_view<IdxT*, uint32_t, raft::row_major> inds_ptrs,
@@ -1158,7 +1174,7 @@ __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kerne
   raft::device_mdspan<const float, raft::extent_3d<uint32_t>, raft::row_major> pq_centers,
   codebook_gen codebook_kind)
 {
-  constexpr uint32_t kSubWarpSize = std::min<uint32_t>(raft::WarpSize, 1u << PqBits);
+  constexpr uint32_t kSubWarpSize = std::min<uint32_t>(raft::warp_size(), 1u << PqBits);
   using subwarp_align             = raft::Pow2<kSubWarpSize>;
   const uint32_t lane_id          = subwarp_align::mod(threadIdx.x);
   const IdxT row_ix = subwarp_align::div(IdxT{threadIdx.x} + IdxT{BlockSize} * IdxT{blockIdx.x});
@@ -1167,15 +1183,15 @@ __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kerne
   const uint32_t cluster_ix = new_labels[row_ix];
   uint32_t out_ix;
   if (lane_id == 0) { out_ix = atomicAdd(&list_sizes(cluster_ix), 1); }
-  out_ix = raft::shfl(out_ix, 0, kSubWarpSize);
+  out_ix = __shfl_sync(std::numeric_limits<uint64_t>::max(), out_ix, 0, kSubWarpSize);
 
   // write the label  (one record per subwarp)
   auto pq_indices = inds_ptrs(cluster_ix);
   if (lane_id == 0) {
-    if (std::holds_alternative<IdxT>(src_offset_or_indices)) {
-      pq_indices[out_ix] = std::get<IdxT>(src_offset_or_indices) + row_ix;
+    if (src_offset_or_indices.type == SrcOffsetOrIndices<IdxT>::Offset) {
+      pq_indices[out_ix] = src_offset_or_indices.offset + row_ix;
     } else {
-      pq_indices[out_ix] = std::get<const IdxT*>(src_offset_or_indices)[row_ix];
+      pq_indices[out_ix] = src_offset_or_indices.indices[row_ix];
     }
   }
 
@@ -1202,7 +1218,7 @@ __launch_bounds__(BlockSize) static __global__ void encode_list_data_kernel(
   uint32_t cluster_ix,
   std::variant<uint32_t, const uint32_t*> offset_or_indices)
 {
-  constexpr uint32_t kSubWarpSize = std::min<uint32_t>(raft::WarpSize, 1u << PqBits);
+  constexpr uint32_t kSubWarpSize = std::min<uint32_t>(raft::warp_size(), 1u << PqBits);
   const uint32_t pq_dim           = new_vectors.extent(1) / pq_centers.extent(1);
   auto encode_action =
     encode_vectors<kSubWarpSize, uint32_t>{pq_centers, new_vectors, codebook_kind, cluster_ix};
@@ -1235,7 +1251,8 @@ void encode_list_data(raft::resources const& res,
                                       mr);
 
   constexpr uint32_t kBlockSize  = 256;
-  const uint32_t threads_per_vec = std::min<uint32_t>(raft::WarpSize, index->pq_book_size());
+  const uint32_t threads_per_vec = std::min<uint32_t>(
+    raft::host_warp_size(raft::resource::get_device_id(res)), index->pq_book_size());
   dim3 blocks(raft::div_rounding_up_safe<uint32_t>(n_rows, kBlockSize / threads_per_vec), 1, 1);
   dim3 threads(kBlockSize, 1, 1);
   auto kernel = [](uint32_t pq_bits) {
@@ -1306,8 +1323,10 @@ void process_and_fill_codes(raft::resources const& handle,
                                   new_labels,
                                   mr);
 
-  constexpr uint32_t kBlockSize  = 256;
-  const uint32_t threads_per_vec = std::min<uint32_t>(raft::WarpSize, index.pq_book_size());
+  constexpr uint32_t kBlockSize = 256;
+  auto stream                   = raft::resource::get_cuda_stream(handle);
+  const uint32_t threads_per_vec =
+    std::min<uint32_t>(raft::host_warp_size(stream), index.pq_book_size());
   dim3 blocks(raft::div_rounding_up_safe<IdxT>(n_rows, kBlockSize / threads_per_vec), 1, 1);
   dim3 threads(kBlockSize, 1, 1);
   auto kernel = [](uint32_t pq_bits) {
@@ -1320,15 +1339,21 @@ void process_and_fill_codes(raft::resources const& handle,
       default: RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 8]", pq_bits);
     }
   }(index.pq_bits());
-  kernel<<<blocks, threads, 0, raft::resource::get_cuda_stream(handle)>>>(
-    new_vectors_residual.view(),
-    src_offset_or_indices,
-    new_labels,
-    index.list_sizes(),
-    index.inds_ptrs(),
-    index.data_ptrs(),
-    index.pq_centers(),
-    index.codebook_kind());
+
+  auto local_src_offset_or_indices =
+    std::holds_alternative<IdxT>(src_offset_or_indices)
+      ? SrcOffsetOrIndices<IdxT>{.offset = std::get<IdxT>(src_offset_or_indices),
+                                 .type   = SrcOffsetOrIndices<IdxT>::Offset}
+      : SrcOffsetOrIndices<IdxT>{.indices = std::get<const IdxT*>(src_offset_or_indices),
+                                 .type    = SrcOffsetOrIndices<IdxT>::Indices};
+  kernel<<<blocks, threads, 0, stream>>>(new_vectors_residual.view(),
+                                         local_src_offset_or_indices,
+                                         new_labels,
+                                         index.list_sizes(),
+                                         index.inds_ptrs(),
+                                         index.data_ptrs(),
+                                         index.pq_centers(),
+                                         index.codebook_kind());
   RAFT_CUDA_TRY(cudaPeekAtLastError());
 }
 

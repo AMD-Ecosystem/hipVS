@@ -36,6 +36,7 @@
 #include "hashmap.hpp"
 #include "utils.hpp"
 
+#include <cstdio>
 #include <cuvs/distance/distance.hpp>
 
 // TODO: This shouldn't be invoking anything in detail APIs outside of cuvs/neighbors
@@ -44,6 +45,7 @@
 #include <raft/util/warp_primitives.cuh>
 
 #ifdef __HIP_PLATFORM_AMD__
+#include "device_common_hip.hpp"
 #include <hip/hip_fp16.h>
 #include <rocprim/rocprim.hpp>
 using namespace hip_warp_primitives;
@@ -55,9 +57,6 @@ using namespace hip_warp_primitives;
 
 namespace cuvs::neighbors::cagra::detail {
 namespace device {
-
-// warpSize for compile time calculation
-constexpr unsigned warp_size = 32;
 
 // using LOAD_256BIT_T = ulonglong4;
 using LOAD_128BIT_T = uint4;
@@ -101,7 +100,7 @@ RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x) -> T
 {
 #pragma unroll
   for (uint32_t stride = TeamSize >> 1; stride > 0; stride >>= 1) {
-    x += raft::shfl_xor(x, stride, TeamSize);
+    x += raft::shfl_xor(x, stride, TeamSize, __activemask());
   }
   return x;
 }
@@ -110,11 +109,17 @@ template <typename T>
 RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x, uint32_t team_size_bitshift) -> T
 {
   switch (team_size_bitshift) {
-    case 5: x += raft::shfl_xor(x, 16);
-    case 4: x += raft::shfl_xor(x, 8);
-    case 3: x += raft::shfl_xor(x, 4);
-    case 2: x += raft::shfl_xor(x, 2);
-    case 1: x += raft::shfl_xor(x, 1);
+    // TODO: (HIP/AMD) This was originally using raft::shfl_xor but this completely breaks
+    // single-CTA search. When calling raft::shfl_xor we would fail to exit the main loop in
+    // *search_core*. This needs further investigation. raft::shfl_xor should after it being inlined
+    // should be calling __shfl_xor_sync under the hood so this makes no  sense. See:
+    // https://github.com/AMD-AI/hipVS/issues/20
+    case 6: x += __shfl_xor_sync(__activemask(), x, 32, raft::warp_size());
+    case 5: x += __shfl_xor_sync(__activemask(), x, 16, raft::warp_size());
+    case 4: x += __shfl_xor_sync(__activemask(), x, 8, raft::warp_size());
+    case 3: x += __shfl_xor_sync(__activemask(), x, 4, raft::warp_size());
+    case 2: x += __shfl_xor_sync(__activemask(), x, 2, raft::warp_size());
+    case 1: x += __shfl_xor_sync(__activemask(), x, 1, raft::warp_size());
     default: return x;
   }
 }
@@ -139,7 +144,7 @@ RAFT_DEVICE_INLINE_FUNCTION void compute_distance_to_random_nodes(
   const uint32_t num_blocks = 1)
 {
   const auto team_size_bits = dataset_desc.team_size_bitshift_from_smem();
-  const auto max_i = raft::round_up_safe<uint32_t>(num_pickup, warp_size >> team_size_bits);
+  const auto max_i = raft::round_up_safe<uint32_t>(num_pickup, raft::warp_size() >> team_size_bits);
   const auto compute_distance = dataset_desc.compute_distance_impl;
 
   for (uint32_t i = threadIdx.x >> team_size_bits; i < max_i; i += (blockDim.x >> team_size_bits)) {
@@ -245,9 +250,10 @@ RAFT_DEVICE_INLINE_FUNCTION void compute_distance_to_child_nodes(
   __syncthreads();
 
   // Compute the distance to child nodes
-  const auto team_size_bits   = dataset_desc.team_size_bitshift_from_smem();
-  const auto num_k            = knn_k * search_width;
-  const auto max_i            = raft::round_up_safe(num_k, warp_size >> team_size_bits);
+  const auto team_size_bits = dataset_desc.team_size_bitshift_from_smem();
+  const auto num_k          = knn_k * search_width;
+  const auto max_i =
+    raft::round_up_safe(num_k, static_cast<uint32_t>(raft::warp_size()) >> team_size_bits);
   const auto compute_distance = dataset_desc.compute_distance_impl;
   const auto args             = dataset_desc.args.load();
   const bool lead_lane        = (threadIdx.x & ((1u << team_size_bits) - 1u)) == 0;
@@ -275,7 +281,7 @@ RAFT_DEVICE_INLINE_FUNCTION void compute_distance_to_child_nodes(
 RAFT_DEVICE_INLINE_FUNCTION void lds(float& x, uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<float*>(addr);
+  auto ptr = shared_offset_to_flat<float>(addr);
   x        = *ptr;
 #else
   asm volatile("ld.shared.f32 {%0}, [%1];" : "=f"(x) : "r"(addr));
@@ -284,7 +290,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(float& x, uint32_t addr)
 RAFT_DEVICE_INLINE_FUNCTION void lds(half& x, uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<half*>(addr);
+  auto ptr = shared_offset_to_flat<half>(addr);
   x        = *ptr;
 #else
   asm volatile("ld.shared.u16 {%0}, [%1];" : "=h"(reinterpret_cast<uint16_t&>(x)) : "r"(addr));
@@ -293,7 +299,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(half& x, uint32_t addr)
 RAFT_DEVICE_INLINE_FUNCTION void lds(half2& x, uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<half2*>(addr);
+  auto ptr = shared_offset_to_flat<half2>(addr);
   x        = *ptr;
 #else
   asm volatile("ld.shared.u32 {%0}, [%1];" : "=r"(reinterpret_cast<uint32_t&>(x)) : "r"(addr));
@@ -302,7 +308,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(half2& x, uint32_t addr)
 RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[1], uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<half*>(addr);
+  auto ptr = shared_offset_to_flat<half>(addr);
   x[0]     = *ptr;
 #else
   asm volatile("ld.shared.u16 {%0}, [%1];" : "=h"(*reinterpret_cast<uint16_t*>(x)) : "r"(addr));
@@ -311,7 +317,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[1], uint32_t addr)
 RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[2], uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<half*>(addr);
+  auto ptr = shared_offset_to_flat<half>(addr);
   x[0]     = ptr[0];
   x[1]     = ptr[1];
 #else
@@ -323,7 +329,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[2], uint32_t addr)
 RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[4], uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<half*>(addr);
+  auto ptr = shared_offset_to_flat<half>(addr);
   x[0]     = ptr[0];
   x[1]     = ptr[1];
   x[2]     = ptr[2];
@@ -341,7 +347,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[4], uint32_t addr)
 RAFT_DEVICE_INLINE_FUNCTION void lds(uint32_t& x, uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<uint32_t*>(addr);
+  auto ptr = shared_offset_to_flat<uint32_t>(addr);
   x        = *ptr;
 #else
   asm volatile("ld.shared.u32 {%0}, [%1];" : "=r"(x) : "r"(addr));
@@ -360,7 +366,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(uint32_t& x, const uint32_t* addr)
 RAFT_DEVICE_INLINE_FUNCTION void lds(uint4& x, uint32_t addr)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<uint4*>(addr);
+  auto ptr = shared_offset_to_flat<uint4>(addr);
   x.x      = ptr->x;
   x.y      = ptr->y;
   x.z      = ptr->z;
@@ -387,7 +393,7 @@ RAFT_DEVICE_INLINE_FUNCTION void lds(uint4& x, const uint4* addr)
 RAFT_DEVICE_INLINE_FUNCTION void sts(uint32_t addr, const half2& x)
 {
 #ifdef __HIP_PLATFORM_AMD__
-  auto ptr = reinterpret_cast<half2*>(addr);
+  auto ptr = shared_offset_to_flat<half2>(addr);
   *ptr     = x;
 #else
   asm volatile("st.shared.v2.u16 [%0], {%1, %2};"

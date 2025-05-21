@@ -13,6 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 #pragma once
 
 // TODO: This shouldn't be calling RAFT detail APIs
@@ -44,15 +64,15 @@ RAFT_DEVICE_INLINE_FUNCTION void swap_if_needed(K& k0,
                                                 const unsigned lane_offset,
                                                 const bool asc)
 {
-  auto k1 = __shfl_xor_sync(~0u, k0, lane_offset);
-  auto v1 = __shfl_xor_sync(~0u, v0, lane_offset);
+  auto k1 = __shfl_xor_sync(__activemask(), k0, lane_offset);
+  auto v1 = __shfl_xor_sync(__activemask(), v0, lane_offset);
   if ((k0 != k1) && ((k0 < k1) != asc)) {
     k0 = k1;
     v0 = v1;
   }
 }
 
-template <class K, class V, unsigned N, unsigned warp_size = 32>
+template <class K, class V, unsigned N, unsigned warp_size>
 struct warp_merge_core {
   RAFT_DEVICE_INLINE_FUNCTION void operator()(K k[N],
                                               V v[N],
@@ -228,13 +248,13 @@ struct warp_merge_core<K, V, 1, warp_size> {
 
 }  // namespace detail
 
-template <class K, class V, unsigned N, unsigned warp_size = 32>
+template <class K, class V, unsigned N, unsigned warp_size>
 RAFT_DEVICE_INLINE_FUNCTION void warp_merge(K k[N], V v[N], unsigned range, const bool asc = true)
 {
   detail::warp_merge_core<K, V, N, warp_size>{}(k, v, range, asc);
 }
 
-template <class K, class V, unsigned N, unsigned warp_size = 32>
+template <class K, class V, unsigned N, unsigned warp_size>
 RAFT_DEVICE_INLINE_FUNCTION void warp_sort(K k[N], V v[N], const bool asc = true)
 {
 #pragma unroll

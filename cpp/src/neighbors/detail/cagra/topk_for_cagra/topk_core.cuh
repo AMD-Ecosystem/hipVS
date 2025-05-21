@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -486,8 +486,9 @@ RAFT_DEVICE_INLINE_FUNCTION void select_best_index_for_next_threshold(
     }
   }
   if (threadIdx.x < num_bins) {
-    const int laneid = 31 - __clz(__ballot_sync(0xffffffff, (my_index != 0xffffffff)));
-    if ((threadIdx.x & 0x1f) == laneid) {
+    const int laneid = (raft::warp_size() - 1) -
+                       raft::__CLZ(__ballot_sync(raft::LANE_MASK_ALL, (my_index != 0xffffffff)));
+    if ((raft::laneId()) == laneid) {
       const uint32_t old_index = atomicMax(best_index, my_index);
       if (old_index < my_index) { atomicMax(best_csum, my_csum); }
     }
@@ -808,7 +809,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_cta_11_core(uint32_t topk,
 
     for (uint32_t curr_mask = mask; curr_mask > 0; curr_mask >>= 1) {
       const bool ascending = ((thread_id & curr_mask) == 0) == ((thread_id & next_mask) == 0);
-      if (curr_mask >= 32) {
+      if (curr_mask >= raft::warp_size()) {
         // inter warp
         ValT* const smem_vals = reinterpret_cast<ValT*>(_smem);  // [maxTopk]
         float* const smem_keys =
@@ -835,8 +836,8 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_cta_11_core(uint32_t topk,
         if (thread_id < numSortThreads) {
 #pragma unroll
           for (int i = 0; i < numTopkPerThread; i++) {
-            float opp_key = __shfl_xor_sync(0xffffffff, my_keys[i], curr_mask);
-            ValT opp_val  = __shfl_xor_sync(0xffffffff, my_vals[i], curr_mask);
+            float opp_key = __shfl_xor_sync(raft::LANE_MASK_ALL, my_keys[i], curr_mask);
+            ValT opp_val  = __shfl_xor_sync(raft::LANE_MASK_ALL, my_vals[i], curr_mask);
             swap_if_needed<float, ValT>(my_keys[i], opp_key, my_vals[i], opp_val, ascending);
           }
         }
@@ -927,7 +928,7 @@ __launch_bounds__(1024, 1) RAFT_KERNEL
     (_in_vals == NULL ? NULL : _in_vals + i_batch * ld_iv),
     (_y == NULL ? NULL : _y + i_batch * ld_y),
     (_out_vals == NULL ? NULL : _out_vals + i_batch * ld_ov),
-    (_state == NULL ? NULL : _state + i_batch * get_state_size<stateBitLen>(len_x)),
+    (_state == NULL ? NULL : _state + i_batch * get_state_size<stateBitLen, NUM_THREADS>(len_x)),
     (_hints == NULL ? NULL : _hints + i_batch),
     sort,
     _smem);

@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -145,7 +145,7 @@ void kmeansPlusPlus(raft::resources const& handle,
 
   rmm::device_uvector<DataT> L2NormBuf_OR_DistBuf(0, stream);
   rmm::device_scalar<DataT> clusterCost(stream);
-  rmm::device_scalar<cub::KeyValuePair<int, DataT>> minClusterIndexAndDistance(stream);
+  rmm::device_scalar<cub::KeyValuePair<IndexT, DataT>> minClusterIndexAndDistance(stream);
 
   // Device and matrix views
   raft::device_vector_view<IndexT, IndexT> indices_view(indices.data_handle(), n_trials);
@@ -268,7 +268,7 @@ void kmeansPlusPlus(raft::resources const& handle,
                                 costPerCandidate.extent(0),
                                 stream);
 
-      int bestCandidateIdx = -1;
+      IndexT bestCandidateIdx = -1;
       raft::copy(&bestCandidateIdx, &minClusterIndexAndDistance.data()->key, 1, stream);
       raft::resource::sync_stream(handle);
       /// <<< End of Step-3 >>>

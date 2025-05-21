@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "../ivf_common.cuh"                       // dummy_block_sort_t
@@ -25,8 +42,11 @@
 #include <raft/util/device_atomics.cuh>      // raft::atomicMin
 #include <raft/util/pow2_utils.cuh>          // raft::Pow2
 #include <raft/util/vectorized.cuh>          // raft::TxN_t
-
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cuda_runtime.h>
+#endif
 #include <rmm/cuda_stream_view.hpp>  // rmm::cuda_stream_view
+#include <type_traits>
 
 namespace cuvs::neighbors::ivf_pq::detail {
 
@@ -455,9 +475,21 @@ RAFT_KERNEL compute_similarity_kernel(uint32_t dim,
     auto pq_thread_data = pq_dataset[label] + group_align::roundDown(threadIdx.x) * pq_line_width +
                           group_align::mod(threadIdx.x) * vec_align::Value;
     pq_line_width *= blockDim.x;
-
+#ifdef __HIP_PLATFORM_AMD__
+    OutT kDummy = []() {
+      if constexpr (std::is_same_v<OutT, half>) {
+        // constexpr construction of HIP's __half type is not possible. Therefore kDummy when
+        // compiled with AMD clang cannot be constexpr.
+        constexpr __half_raw raw{.x = raft::kHalfUpperBoundAsUint16};
+        return half(raw);
+      } else {
+        return raft::upper_bound<OutT>();
+      }
+    }();
+#else
     constexpr OutT kDummy = raft::upper_bound<OutT>();
-    OutT query_kth        = kDummy;
+#endif
+    OutT query_kth = kDummy;
     if constexpr (kManageLocalTopK) { query_kth = OutT(query_kths[query_ix]); }
     OutT early_stop_limit = kDummy;
     switch (metric) {
@@ -726,10 +758,10 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
     uint32_t subwarp_size;
     uint32_t topk;
     bool manage_local_topk;
-    ltk_reduce_mem_t(bool manage_local_topk, uint32_t topk)
+    ltk_reduce_mem_t(bool manage_local_topk, uint32_t topk, int warp_size)
       : manage_local_topk(manage_local_topk), topk(topk)
     {
-      subwarp_size = raft::WarpSize;
+      subwarp_size = warp_size;
       while (topk * 2 <= subwarp_size) {
         subwarp_size /= 2;
       }
@@ -742,7 +774,7 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
                                      n_threads / subwarp_size, topk)
                                : 0;
     }
-  } ltk_reduce_mem{manage_local_topk, topk};
+  } ltk_reduce_mem{manage_local_topk, topk, dev_props.warpSize};
 
   struct total_shared_mem_t {
     ltk_add_mem_t& ltk_add_mem;
@@ -763,7 +795,7 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
   //   1. It's a power-of-two for efficient L1 caching of pq_centers values
   //      (multiples of `1 << pq_bits`).
   //   2. It should be large enough to fully utilize an SM.
-  uint32_t n_threads_min = raft::WarpSize;
+  uint32_t n_threads_min = dev_props.warpSize;
   while (dev_props.maxBlocksPerMultiProcessor * int(n_threads_min) <
          dev_props.maxThreadsPerMultiProcessor) {
     n_threads_min *= 2;
@@ -785,7 +817,7 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
 
   // Granularity of changing the number of threads when computing the maximum block size.
   // It's good to have it multiple of the PQ book width.
-  uint32_t n_threads_gty = raft::round_up_safe<uint32_t>(1u << pq_bits, raft::WarpSize);
+  uint32_t n_threads_gty = raft::round_up_safe<uint32_t>(1u << pq_bits, dev_props.warpSize);
 
   /*
    Shared memory / L1 cache balance is the main limiter of this kernel.
@@ -817,7 +849,7 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
   occupancy_t<OutT, LutT, IvfSampleFilterT> selected_perf{};
   selected<OutT, LutT, IvfSampleFilterT> selected_config;
   for (auto [kernel, smem_size_f, lut_is_in_shmem] : candidates) {
-    if (smem_size_f(raft::WarpSize) > dev_props.sharedMemPerBlockOptin) {
+    if (smem_size_f(dev_props.warpSize) > dev_props.sharedMemPerBlockOptin) {
       // Even a single block cannot fit into an SM due to shmem requirements. Skip the candidate.
       continue;
     }
@@ -828,13 +860,13 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
     // launch configuration, we will tighten the carveout once more, based on the final memory
     // usage and occupancy.
     const int max_carveout =
-      estimate_carveout(preferred_shmem_carveout, smem_size_f(raft::WarpSize), dev_props);
+      estimate_carveout(preferred_shmem_carveout, smem_size_f(dev_props.warpSize), dev_props);
     RAFT_CUDA_TRY(
       cudaFuncSetAttribute(kernel, cudaFuncAttributePreferredSharedMemoryCarveout, max_carveout));
 
     // Get the theoretical maximum possible number of threads per block
     cudaFuncAttributes kernel_attrs;
-    RAFT_CUDA_TRY(cudaFuncGetAttributes(&kernel_attrs, kernel));
+    RAFT_CUDA_TRY(cudaFuncGetAttributes(&kernel_attrs, reinterpret_cast<const void*>(kernel)));
     uint32_t n_threads =
       raft::round_down_safe<uint32_t>(kernel_attrs.maxThreadsPerBlock, n_threads_gty);
 

@@ -13,6 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "search_single_cta_kernel.cuh"
@@ -77,13 +95,15 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parents(std::uint32_t* const termin
   constexpr INDEX_T index_msb_1_mask = utils::gen_index_msb_1_mask<INDEX_T>::value;
   // if (threadIdx.x >= 32) return;
 
-  for (std::uint32_t i = threadIdx.x; i < search_width; i += 32) {
+  for (std::uint32_t i = threadIdx.x; i < search_width; i += raft::warp_size()) {
     next_parent_indices[i] = utils::get_max_value<INDEX_T>();
   }
   std::uint32_t itopk_max = internal_topk_size;
-  if (itopk_max % 32) { itopk_max += 32 - (itopk_max % 32); }
+  if (itopk_max % raft::warp_size()) {
+    itopk_max += raft::warp_size() - (itopk_max % raft::warp_size());
+  }
   std::uint32_t num_new_parents = 0;
-  for (std::uint32_t j = threadIdx.x; j < itopk_max; j += 32) {
+  for (std::uint32_t j = threadIdx.x; j < itopk_max; j += raft::warp_size()) {
     std::uint32_t jj = j;
     if (TOPK_BY_BITONIC_SORT) { jj = device::swizzling(j); }
     INDEX_T index;
@@ -94,16 +114,18 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parents(std::uint32_t* const termin
         new_parent = 1;
       }
     }
-    const std::uint32_t ballot_mask = __ballot_sync(0xffffffff, new_parent);
+    const bitmask_type ballot_mask = __ballot_sync(__activemask(), new_parent);
     if (new_parent) {
-      const auto i = __popc(ballot_mask & ((1 << threadIdx.x) - 1)) + num_new_parents;
+      const auto i =
+        raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1)) +
+        num_new_parents;
       if (i < search_width) {
         next_parent_indices[i] = jj;
         // set most significant bit as used node
         internal_topk_indices[jj] |= index_msb_1_mask;
       }
     }
-    num_new_parents += __popc(ballot_mask);
+    num_new_parents += raft::__POPC(ballot_mask);
     if (num_new_parents >= search_width) { break; }
   }
   if (threadIdx.x == 0 && (num_new_parents == 0)) { *terminate_flag = 1; }
@@ -117,16 +139,16 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
   const std::uint32_t num_itopk,
   unsigned MULTI_WARPS = 0)
 {
-  const unsigned lane_id = threadIdx.x % 32;
-  const unsigned warp_id = threadIdx.x / 32;
+  const unsigned lane_id = threadIdx.x % raft::warp_size();
+  const unsigned warp_id = threadIdx.x / raft::warp_size();
   if (MULTI_WARPS == 0) {
     if (warp_id > 0) { return; }
-    constexpr unsigned N = (MAX_CANDIDATES + 31) / 32;
+    constexpr unsigned N = (MAX_CANDIDATES + (raft::warp_size() - 1)) / raft::warp_size();
     float key[N];
     IdxT val[N];
     /* Candidates -> Reg */
     for (unsigned i = 0; i < N; i++) {
-      unsigned j = lane_id + (32 * i);
+      unsigned j = lane_id + (raft::warp_size() * i);
       if (j < num_candidates) {
         key[i] = candidate_distances[j];
         val[i] = candidate_indices[j];
@@ -136,7 +158,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
       }
     }
     /* Sort */
-    bitonic::warp_sort<float, IdxT, N>(key, val);
+    bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
     /* Reg -> Temp_itopk */
     for (unsigned i = 0; i < N; i++) {
       unsigned j = (N * lane_id) + i;
@@ -148,13 +170,13 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
   } else {
     // Use two warps (64 threads)
     constexpr unsigned max_candidates_per_warp = (MAX_CANDIDATES + 1) / 2;
-    constexpr unsigned N                       = (max_candidates_per_warp + 31) / 32;
+    constexpr unsigned N = (max_candidates_per_warp + (raft::warp_size() - 1)) / raft::warp_size();
     float key[N];
     IdxT val[N];
     if (warp_id < 2) {
       /* Candidates -> Reg */
       for (unsigned i = 0; i < N; i++) {
-        unsigned jl = lane_id + (32 * i);
+        unsigned jl = lane_id + (raft::warp_size() * i);
         unsigned j  = jl + (max_candidates_per_warp * warp_id);
         if (j < num_candidates) {
           key[i] = candidate_distances[j];
@@ -165,7 +187,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
         }
       }
       /* Sort */
-      bitonic::warp_sort<float, IdxT, N>(key, val);
+      bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
       /* Reg -> Temp_candidates */
       for (unsigned i = 0; i < N; i++) {
         unsigned jl = (N * lane_id) + i;
@@ -198,7 +220,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
     if (num_warps_used > 1) { __syncthreads(); }
     if (warp_id < num_warps_used) {
       /* Merge */
-      bitonic::warp_merge<float, IdxT, N>(key, val, 32);
+      bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       /* Reg -> Temp_itopk */
       for (unsigned i = 0; i < N; i++) {
         unsigned jl = (N * lane_id) + i;
@@ -225,17 +247,17 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
   const bool first,
   unsigned MULTI_WARPS = 0)
 {
-  const unsigned lane_id = threadIdx.x % 32;
-  const unsigned warp_id = threadIdx.x / 32;
+  const unsigned lane_id = threadIdx.x % raft::warp_size();
+  const unsigned warp_id = threadIdx.x / raft::warp_size();
   if (MULTI_WARPS == 0) {
     if (warp_id > 0) { return; }
-    constexpr unsigned N = (MAX_ITOPK + 31) / 32;
+    constexpr unsigned N = (MAX_ITOPK + (raft::warp_size() - 1)) / raft::warp_size();
     float key[N];
     IdxT val[N];
     if (first) {
       /* Load itopk results */
       for (unsigned i = 0; i < N; i++) {
-        unsigned j = lane_id + (32 * i);
+        unsigned j = lane_id + (raft::warp_size() * i);
         if (j < num_itopk) {
           key[i] = itopk_distances[j];
           val[i] = itopk_indices[j];
@@ -245,7 +267,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
         }
       }
       /* Warp Sort */
-      bitonic::warp_sort<float, IdxT, N>(key, val);
+      bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
     } else {
       /* Load itopk results */
       for (unsigned i = 0; i < N; i++) {
@@ -271,7 +293,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
       }
     }
     /* Warp Merge */
-    bitonic::warp_merge<float, IdxT, N>(key, val, 32);
+    bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
     /* Store new itopk results */
     for (unsigned i = 0; i < N; i++) {
       unsigned j = (N * lane_id) + i;
@@ -283,14 +305,14 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
   } else {
     // Use two warps (64 threads) or more
     constexpr unsigned max_itopk_per_warp = (MAX_ITOPK + 1) / 2;
-    constexpr unsigned N                  = (max_itopk_per_warp + 31) / 32;
+    constexpr unsigned N = (max_itopk_per_warp + (raft::warp_size() - 1)) / raft::warp_size();
     float key[N];
     IdxT val[N];
     if (first) {
       /* Load itop results (not sorted) */
       if (warp_id < 2) {
         for (unsigned i = 0; i < N; i++) {
-          unsigned j = lane_id + (32 * i) + (max_itopk_per_warp * warp_id);
+          unsigned j = lane_id + (raft::warp_size() * i) + (max_itopk_per_warp * warp_id);
           if (j < num_itopk) {
             key[i] = itopk_distances[j];
             val[i] = itopk_indices[j];
@@ -300,7 +322,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
           }
         }
         /* Warp Sort */
-        bitonic::warp_sort<float, IdxT, N>(key, val);
+        bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
         /* Store intermedidate results */
         for (unsigned i = 0; i < N; i++) {
           unsigned j = (N * threadIdx.x) + i;
@@ -324,7 +346,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
           }
         }
         /* Warp Merge */
-        bitonic::warp_merge<float, IdxT, N>(key, val, 32);
+        bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       }
       __syncthreads();
       /* Store itopk results (sorted) */
@@ -406,7 +428,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
         }
       }
       /* Warp Merge */
-      bitonic::warp_merge<float, IdxT, N>(key, val, 32);
+      bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       /* Store new itopk results */
       for (unsigned i = 0; i < N; i++) {
         const unsigned j = (N * lane_id) + i;
@@ -459,27 +481,26 @@ RAFT_DEVICE_INLINE_FUNCTION void move_invalid_to_end_of_list(IdxT* const index_a
                                                              float* const distance_array,
                                                              const std::uint32_t array_length)
 {
-  constexpr std::uint32_t warp_size     = 32;
   constexpr std::uint32_t invalid_index = utils::get_max_value<IdxT>();
-  const std::uint32_t lane_id           = threadIdx.x % warp_size;
+  const std::uint32_t lane_id           = threadIdx.x % raft::warp_size();
 
-  if (threadIdx.x >= warp_size) { return; }
+  if (threadIdx.x >= raft::warp_size()) { return; }
 
   bool found_invalid = false;
-  if (array_length % warp_size == 0) {
-    for (std::uint32_t i = lane_id; i < array_length; i += warp_size) {
+  if (array_length % raft::warp_size() == 0) {
+    for (std::uint32_t i = lane_id; i < array_length; i += raft::warp_size()) {
       const auto index    = index_array[i];
       const auto distance = distance_array[i];
 
-      if (found_invalid) {
+      if (found_invalid and i > 0) {
         index_array[i - 1]    = index;
         distance_array[i - 1] = distance;
       } else {
         // Check if the index is invalid
-        const auto I_found_invalid = (index == invalid_index);
-        const auto who_has_invalid = raft::ballot(I_found_invalid);
+        const auto I_found_invalid         = (index == invalid_index);
+        const bitmask_type who_has_invalid = raft::ballot(I_found_invalid, __activemask());
         // if a value that is loaded by a smaller lane id thread, shift the array
-        if (who_has_invalid << (warp_size - lane_id)) {
+        if ((who_has_invalid << (raft::warp_size() - lane_id)) and i > 0) {
           index_array[i - 1]    = index;
           distance_array[i - 1] = distance;
         }
@@ -571,9 +592,10 @@ __device__ void search_core(
   // | <internal_topk_size> | <search_width * graph_degree> | upto 32 |
   // +----------------------+------------------------------+---------+
   // |<---             result_buffer_size              --->|
-  const auto result_buffer_size    = internal_topk + (search_width * graph_degree);
-  const auto result_buffer_size_32 = raft::round_up_safe<uint32_t>(result_buffer_size, 32);
-  const auto small_hash_size       = hashmap::get_size(small_hash_bitlen);
+  const auto result_buffer_size = internal_topk + (search_width * graph_degree);
+  const auto result_buffer_size_64 =
+    raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
+  const auto small_hash_size = hashmap::get_size(small_hash_bitlen);
 
   // Set smem working buffer for the distance calculation
   dataset_desc = dataset_desc->setup_workspace(smem, queries_ptr, query_id);
@@ -581,9 +603,9 @@ __device__ void search_core(
   auto* __restrict__ result_indices_buffer =
     reinterpret_cast<INDEX_T*>(smem + dataset_desc->smem_ws_size_in_bytes());
   auto* __restrict__ result_distances_buffer =
-    reinterpret_cast<DISTANCE_T*>(result_indices_buffer + result_buffer_size_32);
+    reinterpret_cast<DISTANCE_T*>(result_indices_buffer + result_buffer_size_64);
   auto* __restrict__ visited_hash_buffer =
-    reinterpret_cast<INDEX_T*>(result_distances_buffer + result_buffer_size_32);
+    reinterpret_cast<INDEX_T*>(result_distances_buffer + result_buffer_size_64);
   auto* __restrict__ parent_list_buffer =
     reinterpret_cast<INDEX_T*>(visited_hash_buffer + small_hash_size);
   auto* __restrict__ topk_ws = reinterpret_cast<std::uint32_t*>(parent_list_buffer + search_width);
@@ -638,8 +660,10 @@ __device__ void search_core(
       // topk_by_bitonic_sort_and_merge() consists of two operations:
       // if MAX_CANDIDATES is greater than 128, the first operation uses two warps;
       // if MAX_ITOPK is greater than 256, the second operation used two warps.
-      const unsigned multi_warps_1 = ((blockDim.x >= 64) && (MAX_CANDIDATES > 128)) ? 1 : 0;
-      const unsigned multi_warps_2 = ((blockDim.x >= 64) && (MAX_ITOPK > 256)) ? 1 : 0;
+      const unsigned multi_warps_1 =
+        ((blockDim.x >= raft::warp_size() * 2) && (MAX_CANDIDATES > raft::warp_size() * 4)) ? 1 : 0;
+      const unsigned multi_warps_2 =
+        ((blockDim.x >= raft::warp_size() * 2) && (MAX_ITOPK > raft::warp_size() * 8)) ? 1 : 0;
 
       // reset small-hash table.
       if ((iter + 1) % small_hash_reset_interval == 0) {
@@ -649,19 +673,19 @@ __device__ void search_core(
         // topk_by_bitonic_sort_and_merge().
         _CLK_START();
         unsigned hash_start_tid;
-        if (blockDim.x == 32) {
+        if (blockDim.x == raft::warp_size()) {
           hash_start_tid = 0;
-        } else if (blockDim.x == 64) {
+        } else if (blockDim.x == raft::warp_size() * 2) {
           if (multi_warps_1 || multi_warps_2) {
             hash_start_tid = 0;
           } else {
-            hash_start_tid = 32;
+            hash_start_tid = raft::warp_size();
           }
         } else {
           if (multi_warps_1 || multi_warps_2) {
-            hash_start_tid = 64;
+            hash_start_tid = raft::warp_size() * 2;
           } else {
-            hash_start_tid = 32;
+            hash_start_tid = raft::warp_size();
           }
         }
         hashmap::init(local_visited_hashmap_ptr, hash_bitlen, hash_start_tid);
@@ -722,7 +746,7 @@ __device__ void search_core(
     if (iter + 1 == max_iteration) { break; }
 
     // pick up next parents
-    if (threadIdx.x < 32) {
+    if (threadIdx.x < raft::warp_size()) {
       _CLK_START();
       pickup_next_parents<TOPK_BY_BITONIC_SORT, INDEX_T>(
         terminate_flag, parent_list_buffer, result_indices_buffer, internal_topk, search_width);
@@ -731,7 +755,7 @@ __device__ void search_core(
 
     // restore small-hash table by putting internal-topk indices in it
     if ((iter + 1) % small_hash_reset_interval == 0) {
-      const unsigned first_tid = ((blockDim.x <= 32) ? 0 : 32);
+      const unsigned first_tid = ((blockDim.x <= raft::warp_size()) ? 0 : raft::warp_size());
       _CLK_START();
       hashmap_restore(
         local_visited_hashmap_ptr, hash_bitlen, result_indices_buffer, internal_topk, first_tid);
@@ -801,14 +825,13 @@ __device__ void search_core(
 
     __syncthreads();
     // Move invalid index items to the end of the buffer without sorting the entire buffer
-    using scan_op_t    = cub::WarpScan<unsigned>;
+    using scan_op_t    = cub::WarpScan<unsigned, raft::warp_size()>;
     auto& temp_storage = *reinterpret_cast<typename scan_op_t::TempStorage*>(smem_work_ptr);
 
-    constexpr std::uint32_t warp_size = 32;
-    if (threadIdx.x < warp_size) {
+    if (threadIdx.x < raft::warp_size()) {
       std::uint32_t num_found_valid = 0;
       for (std::uint32_t buffer_offset = 0; buffer_offset < internal_topk;
-           buffer_offset += warp_size) {
+           buffer_offset += raft::warp_size()) {
         // Calculate the new buffer index
         const auto src_position = buffer_offset + threadIdx.x;
         const std::uint32_t is_valid_index =
@@ -823,8 +846,8 @@ __device__ void search_core(
 
         // Calculate the largest valid position within a warp and bcast it for the next iteration
         num_found_valid += new_position;
-        for (std::uint32_t offset = (warp_size >> 1); offset > 0; offset >>= 1) {
-          const auto v = raft::shfl_xor(num_found_valid, offset);
+        for (std::uint32_t offset = (raft::warp_size() >> 1); offset > 0; offset >>= 1) {
+          const auto v = raft::shfl_xor(num_found_valid, offset, raft::warp_size(), __activemask());
           if ((threadIdx.x & offset) == 0) { num_found_valid = v; }
         }
 
@@ -835,7 +858,8 @@ __device__ void search_core(
       if (num_found_valid < top_k) {
         // Fill the remaining buffer with invalid values so that `topk_by_bitonic_sort_and_merge` is
         // usable in the next step
-        for (std::uint32_t i = num_found_valid + threadIdx.x; i < internal_topk; i += warp_size) {
+        for (std::uint32_t i = num_found_valid + threadIdx.x; i < internal_topk;
+             i += raft::warp_size()) {
           result_indices_buffer[i]   = invalid_index;
           result_distances_buffer[i] = utils::get_max_value<DISTANCE_T>();
         }
@@ -846,8 +870,10 @@ __device__ void search_core(
     // candidate list.
     if (top_k > internal_topk || result_indices_buffer[top_k - 1] == invalid_index) {
       __syncthreads();
-      const unsigned multi_warps_1 = ((blockDim.x >= 64) && (MAX_CANDIDATES > 128)) ? 1 : 0;
-      const unsigned multi_warps_2 = ((blockDim.x >= 64) && (MAX_ITOPK > 256)) ? 1 : 0;
+      const unsigned multi_warps_1 =
+        ((blockDim.x >= raft::warp_size() * 2) && (MAX_CANDIDATES > raft::warp_size() * 4)) ? 1 : 0;
+      const unsigned multi_warps_2 =
+        ((blockDim.x >= raft::warp_size() * 2) && (MAX_ITOPK > raft::warp_size() * 8)) ? 1 : 0;
       topk_by_bitonic_sort_and_merge<MAX_ITOPK, MAX_CANDIDATES>(
         result_distances_buffer,
         result_indices_buffer,
@@ -1207,7 +1233,7 @@ struct search_kernel_config {
       return choose_search_kernel<256, 1>(itopk_size);
     } else {
       // Radix-based topk is used
-      constexpr unsigned max_candidates = 32;  // to avoid build failure
+      constexpr unsigned max_candidates = 64;  // to avoid build failure
       if (itopk_size <= 256) {
         return dispatch_kernel<Persistent,
                                256,
