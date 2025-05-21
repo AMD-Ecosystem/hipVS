@@ -455,15 +455,17 @@ if(BUILD_SHARED_LIBS)
     src/neighbors/cagra_serialize_half.cu
     src/neighbors/cagra_serialize_int8.cu
     src/neighbors/cagra_serialize_uint8.cu
-    # src/neighbors/iface/iface_cagra_float_uint32_t.cu
-    # src/neighbors/iface/iface_cagra_half_uint32_t.cu
-    # src/neighbors/iface/iface_cagra_int8_t_uint32_t.cu
-    # src/neighbors/iface/iface_cagra_uint8_t_uint32_t.cu
-    # src/neighbors/iface/iface_flat_float_int64_t.cu
-    # src/neighbors/iface/iface_flat_int8_t_int64_t.cu
-    # src/neighbors/iface/iface_flat_uint8_t_int64_t.cu
-    # src/neighbors/iface/iface_pq_float_int64_t.cu src/neighbors/iface/iface_pq_half_int64_t.cu
-    # src/neighbors/iface/iface_pq_int8_t_int64_t.cu src/neighbors/iface/iface_pq_uint8_t_int64_t.cu
+    src/neighbors/iface/iface_cagra_float_uint32_t.cu
+    src/neighbors/iface/iface_cagra_half_uint32_t.cu
+    src/neighbors/iface/iface_cagra_int8_t_uint32_t.cu
+    src/neighbors/iface/iface_cagra_uint8_t_uint32_t.cu
+    src/neighbors/iface/iface_flat_float_int64_t.cu
+    src/neighbors/iface/iface_flat_int8_t_int64_t.cu
+    src/neighbors/iface/iface_flat_uint8_t_int64_t.cu
+    src/neighbors/iface/iface_pq_float_int64_t.cu
+    src/neighbors/iface/iface_pq_half_int64_t.cu
+    src/neighbors/iface/iface_pq_int8_t_int64_t.cu
+    src/neighbors/iface/iface_pq_uint8_t_int64_t.cu
     src/neighbors/detail/cagra/cagra_build.cpp
     src/neighbors/detail/cagra/topk_for_cagra/topk.cu
     # src/neighbors/dynamic_batching.cu
@@ -633,6 +635,7 @@ if(BUILD_SHARED_LIBS)
       find_package(hipblaslt CONFIG PATHS "/opt/rocm/")
       find_package(hiprand CONFIG PATHS "/opt/rocm/")
       find_package(hipsparse CONFIG PATHS "/opt/rocm/")
+      find_package(rccl CONFIG PATHS "/opt/rocm/")
 
       set(CUVS_CUSOLVER_DEPENDENCY hipsolver${_ctk_static_suffix})
       set(CUVS_CUBLAS_DEPENDENCY hipblas${_ctk_static_suffix})
@@ -647,7 +650,7 @@ if(BUILD_SHARED_LIBS)
     )
 
     if(BUILD_MG_ALGOS)
-      set(CUVS_COMMS_DEPENDENCY nccl)
+      set(CUVS_COMMS_DEPENDENCY $<IF:$<BOOL:${CUDA_BACKEND}>,nccl,roc::rccl>)
     endif()
 
     # Keep cuVS as lightweight as possible. Only CUDA libs and rmm should be used in global target.

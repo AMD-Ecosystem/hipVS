@@ -205,6 +205,13 @@ if(BUILD_TESTS)
     target_compile_definitions(NEIGHBORS_HNSW_TEST PUBLIC CUVS_BUILD_CAGRA_HNSWLIB)
   endif()
 
+  if(BUILD_MG_ALGOS)
+    ConfigureTest(
+      NAME NEIGHBORS_MG_TEST PATH neighbors/mg/test_float.cu GPUS 1 PERCENT 100 ADDITIONAL_DEP
+      $<IF:$<BOOL:${CUDA_BACKEND}>,nccl,roc::rccl>
+    )
+  endif()
+
 endif()
 
 if(BUILD_UPSTREAM_TESTS)
