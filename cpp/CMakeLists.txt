@@ -468,16 +468,16 @@ if(BUILD_SHARED_LIBS)
     src/neighbors/detail/cagra/topk_for_cagra/topk.cu
     # src/neighbors/dynamic_batching.cu $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:src/neighbors/hnsw.cpp>
     src/neighbors/ivf_flat_index.cpp
-    # src/neighbors/ivf_flat/ivf_flat_build_extend_float_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_build_extend_int8_t_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_build_extend_uint8_t_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_helpers.cu
-    # src/neighbors/ivf_flat/ivf_flat_search_float_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_search_int8_t_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_search_uint8_t_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_serialize_float_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_serialize_int8_t_int64_t.cu
-    # src/neighbors/ivf_flat/ivf_flat_serialize_uint8_t_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_build_extend_float_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_build_extend_int8_t_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_build_extend_uint8_t_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_helpers.cu
+    src/neighbors/ivf_flat/ivf_flat_search_float_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_search_int8_t_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_search_uint8_t_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_serialize_float_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_serialize_int8_t_int64_t.cu
+    src/neighbors/ivf_flat/ivf_flat_serialize_uint8_t_int64_t.cu
     src/neighbors/ivf_pq_index.cpp
     src/neighbors/ivf_pq/ivf_pq_build_common.cu
     src/neighbors/ivf_pq/ivf_pq_serialize.cu
