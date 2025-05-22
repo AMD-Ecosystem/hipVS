@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include "../sample_filter.cuh"
@@ -28,7 +45,13 @@
 #include <raft/core/resource/device_memory_resource.hpp>
 #include <raft/core/resources.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_cooperative_groups.h>
+#include <hip/std/atomic>
+using namespace hip_warp_primitives;
+#else
 #include <cooperative_groups.h>
+#endif
 #include <cuda/atomic>
 #include <cuda/std/atomic>
 #include <rmm/mr/pinned_host_memory_resource.hpp>
@@ -46,6 +69,14 @@
 #else
 #define CUVS_SYSTEM_LITTLE_ENDIAN 1
 #endif
+#endif
+
+#ifdef __HIP_PLATFORM_AMD__
+// This should not be required on newer versions of libhipcxx, but until we upgrade bring in
+// thread_scope_device into the hip::std namespace.
+namespace hip::std {
+using hip::thread_scope_device;
+}
 #endif
 
 namespace cuvs::neighbors::dynamic_batching::detail {
@@ -622,9 +653,12 @@ struct gpu_time_keeper {
    *   We tolerate the errors coming from the time difference between the host thread writing their
    *   remaining waiting time and the GPU thread reading that value.
    */
+  static constexpr uint64_t kNumberOfNanoSecondsInOneMilliSecond = 1'000'000;
   RAFT_DEVICE_INLINE_FUNCTION explicit gpu_time_keeper(
-    cuda::atomic<int32_t, cuda::thread_scope_system>* cpu_provided_remaining_time_us)
-    : cpu_provided_remaining_time_us_{cpu_provided_remaining_time_us}
+    cuda::atomic<int32_t, cuda::thread_scope_system>* cpu_provided_remaining_time_us,
+    uint64_t wallClockFreqkHz)
+    : cpu_provided_remaining_time_us_{cpu_provided_remaining_time_us},
+      clock_period_ns_(kNumberOfNanoSecondsInOneMilliSecond / wallClockFreqkHz)
   {
     update_timestamp();
   }
@@ -651,6 +685,7 @@ struct gpu_time_keeper {
   }
 
  private:
+  uint64_t const clock_period_ns_;
   cuda::atomic<int32_t, cuda::thread_scope_system>* cpu_provided_remaining_time_us_;
   uint64_t timestamp_ns_           = 0;
   int32_t local_remaining_time_us_ = std::numeric_limits<int32_t>::max();
@@ -658,7 +693,11 @@ struct gpu_time_keeper {
 
   RAFT_DEVICE_INLINE_FUNCTION void update_timestamp() noexcept
   {
+#ifdef __HIP_PLATFORM_AMD__
+    timestamp_ns_ = clock_period_ns_ * wall_clock64();
+#else
     asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(timestamp_ns_));
+#endif
   }
 
   RAFT_DEVICE_INLINE_FUNCTION void update_local_remaining_time() noexcept
@@ -719,10 +758,12 @@ RAFT_KERNEL gather_inputs(
    * The counter is used to find the last CTA to finish and to share the batch size with the
    * scatter_inputs kernel.
    */
-  cuda::atomic<uint32_t, cuda::std::thread_scope_device>* kernel_progress_counter)
+  cuda::atomic<uint32_t, cuda::std::thread_scope_device>* kernel_progress_counter,
+  uint64_t wallClockRateKHz)
 {
+  assert(blockDim.x == raft::warp_size());
   const uint32_t query_id = blockIdx.x;
-  __shared__ const T* query_ptr;
+  T const* query_ptr;
 
   if (threadIdx.x == 0) {
     query_ptr = nullptr;
@@ -737,7 +778,7 @@ RAFT_KERNEL gather_inputs(
     volatile uint8_t* batch_fully_committed =
       reinterpret_cast<volatile uint8_t*>(bs_committed) + (CUVS_SYSTEM_LITTLE_ENDIAN * 3);
 
-    gpu_time_keeper runtime{remaining_time_us};
+    gpu_time_keeper runtime{remaining_time_us, wallClockRateKHz};
     bool committed          = false;  // if the query is committed, we have to wait for it to arrive
     auto& request_query_ptr = request_ptrs(query_id).query;
     while (true) {
@@ -752,10 +793,15 @@ RAFT_KERNEL gather_inputs(
       if (committed) { continue; }
       // Check if the query is committed
       uint32_t committed_count;
+#ifdef __HIP_PLATFORM_AMD__
+      __threadfence_system();
+      committed_count = *bs_committed;
+#else
       asm volatile("ld.volatile.global.u32 %0, [%1];"
                    : "=r"(committed_count)
                    : "l"(bs_committed)
                    : "memory");
+#endif
       committed = (committed_count & 0x00ffffff) > query_id;
       if (committed) { continue; }
       // If the query is not committed, but the batch is past the deadline, we exit without copying
@@ -766,6 +812,11 @@ RAFT_KERNEL gather_inputs(
       // Otherwise, let the others know time is out
       // Set the highest byte of the commit counter to 1 (thus avoiding RMW atomic)
       // This prevents any more CPU threads from committing to this batch.
+#ifdef __HIP_PLATFORM_AMD__
+      *batch_fully_committed = 1;
+      __threadfence_system();
+      committed_count = *bs_committed;
+#else
       asm volatile("st.volatile.global.u8 [%0], %1;"
                    :
                    : "l"(batch_fully_committed), "r"(1)
@@ -774,6 +825,7 @@ RAFT_KERNEL gather_inputs(
                    : "=r"(committed_count)
                    : "l"(bs_committed)
                    : "memory");
+#endif
       committed = (committed_count & 0x00ffffff) > query_id;
       if (committed) { continue; }
       break;
@@ -782,10 +834,15 @@ RAFT_KERNEL gather_inputs(
     if (progress >= gridDim.x) {
       // read the last value of the committed count to know the batch size for sure
       uint32_t committed_count;
+#ifdef __HIP_PLATFORM_AMD__
+      __threadfence_system();
+      committed_count = *bs_committed;
+#else
       asm volatile("ld.volatile.global.u32 %0, [%1];"
                    : "=r"(committed_count)
                    : "l"(bs_committed)
                    : "memory");
+#endif
       committed_count &= 0x00ffffff;  // Clear the timeout bit
       if (batch_size_out != nullptr) {
         // Inform the dispatcher about the final batch size if `conservative_dispatch` is enabled
@@ -794,16 +851,21 @@ RAFT_KERNEL gather_inputs(
       // store the batch size in the progress counter, so we can read it in the scatter kernel
       kernel_progress_counter->store(committed_count, cuda::std::memory_order_relaxed);
       // Clear the batch token slot, so it can be re-used by others
+#ifdef __HIP_PLATFORM_AMD__
+      batch_token_ptr->store(empty_token_value);
+#else
       asm volatile("st.volatile.global.u64 [%0], %1;"
                    :
                    : "l"(reinterpret_cast<uint64_t*>(batch_token_ptr)),
                      "l"(reinterpret_cast<uint64_t&>(empty_token_value))
                    : "memory");
+#endif
     }
   }
   // The block waits till the leading thread gets the query pointer
-  cooperative_groups::this_thread_block().sync();
-  auto query_ptr_local = query_ptr;
+  __syncwarp();
+  auto query_ptr_local = reinterpret_cast<decltype(query_ptr)>(
+    __shfl_sync(raft::LANE_MASK_ALL, reinterpret_cast<uintptr_t>(query_ptr), 0));
   if (query_ptr_local == nullptr) { return; }
   // block-wide copy input query
   auto dim = batch_queries.extent(1);
@@ -963,6 +1025,13 @@ class batch_runner {
               raft::device_matrix_view<IdxT, int64_t, raft::row_major> neighbors,
               raft::device_matrix_view<float, int64_t, raft::row_major> distances) const
   {
+    int wallClockkRatekHz = -1;
+#ifdef __HIP_PLATFORM_AMD__
+    // Incur the cost to query for the wall clock rate only when on the HIP platform
+    RAFT_CUDA_TRY(cudaDeviceGetAttribute(
+      &wallClockkRatekHz, hipDeviceAttributeWallClockRate, raft::resource::get_device_id(res)));
+    ASSERT(wallClockkRatekHz > 0, "Invalid value for wallClkRatekHz = %d", wallClockkRatekHz);
+#endif
     uint32_t n_queries = queries.extent(0);
     if (n_queries >= max_batch_size_) {
       return upstream_search_(res, queries, neighbors, distances);
@@ -1039,7 +1108,7 @@ class batch_runner {
         rem_time_us_ref.store(static_cast<int32_t>(params.dispatch_timeout_ms * 1000),
                               cuda::std::memory_order_relaxed);
         // run the gather kernel before submitting the data to reduce the latency
-        gather_inputs<T, IdxT><<<max_batch_size_, 32, 0, stream>>>(
+        gather_inputs<T, IdxT><<<max_batch_size_, raft::host_warp_size(stream), 0, stream>>>(
           slice_3d(batch_id, queries_),
           request_ptrs,
           &rem_time_us_ref,
@@ -1047,7 +1116,8 @@ class batch_runner {
           batch_size_ptr,
           // This indicates the empty token slot, which can only be used in the following round
           batch_queue::make_empty_token(seq_id),
-          kernel_progress_counters_.data_handle() + batch_id);
+          kernel_progress_counters_.data_handle() + batch_id,
+          wallClockkRatekHz);
       }
 
       // *** Set the pointers to queries, neighbors, distances - query-by-query
@@ -1107,7 +1177,7 @@ class batch_runner {
           dispatched_id_observed = dispatch_sequence_id_ref.load(cuda::std::memory_order_acquire);
         }
         // Now we can safely record the event
-        RAFT_CUDA_TRY(cudaStreamWaitEvent(stream, completion_events_[batch_id].value()));
+        RAFT_CUDA_TRY(cudaStreamWaitEvent(stream, completion_events_[batch_id].value(), 0));
       }
 
       n_queries -= queries_committed;

@@ -520,7 +520,7 @@ template <uint32_t BlockDimY,
           typename LabelT,
           typename CounterT,
           typename MappingOpT>
-__launch_bounds__((raft::WarpSize * BlockDimY)) RAFT_KERNEL
+__launch_bounds__((raft::warp_size() * BlockDimY)) RAFT_KERNEL
   adjust_centers_kernel(MathT* centers,  // [n_clusters, dim]
                         IdxT n_clusters,
                         IdxT dim,
@@ -638,7 +638,7 @@ auto adjust_centers(MathT* centers,
   } while (n_rows % ofst == 0);
 
   constexpr uint32_t kBlockDimY = 4;
-  const dim3 block_dim(raft::WarpSize, kBlockDimY, 1);
+  const dim3 block_dim(raft::host_warp_size(stream), kBlockDimY, 1);
   const dim3 grid_dim(1, raft::ceildiv(n_clusters, static_cast<IdxT>(kBlockDimY)), 1);
   rmm::device_scalar<IdxT> update_count(0, stream, device_memory);
   adjust_centers_kernel<kBlockDimY><<<grid_dim, block_dim, 0, stream>>>(centers,

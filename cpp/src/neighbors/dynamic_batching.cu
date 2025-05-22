@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include "detail/dynamic_batching.cuh"
 
 #include <cuvs/neighbors/brute_force.hpp>
@@ -32,7 +49,7 @@ namespace cuvs::neighbors::dynamic_batching {
 #define CUVS_INST_DYNAMIC_BATCHING_INDEX(T, IdxT, Namespace, ...)                         \
   template <>                                                                             \
   template <>                                                                             \
-  index<T, IdxT>::index<Namespace ::__VA_ARGS__>(                                         \
+  index<T, IdxT>::index(                                                                  \
     const raft::resources& res,                                                           \
     const cuvs::neighbors::dynamic_batching::index_params& params,                        \
     const Namespace ::__VA_ARGS__& upstream_index,                                        \
@@ -63,7 +80,53 @@ CUVS_INST_DYNAMIC_BATCHING_INDEX(uint8_t,
                                  uint32_t,
                                  cuvs::neighbors::cagra,
                                  index<uint8_t, uint32_t>);
+#ifdef __HIP_PLATFORM_AMD__
+#define CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(T, IdxT, Namespace, ...)             \
+  template <>                                                                             \
+  template <>                                                                             \
+  index<T, IdxT>::index(                                                                  \
+    const raft::resources& res,                                                           \
+    const cuvs::neighbors::dynamic_batching::index_params& params,                        \
+    const Namespace ::__VA_ARGS__& upstream_index,                                        \
+    const typename Namespace ::__VA_ARGS__::search_params_type& upstream_params,          \
+    const cuvs::neighbors::filtering::base_filter* sample_filter)                         \
+    : runner{new detail::batch_runner<T, IdxT>(                                           \
+        res, params, upstream_index, upstream_params, Namespace ::search, sample_filter)} \
+  {                                                                                       \
+    RAFT_FAIL("Unsupported upstream index used");                                         \
+  }
 
+CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(float,
+                                             int64_t,
+                                             cuvs::neighbors::ivf_pq,
+                                             index<int64_t>);
+CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(half,
+                                             int64_t,
+                                             cuvs::neighbors::ivf_pq,
+                                             index<int64_t>);
+CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(int8_t,
+                                             int64_t,
+                                             cuvs::neighbors::ivf_pq,
+                                             index<int64_t>);
+CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(uint8_t,
+                                             int64_t,
+                                             cuvs::neighbors::ivf_pq,
+                                             index<int64_t>);
+
+CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(float,
+                                             int64_t,
+                                             cuvs::neighbors::ivf_flat,
+                                             index<float, int64_t>);
+CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(int8_t,
+                                             int64_t,
+                                             cuvs::neighbors::ivf_flat,
+                                             index<int8_t, int64_t>);
+CUVS_INST_DYNAMIC_BATCHING_INDEX_UNSUPPORTED(uint8_t,
+                                             int64_t,
+                                             cuvs::neighbors::ivf_flat,
+                                             index<uint8_t, int64_t>);
+
+#else
 CUVS_INST_DYNAMIC_BATCHING_INDEX(float, int64_t, cuvs::neighbors::ivf_pq, index<int64_t>);
 CUVS_INST_DYNAMIC_BATCHING_INDEX(half, int64_t, cuvs::neighbors::ivf_pq, index<int64_t>);
 CUVS_INST_DYNAMIC_BATCHING_INDEX(int8_t, int64_t, cuvs::neighbors::ivf_pq, index<int64_t>);
@@ -78,7 +141,7 @@ CUVS_INST_DYNAMIC_BATCHING_INDEX(uint8_t,
                                  int64_t,
                                  cuvs::neighbors::ivf_flat,
                                  index<uint8_t, int64_t>);
-
+#endif
 CUVS_INST_DYNAMIC_BATCHING_SEARCH(float, int64_t);
 CUVS_INST_DYNAMIC_BATCHING_SEARCH(half, int64_t);
 CUVS_INST_DYNAMIC_BATCHING_SEARCH(int8_t, int64_t);
