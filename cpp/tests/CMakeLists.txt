@@ -109,15 +109,14 @@ endfunction()
 # ##################################################################################################
 
 if(BUILD_TESTS)
+  ConfigureTest(
+    NAME NEIGHBORS_TEST PATH neighbors/brute_force.cu neighbors/brute_force_prefiltered.cu
+    neighbors/sparse_brute_force.cu neighbors/refine.cu GPUS 1 PERCENT 100
+  )
 
   ConfigureTest(
     NAME CLUSTER_TEST PATH cluster/kmeans.cu cluster/kmeans_balanced.cu cluster/kmeans_find_k.cu
     cluster/linkage.cu GPUS 1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME NEIGHBORS_TEST PATH neighbors/brute_force.cu neighbors/brute_force_prefiltered.cu
-    neighbors/sparse_brute_force.cu neighbors/refine.cu GPUS 1 PERCENT 100
   )
 
   ConfigureTest(
@@ -127,6 +126,37 @@ if(BUILD_TESTS)
     neighbors/ann_ivf_flat/test_float_int64_t.cu
     neighbors/ann_ivf_flat/test_int8_t_int64_t.cu
     neighbors/ann_ivf_flat/test_uint8_t_int64_t.cu
+    GPUS
+    1
+    PERCENT
+    100
+  )
+
+  ConfigureTest(
+    NAME
+    NEIGHBORS_ANN_IVF_PQ_TEST
+    PATH
+    neighbors/ann_ivf_pq/test_float_int64_t.cu
+    neighbors/ann_ivf_pq/test_int8_t_int64_t.cu
+    neighbors/ann_ivf_pq/test_uint8_t_int64_t.cu
+    GPUS
+    1
+    PERCENT
+    100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_ANN_BRUTE_FORCE_TEST PATH neighbors/ann_brute_force/test_float.cu
+    neighbors/ann_brute_force/test_half.cu GPUS 1 PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME
+    NEIGHBORS_ANN_CAGRA_TEST_BUGS
+    PATH
+    # neighbors/ann_cagra/bug_extreme_inputs_oob.cu # TODO: (HIP/AMD) Extremely large runtime >2h.
+    # Needs further investigation.
+    neighbors/ann_cagra/bug_multi_cta_crash.cu
     GPUS
     1
     PERCENT
@@ -168,27 +198,6 @@ if(BUILD_TESTS)
 
   ConfigureTest(
     NAME
-    NEIGHBORS_ANN_IVF_PQ_TEST
-    PATH
-    neighbors/ann_ivf_pq/test_float_int64_t.cu
-    neighbors/ann_ivf_pq/test_int8_t_int64_t.cu
-    neighbors/ann_ivf_pq/test_uint8_t_int64_t.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-
-  ConfigureTest(
-    NAME
-    NEIGHBORS_ANN_CAGRA_TEST_BUGS
-    PATH
-    # neighbors/ann_cagra/bug_extreme_inputs_oob.cu TODO: (HIP/AMD) Extremely long runtime(> 2h)
-    neighbors/ann_cagra/bug_multi_cta_crash.cu
-  )
-
-  ConfigureTest(
-    NAME
     NEIGHBORS_ANN_VAMANA_TEST
     PATH
     neighbors/ann_vamana/test_float_uint32_t.cu
@@ -199,6 +208,21 @@ if(BUILD_TESTS)
     PERCENT
     100
   )
+
+  ConfigureTest(
+    NAME
+    NEIGHBORS_DYNAMIC_BATCHING_TEST
+    PATH
+    neighbors/dynamic_batching/test_brute_force.cu
+    neighbors/dynamic_batching/test_cagra.cu
+    neighbors/dynamic_batching/test_ivf_flat.cu
+    neighbors/dynamic_batching/test_ivf_pq.cu
+    GPUS
+    1
+    PERCENT
+    100
+  )
+
   if(BUILD_CAGRA_HNSWLIB)
     ConfigureTest(NAME NEIGHBORS_HNSW_TEST PATH neighbors/hnsw.cu GPUS 1 PERCENT 100)
     target_link_libraries(NEIGHBORS_HNSW_TEST PRIVATE hnswlib::hnswlib)
@@ -209,173 +233,6 @@ if(BUILD_TESTS)
     ConfigureTest(
       NAME NEIGHBORS_MG_TEST PATH neighbors/mg/test_float.cu GPUS 1 PERCENT 100 ADDITIONAL_DEP
       $<IF:$<BOOL:${CUDA_BACKEND}>,nccl,roc::rccl>
-    )
-  endif()
-
-  ConfigureTest(
-    NAME NEIGHBORS_ANN_BRUTE_FORCE_TEST PATH neighbors/ann_brute_force/test_float.cu
-    neighbors/ann_brute_force/test_half.cu GPUS 1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME
-    DISTANCE_TEST
-    PATH
-    distance/dist_canberra.cu
-    distance/dist_correlation.cu
-    distance/dist_cos.cu
-    distance/dist_hamming.cu
-    distance/dist_hellinger.cu
-    distance/dist_inner_product.cu
-    distance/dist_jensen_shannon.cu
-    distance/dist_kl_divergence.cu
-    distance/dist_l1.cu
-    distance/dist_l2_exp.cu
-    distance/dist_l2_sqrt_exp.cu
-    distance/dist_l_inf.cu
-    distance/dist_lp_unexp.cu
-    distance/dist_russell_rao.cu
-    distance/gram.cu
-    distance/masked_nn.cu
-    distance/sparse_distance.cu
-    sparse/neighbors/cross_component_nn.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-
-  ConfigureTest(
-    NAME
-    NEIGHBORS_DYNAMIC_BATCHING_TEST
-    PATH
-    neighbors/dynamic_batching/test_brute_force.cu
-    neighbors/dynamic_batching/test_cagra.cu
-    neighbors/dynamic_batching/test_ivf_flat.cu
-    neighbors/dynamic_batching/test_ivf_pq.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-endif()
-
-if(BUILD_UPSTREAM_TESTS)
-  ConfigureTest(
-    NAME NEIGHBORS_TEST PATH neighbors/brute_force.cu neighbors/brute_force_prefiltered.cu
-    neighbors/sparse_brute_force.cu neighbors/refine.cu GPUS 1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME CLUSTER_TEST PATH cluster/kmeans.cu cluster/kmeans_balanced.cu cluster/kmeans_find_k.cu
-    cluster/linkage.cu GPUS 1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME
-    NEIGHBORS_ANN_IVF_FLAT_TEST
-    PATH
-    neighbors/ann_ivf_flat/test_float_int64_t.cu
-    neighbors/ann_ivf_flat/test_int8_t_int64_t.cu
-    neighbors/ann_ivf_flat/test_uint8_t_int64_t.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-
-  ConfigureTest(
-    NAME
-    NEIGHBORS_ANN_IVF_PQ_TEST
-    PATH
-    neighbors/ann_ivf_pq/test_float_int64_t.cu
-    neighbors/ann_ivf_pq/test_int8_t_int64_t.cu
-    neighbors/ann_ivf_pq/test_uint8_t_int64_t.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-
-  ConfigureTest(
-    NAME NEIGHBORS_ANN_BRUTE_FORCE_TEST PATH neighbors/ann_brute_force/test_float.cu
-    neighbors/ann_brute_force/test_half.cu GPUS 1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME NEIGHBORS_ANN_CAGRA_TEST_BUGS PATH neighbors/ann_cagra/bug_extreme_inputs_oob.cu
-    neighbors/ann_cagra/bug_multi_cta_crash.cu GPUS 1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME NEIGHBORS_ANN_CAGRA_FLOAT_UINT32_TEST PATH neighbors/ann_cagra/test_float_uint32_t.cu GPUS
-    1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME NEIGHBORS_ANN_CAGRA_HALF_UINT32_TEST PATH neighbors/ann_cagra/test_half_uint32_t.cu GPUS 1
-    PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME NEIGHBORS_ANN_CAGRA_INT8_UINT32_TEST PATH neighbors/ann_cagra/test_int8_t_uint32_t.cu GPUS
-    1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME NEIGHBORS_ANN_CAGRA_UINT8_UINT32_TEST PATH neighbors/ann_cagra/test_uint8_t_uint32_t.cu
-    GPUS 1 PERCENT 100
-  )
-
-  ConfigureTest(
-    NAME
-    NEIGHBORS_ANN_NN_DESCENT_TEST
-    PATH
-    neighbors/ann_nn_descent/test_float_uint32_t.cu
-    neighbors/ann_nn_descent/test_int8_t_uint32_t.cu
-    neighbors/ann_nn_descent/test_uint8_t_uint32_t.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-
-  ConfigureTest(
-    NAME
-    NEIGHBORS_ANN_VAMANA_TEST
-    PATH
-    neighbors/ann_vamana/test_float_uint32_t.cu
-    neighbors/ann_vamana/test_int8_t_uint32_t.cu
-    neighbors/ann_vamana/test_uint8_t_uint32_t.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-
-  ConfigureTest(
-    NAME
-    NEIGHBORS_DYNAMIC_BATCHING_TEST
-    PATH
-    neighbors/dynamic_batching/test_brute_force.cu
-    neighbors/dynamic_batching/test_cagra.cu
-    neighbors/dynamic_batching/test_ivf_flat.cu
-    neighbors/dynamic_batching/test_ivf_pq.cu
-    GPUS
-    1
-    PERCENT
-    100
-  )
-
-  if(BUILD_CAGRA_HNSWLIB)
-    ConfigureTest(NAME NEIGHBORS_HNSW_TEST PATH neighbors/hnsw.cu GPUS 1 PERCENT 100)
-    target_link_libraries(NEIGHBORS_HNSW_TEST PRIVATE hnswlib::hnswlib)
-    target_compile_definitions(NEIGHBORS_HNSW_TEST PUBLIC CUVS_BUILD_CAGRA_HNSWLIB)
-  endif()
-
-  if(BUILD_MG_ALGOS)
-    ConfigureTest(
-      NAME NEIGHBORS_MG_TEST PATH neighbors/mg/test_float.cu GPUS 1 PERCENT 100 ADDITIONAL_DEP nccl
     )
   endif()
 

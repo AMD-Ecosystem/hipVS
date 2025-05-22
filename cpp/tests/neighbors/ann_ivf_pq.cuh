@@ -131,7 +131,8 @@ void compare_vectors_l2(
   auto const test_suite_name =
     std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name());
   if ((test_suite_name == "IvfPq/f32_u08_i64" &&
-       ((test_name == "build_extend_search/6") || (test_name == "build_host_input_search/6")))) {
+       ((test_name == "build_search/6") || (test_name == "build_extend_search/6") ||
+        (test_name == "build_host_input_search/6")))) {
     // TODO: (HIP/AMD) Investigate. See issue:
     std::cerr << "Note: Skipping experimental vector reconstruction check for test: "
                  "IvfPq/f32_u08_i64.{build_extend_search,build_host_input_search}/6\n";

@@ -13,6 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include "../test_utils.cuh"
 
 #include <cuvs/distance/distance.hpp>
@@ -54,13 +73,13 @@ class silhouetteScoreTest : public ::testing::TestWithParam<silhouetteScoreParam
 
   void host_silhouette_score()
   {
-    // generating random value test input
-    std::vector<double> h_X(nElements, 0.0);
-    std::vector<int> h_labels(nRows, 0);
+    // Generating random value test input
+    std::vector<double> h_X(nElements);  // Each element will be default initialized. That is 0.0.
+    std::vector<int> h_labels(nRows);    // Each element will be default initialized. That is 0.
     std::random_device rd;
-    std::default_random_engine dre(nElements * nLabels);
+    std::default_random_engine dre(rd());
     std::uniform_int_distribution<int> intGenerator(0, nLabels - 1);
-    std::uniform_real_distribution<double> realGenerator(0, 100);
+    std::uniform_real_distribution<double> realGenerator(0.0, 100.0);
 
     std::generate(h_X.begin(), h_X.end(), [&]() { return realGenerator(dre); });
     std::generate(h_labels.begin(), h_labels.end(), [&]() { return intGenerator(dre); });
@@ -68,18 +87,20 @@ class silhouetteScoreTest : public ::testing::TestWithParam<silhouetteScoreParam
     // allocating and initializing memory to the GPU
     auto stream = raft::resource::get_cuda_stream(handle);
     d_X.resize(nElements, stream);
-    d_labels.resize(nElements, stream);
-    RAFT_CUDA_TRY(cudaMemsetAsync(d_X.data(), 0, d_X.size() * sizeof(DataT), stream));
-    RAFT_CUDA_TRY(cudaMemsetAsync(d_labels.data(), 0, d_labels.size() * sizeof(LabelT), stream));
+    d_labels.resize(nRows, stream);
+    // HIP/AMD: We don't need to zero initialize by calling cudaMemsetAsync here as we're populating
+    // dX and d_labels with host data coming from h_X and h_labels.
     sampleSilScore.resize(nElements, stream);
 
-    raft::update_device(d_X.data(), &h_X[0], (int)nElements, stream);
-    raft::update_device(d_labels.data(), &h_labels[0], (int)nElements, stream);
+    raft::update_device(d_X.data(), h_X.data(), nElements, stream);
+    raft::update_device(d_labels.data(),
+                        h_labels.data(),
+                        nRows,
+                        stream);  // HIP/AMD: This was incorrectly using nElements upstream.
 
     // finding the distance matrix
 
     rmm::device_uvector<double> d_distanceMatrix(nRows * nRows, stream);
-    double* h_distanceMatrix = (double*)malloc(nRows * nRows * sizeof(double*));
 
     auto d_X_view = raft::make_device_matrix_view<const DataT, int64_t>(d_X.data(), nRows, nCols);
     cuvs::distance::pairwise_distance(
@@ -91,20 +112,18 @@ class silhouetteScoreTest : public ::testing::TestWithParam<silhouetteScoreParam
 
     raft::resource::sync_stream(handle, stream);
 
-    raft::update_host(h_distanceMatrix, d_distanceMatrix.data(), nRows * nRows, stream);
+    std::vector<double> h_distanceMatrix(nRows * nRows);
+    raft::update_host(
+      h_distanceMatrix.data(), d_distanceMatrix.data(), h_distanceMatrix.size(), stream);
 
     // finding the bincount array
+    std::vector<std::size_t> binCountArray(nLabels, 0);
+    for (int lbl : h_labels)
+      binCountArray[lbl]++;
 
-    double* binCountArray = (double*)malloc(nLabels * sizeof(double*));
-    memset(binCountArray, 0, nLabels * sizeof(double));
-
-    for (int i = 0; i < nRows; ++i) {
-      binCountArray[h_labels[i]] += 1;
-    }
-
-    // finding the average intra cluster distance for every element
-
-    double* a = (double*)malloc(nRows * sizeof(double*));
+    std::vector<double> a(nRows);
+    std::vector<double> b(nRows);
+    static constexpr double MAX = std::numeric_limits<double>::max();
 
     for (int i = 0; i < nRows; ++i) {
       int myLabel               = h_labels[i];
@@ -122,11 +141,9 @@ class silhouetteScoreTest : public ::testing::TestWithParam<silhouetteScoreParam
 
     // finding the average inter cluster distance for every element
 
-    double* b = (double*)malloc(nRows * sizeof(double*));
-
     for (int i = 0; i < nRows; ++i) {
       int myLabel          = h_labels[i];
-      double minAvgInterCD = ULLONG_MAX;
+      double minAvgInterCD = MAX;
 
       for (int j = 0; j < nLabels; ++j) {
         int curClLabel = j;
@@ -140,8 +157,8 @@ class silhouetteScoreTest : public ::testing::TestWithParam<silhouetteScoreParam
         if (binCountArray[curClLabel])
           avgInterCD /= binCountArray[curClLabel];
         else
-          avgInterCD = ULLONG_MAX;
-        minAvgInterCD = min(minAvgInterCD, avgInterCD);
+          avgInterCD = MAX;
+        minAvgInterCD = std::min(minAvgInterCD, avgInterCD);
       }
 
       b[i] = minAvgInterCD;
@@ -149,14 +166,14 @@ class silhouetteScoreTest : public ::testing::TestWithParam<silhouetteScoreParam
 
     // finding the silhouette score for every element
 
-    double* truthSampleSilScore = (double*)malloc(nRows * sizeof(double*));
+    std::vector<double> truthSampleSilScore(nRows);
     for (int i = 0; i < nRows; ++i) {
       if (a[i] == -1)
         truthSampleSilScore[i] = 0;
       else if (a[i] == 0 && b[i] == 0)
         truthSampleSilScore[i] = 0;
       else
-        truthSampleSilScore[i] = (b[i] - a[i]) / max(a[i], b[i]);
+        truthSampleSilScore[i] = (b[i] - a[i]) / std::max(a[i], b[i]);
       truthSilhouetteScore += truthSampleSilScore[i];
     }
 

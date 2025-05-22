@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include <cuvs/preprocessing/quantize/scalar.hpp>
@@ -130,7 +147,28 @@ std::tuple<T, T> quantile_min_max(raft::resources const& res,
               rng);
 
   // quantile / sort and pick for now
+#ifndef __HIP_DEVICE_COMPILE__
+  // clang-format off
+/*
+In amdclang++'s device pass the inbuilt macro "_OPENMP" isn't defined. This causes the following static assertion in rocThrust to trigger. The hack here is to not instantiate "thrust::sort" during the device pass.
+This seems okay since this is host code.
+
+/opt/rocm-6.4.0/lib/llvm/bin/../../../include/thrust/system/omp/detail/sort.inl:111:6: error: static assertion failed due to requirement 'thrust::detail::depend_on_instantiation<__half *, false>::value': OpenMP compiler support is not enabled
+  110 |   THRUST_STATIC_ASSERT_MSG(
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~
+  111 |     (thrust::detail::depend_on_instantiation<
+      |     ~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  112 |       RandomAccessIterator, (THRUST_DEVICE_COMPILER_IS_OMP_CAPABLE == THRUST_TRUE)
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  113 |     >::value)
+      |     ~~~~~~~~~
+  114 |   , "OpenMP compiler support is not enabled"
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  115 |   );
+  */
+  // clang-format on
   thrust::sort(thrust::omp::par, subset.data(), subset.data() + subset_size, fp_lt<T>);
+#endif
   double half_quantile_pos = (0.5 + 0.5 * quantile) * subset_size;
   int pos_max              = std::ceil(half_quantile_pos) - 1;
   int pos_min              = subset_size - pos_max - 1;

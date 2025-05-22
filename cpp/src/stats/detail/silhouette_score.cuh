@@ -278,7 +278,8 @@ DataT silhouette_score(
 
   // kernel that populates the d_aArray
   // kernel configuration
-  dim3 numThreadsPerBlock(32, 1, 1);
+  auto const warp_size = raft::host_warp_size(stream);
+  dim3 numThreadsPerBlock(warp_size, 1, 1);
   dim3 numBlocks(raft::ceildiv<int>(nRows, numThreadsPerBlock.x), 1, 1);
 
   // calling the kernel

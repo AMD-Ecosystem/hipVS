@@ -186,7 +186,8 @@ void compute_chunked_a_b(raft::resources const& handle,
                          value_idx& dist_cols,
                          cudaStream_t stream)
 {
-  dim3 block_size(std::min(dist_rows, 32), std::min(dist_cols, 32));
+  auto const warp_size = raft::host_warp_size(stream);
+  dim3 block_size(std::min(dist_rows, warp_size), std::min(dist_cols, warp_size));
   dim3 grid_size(raft::ceildiv(dist_rows, (value_idx)block_size.x),
                  raft::ceildiv(dist_cols, (value_idx)block_size.y));
 
@@ -231,8 +232,8 @@ value_t silhouette_score(
   }
 
   thrust::fill(policy, a_ptr, a_ptr + n_rows, 0);
-
-  dim3 block_size(std::min(n_rows, 32), std::min(n_labels, 32));
+  auto const warp_size = raft::host_warp_size(stream);
+  dim3 block_size(std::min(n_rows, warp_size), std::min(n_labels, warp_size));
   dim3 grid_size(raft::ceildiv(n_rows, (value_idx)block_size.x),
                  raft::ceildiv(n_labels, (label_idx)block_size.y));
   detail::fill_b_kernel<<<grid_size, block_size, 0, stream>>>(

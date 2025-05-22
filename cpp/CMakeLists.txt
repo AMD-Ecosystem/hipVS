@@ -77,21 +77,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # * User Options  ------------------------------------------------------------
 
 option(BUILD_SHARED_LIBS "Build cuvs shared libraries" ON)
-# TODO(AMD/HIP): Remove in final
-option(TEMP_DISABLE "Temporarily disable building specific modules/files" ON)
 option(BUILD_TESTS "Build hipVS unit-tests" ON)
-option(BUILD_UPSTREAM_TESTS "Build upstream cuvs unit-tests" OFF)
-if(BUILD_TESTS AND BUILD_UPSTREAM_TESTS)
-  # BUILD_TESTS and BUILD_UPSTREAM_TESTS are mutually exclusive. Only 1 can be set at a time.
-  set(BUILD_TESTS OFF)
-endif()
-
-# TODO(AMD/HIP): Change to ON in final
 option(BUILD_C_LIBRARY "Build cuVS C API library" OFF)
 option(BUILD_CUVS_BENCH "Build cuVS ann benchmarks" OFF)
-# TODO(AMD/HIP): Change to ON in final
-option(BUILD_CAGRA_HNSWLIB "Build CAGRA+hnswlib interface" OFF)
-option(BUILD_MG_ALGOS "Build with multi-GPU support" OFF) # TODO(AMD/HIP): Change to ON in final
+option(BUILD_CAGRA_HNSWLIB "Build CAGRA+hnswlib interface" ON)
+option(BUILD_MG_ALGOS "Build with multi-GPU support" ON)
 option(CUDA_ENABLE_KERNELINFO "Enable kernel resource usage info" OFF)
 option(CUDA_ENABLE_LINEINFO
        "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler)" OFF
@@ -442,7 +432,7 @@ if(BUILD_SHARED_LIBS)
     src/distance/pairwise_distance.cu
     src/distance/sparse_distance.cu
     src/neighbors/brute_force.cu
-    # src/embed/spectral.cu
+    src/embed/spectral.cu
     src/neighbors/brute_force_serialize.cu
     src/neighbors/cagra_build_float.cu
     src/neighbors/cagra_build_half.cu
@@ -514,7 +504,7 @@ if(BUILD_SHARED_LIBS)
     src/neighbors/nn_descent_index.cpp
     src/neighbors/nn_descent_int8.cu
     src/neighbors/nn_descent_uint8.cu
-    # src/neighbors/reachability.cu
+    src/neighbors/reachability.cu
     src/neighbors/refine/detail/refine_device_float_float.cu
     src/neighbors/refine/detail/refine_device_half_float.cu
     src/neighbors/refine/detail/refine_device_int8_t_float.cu
@@ -531,13 +521,13 @@ if(BUILD_SHARED_LIBS)
     src/neighbors/vamana_serialize_float.cu
     src/neighbors/vamana_serialize_uint8.cu
     src/neighbors/vamana_serialize_int8.cu
-    # src/preprocessing/quantize/scalar.cu
+    src/preprocessing/quantize/scalar.cu
     src/selection/select_k_float_int64_t.cu
     src/selection/select_k_float_int32_t.cu
     src/selection/select_k_float_uint32_t.cu
     src/selection/select_k_half_uint32_t.cu
     src/stats/silhouette_score.cu
-    # src/stats/trustworthiness_score.cu
+    src/stats/trustworthiness_score.cu
     ${CUVS_MG_ALGOS}
   )
 
@@ -637,17 +627,26 @@ if(BUILD_SHARED_LIBS)
       find_package(hiprand CONFIG PATHS "/opt/rocm/")
       find_package(hipsparse CONFIG PATHS "/opt/rocm/")
       find_package(rccl CONFIG PATHS "/opt/rocm/")
+      find_package(BLAS REQUIRED)
+      find_package(LAPACK REQUIRED)
 
       set(CUVS_CUSOLVER_DEPENDENCY hipsolver${_ctk_static_suffix})
       set(CUVS_CUBLAS_DEPENDENCY hipblas${_ctk_static_suffix})
       set(CUVS_CUBLASLT_DEPENDENCY hipblaslt${_ctk_static_suffix})
       set(CUVS_CURAND_DEPENDENCY hiprand${_ctk_static_suffix})
       set(CUVS_CUSPARSE_DEPENDENCY hipsparse${_ctk_static_suffix})
+      set(CUVS_BLAS_DEPENDENCY ${BLAS_LIBRARIES}${_ctk_static_suffix})
+      set(CUVS_LAPACK_DEPENDENCY ${LAPACK_LIBRARIES}${_ctk_static_suffix})
     endif()
 
     set(CUVS_CTK_MATH_DEPENDENCIES
-        ${CUVS_CUBLAS_DEPENDENCY} ${CUVS_CUSOLVER_DEPENDENCY} ${CUVS_CUBLASLT_DEPENDENCY}
-        ${CUVS_CUSPARSE_DEPENDENCY} ${CUVS_CURAND_DEPENDENCY}
+        ${CUVS_CUBLAS_DEPENDENCY}
+        ${CUVS_CUSOLVER_DEPENDENCY}
+        ${CUVS_CUBLASLT_DEPENDENCY}
+        ${CUVS_CUSPARSE_DEPENDENCY}
+        ${CUVS_CURAND_DEPENDENCY}
+        ${CUVS_BLAS_DEPENDENCY}
+        ${CUVS_LAPACK_DEPENDENCY}
     )
 
     if(BUILD_MG_ALGOS)
