@@ -95,6 +95,8 @@ function(ConfigureTest)
 
   target_include_directories(${TEST_NAME} PUBLIC "$<BUILD_INTERFACE:${CUVS_SOURCE_DIR}/tests>")
 
+  target_link_directories(${TEST_NAME} PRIVATE ${HIP_LIB_INSTALL_DIR})
+
   rapids_test_add(
     NAME ${TEST_NAME}
     COMMAND ${TEST_NAME}
@@ -316,6 +318,10 @@ if(TARGET cuvs::c_api)
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUVS_BINARY_DIR}/gtests>"
                INSTALL_RPATH "\$ORIGIN/../../../lib"
   )
+
+  target_link_directories(cuvs_c_test PRIVATE ${HIP_LIB_INSTALL_DIR})
+
+  target_link_directories(cuvs_c_neighbors_test PRIVATE ${HIP_LIB_INSTALL_DIR})
 
   rapids_test_add(
     NAME cuvs_c_test

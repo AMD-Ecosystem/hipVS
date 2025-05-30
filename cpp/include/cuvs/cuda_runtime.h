@@ -25,17 +25,17 @@
 #include <raft/cuda_runtime.h>
 
 // types
-#define cudaDataType_t     hipDataType
-#define cudaFuncAttributes hipFuncAttributes
-using cudaDeviceProp              = hipDeviceProp_t;
-using cudaError_t                 = hipError_t;
-using cudaEvent_t                 = hipEvent_t;
-using cudaMemAllocationHandleType = hipMemAllocationHandleType;
-using cudaMemPool_t               = hipMemPool_t;
-using cudaMemPoolAttr             = hipMemPoolAttr;
-using cudaMemPoolProps            = hipMemPoolProps;
-using cudaPointerAttributes       = hipPointerAttribute_t;
-using cudaStream_t                = hipStream_t;
+#define cudaDataType_t              hipDataType
+#define cudaFuncAttributes          hipFuncAttributes
+#define cudaDeviceProp              hipDeviceProp_t
+#define cudaError_t                 hipError_t
+#define cudaEvent_t                 hipEvent_t
+#define cudaMemAllocationHandleType hipMemAllocationHandleType
+#define cudaMemPool_t               hipMemPool_t
+#define cudaMemPoolAttr             hipMemPoolAttr
+#define cudaMemPoolProps            hipMemPoolProps
+#define cudaPointerAttributes       hipPointerAttribute_t
+#define cudaStream_t                hipStream_t
 
 // macros, enum constant definitions
 #define cudaDevAttrComputeCapabilityMajor              hipDeviceAttributeComputeCapabilityMajor
