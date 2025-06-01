@@ -214,7 +214,7 @@ struct alignas(device::LOAD_128BIT_T) dataset_descriptor_base_t {
   RAFT_DEVICE_INLINE_FUNCTION constexpr auto team_size_bitshift_from_smem() const noexcept
     -> uint32_t
   {
-    uint32_t sts;
+    uint32_t sts{};
     raft::lds(sts, reinterpret_cast<const uint32_t*>(&smem_and_team_size));
     return reinterpret_cast<smem_and_team_size_t&>(sts).team_size_bitshift();
   }

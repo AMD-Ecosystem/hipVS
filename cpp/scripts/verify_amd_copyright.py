@@ -41,6 +41,12 @@ PATTERN = re.compile(
     rf"(?P<copyright_amd>Copyright.*{BASE_PATTERN})"
 )
 
+FILES_ADDED_IN_NEW_UPSTREAM_COMMITS = {
+    "cpp/include/cuvs/preprocessing/quantize/binary.hpp",
+    "cpp/tests/preprocessing/binary_quantization.cu",
+    "cpp/src/preprocessing/quantize/detail/binary.cuh"
+}
+
 
 class FileStatus(Enum):
     ADDED = 1
@@ -109,6 +115,8 @@ def validate_modified_file(file_path):
 
 
 def validate_new_file(file_path):
+    if str(file_path) in FILES_ADDED_IN_NEW_UPSTREAM_COMMITS:
+        return True
     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         content = f.read()
     match = PATTERN.search(content)

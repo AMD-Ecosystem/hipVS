@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #pragma once
 
 #include <cuvs/preprocessing/quantize/scalar.hpp>
@@ -47,7 +64,7 @@ RAFT_KERNEL binary_quantization_kernel(const T* const in_ptr,
                                        pack_t* const out_ptr,
                                        const uint32_t ldo)
 {
-  constexpr uint32_t warp_size = 32;
+  constexpr uint32_t warp_size = raft::warp_size();
   const uint32_t bits_per_pack = sizeof(pack_t) * 8;
   const auto output_dim        = raft::div_rounding_up_safe(dataset_dim, bits_per_pack);
 
@@ -78,6 +95,7 @@ RAFT_KERNEL binary_quantization_kernel(const T* const in_ptr,
 
     // Store the local result in smem so that the other threads in the same warp can read
     local_smem[lane_id] = pack;
+    __syncthreads();
 
     // Store the result with (a kind of) transposition so that the the coalesce access can be used.
     // The mapping of the result `pack` register bit position and (smem_index, bit_position) is as
@@ -129,9 +147,9 @@ void transform(raft::resources const& res,
                dataset_size,
                out_dataset_size);
 
-  constexpr uint32_t warp_size    = 32;
-  constexpr uint32_t block_size   = 256;
-  constexpr uint32_t vecs_per_cta = block_size / warp_size;
+  uint32_t warp_size            = raft::host_warp_size(stream);
+  constexpr uint32_t block_size = 256;
+  uint32_t vecs_per_cta         = block_size / warp_size;
   const auto grid_size =
     raft::div_rounding_up_safe(dataset_size, static_cast<size_t>(vecs_per_cta));
 

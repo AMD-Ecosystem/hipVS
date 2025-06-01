@@ -13,7 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 #include "../test_utils.cuh"
 #include <cuvs/preprocessing/quantize/binary.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
@@ -58,15 +75,23 @@ class BinaryQuantizationTest : public ::testing::TestWithParam<BinaryQuantizatio
     {
       static_assert(std::is_same_v<QuantI, uint8_t>);
 
+      // (HIP/AMD) cuvs::preprocessing::quantize::binary::transform writes only
+      // (rows_ * col_quantized) QuantI elements.
+      // The upstream code, however, allocated `quantized_input_h` and
+      // `quantized_input_d` as (rows_ * cols_) matrices and passed that full size to
+      // devArrMatchHost. On HIP/AMD, device memory is *not* zero-initialized, so the
+      // unused tail elements remained uninitialized and the host/device comparison
+      // failed.
       const auto col_quantized = raft::div_rounding_up_safe(cols_, 8);
-      auto quantized_input_h   = raft::make_host_matrix<QuantI, int64_t>(rows_, cols_);
-      auto quantized_input_d   = raft::make_device_matrix<QuantI, int64_t>(handle, rows_, cols_);
+      auto quantized_input_h   = raft::make_host_matrix<QuantI, int64_t>(rows_, col_quantized);
+      auto quantized_input_d =
+        raft::make_device_matrix<QuantI, int64_t>(handle, rows_, col_quantized);
       cuvs::preprocessing::quantize::binary::transform(handle, dataset, quantized_input_d.view());
       cuvs::preprocessing::quantize::binary::transform(handle, dataset_h, quantized_input_h.view());
 
       ASSERT_TRUE(devArrMatchHost(quantized_input_h.data_handle(),
                                   quantized_input_d.data_handle(),
-                                  input_.size(),
+                                  quantized_input_d.size(),
                                   cuvs::Compare<QuantI>(),
                                   stream));
     }
