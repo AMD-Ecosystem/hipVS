@@ -40,10 +40,32 @@ else()
 endif()
 
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
-  file(
-    DOWNLOAD
-    "https://raw.githubusercontent.com/ROCm/ROCmDS-cmake/branch-${RAPIDS_VERSION_MAJOR_MINOR}/RAPIDS.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake"
+  if(DEFINED ENV{RAPIDS_CMAKE_SCRIPT_BRANCH})
+    set(RAPIDS_CMAKE_SCRIPT_BRANCH "$ENV{RAPIDS_CMAKE_SCRIPT_BRANCH}")
+  else()
+    set(RAPIDS_CMAKE_SCRIPT_BRANCH release/1.0.x)
+  endif()
+  set(URL
+      "https://raw.githubusercontent.com/ROCm-DS/ROCmDS-cmake/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
   )
+  file(DOWNLOAD ${URL} "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake"
+       STATUS DOWNLOAD_STATUS
+  )
+  list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+  list(GET DOWNLOAD_STATUS 1 ERROR_MESSAGE)
+
+  if(${STATUS_CODE} EQUAL 0)
+    message(STATUS "Downloaded 'CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake' successfully!")
+  else()
+    file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake)
+    message(
+      FATAL_ERROR
+        "Failed to download CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake'. URL: ${URL}, Reason: ${ERROR_MESSAGE}"
+    )
+    message(
+      FATAL_ERROR
+        "Failed to download 'CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake'. Reason: ${ERROR_MESSAGE}"
+    )
+  endif()
 endif()
 include("${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
