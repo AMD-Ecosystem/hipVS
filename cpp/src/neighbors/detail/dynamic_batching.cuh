@@ -71,14 +71,6 @@ using namespace hip_warp_primitives;
 #endif
 #endif
 
-#ifdef __HIP_PLATFORM_AMD__
-// This should not be required on newer versions of libhipcxx, but until we upgrade bring in
-// thread_scope_device into the hip::std namespace.
-namespace hip::std {
-using hip::thread_scope_device;
-}
-#endif
-
 namespace cuvs::neighbors::dynamic_batching::detail {
 
 /**
