@@ -61,6 +61,9 @@ include(rapids-find)
 
 rapids_cpm_init()
 
+add_library(cuvs_rmm_logger OBJECT)
+target_link_libraries(cuvs_rmm_logger PRIVATE rmm::rmm_logger_impl)
+
 # --- cuVS ---#
 find_package(cuvs "${RAPIDS_VERSION}" REQUIRED COMPONENTS c_api)
 

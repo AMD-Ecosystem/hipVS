@@ -33,7 +33,7 @@
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(RAFT_FORK "AMD-AI")
 #set(RAFT_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
-set(RAFT_PINNED_TAG "amd-integration")
+set(RAFT_PINNED_TAG "dev/kjoseph/test_25.02_deps")
 
 function(find_and_configure_raft)
     set(oneValueArgs VERSION FORK PINNED_TAG USE_RAFT_STATIC ENABLE_NVTX ENABLE_MNMG_DEPENDENCIES CLONE_ON_PIN)
@@ -58,7 +58,7 @@ function(find_and_configure_raft)
     # Invoke CPM find_package()
     #-----------------------------------------------------
     rapids_cpm_find(raft ${PKG_VERSION}
-            GLOBAL_TARGETS      raft::raft
+            GLOBAL_TARGETS      raft::raft raft::raft_logger raft::raft_logger_impl
             BUILD_EXPORT_SET    cuvs-exports
             INSTALL_EXPORT_SET  cuvs-exports
             COMPONENTS          ${RAFT_COMPONENTS}

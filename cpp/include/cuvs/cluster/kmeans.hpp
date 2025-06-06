@@ -38,7 +38,6 @@
 #include <raft/core/logger.hpp>
 #include <raft/core/resources.hpp>
 #include <raft/random/rng_state.hpp>
-#include <rapids_logger/logger.hpp>
 
 namespace cuvs::cluster::kmeans {
 
@@ -105,7 +104,7 @@ struct params : base_params {
   /**
    * verbosity level.
    */
-  rapids_logger::level_enum verbosity = rapids_logger::level_enum::info;
+  raft::level_enum verbosity = raft::level_enum::info;
 
   /**
    * Seed to the random number generator.
