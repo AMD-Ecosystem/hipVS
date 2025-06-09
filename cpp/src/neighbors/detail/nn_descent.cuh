@@ -710,6 +710,9 @@ __launch_bounds__(BLOCK_SIZE)
         s_distances[i] = l2_norms[new_neighbors[i % SKEWED_MAX_NUM_BI_SAMPLES]] +
                          l2_norms[new_neighbors[i / SKEWED_MAX_NUM_BI_SAMPLES]] -
                          2.0 * s_distances[i];
+        // for fp32 vs fp16 precision differences resulting in negative distances when distance
+        // should be 0 related issue: https://github.com/rapidsai/cuvs/issues/991
+        s_distances[i] = s_distances[i] < 0.0f ? 0.0f : s_distances[i];
       }
     } else {
       s_distances[i] = std::numeric_limits<float>::max();
@@ -791,6 +794,9 @@ __launch_bounds__(BLOCK_SIZE)
         s_distances[i] = l2_norms[old_neighbors[i % SKEWED_MAX_NUM_BI_SAMPLES]] +
                          l2_norms[new_neighbors[i / SKEWED_MAX_NUM_BI_SAMPLES]] -
                          2.0 * s_distances[i];
+        // for fp32 vs fp16 precision differences resulting in negative distances when distance
+        // should be 0 related issue: https://github.com/rapidsai/cuvs/issues/991
+        s_distances[i] = s_distances[i] < 0.0f ? 0.0f : s_distances[i];
       }
     } else {
       s_distances[i] = std::numeric_limits<float>::max();
