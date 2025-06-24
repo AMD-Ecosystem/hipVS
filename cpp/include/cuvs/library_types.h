@@ -32,6 +32,7 @@
 #define CUDA_R_32F  HIP_R_32F
 #define CUDA_R_32I  HIP_R_32I
 #define CUDA_R_32U  HIP_R_32U
+#define CUDA_R_64F  HIP_R_64F
 #define CUDA_R_64I  HIP_R_64I
 #define CUDA_R_64U  HIP_R_64U
 #define CUDA_R_8I   HIP_R_8I
