@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 
 # Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -62,18 +62,18 @@ function gpuArch {
         exit 1
     fi
 
-    if [[ $(echo $ARGS | { grep -Eo "\-\-gpu\-arch" || true; } | wc -l ) -gt 1 ]]; then
+    if [[ $(echo "$ARGS" | { grep -Eo "\-\-gpu\-arch" || true; } | wc -l ) -gt 1 ]]; then
         echo "Error: Multiple --gpu-arch options were provided. Please combine architectures into a single option."
         echo "Instead of: --gpu-arch=gfx90a --gpu-arch=gfx942"
         echo "Use:       --gpu-arch=\"gfx90a;gfx942\""
         exit 1
     fi
 
-    if [[ -n $(echo $ARGS | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
-        GPU_ARCH_ARG=$(echo $ARGS | { grep -Eo "\-\-gpu\-arch=.+( |$)" || true; })
+    if [[ -n $(echo "$ARGS" | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
+        GPU_ARCH_ARG=$(echo "$ARGS" | { grep -Eo "\-\-gpu\-arch=.+( |$)" || true; })
         if [[ -n ${GPU_ARCH_ARG} ]]; then
             # Extract just the architecture value
-            echo ${GPU_ARCH_ARG} | sed -e 's/--gpu-arch=//' -e 's/ .*//'
+            echo "${GPU_ARCH_ARG}" | sed -e 's/--gpu-arch=//' -e 's/ .*//'
             return
         fi
     fi
@@ -94,7 +94,7 @@ PARALLEL_LEVEL=${PARALLEL_LEVEL:=`nproc`}
 BUILD_TYPE=${BUILD_TYPE:="Release"}
 BUILD_DIR=build/
 CUVS_REPO_REL=""
-EXTRA_CMAKE_ARGS=""
+EXTRA_CMAKE_ARGS=()
 
 
 HIPVS_CMAKE_HIP_ARCHITECTURES=$(gpuArch)
@@ -109,9 +109,11 @@ EXAMPLES_DIR=$(dirname "$(realpath "$0")")
 EXAMPLE_LANGS="c cpp"
 
 if [[ ${CUVS_REPO_REL} != "" ]]; then
-  CUVS_REPO_PATH="`readlink -f \"${CUVS_REPO_REL}\"`"
-  echo "Using existing cuVS source tree at ${CUVS_REPO_PATH}"
-  EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -DCPM_cuvs_SOURCE=${CUVS_REPO_PATH}"
+  CUVS_REPO_PATH=$(readlink -f "${CUVS_REPO_REL}")
+  EXTRA_CMAKE_ARGS+=("-DCPM_cuvs_SOURCE=${CUVS_REPO_PATH}")
+else
+  LIB_BUILD_DIR=${LIB_BUILD_DIR:-$(readlink -f "${EXAMPLES_DIR}/../cpp/build")}
+  EXTRA_CMAKE_ARGS+=("-Dcuvs_ROOT=${LIB_BUILD_DIR}")
 fi
 
 ################################################################################
@@ -137,7 +139,7 @@ build_example() {
         ${EXTRA_CMAKE_ARGS}
 
   # Build
-  cmake --build ${build_dir} -j${PARALLEL_LEVEL}
+  cmake --build "${build_dir}" -j"${PARALLEL_LEVEL}"
 }
 
 for lang in ${EXAMPLE_LANGS}; do
