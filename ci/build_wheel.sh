@@ -43,6 +43,7 @@ python -m pip wheel \
     -v \
     --no-deps \
     --disable-pip-version-check \
+    --no-build-isolation \ # Revisit this after rocmds-cmake has been updated
     .
 
 sccache --show-adv-stats

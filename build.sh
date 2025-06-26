@@ -384,19 +384,18 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
 
     mkdir -p ${LIBCUVS_BUILD_DIR}
     cd ${LIBCUVS_BUILD_DIR}
-    #TODO(AMD/HIP): Enable DBUILD_C_LIBRARY and DBUILD_C_TESTS in final
     cmake -S ${REPODIR}/cpp -B ${LIBCUVS_BUILD_DIR} \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_CUDA_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DCUDA_BACKEND=${BUILD_CUDA} \
-          -DBUILD_C_LIBRARY=OFF \
+           -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
           -DCUVS_NVTX=${NVTX} \
           -DCUDA_LOG_COMPILE_TIME=${LOG_COMPILE_TIME} \
           -DDISABLE_DEPRECATION_WARNINGS=${DISABLE_DEPRECATION_WARNINGS} \
           -DBUILD_TESTS=${BUILD_TESTS} \
-          -DBUILD_C_TESTS=OFF \
+          -DBUILD_C_TESTS=${BUILD_TESTS} \
           -DBUILD_CUVS_BENCH=${BUILD_CUVS_BENCH} \
           -DBUILD_CPU_ONLY=${BUILD_CPU_ONLY} \
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \
@@ -463,9 +462,15 @@ fi
 
 # Build and (optionally) install the cuvs Python package
 if (( ${NUMARGS} == 0 )) || hasArg python; then
-    SKBUILD_CMAKE_ARGS="${EXTRA_CMAKE_ARGS}" \
+    # Build and install libcuvs pip package
+    SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
-        python -m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cuvs
+        python -m pip install --no-build-isolation ${REPODIR}/python/libcuvs
+
+    # Build and install cuvs pip package
+    SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${EXTRA_CMAKE_ARGS}" \
+        SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
+        python -m pip install --no-build-isolation ${REPODIR}/python/cuvs
 fi
 
 # Build and (optionally) install the cuvs-bench Python package
