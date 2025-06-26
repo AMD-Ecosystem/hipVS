@@ -38,11 +38,7 @@
 
 import functools
 
-# TODO(HIP-PYTHON) Once https://github.com/AMD-AI/hip-python/pull/3 has merged
-# and made public, uncomment the line below and remove the line underneath
-# from cuda.bindings.cyruntime cimport cudaStream_t
-
-from cuda.ccuda cimport cudaStream_t
+from cuda.bindings.cyruntime cimport cudaStream_t
 
 from cuvs.common.c_api cimport (
     cuvsResources_t,
