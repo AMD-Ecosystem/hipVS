@@ -899,8 +899,7 @@ endif()
 
 if(BUILD_TESTS)
   enable_testing()
-  # TODO(AMD/HIP): Temporarily disable internal directory during development
-  # add_subdirectory(internal)
+  add_subdirectory(internal)
   add_subdirectory(tests)
 endif()
 

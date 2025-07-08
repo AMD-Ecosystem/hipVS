@@ -35,19 +35,15 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python rust go java docs tests bench-ann examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-mg --no-cpu --cpu-only --no-shared-libs --no-nvtx --show_depr_warn --incl-cache-stats --time -h"
-HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>] [--limit-bench-ann=<targets>] [--build-metrics=<filename>]
+VALIDARGS="clean libcuvs python docs tests examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-cpu --cpu-only --no-shared-libs --show_depr_warn --incl-cache-stats -h"
+HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcuvs          - build the cuvs/hipvs C++ code only. Also builds the C-wrapper library
                       around the C++ code.
    python           - build the cuvs/hipvs Python package
-   rust             - build the cuvs/hipvs Rust bindings
-   go               - build the cuvs/hipvs Go bindings
-   java             - build the cuvs/hipvs Java bindings
    docs             - build the documentation
    tests            - build the tests
-   bench-ann        - build end-to-end ann benchmarks
    examples         - build the examples
 
  and <flag> is:
@@ -59,19 +55,13 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    --compile-static-lib        - compile static library for all components
    --cpu-only                  - build CPU only components without HIP/CUDA. Currently only applies to bench-ann.
    --limit-tests               - semicolon-separated list of test executables to compile (e.g. NEIGHBORS_TEST;CLUSTER_TEST)
-   --limit-bench-ann           - semicolon-separated list of ann benchmark executables to compute (e.g. HNSWLIB_ANN_BENCH;RAFT_IVF_PQ_ANN_BENCH)
    --allgpuarch                - build for all supported GPU architectures
-   --no-mg                     - disable multi-GPU support
-   --no-nvtx                   - disable nvtx (profiling markers), but allow enabling it in downstream projects
    --no-shared-libs            - build without shared libraries
    --show_depr_warn            - show cmake deprecation warnings
-   --build-metrics             - filename for generating build metrics report for libcuvs
    --incl-cache-stats          - include cache statistics in build metrics report
    --cmake-args=\\\"<args>\\\" - pass arbitrary list of CMake configuration options (escape all quotes in argument)
    --cache-tool=<tool>         - pass the build cache tool (eg: ccache, sccache, distcc) that will be used
                                  to speedup the build process.
-   --time                      - Enable nvcc compilation time logging into cpp/build/nvcc_compile_log.csv.
-                                 Results can be interpreted with cpp/scripts/analyze_nvcc_log.py
    -h                          - print this text
 
  default action (no args) is to build libcuvs, tests and cuvs targets
@@ -89,12 +79,10 @@ CMAKE_LOG_LEVEL=""
 VERBOSE_FLAG=""
 BUILD_CUDA=OFF
 BUILD_ALL_GPU_ARCH=0
-BUILD_TESTS=OFF                     #TODO(AMD/HIP): Enable test building by default
-BUILD_MG_ALGOS=OFF                  #TODO(AMD/HIP): Enable multi-GPU support
+BUILD_TESTS=OFF
 BUILD_TYPE=Release
 COMPILE_LIBRARY=OFF
 INSTALL_TARGET=install
-BUILD_REPORT_METRICS=""
 BUILD_REPORT_INCL_CACHE_STATS=OFF
 BUILD_SHARED_LIBS=ON
 
@@ -102,7 +90,6 @@ TEST_TARGETS=""
 ANN_BENCH_TARGETS=""
 
 CACHE_ARGS=""
-NVTX=OFF                            #TODO(AMD/HIP): Enable profiling markers
 LOG_COMPILE_TIME=OFF
 CLEAN=0
 UNINSTALL=0
@@ -196,25 +183,6 @@ function limitAnnBench {
     fi
 }
 
-function buildMetrics {
-    # Check for multiple build-metrics options
-    if [[ $(echo $ARGS | { grep -Eo "\-\-build\-metrics" || true; } | wc -l ) -gt 1 ]]; then
-        echo "Multiple --build-metrics options were provided, please provide only one: ${ARGS}"
-        exit 1
-    fi
-    # Check for build-metrics option
-    if [[ -n $(echo $ARGS | { grep -E "\-\-build\-metrics" || true; } ) ]]; then
-        # There are possible weird edge cases that may cause this regex filter to output nothing and fail silently
-        # the true pipe will catch any weird edge cases that may happen and will cause the program to fall back
-        # on the invalid option error
-        BUILD_REPORT_METRICS=$(echo $ARGS | sed -e 's/.*--build-metrics=//' -e 's/ .*//')
-        if [[ -n ${BUILD_REPORT_METRICS} ]]; then
-            # Remove the full BUILD_REPORT_METRICS argument from list of args so that it passes validArgs function
-            ARGS=${ARGS//--build-metrics=$BUILD_REPORT_METRICS/}
-        fi
-    fi
-}
-
 if hasArg -h || hasArg --help; then
     echo "${HELP}"
     exit 0
@@ -226,7 +194,6 @@ if (( ${NUMARGS} != 0 )); then
     cacheTool
     limitTests
     limitAnnBench
-    buildMetrics
     for a in ${ARGS}; do
         if ! (echo " ${VALIDARGS} " | grep -q " ${a} "); then
             echo "Invalid option: ${a}"
@@ -293,10 +260,6 @@ if hasArg --allgpuarch; then
     BUILD_ALL_GPU_ARCH=1
 fi
 
-if hasArg --no-mg; then
-    BUILD_MG_ALGOS=OFF
-fi
-
 if hasArg tests || (( ${NUMARGS} == 0 )); then
     BUILD_TESTS=ON
     CMAKE_TARGET="${CMAKE_TARGET};${TEST_TARGETS}"
@@ -312,7 +275,6 @@ if hasArg bench-ann || (( ${NUMARGS} == 0 )); then
     if hasArg --cpu-only; then
         BUILD_CPU_ONLY=ON
         BUILD_SHARED_LIBS=OFF
-        NVTX=OFF
     fi
 fi
 
@@ -320,9 +282,6 @@ if hasArg --no-shared-libs; then
     BUILD_SHARED_LIBS=OFF
 fi
 
-if hasArg --no-nvtx; then
-    NVTX=OFF
-fi
 if hasArg --time; then
     echo "-- Logging compile times to cpp/build/nvcc_compile_log.csv"
     LOG_COMPILE_TIME=ON
@@ -390,8 +349,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
           -DCMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DCUDA_BACKEND=${BUILD_CUDA} \
-           -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
-          -DCUVS_NVTX=${NVTX} \
+          -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
           -DCUDA_LOG_COMPILE_TIME=${LOG_COMPILE_TIME} \
           -DDISABLE_DEPRECATION_WARNINGS=${DISABLE_DEPRECATION_WARNINGS} \
           -DBUILD_TESTS=${BUILD_TESTS} \
@@ -417,47 +375,6 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
   compile_end=$(date +%s)
   compile_total=$(( compile_end - compile_start ))
 
-  if [[ -n "$BUILD_REPORT_METRICS" && -f "${LIBCUVS_BUILD_DIR}/.ninja_log" ]]; then
-      if ! rapids-build-metrics-reporter.py 2> /dev/null && [ ! -f rapids-build-metrics-reporter.py ]; then
-          echo "Downloading rapids-build-metrics-reporter.py"
-          curl -sO https://raw.githubusercontent.com/rapidsai/build-metrics-reporter/v1/rapids-build-metrics-reporter.py
-      fi
-
-      echo "Formatting build metrics"
-      MSG=""
-      # get some sccache/ccache stats after the compile
-      if [[ "$BUILD_REPORT_INCL_CACHE_STATS" == "ON" ]]; then
-          if [[ ${CACHE_TOOL} == "sccache" && -x "$(command -v sccache)" ]]; then
-              COMPILE_REQUESTS=$(sccache -s | grep "Compile requests \+ [0-9]\+$" | awk '{ print $NF }')
-              CACHE_HITS=$(sccache -s | grep "Cache hits \+ [0-9]\+$" | awk '{ print $NF }')
-              HIT_RATE=$(COMPILE_REQUESTS="${COMPILE_REQUESTS}" CACHE_HITS="${CACHE_HITS}" python3 -c "import os; print(f'{int(os.getenv(\"CACHE_HITS\")) / int(os.getenv(\"COMPILE_REQUESTS\")):.2f}' if int(os.getenv(\"COMPILE_REQUESTS\")) else 'nan')")
-              MSG="${MSG}<br/>cache hit rate ${HIT_RATE} %"
-          elif [[ ${CACHE_TOOL} == "ccache" && -x "$(command -v ccache)" ]]; then
-              CACHE_STATS_LINE=$(ccache -s | grep "Hits: \+ [0-9]\+ / [0-9]\+" | tail -n1)
-              if [[ ! -z "$CACHE_STATS_LINE" ]]; then
-                  CACHE_HITS=$(echo "$CACHE_STATS_LINE" - | awk '{ print $2 }')
-                  COMPILE_REQUESTS=$(echo "$CACHE_STATS_LINE" - | awk '{ print $4 }')
-                  HIT_RATE=$(COMPILE_REQUESTS="${COMPILE_REQUESTS}" CACHE_HITS="${CACHE_HITS}" python3 -c "import os; print(f'{int(os.getenv(\"CACHE_HITS\")) / int(os.getenv(\"COMPILE_REQUESTS\")):.2f}' if int(os.getenv(\"COMPILE_REQUESTS\")) else 'nan')")
-                  MSG="${MSG}<br/>cache hit rate ${HIT_RATE} %"
-              fi
-          fi
-      fi
-      MSG="${MSG}<br/>parallel setting: $PARALLEL_LEVEL"
-      MSG="${MSG}<br/>parallel build time: $compile_total seconds"
-      if [[ -f "${LIBCUVS_BUILD_DIR}/libcuvs.so" ]]; then
-          LIBCUVS_FS=$(ls -lh ${LIBCUVS_BUILD_DIR}/libcuvs.so | awk '{print $5}')
-          MSG="${MSG}<br/>libcuvs.so size: $LIBCUVS_FS"
-      fi
-      BMR_DIR=${RAPIDS_ARTIFACTS_DIR:-"${LIBCUVS_BUILD_DIR}"}
-      echo "The HTML report can be found at [${BMR_DIR}/${BUILD_REPORT_METRICS}.html]. In CI, this report"
-      echo "will also be uploaded to the appropriate subdirectory of https://downloads.rapids.ai/ci/cuvs/, and"
-      echo "the entire URL can be found in \"conda-cpp-build\" runs under the task \"Upload additional artifacts\""
-      mkdir -p ${BMR_DIR}
-      MSG_OUTFILE="$(mktemp)"
-      echo "$MSG" > "${MSG_OUTFILE}"
-      PATH=".:$PATH" python rapids-build-metrics-reporter.py ${LIBCUVS_BUILD_DIR}/.ninja_log --fmt html --msg "${MSG_OUTFILE}" > ${BMR_DIR}/${BUILD_REPORT_METRICS}.html
-      cp ${LIBCUVS_BUILD_DIR}/.ninja_log ${BMR_DIR}/ninja.log
-  fi
 fi
 
 # Build and (optionally) install the cuvs Python package
