@@ -46,19 +46,15 @@ project(
 
 # Check if cuVS is already available. If so, it is the user's responsibility to ensure that the
 # CMake package is also available at build time of the Python cuvs package.
+# cmake-format: off
+# find_package(cuvs "${RAPIDS_VERSION}") Note: On the AMD/HIP platform we want to force libcuvs.so and libcuvs_c.so to be built and packaged into the wheel
+# cmake-format: on
 
-# (HIP/AMD): Temporary WAR until we can have rocmds-logger pip packages. The following ensures that
-# librapids-logger.so gets packaged into libraft wheel.
-include(ExternalProject)
-ExternalProject_Add(
-  rocmds-logger
-  DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}
-  GIT_REPOSITORY https://$ENV{GITHUB_PASS}@github.com/AMD-AI/rocmds-logger.git
-  GIT_TAG raft-logger-stable
-  GIT_SHALLOW 1
-  CMAKE_GENERATOR Ninja
-  CMAKE_ARGS "-DBUILD_TESTS=OFF" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}"
-)
+if(cuvs_FOUND)
+  return()
+endif()
+
+unset(cuvs_FOUND)
 
 # --- CUDA --- #
 set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
@@ -82,6 +78,12 @@ if(CUDA_BACKEND)
       "$ORIGIN/../../nvidia/cusolver/lib"
       "$ORIGIN/../../nvidia/cusparse/lib"
       "$ORIGIN/../../nvidia/nvjitlink/lib"
+  )
+else()
+  set(rpaths
+      "$ORIGIN/../../../../" # Assumes the following conda structure:
+                             # $ORIGIN=$CONDA_PREFIX/lib/site-packages/libcuvs/lib/
+      "/opt/rocm/lib/llvm/lib/" # Assumes ROCm is installed in /opt/rocm. This is for libomp.so
   )
 endif()
 
