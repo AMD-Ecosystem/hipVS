@@ -833,7 +833,6 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
   # * install targets-----------------------------------------------------------
   rapids_cmake_install_lib_dir(lib_dir)
   include(GNUInstallDirs)
-  include(CPack)
 
   set(_cuvs_lib_targets cuvs)
   if(NOT CUVS_COMPILE_DYNAMIC_ONLY)
@@ -911,3 +910,26 @@ endif()
 if(BUILD_CUVS_BENCH)
   add_subdirectory(bench/ann/)
 endif()
+
+# ##################################################################################################
+# * Packaging -----------------------------------------------------------------
+set(CPACK_PACKAGE_NAME
+    "hipvs"
+    CACHE STRING "Overwrite package name." FORCE
+)
+set(CPACK_GENERATOR "DEB")
+set(CPACK_PACKAGE_VENDOR "Advanced Micro Devices, Inc.")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_VENDOR}")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_OUTPUT_FILE_PREFIX
+    ""
+    CACHE PATH "Package output file prefix." FORCE
+)
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_PACKAGING_INSTALL_PREFIX
+    "/opt/rocm-ds"
+    CACHE PATH "Package install prefix." FORCE
+)
+include(CPack)
