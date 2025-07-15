@@ -35,7 +35,7 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python docs tests examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-cpu --cpu-only --no-shared-libs --show_depr_warn --incl-cache-stats -h"
+VALIDARGS="clean libcuvs python docs tests package examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-cpu --cpu-only --no-shared-libs --show_depr_warn --incl-cache-stats -h"
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -44,6 +44,7 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    python           - build the cuvs/hipvs Python package
    docs             - build the documentation
    tests            - build the tests
+   package          - package for CI
    examples         - build the examples
 
  and <flag> is:
@@ -265,6 +266,10 @@ if hasArg tests || (( ${NUMARGS} == 0 )); then
     CMAKE_TARGET="${CMAKE_TARGET};${TEST_TARGETS}"
 fi
 
+if hasArg package; then
+    CMAKE_TARGET="${CMAKE_TARGET};package"
+fi
+
 if hasArg bench-ann || (( ${NUMARGS} == 0 )); then
     BUILD_CUVS_BENCH=ON
     if ! hasArg tests; then
@@ -315,7 +320,7 @@ fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg bench-ann; then
+if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg package || hasArg bench-ann; then
     COMPILE_LIBRARY=ON
     if [[ ${BUILD_SHARED_LIBS} == "OFF" ]]; then
         CMAKE_TARGET="${CMAKE_TARGET};"
