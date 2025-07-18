@@ -15,8 +15,21 @@
  */
 package com.nvidia.cuvs.spi;
 
-import com.nvidia.cuvs.*;
-import com.nvidia.cuvs.internal.*;
+import static com.nvidia.cuvs.internal.common.LinkerHelper.C_FLOAT;
+
+import com.nvidia.cuvs.BruteForceIndex;
+import com.nvidia.cuvs.CagraIndex;
+import com.nvidia.cuvs.CagraMergeParams;
+import com.nvidia.cuvs.CuVSResources;
+import com.nvidia.cuvs.Dataset;
+import com.nvidia.cuvs.HnswIndex;
+import com.nvidia.cuvs.TieredIndex;
+import com.nvidia.cuvs.internal.BruteForceIndexImpl;
+import com.nvidia.cuvs.internal.CagraIndexImpl;
+import com.nvidia.cuvs.internal.CuVSResourcesImpl;
+import com.nvidia.cuvs.internal.DatasetImpl;
+import com.nvidia.cuvs.internal.HnswIndexImpl;
+import com.nvidia.cuvs.internal.TieredIndexImpl;
 import com.nvidia.cuvs.internal.common.Util;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;

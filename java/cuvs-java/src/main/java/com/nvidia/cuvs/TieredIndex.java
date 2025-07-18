@@ -104,10 +104,10 @@ public interface TieredIndex {
     /**
      * Sets the dataset for building the TieredIndex.
      *
-     * @param dataset A {@link CuVSMatrix} instance containing the vectors
+     * @param dataset A {@link Dataset} instance containing the vectors
      * @return This Builder instance for method chaining
      */
-    Builder withDataset(CuVSMatrix dataset);
+    Builder withDataset(Dataset dataset);
 
     /**
      * Registers TieredIndex parameters with this Builder.
@@ -165,11 +165,11 @@ public interface TieredIndex {
     /**
      * Sets the dataset to add to the existing index.
      *
-     * @param dataset A {@link CuVSMatrix} instance containing the new vectors to
+     * @param dataset A {@link Dataset} instance containing the new vectors to
      *                add
      * @return This ExtendBuilder instance for method chaining
      */
-    ExtendBuilder withDataset(CuVSMatrix dataset);
+    ExtendBuilder withDataset(Dataset dataset);
 
     /**
      * Executes the extend operation, adding the specified data to the index.
