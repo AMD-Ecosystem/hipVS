@@ -184,17 +184,17 @@ public class HnswIndexImpl implements HnswIndex {
 
       cuvsHnswIndex.dtype(indexReference.memorySegment, dtype);
 
-      try (var params = segmentFromIndexParams(hnswIndexParams);
-          var cuvsResourcesAccessor = resources.access()) {
-        checkCuVSError(
+      try (var resourcesAccessor = resources.access()) {
+        var cuvsRes = resourcesAccessor.handle();
+        var returnValue =
             cuvsHnswDeserialize(
-                cuvsResourcesAccessor.handle(),
-                params.handle(),
+                cuvsRes,
+                segmentFromIndexParams(localArena, hnswIndexParams),
                 pathSeg,
                 hnswIndexParams.getVectorDimension(),
                 0,
-                indexReference.memorySegment),
-            "cuvsHnswDeserialize");
+                indexReference.memorySegment);
+        checkCuVSError(returnValue, "cuvsHnswDeserialize");
       }
 
       return indexReference;
