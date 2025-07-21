@@ -31,9 +31,9 @@
 # Use RAPIDS_VERSION_MAJOR_MINOR from rapids_config.cmake
 # TODO(AMD/HIP): Update the default values
 set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(CUVS_FORK "AMD-AI")
+set(CUVS_FORK "AMD-AIOSS")
 #set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
-set(CUVS_PINNED_TAG "amd-integration/branch-25.02")
+set(CUVS_PINNED_TAG "amd-integration")
 
 function(find_and_configure_cuvs)
     set(oneValueArgs VERSION FORK PINNED_TAG ENABLE_NVTX CLONE_ON_PIN BUILD_CPU_ONLY BUILD_SHARED_LIBS)

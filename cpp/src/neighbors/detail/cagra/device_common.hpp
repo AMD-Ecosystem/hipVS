@@ -112,8 +112,8 @@ RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x, uint32_t team_size_bitshift) -> T
     // TODO: (HIP/AMD) This was originally using raft::shfl_xor but this completely breaks
     // single-CTA search. When calling raft::shfl_xor we would fail to exit the main loop in
     // *search_core*. This needs further investigation. raft::shfl_xor should after it being inlined
-    // should be calling __shfl_xor_sync under the hood so this makes no  sense. See:
-    // https://github.com/AMD-AI/hipVS/issues/20
+    // should be calling __shfl_xor_sync under the hood so this makes no  sense. See:internal issue
+    // #20
     case 6: x += __shfl_xor_sync(__activemask(), x, 32, raft::warp_size());
     case 5: x += __shfl_xor_sync(__activemask(), x, 16, raft::warp_size());
     case 4: x += __shfl_xor_sync(__activemask(), x, 8, raft::warp_size());

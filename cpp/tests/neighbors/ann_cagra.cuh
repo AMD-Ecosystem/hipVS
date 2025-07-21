@@ -1505,7 +1505,7 @@ static std::vector<AnnCagraInputs> relax_recall(std::vector<AnnCagraInputs> inpu
   //  - For MULTI_CTA/AUTO modes, cap at 95% of original recall
   //  - For IVF_PQ builds, cap at 90% of original recall
   //  - For ITERATIVE_CAGRA_SEARCH cap at 97% of original recall
-  // See issue: https://github.com/AMD-AI/hipVS/issues/22
+  // See issue: internal issue #22
   for (auto& input : inputs) {
     double reduction_factor = 1.0;
     if (input.algo == search_algo::MULTI_CTA || input.algo == search_algo::AUTO) {

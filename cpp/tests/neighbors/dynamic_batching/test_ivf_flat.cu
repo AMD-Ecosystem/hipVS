@@ -48,7 +48,7 @@ struct ivf_flat_i8 : Base {
   void SetUp() override
   {
 #ifdef __HIP_PLATFORM_AMD__
-    // (HIP/AMD): See https://github.com/AMD-AI/hipVS/issues/23
+    // (HIP/AMD): See internal issue #23
     GTEST_SKIP() << "IVF-FLAT is currently not supported for use with dynamic batching.";
 #endif
     Base::SetUp();

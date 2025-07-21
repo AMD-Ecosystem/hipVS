@@ -31,7 +31,7 @@
 # Use RAPIDS_VERSION_MAJOR_MINOR from rapids_config.cmake
 # TODO(AMD/HIP): Update the default values
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(RAFT_FORK "AMD-AI")
+set(RAFT_FORK "AMD-AIOSS")
 #set(RAFT_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
 set(RAFT_PINNED_TAG "amd-integration")
 
@@ -64,7 +64,7 @@ function(find_and_configure_raft)
             COMPONENTS          ${RAFT_COMPONENTS}
             CPM_ARGS
               EXCLUDE_FROM_ALL TRUE
-              GIT_REPOSITORY        https://$ENV{GITHUB_PASS}@github.com/${PKG_FORK}/raft.git
+              GIT_REPOSITORY        https://$ENV{GITHUB_PASS}@github.com/${PKG_FORK}/hipRaft.git
               GIT_TAG               ${PKG_PINNED_TAG}
               SOURCE_SUBDIR         cpp
               OPTIONS

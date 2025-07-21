@@ -45,7 +45,7 @@ struct ivf_pq_f16 : Base {
   void SetUp() override
   {
 #ifdef __HIP_PLATFORM_AMD__
-    // See issue: https://github.com/AMD-AI/hipVS/issues/24
+    // See issue: internal issue #24
     GTEST_SKIP() << "IVF-PQ is currently not supported for use with dynamic batching.";
 #endif
     Base::SetUp();

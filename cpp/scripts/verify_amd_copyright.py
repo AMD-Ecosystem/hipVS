@@ -31,7 +31,6 @@ from pathlib import Path
 
 
 # To be updated every time we pull in upstream changes.
-# See: https://github.com/AMD-AI/hipVS/commit/2b7dce65abf8334664f00c7bb23076caaf603f6e
 BASE_COMMIT_HASH = "2b7dce65abf8334664f00c7bb23076caaf603f6e"
 
 CURRENT_YEAR = str(datetime.now().year)

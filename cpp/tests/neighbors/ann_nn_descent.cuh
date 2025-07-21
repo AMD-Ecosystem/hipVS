@@ -183,7 +183,7 @@ class AnnNNDescentTest : public ::testing::TestWithParam<AnnNNDescentInputs> {
                                                         // recall when using the InnerProduct
                                                         // metric. Recall is between 0.85 and 0.92
                                                         // causing intermittent failures. See
-                                                        // https://github.com/AMD-AI/hipVS/issues/5
+                                                        // internal issue #5
           ? ps.min_recall * 0.9
           : ps.min_recall;
       EXPECT_TRUE(eval_neighbours(indices_naive,

@@ -87,7 +87,7 @@ static inline auto proclaim_return_type(Callable&& callable)
   // (HIP/AMD)This is a temporary WAR until we have "proclaim_return_type" available from libhipcxx.
   // amdclang++ is able to deduce the return type of all the device lambdas used in this file,
   // therefore this band-aid is acceptable.
-  // See: https://github.com/AMD-AI/hipVS/issues/19
+  // See: internal issue #19
   return std::forward<Callable>(callable);
 #else
   return ::cuda::proclaim_return_type<ReturnType>(std::forward<Callable>(callable));
