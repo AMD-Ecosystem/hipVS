@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,10 @@
 
 #include "common.cuh"
 
+#include <cuvs/neighbors/ivf_flat.hpp>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_resources.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
-#include <cuvs/neighbors/ivf_flat.hpp>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/mr/device/device_memory_resource.hpp>
