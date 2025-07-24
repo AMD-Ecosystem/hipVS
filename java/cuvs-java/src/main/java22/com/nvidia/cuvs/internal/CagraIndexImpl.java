@@ -151,9 +151,9 @@ public class CagraIndexImpl implements CagraIndex {
    * @return an instance of {@link IndexReference} that holds the pointer to the
    *         index
    */
-  private IndexReference build(CagraIndexParams indexParameters, CuVSMatrixBaseImpl dataset) {
+  private IndexReference build(CagraIndexParams indexParameters, DatasetImpl dataset) {
     long rows = dataset.size();
-    long cols = dataset.columns();
+    long cols = dataset.dimensions();
 
     try (var indexParams = segmentFromIndexParams(indexParameters);
         var localArena = Arena.ofConfined()) {
@@ -635,15 +635,13 @@ public class CagraIndexImpl implements CagraIndex {
             ValueLayout.ADDRESS, i, indexImpl.cagraIndexReference.getMemorySegment());
       }
 
-      // TODO: we should call cuvsCreateMergeParams here, instead of allocating this ourselves
-      // See https://github.com/rapidsai/cuvs/pull/1109
-      var mergeParamsSegment = createMergeParamsSegment(localArena, mergeParams);
-      try (var resourcesAccessor = resources.access()) {
+      try (var nativeMergeParams = createMergeParamsSegment(mergeParams);
+          var resourcesAccessor = resources.access()) {
         var cuvsRes = resourcesAccessor.handle();
-        var returnValue =
+        checkCuVSError(
             cuvsCagraMerge(
-                cuvsRes, mergeParamsSegment, indexesSegment, indexes.length, mergedIndex);
-        checkCuVSError(returnValue, "cuvsCagraMerge");
+                cuvsRes, nativeMergeParams.handle(), indexesSegment, indexes.length, mergedIndex),
+            "cuvsCagraMerge");
       }
     }
 
