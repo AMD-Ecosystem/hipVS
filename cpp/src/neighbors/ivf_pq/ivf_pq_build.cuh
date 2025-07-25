@@ -966,7 +966,7 @@ void process_and_fill_codes(raft::resources const& handle,
                                   new_vectors,
                                   new_labels,
                                   mr);
-  // AMD Rebase: Look at the code from before this commit to fix this code
+
   launch_process_and_fill_codes_kernel(
     handle, index, new_vectors_residual.view(), src_offset_or_indices, new_labels, n_rows);
 }
