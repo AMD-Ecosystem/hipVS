@@ -81,7 +81,7 @@ public class BruteForceIndexImpl implements BruteForceIndex {
    *                              holding the index parameters
    */
   private BruteForceIndexImpl(
-      Dataset dataset, CuVSResources resources, BruteForceIndexParams bruteForceIndexParams)
+      CuVSMatrix dataset, CuVSResources resources, BruteForceIndexParams bruteForceIndexParams)
       throws Exception {
     Objects.requireNonNull(dataset);
     try (dataset) {
@@ -149,7 +149,7 @@ public class BruteForceIndexImpl implements BruteForceIndex {
     long rows = dataset.size();
     long cols = dataset.columns();
 
-    MemorySegment datasetMemSegment = dataset.asMemorySegment();
+    MemorySegment datasetMemSegment = dataset.memorySegment();
 
     omp_set_num_threads(bruteForceIndexParams.getNumWriterThreads());
 
@@ -165,7 +165,7 @@ public class BruteForceIndexImpl implements BruteForceIndex {
       long[] datasetShape = {rows, cols};
       var tensorDataArena = Arena.ofShared();
       MemorySegment datasetTensor =
-          prepareTensor(tensorDataArena, datasetMemorySegmentP, datasetShape, 2, 32, 2, 2, 1);
+          prepareTensor(tensorDataArena, datasetMemorySegmentP, datasetShape, 2, 32, 2, 1);
 
       var returnValue = cuvsStreamSync(cuvsResources);
       checkCuVSError(returnValue, "cuvsStreamSync");
@@ -237,13 +237,13 @@ public class BruteForceIndexImpl implements BruteForceIndex {
 
         long[] queriesShape = {numQueries, vectorDimension};
         MemorySegment queriesTensor =
-            prepareTensor(localArena, queriesDP, queriesShape, 2, 32, 2, 2, 1);
+            prepareTensor(localArena, queriesDP, queriesShape, 2, 32, 2, 1);
         long[] neighborsShape = {numQueries, topk};
         MemorySegment neighborsTensor =
-            prepareTensor(localArena, neighborsDP, neighborsShape, 0, 64, 2, 2, 1);
+            prepareTensor(localArena, neighborsDP, neighborsShape, 0, 64, 2, 1);
         long[] distancesShape = {numQueries, topk};
         MemorySegment distancesTensor =
-            prepareTensor(localArena, distancesDP, distancesShape, 2, 32, 2, 2, 1);
+            prepareTensor(localArena, distancesDP, distancesShape, 2, 32, 2, 1);
 
         MemorySegment prefilter = cuvsFilter.allocate(localArena);
         MemorySegment prefilterTensor;
@@ -260,7 +260,7 @@ public class BruteForceIndexImpl implements BruteForceIndex {
 
           cudaMemcpy(prefilterDP, prefilterDataMemorySegment, prefilterBytes, HOST_TO_DEVICE);
 
-          prefilterTensor = prepareTensor(localArena, prefilterDP, prefilterShape, 1, 32, 1, 2, 1);
+          prefilterTensor = prepareTensor(localArena, prefilterDP, prefilterShape, 1, 32, 2, 1);
 
           cuvsFilter.type(prefilter, 2);
           cuvsFilter.addr(prefilter, prefilterTensor.address());
@@ -394,7 +394,7 @@ public class BruteForceIndexImpl implements BruteForceIndex {
    */
   public static class Builder implements BruteForceIndex.Builder {
 
-    private Dataset dataset;
+    private CuVSMatrix dataset;
     private final CuVSResources cuvsResources;
     private BruteForceIndexParams bruteForceIndexParams;
     private InputStream inputStream;
