@@ -71,6 +71,27 @@ repos:
                 args: ["-fallback-style=none", "-style=file", "-i"]
       - repo: local
         hooks:
+              - id: check-license-installation
+                name: check-license-installation
+                entry: bash -c "type license_verificator >/dev/null 2>&1 || echo \"Warning license verificator not installed!\" || true"
+                language: system
+                verbose: true
+                pass_filenames: false
+              - id: amd-copyright
+                name: amd-copyright
+                entry: bash -c "(! type license_verificator >/dev/null 2>&1) || license_verificator --pre-commit"
+                language: system
+                pass_filenames: false
+                files: |
+                  (?x)
+                      [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs)$|
+                      CMakeLists[.]txt$|
+                      CMakeLists_standalone[.]txt$|
+                      meta[.]yaml$
+                exclude: |
+                  (?x)
+                      docs/source/sphinxext/github_link\.py|
+                      cpp/cmake/modules/FindAVX\.cmake
               - id: no-deprecationwarning
                 name: no-deprecationwarning
                 description: 'Enforce that DeprecationWarning is not introduced (use FutureWarning instead)'
@@ -107,21 +128,6 @@ repos:
                 pass_filenames: false
                 language: python
                 additional_dependencies: [gitpython]
-              - id: amd-copyright
-                name: amd-copyright
-                entry: ./cpp/scripts/verify_amd_copyright.py
-                language: python
-                pass_filenames: true
-                files: |
-                  (?x)
-                      [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs)$|
-                      CMakeLists[.]txt$|
-                      CMakeLists_standalone[.]txt$|
-                      meta[.]yaml$
-                exclude: |
-                  (?x)
-                      docs/source/sphinxext/github_link\.py|
-                      cpp/cmake/modules/FindAVX\.cmake
       - repo: https://github.com/codespell-project/codespell
         rev: v2.2.2
         hooks:
