@@ -102,6 +102,7 @@
 #define cudaGetLastError                               hipGetLastError
 #define cudaHostGetDevicePointer                       hipHostGetDevicePointer
 #define cudaHostUnregister                             hipHostUnregister
+#define cudaLaunchHostFunc                             hipLaunchHostFunc
 #define cudaLaunchKernel                               hipLaunchKernel
 #define cudaMalloc                                     hipMalloc
 #define cudaMallocAsync                                hipMallocAsync

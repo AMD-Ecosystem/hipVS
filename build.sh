@@ -71,10 +71,10 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
 LIBCUVS_BUILD_DIR=${LIBCUVS_BUILD_DIR:=${REPODIR}/cpp/build}
 SPHINX_BUILD_DIR=${REPODIR}/docs_amd
 DOXYGEN_BUILD_DIR=${REPODIR}/docs_amd/doxygen
-PYTHON_BUILD_DIR=${REPODIR}/python/cuvs/_skbuild
+PYTHON_BUILD_DIRS="${REPODIR}/python/cuvs/build ${REPODIR}/python/libcuvs/build"
 RUST_BUILD_DIR=${REPODIR}/rust/target
 JAVA_BUILD_DIR=${REPODIR}/java/cuvs-java/target
-BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIR} ${RUST_BUILD_DIR} ${JAVA_BUILD_DIR}"
+BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIRS} ${RUST_BUILD_DIR} ${JAVA_BUILD_DIR}"
 
 # Set defaults for vars modified by flags to this script
 CMAKE_LOG_LEVEL=""
@@ -317,11 +317,14 @@ if (( ${CLEAN} == 1 )); then
           rmdir ${bd} || true
       fi
     done
+
+    # clean examples build folders
+    (cd ${REPODIR}/examples && ./build.sh clean)
 fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg package || hasArg bench-ann; then
+if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg package || hasArg bench-ann || hasArg examples; then
     COMPILE_LIBRARY=ON
     if [[ ${BUILD_SHARED_LIBS} == "OFF" ]]; then
         CMAKE_TARGET="${CMAKE_TARGET};"
@@ -443,10 +446,18 @@ if hasArg docs; then
 fi
 
 ################################################################################
-# Initiate build for c++ examples (if needed)
+# Initiate build for examples (if needed)
 
 if hasArg examples; then
+    set -x
+
     pushd ${REPODIR}/examples
-    ./build.sh
+
+    PARALLEL_LEVEL=${PARALLEL_LEVEL} \
+    BUILD_TYPE=${BUILD_TYPE} \
+    CUVS_REPO_REL=${REPODIR} \
+    HIPVS_CMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
+    bash ./build.sh
+
     popd
 fi

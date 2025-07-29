@@ -10,12 +10,33 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+#
+# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
-# Use this variable to update RAPIDS and cuVS versions
+# Use this variable to update RAPIDS and hipVS versions
 set(RAPIDS_VERSION "25.02")
 
-if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS.cmake)
-    file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION}/RAPIDS.cmake
-            ${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS.cmake)
+set(RAPIDS_CMAKE_SCRIPT_BRANCH "release/1.0.x" CACHE STRING "Specify the ROCmDS-CMake branch to fetch the cmake file from")
+
+if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/HIPVS_RAPIDS.cmake)
+  set(URL
+      "https://raw.githubusercontent.com/ROCm-DS/ROCmDS-CMake/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
+  )
+  file(DOWNLOAD ${URL} ${CMAKE_CURRENT_BINARY_DIR}/HIPVS_RAPIDS.cmake)
 endif()
-include(${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS.cmake)
+include(${CMAKE_CURRENT_BINARY_DIR}/HIPVS_RAPIDS.cmake)

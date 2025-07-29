@@ -31,16 +31,25 @@ cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 include(../cmake/thirdparty/fetch_rapids.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
-include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
 
 # ------------- configure project --------------#
+option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
 
-rapids_cuda_init_architectures(test_cuvs)
+set(lang_list "CXX")
 
-project(test_cuvs LANGUAGES CXX CUDA)
-find_package(Threads)
+if(CUDA_BACKEND)
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(hipvs_cxx_examples)
+  list(APPEND lang_list "CUDA")
+else()
+  include(rapids-hip)
+  rapids_hip_init_architectures(hipvs_cxx_examples)
+  list(APPEND lang_list "HIP")
+endif()
+
+project(hipvs_cxx_examples LANGUAGES ${lang_list})
 
 # ------------- configure cuvs -----------------#
 
@@ -49,6 +58,11 @@ set(BUILD_CUVS_C_LIBRARY OFF)
 include(../cmake/thirdparty/get_cuvs.cmake)
 
 # -------------- compile tasks ----------------- #
+if(NOT CUDA_BACKEND)
+  file(GLOB CUDA_SRC_FILES "src/*.cu")
+  set_source_files_properties(${CUDA_SRC_FILES} PROPERTIES LANGUAGE HIP)
+endif()
+
 add_executable(BRUTE_FORCE_EXAMPLE src/brute_force_bitmap.cu)
 add_executable(CAGRA_EXAMPLE src/cagra_example.cu)
 add_executable(CAGRA_PERSISTENT_EXAMPLE src/cagra_persistent_example.cu)
@@ -59,29 +73,26 @@ add_executable(VAMANA_EXAMPLE src/vamana_example.cu)
 
 # `$<TARGET_NAME_IF_EXISTS:conda_env>` is a generator expression that ensures that targets are
 # installed in a conda environment, if one exists
-add_library(rmm_logger OBJECT)
-target_link_libraries(rmm_logger PRIVATE rmm::rmm_logger_impl)
-
 target_link_libraries(
-  BRUTE_FORCE_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm_logger
+  BRUTE_FORCE_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm::rmm_logger_impl
 )
 target_link_libraries(
-  CAGRA_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm_logger
+  CAGRA_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm::rmm_logger_impl
 )
 target_link_libraries(
-  CAGRA_PERSISTENT_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> Threads::Threads
-                                   rmm_logger
+  CAGRA_PERSISTENT_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env>
+                                   rmm::rmm_logger_impl
 )
 target_link_libraries(
-  DYNAMIC_BATCHING_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> Threads::Threads
-                                   rmm_logger
+  DYNAMIC_BATCHING_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env>
+                                   rmm::rmm_logger_impl
 )
 target_link_libraries(
-  IVF_PQ_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm_logger
+  IVF_PQ_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm::rmm_logger_impl
 )
 target_link_libraries(
-  IVF_FLAT_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm_logger
+  IVF_FLAT_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm::rmm_logger_impl
 )
 target_link_libraries(
-  VAMANA_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm_logger
+  VAMANA_EXAMPLE PRIVATE cuvs::cuvs $<TARGET_NAME_IF_EXISTS:conda_env> rmm::rmm_logger_impl
 )

@@ -12,19 +12,43 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <cuvs/core/c_api.h>
 #include <cuvs/neighbors/ivf_flat.h>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cuda_runtime.h>
+#else
 #include <cuda_runtime.h>
+#endif
+
 #include "common.h"
+
+#include <math.h>
 
 void ivf_flat_build_search_simple(cuvsResources_t *res, DLManagedTensor * dataset_tensor, DLManagedTensor * queries_tensor) {
     // Create default index params
     cuvsIvfFlatIndexParams_t index_params;
     cuvsIvfFlatIndexParamsCreate(&index_params);
-    index_params->n_lists                  = 1024; // default value
+    index_params->n_lists = (uint32_t)sqrt((double)(dataset_tensor->dl_tensor.shape[0]));
     index_params->kmeans_n_iters = 20; // default value
     index_params->kmeans_trainset_fraction = 0.1;
     //index_params->metric default is L2Expanded
@@ -64,7 +88,7 @@ void ivf_flat_build_search_simple(cuvsResources_t *res, DLManagedTensor * datase
     // Create default search params
     cuvsIvfFlatSearchParams_t search_params;
     cuvsIvfFlatSearchParamsCreate(&search_params);
-    search_params->n_probes = 50;
+    search_params->n_probes = index_params->n_lists / 8;
 
     // Search the `index` built using `ivfFlatBuild`
     cuvsFilter filter;
@@ -85,7 +109,7 @@ void ivf_flat_build_search_simple(cuvsResources_t *res, DLManagedTensor * datase
     cudaMemcpy(neighbors, neighbors_d, sizeof(int64_t) * n_queries * topk, cudaMemcpyDefault);
     cudaMemcpy(distances, distances_d, sizeof(float) * n_queries * topk, cudaMemcpyDefault);
 
-    print_results(neighbors, distances, 2, topk);
+    print_results(neighbors, distances, n_queries, topk);
 
     free(distances);
     free(neighbors);
@@ -121,7 +145,7 @@ void ivf_flat_build_extend_search(cuvsResources_t *res, DLManagedTensor * trains
     // Create default index params
     cuvsIvfFlatIndexParams_t index_params;
     cuvsIvfFlatIndexParamsCreate(&index_params);
-    index_params->n_lists                  = 100;
+    index_params->n_lists = (uint32_t)sqrt((double)n_dataset);
     index_params->add_data_on_build = false;
     //index_params->metric default is L2Expanded
 
@@ -166,7 +190,7 @@ void ivf_flat_build_extend_search(cuvsResources_t *res, DLManagedTensor * trains
     // Create default search params
     cuvsIvfFlatSearchParams_t search_params;
     cuvsIvfFlatSearchParamsCreate(&search_params);
-    search_params->n_probes = 10;
+    search_params->n_probes = index_params->n_lists / 8;
 
     // Search the `index` built using `ivfFlatBuild`
     cuvsFilter filter;
@@ -187,7 +211,7 @@ void ivf_flat_build_extend_search(cuvsResources_t *res, DLManagedTensor * trains
     cudaMemcpy(neighbors, neighbors_d, sizeof(int64_t) * n_queries * topk, cudaMemcpyDefault);
     cudaMemcpy(distances, distances_d, sizeof(float) * n_queries * topk, cudaMemcpyDefault);
 
-    print_results(neighbors, distances, 2, topk);
+    print_results(neighbors, distances, n_queries, topk);
 
     free(distances);
     free(neighbors);

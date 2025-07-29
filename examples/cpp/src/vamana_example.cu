@@ -12,6 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <cstdint>
@@ -69,7 +86,7 @@ void usage()
     "Usage: ./vamana_example <data filename> <output filename> <graph "
     "degree> <visited_size> <max_fraction> <iterations> \n");
   printf("Input file expected to be binary file of fp32 vectors.\n");
-  printf("Graph degree sizes supported: 32, 64, 128, 256\n");
+  printf("Graph degree sizes supported: 32, 64, 128, 256 (must be greater than or equal to the device warp/wavefront size)\n");
   printf("Visited_size must be > degree and a power of 2.\n");
   printf("max_fraction > 0 and <= 1. Typical values are 0.06 or 0.1.\n");
   printf("Default iterations = 1, increase for better quality graph.\n");
@@ -103,14 +120,14 @@ int main(int argc, char* argv[])
   int iters              = atoi(argv[6]);
 
   // Read in binary dataset file
-  auto dataset = read_bin_dataset<uint8_t, int64_t>(dev_resources, data_fname, INT_MAX);
+  auto dataset = read_bin_dataset<float, int64_t>(dev_resources, data_fname, INT_MAX);
 
   // Simple build example to create graph and write to a file
-  vamana_build_and_write<uint8_t>(dev_resources,
-                                  raft::make_const_mdspan(dataset.view()),
-                                  out_fname,
-                                  degree,
-                                  max_visited,
-                                  max_fraction,
-                                  iters);
+  vamana_build_and_write<float>(dev_resources,
+                                raft::make_const_mdspan(dataset.view()),
+                                out_fname,
+                                degree,
+                                max_visited,
+                                max_fraction,
+                                iters);
 }

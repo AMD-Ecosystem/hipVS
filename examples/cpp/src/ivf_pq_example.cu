@@ -12,6 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include "common.cuh"
@@ -24,6 +41,8 @@
 #include <rmm/mr/device/device_memory_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 
+#include <raft/library_types.h>
+
 #include <cstdint>
 
 void ivf_pq_build_search(raft::device_resources const& dev_resources,
@@ -33,7 +52,7 @@ void ivf_pq_build_search(raft::device_resources const& dev_resources,
   using namespace cuvs::neighbors;  // NOLINT
 
   ivf_pq::index_params index_params;
-  index_params.n_lists                  = 1024;
+  index_params.n_lists                  = static_cast<uint32_t>(std::sqrt(dataset.extent(0)));
   index_params.kmeans_trainset_fraction = 0.1;
   index_params.metric                   = cuvs::distance::DistanceType::L2Expanded;
   index_params.pq_bits                  = 8;
@@ -47,7 +66,7 @@ void ivf_pq_build_search(raft::device_resources const& dev_resources,
 
   // Set search parameters.
   ivf_pq::search_params search_params;
-  search_params.n_probes = 50;
+  search_params.n_probes = index_params.n_lists / 8;
   // Set the internal search precision to 16-bit floats;
   // usually, this improves the performance at a slight cost to the recall.
   search_params.internal_distance_dtype = CUDA_R_16F;

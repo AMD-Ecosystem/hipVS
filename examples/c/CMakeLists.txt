@@ -10,6 +10,19 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
+#
+# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc. Permission is hereby granted, free
+# of charge, to any person obtaining a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so, subject to the following
+# conditions: The above copyright notice and this permission notice shall be included in all copies
+# or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+# KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
 cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 
@@ -18,15 +31,26 @@ cmake_minimum_required(VERSION 3.26.4 FATAL_ERROR)
 include(../cmake/thirdparty/fetch_rapids.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
-include(rapids-cuda)
 include(rapids-export)
 include(rapids-find)
 
 # ------------- configure project --------------#
+option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
 
-rapids_cuda_init_architectures(test_cuvs)
+# CXX is needed for building dependencies
+set(lang_list "C" "CXX")
 
-project(test_cuvs_c LANGUAGES C CXX CUDA)
+if(CUDA_BACKEND)
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(hipvs_c_examples)
+  list(APPEND lang_list "CUDA")
+else()
+  include(rapids-hip)
+  rapids_hip_init_architectures(hipvs_c_examples)
+  list(APPEND lang_list "HIP")
+endif()
+
+project(hipvs_c_examples LANGUAGES ${lang_list})
 
 # ------------- configure cuvs -----------------#
 
@@ -35,6 +59,7 @@ set(BUILD_CUVS_C_LIBRARY ON)
 include(../cmake/thirdparty/get_dlpack.cmake)
 include(../cmake/thirdparty/get_cuvs.cmake)
 
+# ------------------ examples ------------------#
 add_executable(CAGRA_C_EXAMPLE src/cagra_c_example.c)
 target_include_directories(CAGRA_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(CAGRA_C_EXAMPLE PRIVATE cuvs::c_api $<TARGET_NAME_IF_EXISTS:conda_env>)

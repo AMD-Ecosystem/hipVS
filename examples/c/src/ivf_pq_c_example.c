@@ -12,20 +12,43 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <cuvs/core/c_api.h>
 #include <cuvs/neighbors/ivf_pq.h>
 #include <cuvs/neighbors/refine.h>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cuda_runtime.h>
+#else
 #include <cuda_runtime.h>
+#endif
+
+#include <raft/library_types.h>
 #include "common.h"
 
 void ivf_pq_build_search(cuvsResources_t *res, DLManagedTensor * dataset_tensor, DLManagedTensor * queries_tensor) {
     // Create default index params
     cuvsIvfPqIndexParams_t index_params;
     cuvsIvfPqIndexParamsCreate(&index_params);
-    index_params->n_lists                  = 1024; // default value
+    index_params->n_lists = (uint32_t)sqrt((double)(dataset_tensor->dl_tensor.shape[0]));
     index_params->kmeans_trainset_fraction = 0.1;
     //index_params->metric default is L2Expanded
     index_params->pq_bits = 8;
@@ -67,7 +90,7 @@ void ivf_pq_build_search(cuvsResources_t *res, DLManagedTensor * dataset_tensor,
     // Create default search params
     cuvsIvfPqSearchParams_t search_params;
     cuvsIvfPqSearchParamsCreate(&search_params);
-    search_params->n_probes = 50;
+    search_params->n_probes = index_params->n_lists / 8;
     search_params->internal_distance_dtype = CUDA_R_16F;
     search_params->lut_dtype = CUDA_R_16F;
 
@@ -88,7 +111,7 @@ void ivf_pq_build_search(cuvsResources_t *res, DLManagedTensor * dataset_tensor,
     cudaMemcpy(distances, distances_d, sizeof(float) * n_queries * topk, cudaMemcpyDefault);
 
     printf("\nOriginal results:\n");
-    print_results(neighbors, distances, 2, topk);
+    print_results(neighbors, distances, n_queries, topk);
 
     // Re-ranking operation: refine the initial search results by computing exact distances
     int64_t topk_refined = 7;
@@ -124,7 +147,7 @@ void ivf_pq_build_search(cuvsResources_t *res, DLManagedTensor * dataset_tensor,
     cudaMemcpy(distances_refine, distances_refined_d, sizeof(float) * n_queries * topk_refined, cudaMemcpyDefault);
 
     printf("\nRefined results:\n");
-    print_results(neighbors, distances, 2, topk_refined);
+    print_results(neighbors, distances, n_queries, topk_refined);
 
     free(distances_refine);
     free(neighbors_refine);
