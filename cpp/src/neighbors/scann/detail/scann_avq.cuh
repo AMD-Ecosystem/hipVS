@@ -12,6 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #ifdef __HIP_PLATFORM_AMD__
@@ -87,46 +104,46 @@ void compute_cluster_offsets(raft::resources const& dev_resources,
 
   size_t temp_storage_bytes = 0;
 
-  (void) cub::DeviceHistogram::HistogramEven(nullptr,
-                                      temp_storage_bytes,
-                                      clusters.data_handle(),
-                                      cluster_sizes.data_handle(),
-                                      num_levels,
-                                      lower_level,
-                                      upper_level,
-                                      clusters.extent(0),
-                                      stream);
+  RAFT_CUDA_TRY(cub::DeviceHistogram::HistogramEven(nullptr,
+                                                    temp_storage_bytes,
+                                                    clusters.data_handle(),
+                                                    cluster_sizes.data_handle(),
+                                                    num_levels,
+                                                    lower_level,
+                                                    upper_level,
+                                                    clusters.extent(0),
+                                                    stream));
 
   rmm::device_uvector<char> temp_storage_hist(temp_storage_bytes, stream, device_memory);
 
-  (void) cub::DeviceHistogram::HistogramEven(temp_storage_hist.data(),
-                                      temp_storage_bytes,
-                                      clusters.data_handle(),
-                                      cluster_sizes.data_handle(),
-                                      num_levels,
-                                      lower_level,
-                                      upper_level,
-                                      clusters.extent(0),
-                                      stream);
+  RAFT_CUDA_TRY(cub::DeviceHistogram::HistogramEven(temp_storage_hist.data(),
+                                                    temp_storage_bytes,
+                                                    clusters.data_handle(),
+                                                    cluster_sizes.data_handle(),
+                                                    num_levels,
+                                                    lower_level,
+                                                    upper_level,
+                                                    clusters.extent(0),
+                                                    stream));
 
   temp_storage_bytes = 0;
   // Scan to sum cluster sizes and get cluster start ptrs in flat array
   // Done in place
   int num_items = cluster_sizes.extent(0);
 
-  (void) cub::DeviceScan::ExclusiveSum(nullptr,
-                                temp_storage_bytes,
-                                cluster_sizes.data_handle(),
-                                cluster_sizes.data_handle(),
-                                num_items);
+  RAFT_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr,
+                                              temp_storage_bytes,
+                                              cluster_sizes.data_handle(),
+                                              cluster_sizes.data_handle(),
+                                              num_items));
 
   rmm::device_uvector<char> temp_storage_sum(temp_storage_bytes, stream, device_memory);
 
-  (void) cub::DeviceScan::ExclusiveSum(temp_storage_sum.data(),
-                                temp_storage_bytes,
-                                cluster_sizes.data_handle(),
-                                cluster_sizes.data_handle(),
-                                num_items);
+  RAFT_CUDA_TRY(cub::DeviceScan::ExclusiveSum(temp_storage_sum.data(),
+                                              temp_storage_bytes,
+                                              cluster_sizes.data_handle(),
+                                              cluster_sizes.data_handle(),
+                                              num_items));
 }
 
 // Sum elements of device vector into device scalar
@@ -141,13 +158,13 @@ void sum_reduce_vector(raft::resources const& dev_resources,
 
   size_t temp_storage_bytes = 0;
 
-  (void) cub::DeviceReduce::Sum(
+  cub::DeviceReduce::Sum(
     nullptr, temp_storage_bytes, v.data_handle(), s.data_handle(), v.extent(0), stream);
 
   rmm::device_uvector<char> temp_storage(temp_storage_bytes, stream, device_memory);
   // cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
-  (void) cub::DeviceReduce::Sum(
+  cub::DeviceReduce::Sum(
     temp_storage.data(), temp_storage_bytes, v.data_handle(), s.data_handle(), v.extent(0), stream);
 
   // raft::resource::sync_stream(dev_resources, stream);
