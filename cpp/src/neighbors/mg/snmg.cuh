@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -604,7 +621,7 @@ void search(const raft::resources& clique,
     int64_t n_batches = raft::ceildiv(n_rows, (int64_t)n_rows_per_batch);
     if (n_batches <= 1) n_rows_per_batch = n_rows;
 
-    if (merge_mode == MERGE_ON_ROOT_RANK) {
+    if (merge_mode == MERGE_ON_ROOT_RANK && index.num_ranks_ > 1) {
       RAFT_LOG_DEBUG("SHARDED SEARCH WITH MERGE_ON_ROOT_RANK MERGE MODE: %d*%drows",
                      n_batches,
                      n_rows_per_batch);
@@ -619,7 +636,7 @@ void search(const raft::resources& clique,
                                        n_cols,
                                        n_neighbors,
                                        n_batches);
-    } else if (merge_mode == TREE_MERGE) {
+    } else if (merge_mode == TREE_MERGE && index.num_ranks_ > 1) {
       ASSERT(index.num_ranks_ % 2 == 0,
              "The number of ranks should be even when running sharded search in TREE_MERGE mode.");
       RAFT_LOG_DEBUG(
@@ -635,6 +652,28 @@ void search(const raft::resources& clique,
                                      n_cols,
                                      n_neighbors,
                                      n_batches);
+    } else {
+      const int rank = 0;
+#pragma omp parallel for
+      for (int64_t batch_idx = 0; batch_idx < n_batches; batch_idx++) {
+        int64_t offset                  = batch_idx * n_rows_per_batch;
+        int64_t query_offset            = offset * n_cols;
+        int64_t output_offset           = offset * n_neighbors;
+        int64_t n_rows_of_current_batch = std::min(n_rows_per_batch, n_rows - offset);
+
+        run_search_batch(clique,
+                         index,
+                         rank,
+                         search_params,
+                         queries,
+                         neighbors,
+                         distances,
+                         query_offset,
+                         output_offset,
+                         n_rows_of_current_batch,
+                         n_cols,
+                         n_neighbors);
+      }
     }
   }
 }
