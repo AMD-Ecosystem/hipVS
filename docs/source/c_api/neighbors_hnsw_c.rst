@@ -59,7 +59,7 @@ Index search
 Index serialize
 ---------------
 
-.. doxygengroup:: hnsw_c_index_serialize
+.. doxygengroup:: hnsw_c_serialize
     :project: cuvs
     :members:
     :content-only:

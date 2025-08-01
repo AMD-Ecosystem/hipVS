@@ -13,9 +13,7 @@ Distance Types
 
 ``#include <cuvs/distance/distance.hpp>``
 
-namespace *cuvs::distance*
-
-.. doxygenenum:: cuvs::distance::DistanceType
+.. doxygenenum:: cuvsDistanceType
    :project: cuvs
 
 

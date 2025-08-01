@@ -1,0 +1,3 @@
+rocm-docs-core==1.18.4
+doxysphinx
+myst-parser

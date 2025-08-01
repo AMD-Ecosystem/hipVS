@@ -52,7 +52,7 @@ Index search
 Index serialize
 ---------------
 
-.. doxygengroup:: ivf_flat_c_index_serialize
+.. doxygengroup:: ivf_flat_c_serialize
     :project: cuvs
     :members:
     :content-only:

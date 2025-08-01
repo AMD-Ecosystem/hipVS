@@ -53,7 +53,7 @@ Index search
 Index serialize
 ------------
 
-.. doxygengroup:: cagra_c_index_serialize
+.. doxygengroup:: cagra_c_serialize
     :project: cuvs
     :members:
     :content-only:

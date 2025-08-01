@@ -143,6 +143,8 @@ struct extend_params {
   int num_threads = 0;
 };
 
+/**@}*/
+
 /**
  * @defgroup hnsw_cpp_index_load Load CAGRA index as hnswlib index
  * @{
@@ -290,6 +292,7 @@ std::unique_ptr<index<int8_t>> from_cagra(
  *   auto additional_dataset = raft::make_host_matrix<float>(res, add_size, index->dim());
  *   hnsw::extend_params extend_params;
  *   hnsw::extend(res, extend_params, additional_dataset, *hnsw_index.get());
+ * @endcode
  */
 void extend(raft::resources const& res,
             const extend_params& params,
@@ -323,6 +326,7 @@ void extend(raft::resources const& res,
  *   auto additional_dataset = raft::make_host_matrix<float>(res, add_size, index->dim());
  *   hnsw::extend_params extend_params;
  *   hnsw::extend(res, extend_params, additional_dataset, *hnsw_index.get());
+ * @endcode
  */
 void extend(raft::resources const& res,
             const extend_params& params,
@@ -356,6 +360,7 @@ void extend(raft::resources const& res,
  *   auto additional_dataset = raft::make_host_matrix<float>(res, add_size, index->dim());
  *   hnsw::extend_params extend_params;
  *   hnsw::extend(res, extend_params, additional_dataset, *hnsw_index.get());
+ * @endcode
  */
 void extend(raft::resources const& res,
             const extend_params& params,
@@ -368,7 +373,10 @@ void extend(raft::resources const& res,
  * @defgroup hnsw_cpp_search_params Build CAGRA index and search with hnswlib
  * @{
  */
-
+/**
+ * @brief Runtime parameters for an HNSW/CAGRA search.
+ *
+ */
 struct search_params : cuvs::neighbors::search_params {
   int ef;               // size of the candidate list
   int num_threads = 0;  // number of host threads to use for concurrent searches. Value of 0

@@ -22,7 +22,6 @@
 #pragma once
 
 #include <hip/hip_runtime.h>
-#include <raft/cuda_runtime.h>
 
 // types
 #define cudaDataType_t              hipDataType

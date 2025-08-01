@@ -1,6 +1,9 @@
 Distributed ANN
 ===============
 
+.. note::
+    The APIs in this section are experimental and not officially supported.
+
 The SNMG (single-node multi-GPUs) ANN API provides a set of functions to deploy ANN indexes on multiple GPUs.
 
 .. role:: py(code)

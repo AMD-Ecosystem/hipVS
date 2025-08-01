@@ -35,13 +35,14 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python docs tests package examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-cpu --cpu-only --no-shared-libs --show_depr_warn --incl-cache-stats -h"
+VALIDARGS="clean libcuvs python rust docs tests package examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-cpu --cpu-only --no-shared-libs --show_depr_warn --incl-cache-stats -h"
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcuvs          - build the cuvs/hipvs C++ code only. Also builds the C-wrapper library
                       around the C++ code.
    python           - build the cuvs/hipvs Python package
+   rust             - build the cuvs Rust bindings
    docs             - build the documentation
    tests            - build the tests
    package          - package for CI
@@ -68,8 +69,8 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
  default action (no args) is to build libcuvs, tests and cuvs targets
 "
 LIBCUVS_BUILD_DIR=${LIBCUVS_BUILD_DIR:=${REPODIR}/cpp/build}
-SPHINX_BUILD_DIR=${REPODIR}/docs
-DOXYGEN_BUILD_DIR=${REPODIR}/cpp/doxygen
+SPHINX_BUILD_DIR=${REPODIR}/docs_amd
+DOXYGEN_BUILD_DIR=${REPODIR}/docs_amd/doxygen
 PYTHON_BUILD_DIR=${REPODIR}/python/cuvs/_skbuild
 RUST_BUILD_DIR=${REPODIR}/rust/target
 JAVA_BUILD_DIR=${REPODIR}/java/cuvs-java/target
@@ -404,7 +405,7 @@ fi
 if (( ${NUMARGS} == 0 )) || hasArg rust; then
     cd ${REPODIR}/rust
     cargo build --examples --lib
-    cargo test
+    LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib cargo test
 fi
 
 # Build the cuvs Go bindings
@@ -431,10 +432,14 @@ if hasArg docs; then
     cd ${DOXYGEN_BUILD_DIR}
     doxygen Doxyfile
     cd ${SPHINX_BUILD_DIR}
-    sphinx-build -b html source _html
-    cd ${REPODIR}/rust
+    mkdir -p _build
+    rm -rf _build/*
+    LC_ALL=C.UTF-8 sphinx-build -E . _build
+    # Build rust docs
+    pushd ${REPODIR}/rust
     cargo doc -p cuvs --no-deps
-    rsync -av ${RUST_BUILD_DIR}/doc/ ${SPHINX_BUILD_DIR}/_html/_static/rust
+    rsync -av target/doc/ ${SPHINX_BUILD_DIR}/_build/rust_html
+    popd
 fi
 
 ################################################################################

@@ -829,6 +829,11 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
     endif()
   endif()
 
+  if(NOT DISABLE_OPENMP)
+    target_link_options(cuvs PUBLIC "-fopenmp=libomp")
+    target_link_options(cuvs_c PUBLIC "-fopenmp=libomp")
+  endif()
+
   # ################################################################################################
   # * install targets-----------------------------------------------------------
   rapids_cmake_install_lib_dir(lib_dir)
