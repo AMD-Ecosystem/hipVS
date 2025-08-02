@@ -2,35 +2,7 @@
 
 hipVS currently provides C++, C and Python API's.
 
-## Table of Contents
-
-- [GPU Requirements](#tested-on-the-following-gpus)
-- [Dependencies](#dependencies)
-- [Docker](#docker)
-- [Environment Variables](#environment-variables)
-- [C/C++ library](#c-and-c-library)
-  - [Building and installing using build.sh](#building-and-installing-using-buildsh)
-  - [C/C++ Tests](#c-and-c-tests)
-  - [`ccache` and `sccache`](#ccache-and-sccache)
-  - [Using CMake directly](#using-cmake-directly)
-  - [GPU Architecture selection](#gpu-architecture-selection)
-    - [All supported GPU architectures](#--allgpuarch)
-    - [Compile only for specified GPU arch](#compile-only-for-specified-gpu-arch)
-
-
-- [Python library](#python-library)
-  - [Build and install hipvs python packages ](#build-and-install-hipvs-python-packages)
-    - [[Step 1] Setup Conda environment](#step-1-setup-conda-environment)
-    - [[Step 2] Build and install `hipRAFT` python packages from source](#step-2-build-and-install-hipraft-python-packages-from-source)
-    - [[Step 3] Building and installing `hipvs` python package](#step-3-building-and-installing-hipvs-python-package)
-  - [Running the python tests](#running-the-python-tests)
-- [Rust Library](#rust-library)
-  - [Running the rust example after building through `build.sh`](#running-the-rust-example-after-building-through-buildsh)
-- [Packaging](#packaging)
-- [Building documentation](#building-documentation)
-------
-
-### Tested on the following GPUs
+## Tested GPUs
 
 | Accelerator         | Architecture | Wavefront Size | LLVM target |
 |---------------------|--------------|----------------|-------------|
@@ -40,11 +12,11 @@ hipVS currently provides C++, C and Python API's.
 | AMD Instinct MI300A | CDNA3        | 64             | gfx942      |
 | AMD Instinct MI300X | CDNA3        | 64             | gfx942      |
 
-### Dependencies
+## Dependencies
 
-> **Primary requirement**
-> hipVS builds against the **AMD ROCm software stack**—that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
-> Install ROCm ≥ 6.4.0 (or the minimum version supported by the GPUs listed above) and make sure the `rocminfo` and `hipcc` commands are in your `PATH`.
+**Primary requirement**
+hipVS builds against the **AMD ROCm software stack**—that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
+Install ROCm ≥ 6.4.0 (or the minimum version supported by the GPUs listed above) and make sure the `rocminfo` and `hipcc` commands are in your `PATH`.
 
 | Name                                                                  | Version / Notes                              |
 | ----------------------------------------------------------            | -------------------------------------------- |
@@ -72,14 +44,12 @@ hipVS currently provides C++, C and Python API's.
 | [`Googlebench`](https://github.com/google/benchmark)                  | ≥ 1.13.0                                     |
 | [`Doxygen`](https://github.com/doxygen/doxygen)                       | >=1.8.20                                     |
 
-**\*** Note: In the case of dependencies marked with an asterisk, if not found locally; the CMake build system will attempt to download a compatible version using
-[ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake).
+> **Note:** In the case of dependencies marked with an asterisk, if not found locally; the CMake build system will attempt to download a compatible version using
+[ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake). The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under /`opt/rocm-{version}/llvm`.
 
-**\*\*** Note: The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under /`opt/rocm-{version}/llvm`.
+## Docker
 
-### Docker
-
-For convenience hipVS also provides a `Dockerfile` that encapsulates all the above dependencies for development. Below are the instructions to create a container using this Dockerfile.
+hipVS also provides a `Dockerfile` that encapsulates all the above dependencies for development. Below are the instructions to create a container using this Dockerfile.
 
 ```bash
 cd <REPO_ROOT>
@@ -103,8 +73,6 @@ This container will have all necessary packages installed to build and run hipVS
 ```bash
 docker build --build-arg UBUNTU=22.04 -t <HIPVS_DEV_IMAGE> .
 ```
-------
-
 
 ## Environment variables
 
@@ -112,27 +80,9 @@ docker build --build-arg UBUNTU=22.04 -t <HIPVS_DEV_IMAGE> .
 export CMAKE_PREFIX_PATH=/opt/rocm/lib/cmake # Set CMAKE_PREFIX_PATH to point to the ROCm installation site
 ```
 
-### Development environment variables
-**The following environment variables are only required to be set for internal development. This section will be removed when hipVS becomes public.**
-
-
-Set the Github personal access token(`GITHUB_PASS`). Note `GITHUB_PASS` should be configured to authorize access to the `AMD-AIOSS` organization.
-```bash
-export GITHUB_PASS=<GITHUB_PERSONAL_ACCESS_TOKEN>
-```
-
-The following environment variables need to be set to select the version of `ROCmDS-cmake` that's scheduled to be released for General Availability.
-
-```bash
-export RAPIDS_CMAKE_SCRIPT_REPO=ROCm-DS/ROCmDS-CMake                          # Which ROCmDS-cmake repository to use when pulling the entrypoint RAPIDS.cmake script.
-export RAPIDS_CMAKE_SCRIPT_BRANCH=release/1.0.x                               # Which branch of the public ROCmDS-cmake git repository to pull the entrypoint RAPIDS.cmake script from.
-export RAPIDS_CMAKE_URL=https://${GITHUB_PASS}@github.com/AMD-AIOSS/ROCmDS-cmake # URL to the internal ROCmDS-cmake git repository
-export RAPIDS_CMAKE_BRANCH=amd-integration/2.0.x                              # ROCmDS-cmake branch to use.
-```
-
 ## C and C++ library
 
-The core functionality of `hipvs` is implemented in HIP/C++ and it's functionality is exposed through `libcuvs.so`. There is C library `libcuvs_c.so` which is a wrapper around the C++ library. The C library is used to provide a C API to the functionality of the C++ library.
+The core functionality of hipVS is implemented in HIP/C++ and it's functionality is exposed through `libcuvs.so`. There is C library `libcuvs_c.so` which is a wrapper around the C++ library. The C library is used to provide a C API to the functionality of the C++ library.
 
 ### Building and installing using build.sh
 
@@ -140,7 +90,7 @@ A utility script `<HIPVS_ROOT>/build.sh` is provided and is the entry-point to b
 
 `build.sh` uses [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake), which will automatically download any dependencies which are not already installed.
 
-The following will download the required dependencies, build and install the `hipVS` cmake package to the configured CMake install prefix.
+The following will download the required dependencies, build and install the hipVS cmake package to the configured CMake install prefix.
 ```bash
 cd <HIPVS_ROOT>
 ./build.sh libcuvs
@@ -265,9 +215,9 @@ OR
 
 ### Using CMake directly
 
-When building hipVS from source, the `build.sh` script offers a nice wrapper around the `cmake` commands to ease the burdens of manually configuring the various available cmake options. When more fine-grained control over the CMake configuration is desired, the `cmake` command can be invoked directly as the example below demonstrates.
+When building `hipVS` from source, the `build.sh` script offers a nice wrapper around the `cmake` commands to ease the burdens of manually configuring the various available cmake options. When more fine-grained control over the CMake configuration is desired, the `cmake` command can be invoked directly as the example below demonstrates.
 
-The `CMAKE_INSTALL_PREFIX` option instructs CMake to install hipVS into a specific location.
+The `CMAKE_INSTALL_PREFIX` option instructs CMake to install `hipVS` into a specific location.
 ```bash
 cd <HIPVS_ROOT>/cpp
 mkdir -p build && rm -rf build/*
@@ -305,7 +255,7 @@ It is recommended to build the python wheels in a conda environment built from `
 
 #### [Step 2] Build and install hipRAFT python packages from source
 
-> Currently the hipRAFT pip packages aren't hosted on any PyPI server. As a result these need to be built from source and installed into the `hipvs` conda environment as a prerequisite.
+> Currently the hipRAFT pip packages aren't hosted on any PyPI server. As a result these need to be built from source and installed into the hipVS conda environment as a prerequisite.
 
 ```bash
 # Inside the hipvs conda environment
@@ -318,7 +268,7 @@ python
 >>> import pylibraft # Import should succeed
 ```
 
-#### [Step 3] Building and installing `hipvs` python package
+#### [Step 3] Building and installing hipVS python package
 
 #### Using build.sh
 The Python libraries can be built and installed using the build.sh script:
