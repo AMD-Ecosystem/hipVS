@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hipcub/hipcub.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/cub.cuh>
+#endif
+
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/error.hpp>
@@ -81,46 +87,46 @@ void compute_cluster_offsets(raft::resources const& dev_resources,
 
   size_t temp_storage_bytes = 0;
 
-  cub::DeviceHistogram::HistogramEven(nullptr,
-                                      temp_storage_bytes,
-                                      clusters.data_handle(),
-                                      cluster_sizes.data_handle(),
-                                      num_levels,
-                                      lower_level,
-                                      upper_level,
-                                      clusters.extent(0),
-                                      stream);
+  (void)cub::DeviceHistogram::HistogramEven(nullptr,
+                                            temp_storage_bytes,
+                                            clusters.data_handle(),
+                                            cluster_sizes.data_handle(),
+                                            num_levels,
+                                            lower_level,
+                                            upper_level,
+                                            clusters.extent(0),
+                                            stream);
 
   rmm::device_uvector<char> temp_storage_hist(temp_storage_bytes, stream, device_memory);
 
-  cub::DeviceHistogram::HistogramEven(temp_storage_hist.data(),
-                                      temp_storage_bytes,
-                                      clusters.data_handle(),
-                                      cluster_sizes.data_handle(),
-                                      num_levels,
-                                      lower_level,
-                                      upper_level,
-                                      clusters.extent(0),
-                                      stream);
+  (void)cub::DeviceHistogram::HistogramEven(temp_storage_hist.data(),
+                                            temp_storage_bytes,
+                                            clusters.data_handle(),
+                                            cluster_sizes.data_handle(),
+                                            num_levels,
+                                            lower_level,
+                                            upper_level,
+                                            clusters.extent(0),
+                                            stream);
 
   temp_storage_bytes = 0;
   // Scan to sum cluster sizes and get cluster start ptrs in flat array
   // Done in place
   int num_items = cluster_sizes.extent(0);
 
-  cub::DeviceScan::ExclusiveSum(nullptr,
-                                temp_storage_bytes,
-                                cluster_sizes.data_handle(),
-                                cluster_sizes.data_handle(),
-                                num_items);
+  (void)cub::DeviceScan::ExclusiveSum(nullptr,
+                                      temp_storage_bytes,
+                                      cluster_sizes.data_handle(),
+                                      cluster_sizes.data_handle(),
+                                      num_items);
 
   rmm::device_uvector<char> temp_storage_sum(temp_storage_bytes, stream, device_memory);
 
-  cub::DeviceScan::ExclusiveSum(temp_storage_sum.data(),
-                                temp_storage_bytes,
-                                cluster_sizes.data_handle(),
-                                cluster_sizes.data_handle(),
-                                num_items);
+  (void)cub::DeviceScan::ExclusiveSum(temp_storage_sum.data(),
+                                      temp_storage_bytes,
+                                      cluster_sizes.data_handle(),
+                                      cluster_sizes.data_handle(),
+                                      num_items);
 }
 
 // Sum elements of device vector into device scalar
@@ -135,13 +141,13 @@ void sum_reduce_vector(raft::resources const& dev_resources,
 
   size_t temp_storage_bytes = 0;
 
-  cub::DeviceReduce::Sum(
+  (void)cub::DeviceReduce::Sum(
     nullptr, temp_storage_bytes, v.data_handle(), s.data_handle(), v.extent(0), stream);
 
   rmm::device_uvector<char> temp_storage(temp_storage_bytes, stream, device_memory);
   // cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
-  cub::DeviceReduce::Sum(
+  (void)cub::DeviceReduce::Sum(
     temp_storage.data(), temp_storage_bytes, v.data_handle(), s.data_handle(), v.extent(0), stream);
 
   // raft::resource::sync_stream(dev_resources, stream);

@@ -22,7 +22,7 @@
     raft::resources const& handle,                                                           \
     cuvs::neighbors::ivf_pq::index<IdxT>& index,                                             \
     raft::device_matrix_view<float> new_vectors_residual,                                    \
-    std::variant<IdxT, const IdxT*> src_offset_or_indices,                                   \
+    cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,                             \
     const uint32_t* new_labels,                                                              \
     IdxT n_rows);
 

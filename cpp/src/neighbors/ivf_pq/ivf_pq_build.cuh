@@ -950,7 +950,7 @@ template <typename T, typename IdxT>
 void process_and_fill_codes(raft::resources const& handle,
                             index<IdxT>& index,
                             const T* new_vectors,
-                            std::variant<IdxT, const IdxT*> src_offset_or_indices,
+                            cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,
                             const uint32_t* new_labels,
                             IdxT n_rows,
                             rmm::device_async_resource_ref mr)
@@ -966,7 +966,7 @@ void process_and_fill_codes(raft::resources const& handle,
                                   new_vectors,
                                   new_labels,
                                   mr);
-// AMD Rebase: Look at the code from before this commit to fix this code
+  // AMD Rebase: Look at the code from before this commit to fix this code
   launch_process_and_fill_codes_kernel(
     handle, index, new_vectors_residual.view(), src_offset_or_indices, new_labels, n_rows);
 }
@@ -1311,8 +1311,8 @@ void extend(raft::resources const& handle,
                            *index,
                            vec_batch.data(),
                            new_indices != nullptr
-                             ? std::variant<IdxT, const IdxT*>(idx_batch.data())
-                             : std::variant<IdxT, const IdxT*>(IdxT(idx_batch.offset())),
+                             ? cuda::std::variant<IdxT, const IdxT*>(idx_batch.data())
+                             : cuda::std::variant<IdxT, const IdxT*>(IdxT(idx_batch.offset())),
                            new_data_labels.data() + vec_batch.offset(),
                            IdxT(vec_batch.size()),
                            batches_mr);

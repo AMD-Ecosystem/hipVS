@@ -15,7 +15,11 @@
  */
 
 #include "ivf_flat_interleaved_scan_explicit_inst.cuh"
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_fp16.h>
+#else
 #include <cuda_fp16.h>
+#endif
 
 namespace cuvs::neighbors::ivf_flat::detail {
 

@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+#pragma once
+
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cublas_v2.h>
+#else
+#include <cublas_v2.h>
+#endif
+
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/error.hpp>

@@ -21,9 +21,17 @@
 #include <cuvs/cluster/kmeans.hpp>
 #include <cuvs/neighbors/scann.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hipcub/hipcub.hpp>
+namespace cub = hipcub;
+#include <hip/hip_bf16.h>
+#else
 #include <cub/cub.cuh>
 #include <cuda_bf16.h>
 #include <nvtx3/nvtx3.hpp>
+#endif
+
+#include "scann_soar.cuh"
 #include <raft/cluster/kmeans.cuh>
 #include <raft/cluster/kmeans_types.hpp>
 #include <raft/core/device_mdarray.hpp>

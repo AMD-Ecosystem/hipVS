@@ -18,6 +18,7 @@
 #include "ivf_pq_codepacking.cuh"
 #include "ivf_pq_process_and_fill_codes.cuh"
 #include <cstdint>
+#include <cuda/std/variant>
 #include <cuvs/neighbors/ivf_pq.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/util/cuda_dev_essentials.cuh>
@@ -29,7 +30,7 @@ namespace cuvs::neighbors::ivf_pq::detail {
 template <uint32_t BlockSize, uint32_t PqBits, typename IdxT>
 __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kernel(
   raft::device_matrix_view<const float, IdxT, raft::row_major> new_vectors,
-  std::variant<IdxT, const IdxT*> src_offset_or_indices,
+  cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,
   const uint32_t* new_labels,
   raft::device_vector_view<uint32_t, uint32_t, raft::row_major> list_sizes,
   raft::device_vector_view<IdxT*, uint32_t, raft::row_major> inds_ptrs,
@@ -51,10 +52,10 @@ __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kerne
   // write the label  (one record per subwarp)
   auto pq_indices = inds_ptrs(cluster_ix);
   if (lane_id == 0) {
-    if (std::holds_alternative<IdxT>(src_offset_or_indices)) {
-      pq_indices[out_ix] = std::get<IdxT>(src_offset_or_indices) + row_ix;
+    if (cuda::std::holds_alternative<IdxT>(src_offset_or_indices)) {
+      pq_indices[out_ix] = cuda::std::get<IdxT>(src_offset_or_indices) + row_ix;
     } else {
-      pq_indices[out_ix] = std::get<const IdxT*>(src_offset_or_indices)[row_ix];
+      pq_indices[out_ix] = cuda::std::get<const IdxT*>(src_offset_or_indices)[row_ix];
     }
   }
 
@@ -72,12 +73,13 @@ __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kerne
 }
 
 template <typename IdxT>
-void launch_process_and_fill_codes_kernel(raft::resources const& handle,
-                                          index<IdxT>& index,
-                                          raft::device_matrix_view<float> new_vectors_residual,
-                                          std::variant<IdxT, const IdxT*> src_offset_or_indices,
-                                          const uint32_t* new_labels,
-                                          IdxT n_rows)
+void launch_process_and_fill_codes_kernel(
+  raft::resources const& handle,
+  index<IdxT>& index,
+  raft::device_matrix_view<float> new_vectors_residual,
+  cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,
+  const uint32_t* new_labels,
+  IdxT n_rows)
 {
   constexpr uint32_t kBlockSize  = 256;
   const uint32_t threads_per_vec = std::min<uint32_t>(raft::WarpSize, index.pq_book_size());
