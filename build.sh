@@ -35,8 +35,8 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python rust docs tests package examples --uninstall  -v -g -n --compile-cuda --compile-static-lib --allgpuarch --no-cpu --cpu-only --no-shared-libs --show_depr_warn --incl-cache-stats -h"
-HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>]
+VALIDARGS="clean libcuvs python rust docs tests package examples --uninstall  -v -g -n --compile-static-lib --allgpuarch --no-cpu --no-shared-libs --show_depr_warn -h"
+HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>] [--gpu-arch="arch"]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcuvs          - build the cuvs/hipvs C++ code only. Also builds the C-wrapper library
@@ -52,15 +52,13 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    -v                          - verbose build mode
    -g                          - build for debug
    -n                          - no install step
-   --compile-cuda              - compile for CUDA backend (default: HIP/AMD)
    --uninstall                 - uninstall files for specified targets which were built and installed prior
    --compile-static-lib        - compile static library for all components
-   --cpu-only                  - build CPU only components without HIP/CUDA. Currently only applies to bench-ann.
    --limit-tests               - semicolon-separated list of test executables to compile (e.g. NEIGHBORS_TEST;CLUSTER_TEST)
    --allgpuarch                - build for all supported GPU architectures
+   --gpu-arch=\"arch\"           - build for specific GPU architectures e.g --gpu-arch=\"gfx90a\"
    --no-shared-libs            - build without shared libraries
    --show_depr_warn            - show cmake deprecation warnings
-   --incl-cache-stats          - include cache statistics in build metrics report
    --cmake-args=\\\"<args>\\\" - pass arbitrary list of CMake configuration options (escape all quotes in argument)
    --cache-tool=<tool>         - pass the build cache tool (eg: ccache, sccache, distcc) that will be used
                                  to speedup the build process.
@@ -73,23 +71,19 @@ SPHINX_BUILD_DIR=${REPODIR}/docs_amd
 DOXYGEN_BUILD_DIR=${REPODIR}/docs_amd/doxygen
 PYTHON_BUILD_DIRS="${REPODIR}/python/cuvs/build ${REPODIR}/python/libcuvs/build"
 RUST_BUILD_DIR=${REPODIR}/rust/target
-JAVA_BUILD_DIR=${REPODIR}/java/cuvs-java/target
-BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIRS} ${RUST_BUILD_DIR} ${JAVA_BUILD_DIR}"
+BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIRS} ${RUST_BUILD_DIR}"
 
 # Set defaults for vars modified by flags to this script
 CMAKE_LOG_LEVEL=""
 VERBOSE_FLAG=""
-BUILD_CUDA=OFF
 BUILD_ALL_GPU_ARCH=0
 BUILD_TESTS=OFF
 BUILD_TYPE=Release
 COMPILE_LIBRARY=OFF
 INSTALL_TARGET=install
-BUILD_REPORT_INCL_CACHE_STATS=OFF
 BUILD_SHARED_LIBS=ON
 
 TEST_TARGETS=""
-ANN_BENCH_TARGETS=""
 
 CACHE_ARGS=""
 LOG_COMPILE_TIME=OFF
@@ -170,17 +164,33 @@ function limitTests {
     fi
 }
 
-function limitAnnBench {
-    # Check for option to limit the set of test binaries to build
-    if [[ -n $(echo $ARGS | { grep -E "\-\-limit\-bench-ann" || true; } ) ]]; then
-        # There are possible weird edge cases that may cause this regex filter to output nothing and fail silently
-        # the true pipe will catch any weird edge cases that may happen and will cause the program to fall back
-        # on the invalid option error
-        LIMIT_ANN_BENCH_TARGETS=$(echo $ARGS | sed -e 's/.*--limit-bench-ann=//' -e 's/ .*//')
-        if [[ -n ${LIMIT_ANN_BENCH_TARGETS} ]]; then
-            # Remove the full LIMIT_TEST_TARGETS argument from list of args so that it passes validArgs function
-            ARGS=${ARGS//--limit-bench-ann=$LIMIT_ANN_BENCH_TARGETS/}
-            ANN_BENCH_TARGETS=${LIMIT_ANN_BENCH_TARGETS}
+function gpuArch {
+    # Check if both --gpu-arch and --allgpuarch are specified
+    if hasArg --allgpuarch && [[ -n $(echo $ARGS | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
+        echo "Error: Cannot specify both --gpu-arch and --allgpuarch"
+        echo "Use either:"
+        echo "  --gpu-arch=\"gfx90a;gfx942\"   (for specific architectures)"
+        echo "  --allgpuarch        (for all supported architectures)"
+        exit 1
+    fi
+
+    # Check for multiple gpu-arch options
+    if [[ $(echo $ARGS | { grep -Eo "\-\-gpu\-arch" || true; } | wc -l ) -gt 1 ]]; then
+        echo "Error: Multiple --gpu-arch options were provided. Please combine architectures into a single option."
+        echo "Instead of: --gpu-arch="gfx90a" --gpu-arch="gfx942""
+        echo "Use:        --gpu-arch=\"gfx90a;gfx942\""
+        exit 1
+    fi
+
+    # Check for gpu-arch option
+    if [[ -n $(echo $ARGS | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
+        GPU_ARCH_ARG=$(echo $ARGS | { grep -Eo "\-\-gpu\-arch=.+( |$)" || true; })
+        if [[ -n ${GPU_ARCH_ARG} ]]; then
+            # Remove the full argument from ARGS
+            ARGS=${ARGS//$GPU_ARCH_ARG/}
+            # Extract just the architecture value(just one for now)
+            HIPVS_CMAKE_HIP_ARCHITECTURES=$(echo "$GPU_ARCH_ARG" | sed -e 's/--gpu-arch=//' -e "s/[\"']//g")
+            echo "Building for specified GPU architectures: ${HIPVS_CMAKE_HIP_ARCHITECTURES}"
         fi
     fi
 }
@@ -195,7 +205,7 @@ if (( ${NUMARGS} != 0 )); then
     cmakeArgs
     cacheTool
     limitTests
-    limitAnnBench
+    gpuArch
     for a in ${ARGS}; do
         if ! (echo " ${VALIDARGS} " | grep -q " ${a} "); then
             echo "Invalid option: ${a}"
@@ -254,10 +264,6 @@ if hasArg -g; then
     BUILD_TYPE=Debug
 fi
 
-if hasArg --compile-cuda; then
-    BUILD_CUDA=1
-fi
-
 if hasArg --allgpuarch; then
     BUILD_ALL_GPU_ARCH=1
 fi
@@ -269,19 +275,6 @@ fi
 
 if hasArg package; then
     CMAKE_TARGET="${CMAKE_TARGET};package"
-fi
-
-if hasArg bench-ann || (( ${NUMARGS} == 0 )); then
-    BUILD_CUVS_BENCH=ON
-    if ! hasArg tests; then
-        BUILD_TESTS=OFF
-    fi
-    COMPILE_LIBRARY=OFF
-    CMAKE_TARGET="${CMAKE_TARGET};${ANN_BENCH_TARGETS}"
-    if hasArg --cpu-only; then
-        BUILD_CPU_ONLY=ON
-        BUILD_SHARED_LIBS=OFF
-    fi
 fi
 
 if hasArg --no-shared-libs; then
@@ -297,9 +290,6 @@ if hasArg --show_depr_warn; then
 fi
 if hasArg clean; then
     CLEAN=1
-fi
-if hasArg --incl-cache-stats; then
-    BUILD_REPORT_INCL_CACHE_STATS=ON
 fi
 if [[ ${CMAKE_TARGET} == "" ]]; then
     CMAKE_TARGET="all"
@@ -324,7 +314,7 @@ fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg package || hasArg bench-ann || hasArg examples; then
+if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg package || hasArg examples; then
     COMPILE_LIBRARY=ON
     if [[ ${BUILD_SHARED_LIBS} == "OFF" ]]; then
         CMAKE_TARGET="${CMAKE_TARGET};"
@@ -333,37 +323,29 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
     fi
 
     if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
-        CUVS_CMAKE_CUDA_ARCHITECTURES="${CUVS_CMAKE_CUDA_ARCHITECTURES:-NATIVE}"
-        if [[ "$CUVS_CMAKE_CUDA_ARCHITECTURES" == "NATIVE" ]]; then
+        HIPVS_CMAKE_HIP_ARCHITECTURES="${HIPVS_CMAKE_HIP_ARCHITECTURES:-NATIVE}"
+        if [[ "$HIPVS_CMAKE_HIP_ARCHITECTURES" == "NATIVE" ]]; then
             echo "Building for the architecture of the GPU in the system..."
         else
-            echo "Building for the GPU architecture(s) $CUVS_CMAKE_CUDA_ARCHITECTURES ..."
+            echo "Building for the GPU architecture(s) $HIPVS_CMAKE_HIP_ARCHITECTURES ..."
         fi
     else
-        CUVS_CMAKE_CUDA_ARCHITECTURES="RAPIDS"
+        HIPVS_CMAKE_HIP_ARCHITECTURES="RAPIDS"
         echo "Building for *ALL* supported GPU architectures..."
     fi
 
-    # get the current count before the compile starts
     CACHE_TOOL=${CACHE_TOOL:-sccache}
-    if [[ "$BUILD_REPORT_INCL_CACHE_STATS" == "ON" && -x "$(command -v ${CACHE_TOOL})" ]]; then
-        "${CACHE_TOOL}" --zero-stats
-    fi
 
     mkdir -p ${LIBCUVS_BUILD_DIR}
     cd ${LIBCUVS_BUILD_DIR}
     cmake -S ${REPODIR}/cpp -B ${LIBCUVS_BUILD_DIR} \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-          -DCMAKE_CUDA_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
-          -DCMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
+          -DCMAKE_HIP_ARCHITECTURES=${HIPVS_CMAKE_HIP_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-          -DCUDA_BACKEND=${BUILD_CUDA} \
           -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
-          -DCUDA_LOG_COMPILE_TIME=${LOG_COMPILE_TIME} \
           -DDISABLE_DEPRECATION_WARNINGS=${DISABLE_DEPRECATION_WARNINGS} \
           -DBUILD_TESTS=${BUILD_TESTS} \
           -DBUILD_C_TESTS=${BUILD_TESTS} \
-          -DBUILD_CUVS_BENCH=${BUILD_CUVS_BENCH} \
           -DBUILD_CPU_ONLY=${BUILD_CPU_ONLY} \
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \
           -DCMAKE_MESSAGE_LOG_LEVEL=${CMAKE_LOG_LEVEL} \
@@ -399,32 +381,11 @@ if (( ${NUMARGS} == 0 )) || hasArg python; then
         python -m pip install --no-build-isolation ${REPODIR}/python/cuvs
 fi
 
-# Build and (optionally) install the cuvs-bench Python package
-if (( ${NUMARGS} == 0 )) || hasArg bench-ann; then
-    python -m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cuvs_bench
-fi
-
 # Build the cuvs Rust bindings
 if (( ${NUMARGS} == 0 )) || hasArg rust; then
     cd ${REPODIR}/rust
     cargo build --examples --lib
     LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib cargo test
-fi
-
-# Build the cuvs Go bindings
-if (( ${NUMARGS} == 0 )) || hasArg go; then
-    cd ${REPODIR}/go
-    go build ./...
-    go test ./...
-fi
-
-# Build the cuvs Java bindings
-if (( ${NUMARGS} == 0 )) || hasArg java; then
-    if ! hasArg libcuvs; then
-        echo "Please add 'libcuvs' to this script's arguments (ex. './build.sh libcuvs java') if libcuvs libraries are not already built"
-    fi
-    cd ${REPODIR}/java
-    ./build.sh
 fi
 
 export RAPIDS_VERSION="$(sed -E -e 's/^([0-9]{2})\.([0-9]{2})\.([0-9]{2}).*$/\1.\2.\3/' "${REPODIR}/VERSION")"
@@ -456,7 +417,7 @@ if hasArg examples; then
     PARALLEL_LEVEL=${PARALLEL_LEVEL} \
     BUILD_TYPE=${BUILD_TYPE} \
     CUVS_REPO_REL=${REPODIR} \
-    HIPVS_CMAKE_HIP_ARCHITECTURES=${CUVS_CMAKE_CUDA_ARCHITECTURES} \
+    HIPVS_CMAKE_HIP_ARCHITECTURES=${HIPVS_CMAKE_HIP_ARCHITECTURES} \
     bash ./build.sh
 
     popd
