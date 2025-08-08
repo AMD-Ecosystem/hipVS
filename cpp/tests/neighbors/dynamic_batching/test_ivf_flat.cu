@@ -45,14 +45,7 @@ using Base = dynamic_batching_test<uint8_t,
                                    ivf_flat::build,
                                    ivf_flat::search>;
 struct ivf_flat_i8 : Base {
-  void SetUp() override
-  {
-#ifdef __HIP_PLATFORM_AMD__
-    // (HIP/AMD): See internal issue #23
-    GTEST_SKIP() << "IVF-FLAT is currently not supported for use with dynamic batching.";
-#endif
-    Base::SetUp();
-  }
+  void SetUp() override { Base::SetUp(); }
 };
 
 TEST_P(ivf_flat_i8, defaults)

@@ -786,7 +786,6 @@ RAFT_KERNEL gather_inputs(
       // Check if the query is committed
       uint32_t committed_count;
 #ifdef __HIP_PLATFORM_AMD__
-      __threadfence_system();
       committed_count = *bs_committed;
 #else
       asm volatile("ld.volatile.global.u32 %0, [%1];"
@@ -806,8 +805,7 @@ RAFT_KERNEL gather_inputs(
       // This prevents any more CPU threads from committing to this batch.
 #ifdef __HIP_PLATFORM_AMD__
       *batch_fully_committed = 1;
-      __threadfence_system();
-      committed_count = *bs_committed;
+      committed_count        = *bs_committed;
 #else
       asm volatile("st.volatile.global.u8 [%0], %1;"
                    :
@@ -827,7 +825,6 @@ RAFT_KERNEL gather_inputs(
       // read the last value of the committed count to know the batch size for sure
       uint32_t committed_count;
 #ifdef __HIP_PLATFORM_AMD__
-      __threadfence_system();
       committed_count = *bs_committed;
 #else
       asm volatile("ld.volatile.global.u32 %0, [%1];"

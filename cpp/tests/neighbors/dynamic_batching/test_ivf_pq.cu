@@ -42,14 +42,7 @@ namespace cuvs::neighbors::dynamic_batching {
 using Base =
   dynamic_batching_test<half, int64_t, ivf_pq::index<int64_t>, ivf_pq::build, ivf_pq::search>;
 struct ivf_pq_f16 : Base {
-  void SetUp() override
-  {
-#ifdef __HIP_PLATFORM_AMD__
-    // See issue: internal issue #24
-    GTEST_SKIP() << "IVF-PQ is currently not supported for use with dynamic batching.";
-#endif
-    Base::SetUp();
-  }
+  void SetUp() override { Base::SetUp(); }
 };
 
 TEST_P(ivf_pq_f16, defaults)

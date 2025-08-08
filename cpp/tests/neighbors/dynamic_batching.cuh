@@ -154,7 +154,13 @@ struct dynamic_batching_test : public ::testing::TestWithParam<dynamic_batching_
     std::vector<std::future<void>> futures(ps.max_concurrent_threads);
     std::vector<raft::resources> resource_pool(0);
     for (int64_t i = 0; i < ps.max_concurrent_threads; i++) {
-      resource_pool.push_back(res);  // copies the resource
+      // Note: (HIP/AMD) Originally the following was `resource_pool.push_back(res);`
+      // but in this case all the `raft::resources` handles shared the underlying
+      // handles (hipblas, hipblaslt, etc). This is problematic because sharing the
+      // underlying handles between threads is not supported by the underlying libraries(hipblas,
+      // hipblaslt, etc). This is why we need to create a new resource for each thread.
+      // This ensures that each thread has its own stream, hipblaslt, hipblas handle, etc.
+      resource_pool.emplace_back();
       raft::resource::set_cuda_stream(resource_pool[i], worker_streams.get_stream(i));
     }
 
