@@ -67,12 +67,17 @@ list(APPEND CUVS_GPU_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
 list(APPEND CUVS_CXX_FLAGS "-DCUDA_API_PER_THREAD_DEFAULT_STREAM")
 list(APPEND CUVS_GPU_FLAGS "-DCUDA_API_PER_THREAD_DEFAULT_STREAM")
 # make sure we produce smallest binary size
-list(APPEND CUVS_GPU_FLAGS -Xfatbin=-compress-all)
-if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA"
-   AND (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.9 AND CMAKE_CUDA_COMPILER_VERSION
-                                                                   VERSION_LESS 13.0)
-)
-  list(APPEND CUVS_GPU_FLAGS -Xfatbin=--compress-level=3)
+if(CUDA_BACKEND)
+  include(${rapids-cmake-dir}/cuda/enable_fatbin_compression.cmake)
+  rapids_cuda_enable_fatbin_compression(VARIABLE CUVS_CUDA_FLAGS TUNE_FOR rapids)
+else()
+  list(APPEND CUVS_GPU_FLAGS -Xfatbin=-compress-all)
+  if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA"
+     AND (CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.9 AND CMAKE_CUDA_COMPILER_VERSION
+                                                                     VERSION_LESS 13.0)
+  )
+    list(APPEND CUVS_GPU_FLAGS -Xfatbin=--compress-level=3)
+  endif()
 endif()
 
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
