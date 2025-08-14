@@ -29,10 +29,14 @@ extensions = [
     "breathe",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosectionlabel",
     "sphinx.ext.autosummary",
     "sphinx.ext.doctest",
     "sphinx_copybutton",
 ]
+
+myst_heading_anchors = 4
+autosectionlabel_prefix_document = True
 
 # Breathe configuration for Doxygen
 breathe_projects = {"cuvs": "./doxygen/xml"}  # Ensure Doxygen XML is in ./xml

@@ -1,3 +1,5 @@
+.. _neighbors-dynamic-batching:
+
 Dynamic Batching
 ================
 
@@ -35,6 +37,7 @@ Index
     :members:
     :content-only:
 
+.. _neighbors-dynamic-batching-index-search:
 
 Index search
 ------------

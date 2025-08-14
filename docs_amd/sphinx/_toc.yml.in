@@ -8,6 +8,10 @@ subtrees:
   entries:
   - file: build_and_install/build_and_install.md
 
+- caption: Examples
+  entries:
+  - file: examples_readme.md
+
 - caption: Reference
   entries:
   - file: reference/reference-cpp.rst

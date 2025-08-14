@@ -20,6 +20,10 @@ hipVS documentation
 
     * :doc:`Build & installation guide <build_and_install/build_and_install>`
 
+  .. grid-item-card:: Examples
+
+    * :doc:`Examples <examples_readme>`
+
   .. grid-item-card:: API reference
 
     * :ref:`C++ API reference <hipvs-cpp>`

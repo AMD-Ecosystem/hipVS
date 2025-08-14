@@ -13,3 +13,4 @@ hipVS C API documentation
 
    c_api/core_c_api.rst
    c_api/neighbors.rst
+   c_api/pairwise_distance.rst

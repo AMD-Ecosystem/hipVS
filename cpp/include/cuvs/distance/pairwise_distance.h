@@ -24,6 +24,12 @@ extern "C" {
 #endif
 
 /**
+ * @defgroup pairwise_distance_c C API for pairwise distance computation
+ *
+ */
+
+/**
+ * @ingroup pairwise_distance_c
  * @brief Compute pairwise distances for two matrices
  *
  *
