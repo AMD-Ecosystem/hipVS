@@ -139,8 +139,13 @@ __launch_bounds__(WARP_SIZE* NWARPS, 2) RAFT_KERNEL
       // Compute L2 metric.
       DataT acc = DataT(0);
       for (int i = 0; i < k; ++i) {
-        int xidx  = i + midx * k;
-        int yidx  = i + nidx * k;
+        int xidx = i + midx * k;
+        int yidx = i + nidx * k;
+        if (xidx > (m * k) || yidx > (n * k)) {
+          // HIP/AMD: This check was missing in the original code, and it caused a segfault
+          // on AMD GPUs. The check is added here to make the test pass on AMD GPUs
+          break;
+        }
         auto diff = x[xidx] - y[yidx];
         acc += diff * diff;
       }

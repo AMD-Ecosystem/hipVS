@@ -288,7 +288,14 @@ struct dataset_descriptor_host {
       if (std::holds_alternative<init_f>(value)) {
         auto& [fun, size]     = std::get<init_f>(value);
         dev_descriptor_t* ptr = nullptr;
+#ifdef __HIP_PLATFORM_AMD__
+        // (HIP/AMD) hipMallocAsync on ROCm7 will error out with hipErrorOutOfMemory even if there is ample VRAM available.
+        // Revist this once the ROCr issue has been fixed.
+        // See internal issue: #50
+        RAFT_CUDA_TRY(cudaMalloc(&ptr, size));
+#else
         RAFT_CUDA_TRY(cudaMallocAsync(&ptr, size, stream));
+#endif
         fun(ptr, stream);
         value = std::make_tuple(ptr, stream);
         ready.store(true, std::memory_order_release);
@@ -400,7 +407,7 @@ constexpr auto spec_match(const cagra::search_params& params,
 {
   if constexpr (spec_sound<InstanceSpec, DataT, IndexT, DistanceT, DatasetT>) {
     return std::make_tuple(InstanceSpec::template init<DatasetT>,
-                           InstanceSpec::template priority(params, dataset, metric));
+                           InstanceSpec::template priority<>(params, dataset, metric));
   }
   return std::make_tuple(nullptr, -1.0);
 }

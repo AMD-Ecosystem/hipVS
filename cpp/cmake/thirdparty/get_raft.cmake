@@ -28,11 +28,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Use RAPIDS_VERSION_MAJOR_MINOR from rapids_config.cmake
-# TODO(AMD/HIP): Update the default values
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(RAFT_FORK "AMD-AIOSS")
-#set(RAFT_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
 set(RAFT_PINNED_TAG "amd-integration")
 
 function(find_and_configure_raft)

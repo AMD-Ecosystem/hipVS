@@ -168,7 +168,7 @@ insert(unsigned team_size, IdxT* const table, const uint32_t bitlen, const IdxT 
   IdxT ret = 0;
   if (threadIdx.x % team_size == 0) { ret = insert(table, bitlen, key); }
   for (unsigned offset = 1; offset < team_size; offset *= 2) {
-    ret |= __shfl_xor_sync(raft::LANE_MASK_ALL, ret, offset);
+    ret |= __shfl_xor_sync(__activemask(), ret, offset);
   }
   return ret;
 }
