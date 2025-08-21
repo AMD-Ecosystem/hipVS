@@ -11,6 +11,7 @@ hipVS Python API documentation
 .. toctree::
    :maxdepth: 4
 
+   python_api/common.rst
    python_api/distance.rst
    python_api/neighbors.rst
    python_api/preprocessing.rst

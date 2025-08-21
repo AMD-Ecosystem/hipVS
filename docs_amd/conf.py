@@ -33,6 +33,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.doctest",
     "sphinx_copybutton",
+    "autoapi.extension"
 ]
 
 myst_heading_anchors = 4
@@ -52,6 +53,11 @@ autodoc_default_options = {
     "member-order": "bysource",  # bysource: seems unfortunately not to work for Cython modules
 }
 
+autoapi_type = "python"
+autoapi_dirs = ["./reference/python_api/stubs/cuvs"]
+autoapi_file_patterns = ["*.pyi"]
+autoapi_add_toctree_entry = False
+
 source_suffix = {
     ".rst": "restructuredtext",
 }
@@ -63,3 +69,5 @@ doxygen_project = {
     "name": "doxygen",
     "path": "doxygen/xml",
 }
+
+html_extra_path = ["reference/rust_api"]
