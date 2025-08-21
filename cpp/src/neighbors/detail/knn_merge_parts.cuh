@@ -27,6 +27,11 @@
 
 namespace cuvs::neighbors::detail {
 
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpass-failed"
+#endif
+
 template <typename value_idx = std::int64_t,
           typename value_t   = float,
           int warp_q,
@@ -106,6 +111,9 @@ RAFT_KERNEL knn_merge_parts_kernel(const value_t* inK,
   }
 }
 
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic pop
+#endif
 template <typename value_idx = std::int64_t, typename value_t = float, int warp_q, int thread_q>
 inline void knn_merge_parts_impl(const value_t* inK,
                                  const value_idx* inV,
