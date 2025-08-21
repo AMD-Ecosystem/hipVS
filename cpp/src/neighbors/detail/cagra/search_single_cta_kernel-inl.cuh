@@ -1478,9 +1478,9 @@ struct persistent_runner_base_t {
   persistent_runner_base_t(float persistent_lifetime)
     : lifetime(size_t(persistent_lifetime * 1000)), job_queue(), worker_queue()
   {
-    cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+    RAFT_CUDA_TRY(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   }
-  virtual ~persistent_runner_base_t() noexcept { cudaStreamDestroy(stream); };
+  virtual ~persistent_runner_base_t() noexcept { static_cast<void>(cudaStreamDestroy(stream)); };
 };
 
 struct alignas(kCacheLineBytes) launcher_t {
@@ -1948,8 +1948,8 @@ struct alignas(kCacheLineBytes) persistent_runner_t : public persistent_runner_b
   {
     // determine the grid size
     int ctas_per_sm = 1;
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor<kernel_type>(
-      &ctas_per_sm, kernel, block_size, smem_size);
+    RAFT_CUDA_TRY(cudaOccupancyMaxActiveBlocksPerMultiprocessor<kernel_type>(
+      &ctas_per_sm, kernel, block_size, smem_size));
     int num_sm    = raft::getMultiProcessorCount();
     auto n_blocks = static_cast<uint32_t>(persistent_device_usage * (ctas_per_sm * num_sm));
     if (n_blocks > kMaxWorkersNum) {

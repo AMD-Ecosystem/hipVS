@@ -232,7 +232,7 @@ struct search : public search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_
                   const INDEX_T* dev_seed_ptr,              // [num_queries, num_seeds]
                   uint32_t* const num_executed_iterations,  // [num_queries,]
                   uint32_t topk,
-                  SAMPLE_FILTER_T sample_filter)
+                  SAMPLE_FILTER_T sample_filter) override
   {
     cudaStream_t stream = raft::resource::get_cuda_stream(res);
     select_and_run(dataset_desc,

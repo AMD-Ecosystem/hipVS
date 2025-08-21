@@ -23,34 +23,92 @@
 
 #include <hip/library_types.h>
 
+#ifndef cudaDataType
 #define cudaDataType hipDataType
+#endif
 
-#define CUDA_R_16F  HIP_R_16F
+#ifndef CUDA_R_16F
+#define CUDA_R_16F HIP_R_16F
+#endif
+#ifndef CUDA_R_16BF
 #define CUDA_R_16BF HIP_R_16BF
-#define CUDA_R_16I  HIP_R_16I
-#define CUDA_R_16U  HIP_R_16U
-#define CUDA_R_32F  HIP_R_32F
-#define CUDA_R_32I  HIP_R_32I
-#define CUDA_R_32U  HIP_R_32U
-#define CUDA_R_64F  HIP_R_64F
-#define CUDA_R_64I  HIP_R_64I
-#define CUDA_R_64U  HIP_R_64U
-#define CUDA_R_8I   HIP_R_8I
-#define CUDA_R_8U   HIP_R_8U
-#define CUDA_R_4I   HIP_R_4I
-#define CUDA_R_4U   HIP_R_4U
+#endif
+#ifndef CUDA_R_16I
+#define CUDA_R_16I HIP_R_16I
+#endif
+#ifndef CUDA_R_16U
+#define CUDA_R_16U HIP_R_16U
+#endif
+#ifndef CUDA_R_32F
+#define CUDA_R_32F HIP_R_32F
+#endif
+#ifndef CUDA_R_32I
+#define CUDA_R_32I HIP_R_32I
+#endif
+#ifndef CUDA_R_32U
+#define CUDA_R_32U HIP_R_32U
+#endif
+#ifndef CUDA_R_64F
+#define CUDA_R_64F HIP_R_64F
+#endif
+#ifndef CUDA_R_64I
+#define CUDA_R_64I HIP_R_64I
+#endif
+#ifndef CUDA_R_64U
+#define CUDA_R_64U HIP_R_64U
+#endif
+#ifndef CUDA_R_8I
+#define CUDA_R_8I HIP_R_8I
+#endif
+#ifndef CUDA_R_8U
+#define CUDA_R_8U HIP_R_8U
+#endif
+#ifndef CUDA_R_4I
+#define CUDA_R_4I HIP_R_4I
+#endif
+#ifndef CUDA_R_4U
+#define CUDA_R_4U HIP_R_4U
+#endif
 
-#define CUDA_C_16F  HIP_C_16F
+#ifndef CUDA_C_16F
+#define CUDA_C_16F HIP_C_16F
+#endif
+#ifndef CUDA_C_16BF
 #define CUDA_C_16BF HIP_C_16BF
-#define CUDA_C_16I  HIP_C_16I
-#define CUDA_C_16U  HIP_C_16U
-#define CUDA_C_32F  HIP_C_32F
-#define CUDA_C_32I  HIP_C_32I
-#define CUDA_C_32U  HIP_C_32U
-#define CUDA_C_64F  HIP_C_64F
-#define CUDA_C_64I  HIP_C_64I
-#define CUDA_C_64U  HIP_C_64U
-#define CUDA_C_8I   HIP_C_8I
-#define CUDA_C_8U   HIP_C_8U
-#define CUDA_C_4I   HIP_C_4I
-#define CUDA_C_4U   HIP_C_4U
+#endif
+#ifndef CUDA_C_16I
+#define CUDA_C_16I HIP_C_16I
+#endif
+#ifndef CUDA_C_16U
+#define CUDA_C_16U HIP_C_16U
+#endif
+#ifndef CUDA_C_32F
+#define CUDA_C_32F HIP_C_32F
+#endif
+#ifndef CUDA_C_32I
+#define CUDA_C_32I HIP_C_32I
+#endif
+#ifndef CUDA_C_32U
+#define CUDA_C_32U HIP_C_32U
+#endif
+#ifndef CUDA_C_64F
+#define CUDA_C_64F HIP_C_64F
+#endif
+#ifndef CUDA_C_64I
+#define CUDA_C_64I HIP_C_64I
+#endif
+#ifndef CUDA_C_64U
+#define CUDA_C_64U HIP_C_64U
+#endif
+#ifndef CUDA_C_8I
+#define CUDA_C_8I HIP_C_8I
+#endif
+#ifndef CUDA_C_8U
+#define CUDA_C_8U HIP_C_8U
+#endif
+#ifndef CUDA_C_4I
+#define CUDA_C_4I HIP_C_4I
+#endif
+#ifndef CUDA_C_4U
+#define CUDA_C_4U HIP_C_4U
+#endif

@@ -562,7 +562,7 @@ class ivf_pq_test : public ::testing::TestWithParam<ivf_pq_inputs> {
 
   void TearDown() override  // NOLINT
   {
-    cudaGetLastError();
+    static_cast<void>(cudaGetLastError());
     raft::resource::sync_stream(handle_);
     database.resize(0, stream_);
     search_queries.resize(0, stream_);
@@ -720,7 +720,7 @@ class ivf_pq_filter_test : public ::testing::TestWithParam<ivf_pq_inputs> {
 
   void TearDown() override  // NOLINT
   {
-    cudaGetLastError();
+    static_cast<void>(cudaGetLastError());
     raft::resource::sync_stream(handle_);
     database.resize(0, stream_);
     search_queries.resize(0, stream_);

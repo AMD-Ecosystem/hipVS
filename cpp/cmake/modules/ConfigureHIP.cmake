@@ -22,6 +22,29 @@ if(DISABLE_DEPRECATION_WARNINGS)
   list(APPEND CUVS_GPU_FLAGS -Wno-deprecated-declarations -DRAFT_HIDE_DEPRECATION_WARNINGS)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # TODO:(HIP/AMD) We want to prune the following warning disable lists.
+  list(APPEND CXX_WARNINGS_DISABLE_LIST -Wno-unused-variable -Wno-reorder-ctor
+       -Wno-unused-local-typedef -Wno-unused-but-set-variable
+  )
+  list(
+    APPEND
+    GPU_WARNINGS_DISABLE_LIST
+    -Wno-unused-variable
+    -Wno-reorder-ctor
+    -Wno-unused-lambda-capture
+    -Wno-unused-local-typedef
+    -Wno-sometimes-uninitialized
+    -Wno-unused-but-set-variable
+    -Wno-unused-function
+  )
+  # (HIP/AMD): Enable all warnings and treat them as errors. We then disable specific warnings that
+  # are problematic. Eventually we want to enable all warnings and treat them as errors by pruning
+  # the above warning disable lists.
+  list(APPEND CUVS_CXX_FLAGS -Wall -Werror ${CXX_WARNINGS_DISABLE_LIST})
+  list(APPEND CUVS_GPU_FLAGS -Wall -Werror ${GPU_WARNINGS_DISABLE_LIST})
+endif()
+
 # Be very strict when compiling with GCC as host compiler (and thus more lenient when compiling with
 # clang)
 if(CMAKE_COMPILER_IS_GNUCXX)

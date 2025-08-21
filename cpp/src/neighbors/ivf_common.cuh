@@ -317,23 +317,23 @@ void recompute_internal_state(const raft::resources& res, Index& index)
   int begin_bit             = 0;
   int end_bit               = sizeof(uint32_t) * 8;
   size_t cub_workspace_size = 0;
-  cub::DeviceRadixSort::SortKeysDescending(nullptr,
-                                           cub_workspace_size,
-                                           index.list_sizes().data_handle(),
-                                           sorted_sizes.data(),
-                                           index.n_lists(),
-                                           begin_bit,
-                                           end_bit,
-                                           stream);
+  RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(nullptr,
+                                                         cub_workspace_size,
+                                                         index.list_sizes().data_handle(),
+                                                         sorted_sizes.data(),
+                                                         index.n_lists(),
+                                                         begin_bit,
+                                                         end_bit,
+                                                         stream));
   rmm::device_buffer cub_workspace(cub_workspace_size, stream, tmp_res);
-  cub::DeviceRadixSort::SortKeysDescending(cub_workspace.data(),
-                                           cub_workspace_size,
-                                           index.list_sizes().data_handle(),
-                                           sorted_sizes.data(),
-                                           index.n_lists(),
-                                           begin_bit,
-                                           end_bit,
-                                           stream);
+  RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(cub_workspace.data(),
+                                                         cub_workspace_size,
+                                                         index.list_sizes().data_handle(),
+                                                         sorted_sizes.data(),
+                                                         index.n_lists(),
+                                                         begin_bit,
+                                                         end_bit,
+                                                         stream));
   // copy the results to CPU
   std::vector<uint32_t> sorted_sizes_host(index.n_lists());
   raft::copy(sorted_sizes_host.data(), sorted_sizes.data(), index.n_lists(), stream);

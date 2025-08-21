@@ -276,13 +276,13 @@ void batched_insert_vamana(
       void* d_temp_storage      = nullptr;
       size_t temp_storage_bytes = 0;
 
-      cub::DeviceMergeSort::SortPairs(d_temp_storage,
-                                      temp_storage_bytes,
-                                      edge_dest.data_handle(),
-                                      edge_src.data_handle(),
-                                      total_edges,
-                                      CmpEdge<IdxT>(),
-                                      stream);
+      RAFT_CUDA_TRY(cub::DeviceMergeSort::SortPairs(d_temp_storage,
+                                                    temp_storage_bytes,
+                                                    edge_dest.data_handle(),
+                                                    edge_src.data_handle(),
+                                                    total_edges,
+                                                    CmpEdge<IdxT>(),
+                                                    stream));
 
       RAFT_LOG_DEBUG("Temp storage needed for sorting (bytes): %lu", temp_storage_bytes);
 
@@ -292,13 +292,13 @@ void batched_insert_vamana(
         raft::make_extents<int64_t>(temp_storage_bytes / sizeof(IdxT)));
 
       // Sort to group reverse edges by destination
-      cub::DeviceMergeSort::SortPairs(temp_sort_storage.data_handle(),
-                                      temp_storage_bytes,
-                                      edge_dest.data_handle(),
-                                      edge_src.data_handle(),
-                                      total_edges,
-                                      CmpEdge<IdxT>(),
-                                      stream);
+      RAFT_CUDA_TRY(cub::DeviceMergeSort::SortPairs(temp_sort_storage.data_handle(),
+                                                    temp_storage_bytes,
+                                                    edge_dest.data_handle(),
+                                                    edge_src.data_handle(),
+                                                    total_edges,
+                                                    CmpEdge<IdxT>(),
+                                                    stream));
 
       // Get number of unique node destinations
       IdxT unique_dests =

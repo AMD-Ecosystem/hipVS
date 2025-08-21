@@ -80,7 +80,7 @@ namespace cuvs::neighbors::nn_descent::detail {
 using DistData_t = float;
 constexpr int counter_interval{100};
 template <typename Index_t>
-struct InternalID_t;
+class InternalID_t;
 
 // InternalID_t uses 1 bit for marking (new or old).
 template <>
@@ -108,7 +108,7 @@ class InternalID_t<int> {
 };
 
 template <typename Index_t>
-struct ResultItem;
+class ResultItem;
 
 template <>
 class ResultItem<int> {

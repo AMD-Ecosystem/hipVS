@@ -293,10 +293,10 @@ class RandomBruteForceKNNTest : public ::testing::TestWithParam<RandomKNNInputs>
     T* h_B        = static_cast<T*>(malloc(size_B));
     DistT* h_vals = static_cast<DistT*>(malloc(size_vals));
 
-    cudaMemcpyAsync(h_A, d_A, size_A, cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(h_B, d_B, size_B, cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(h_vals, d_vals, size_vals, cudaMemcpyDeviceToHost, stream);
-    cudaStreamSynchronize(stream);
+    RAFT_CUDA_TRY(cudaMemcpyAsync(h_A, d_A, size_A, cudaMemcpyDeviceToHost, stream));
+    RAFT_CUDA_TRY(cudaMemcpyAsync(h_B, d_B, size_B, cudaMemcpyDeviceToHost, stream));
+    RAFT_CUDA_TRY(cudaMemcpyAsync(h_vals, d_vals, size_vals, cudaMemcpyDeviceToHost, stream));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
 
     bool trans_a = is_row_major_A;
     bool trans_b = is_row_major_B;
@@ -339,8 +339,8 @@ class RandomBruteForceKNNTest : public ::testing::TestWithParam<RandomKNNInputs>
         }
       }
     }
-    cudaMemcpyAsync(d_vals, h_vals, size_vals, cudaMemcpyHostToDevice, stream);
-    cudaStreamSynchronize(stream);
+    RAFT_CUDA_TRY(cudaMemcpyAsync(d_vals, h_vals, size_vals, cudaMemcpyHostToDevice, stream));
+    RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
 
     free(h_A);
     free(h_B);

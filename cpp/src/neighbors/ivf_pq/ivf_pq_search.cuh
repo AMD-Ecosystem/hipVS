@@ -367,27 +367,27 @@ void ivfpq_search_worker(raft::resources const& handle,
     int begin_bit             = 0;
     int end_bit               = sizeof(uint32_t) * 8;
     size_t cub_workspace_size = 0;
-    cub::DeviceRadixSort::SortPairs(nullptr,
-                                    cub_workspace_size,
-                                    clusters_to_probe,
-                                    cluster_labels_out.data(),
-                                    index_list,
-                                    index_list_sorted,
-                                    n_queries_probes,
-                                    begin_bit,
-                                    end_bit,
-                                    stream);
+    RAFT_CUDA_TRY(cub::DeviceRadixSort::SortPairs(nullptr,
+                                                  cub_workspace_size,
+                                                  clusters_to_probe,
+                                                  cluster_labels_out.data(),
+                                                  index_list,
+                                                  index_list_sorted,
+                                                  n_queries_probes,
+                                                  begin_bit,
+                                                  end_bit,
+                                                  stream));
     rmm::device_buffer cub_workspace(cub_workspace_size, stream, mr);
-    cub::DeviceRadixSort::SortPairs(cub_workspace.data(),
-                                    cub_workspace_size,
-                                    clusters_to_probe,
-                                    cluster_labels_out.data(),
-                                    index_list,
-                                    index_list_sorted,
-                                    n_queries_probes,
-                                    begin_bit,
-                                    end_bit,
-                                    stream);
+    RAFT_CUDA_TRY(cub::DeviceRadixSort::SortPairs(cub_workspace.data(),
+                                                  cub_workspace_size,
+                                                  clusters_to_probe,
+                                                  cluster_labels_out.data(),
+                                                  index_list,
+                                                  index_list_sorted,
+                                                  n_queries_probes,
+                                                  begin_bit,
+                                                  end_bit,
+                                                  stream));
   }
 
   // select and run the main search kernel

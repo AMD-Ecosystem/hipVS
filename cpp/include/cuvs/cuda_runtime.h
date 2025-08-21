@@ -24,108 +24,301 @@
 #include <hip/hip_runtime.h>
 
 // types
-#define cudaDataType_t              hipDataType
-#define cudaFuncAttributes          hipFuncAttributes
-#define cudaDeviceProp              hipDeviceProp_t
-#define cudaError_t                 hipError_t
-#define cudaEvent_t                 hipEvent_t
+#ifndef cudaDataType_t
+#define cudaDataType_t hipDataType
+#endif
+#ifndef cudaFuncAttributes
+#define cudaFuncAttributes hipFuncAttributes
+#endif
+#ifndef cudaDeviceProp
+#define cudaDeviceProp hipDeviceProp_t
+#endif
+#ifndef cudaError_t
+#define cudaError_t hipError_t
+#endif
+#ifndef cudaEvent_t
+#define cudaEvent_t hipEvent_t
+#endif
+#ifndef cudaMemAllocationHandleType
 #define cudaMemAllocationHandleType hipMemAllocationHandleType
-#define cudaMemPool_t               hipMemPool_t
-#define cudaMemPoolAttr             hipMemPoolAttr
-#define cudaMemPoolProps            hipMemPoolProps
-#define cudaPointerAttributes       hipPointerAttribute_t
-#define cudaStream_t                hipStream_t
+#endif
+#ifndef cudaMemPool_t
+#define cudaMemPool_t hipMemPool_t
+#endif
+#ifndef cudaMemPoolAttr
+#define cudaMemPoolAttr hipMemPoolAttr
+#endif
+#ifndef cudaMemPoolProps
+#define cudaMemPoolProps hipMemPoolProps
+#endif
+#ifndef cudaPointerAttributes
+#define cudaPointerAttributes hipPointerAttribute_t
+#endif
+#ifndef cudaStream_t
+#define cudaStream_t hipStream_t
+#endif
 
 // macros, enum constant definitions
-#define cudaDevAttrComputeCapabilityMajor              hipDeviceAttributeComputeCapabilityMajor
-#define cudaDevAttrComputeCapabilityMinor              hipDeviceAttributeComputeCapabilityMinor
-#define cudaDevAttrHostRegisterReadOnlySupported       hipDeviceAttributeHostRegisterReadOnlySupported
-#define cudaDevAttrL2CacheSize                         hipDeviceAttributeL2CacheSize
-#define cudaDevAttrMaxSharedMemoryPerBlock             hipDeviceAttributeMaxSharedMemoryPerBlock
-#define cudaDevAttrMaxThreadsPerBlock                  hipDeviceAttributeMaxThreadsPerBlock
-#define cudaDevAttrMemoryPoolsSupported                hipDeviceAttributeMemoryPoolsSupported
-#define cudaDevAttrMemoryPoolSupportedHandleTypes      hipDevAttrMemoryPoolSupportedHandleTypes
-#define cudaDevAttrMultiProcessorCount                 hipDeviceAttributeMultiprocessorCount
-#define cudaErrorInvalidValue                          hipErrorInvalidValue
-#define cudaErrorMemoryAllocation                      hipErrorMemoryAllocation
-#define cudaErrorNotReady                              hipErrorNotReady
-#define cudaEventDisableTiming                         hipEventDisableTiming
-#define cudaFuncAttributeMaxDynamicSharedMemorySize    hipFuncAttributeMaxDynamicSharedMemorySize
+#ifndef cudaDevAttrComputeCapabilityMajor
+#define cudaDevAttrComputeCapabilityMajor hipDeviceAttributeComputeCapabilityMajor
+#endif
+#ifndef cudaDevAttrComputeCapabilityMinor
+#define cudaDevAttrComputeCapabilityMinor hipDeviceAttributeComputeCapabilityMinor
+#endif
+#ifndef cudaDevAttrHostRegisterReadOnlySupported
+#define cudaDevAttrHostRegisterReadOnlySupported hipDeviceAttributeHostRegisterReadOnlySupported
+#endif
+#ifndef cudaDevAttrL2CacheSize
+#define cudaDevAttrL2CacheSize hipDeviceAttributeL2CacheSize
+#endif
+#ifndef cudaDevAttrMaxSharedMemoryPerBlock
+#define cudaDevAttrMaxSharedMemoryPerBlock hipDeviceAttributeMaxSharedMemoryPerBlock
+#endif
+#ifndef cudaDevAttrMaxThreadsPerBlock
+#define cudaDevAttrMaxThreadsPerBlock hipDeviceAttributeMaxThreadsPerBlock
+#endif
+#ifndef cudaDevAttrMemoryPoolsSupported
+#define cudaDevAttrMemoryPoolsSupported hipDeviceAttributeMemoryPoolsSupported
+#endif
+#ifndef cudaDevAttrMemoryPoolSupportedHandleTypes
+#define cudaDevAttrMemoryPoolSupportedHandleTypes hipDevAttrMemoryPoolSupportedHandleTypes
+#endif
+#ifndef cudaDevAttrMultiProcessorCount
+#define cudaDevAttrMultiProcessorCount hipDeviceAttributeMultiprocessorCount
+#endif
+#ifndef cudaErrorInvalidValue
+#define cudaErrorInvalidValue hipErrorInvalidValue
+#endif
+#ifndef cudaErrorMemoryAllocation
+#define cudaErrorMemoryAllocation hipErrorMemoryAllocation
+#endif
+#ifndef cudaErrorNotReady
+#define cudaErrorNotReady hipErrorNotReady
+#endif
+#ifndef cudaEventDisableTiming
+#define cudaEventDisableTiming hipEventDisableTiming
+#endif
+#ifndef cudaFuncAttributeMaxDynamicSharedMemorySize
+#define cudaFuncAttributeMaxDynamicSharedMemorySize hipFuncAttributeMaxDynamicSharedMemorySize
+#endif
+#ifndef cudaFuncAttributePreferredSharedMemoryCarveout
 #define cudaFuncAttributePreferredSharedMemoryCarveout hipFuncAttributePreferredSharedMemoryCarveout
-#define cudaFuncCachePreferL1                          hipFuncCachePreferL1
-#define cudaFuncCachePreferShared                      hipFuncCachePreferShared
-#define cudaHostRegisterMapped                         hipHostRegisterMapped
-#define cudaHostRegisterReadOnly                       hipHostRegisterReadOnly
-#define cudaMemAllocationTypePinned                    hipMemAllocationTypePinned
-#define cudaMemcpyDefault                              hipMemcpyDefault
-#define cudaMemcpyDeviceToDevice                       hipMemcpyDeviceToDevice
-#define cudaMemcpyDeviceToHost                         hipMemcpyDeviceToHost
-#define cudaMemcpyHostToDevice                         hipMemcpyHostToDevice
-#define cudaMemHandleTypeNone                          hipMemHandleTypeNone
-#define cudaMemLocationTypeDevice                      hipMemLocationTypeDevice
-#define cudaMemoryTypeDevice                           hipMemoryTypeDevice
-#define cudaMemoryTypeHost                             hipMemoryTypeHost
-#define cudaMemoryTypeManaged                          hipMemoryTypeManaged
-#define cudaMemoryTypeUnregistered                     hipMemoryTypeUnregistered
-#define cudaMemPoolAttrReleaseThreshold                hipMemPoolAttrReleaseThreshold
-#define cudaMemPoolAttrReleaseThreshold                hipMemPoolAttrReleaseThreshold
-#define cudaMemPoolReuseAllowOpportunistic             hipMemPoolReuseAllowOpportunistic
-#define cudaMemset                                     hipMemset
-#define cudaStreamNonBlocking                          hipStreamNonBlocking
-#define cudaStreamPerThread                            hipStreamPerThread
-#define cudaSuccess                                    hipSuccess
+#endif
+#ifndef cudaFuncCachePreferL1
+#define cudaFuncCachePreferL1 hipFuncCachePreferL1
+#endif
+#ifndef cudaFuncCachePreferShared
+#define cudaFuncCachePreferShared hipFuncCachePreferShared
+#endif
+#ifndef cudaHostRegisterMapped
+#define cudaHostRegisterMapped hipHostRegisterMapped
+#endif
+#ifndef cudaHostRegisterReadOnly
+#define cudaHostRegisterReadOnly hipHostRegisterReadOnly
+#endif
+#ifndef cudaMemAllocationTypePinned
+#define cudaMemAllocationTypePinned hipMemAllocationTypePinned
+#endif
+#ifndef cudaMemcpyDefault
+#define cudaMemcpyDefault hipMemcpyDefault
+#endif
+#ifndef cudaMemcpyDeviceToDevice
+#define cudaMemcpyDeviceToDevice hipMemcpyDeviceToDevice
+#endif
+#ifndef cudaMemcpyDeviceToHost
+#define cudaMemcpyDeviceToHost hipMemcpyDeviceToHost
+#endif
+#ifndef cudaMemcpyHostToDevice
+#define cudaMemcpyHostToDevice hipMemcpyHostToDevice
+#endif
+#ifndef cudaMemHandleTypeNone
+#define cudaMemHandleTypeNone hipMemHandleTypeNone
+#endif
+#ifndef cudaMemLocationTypeDevice
+#define cudaMemLocationTypeDevice hipMemLocationTypeDevice
+#endif
+#ifndef cudaMemoryTypeDevice
+#define cudaMemoryTypeDevice hipMemoryTypeDevice
+#endif
+#ifndef cudaMemoryTypeHost
+#define cudaMemoryTypeHost hipMemoryTypeHost
+#endif
+#ifndef cudaMemoryTypeManaged
+#define cudaMemoryTypeManaged hipMemoryTypeManaged
+#endif
+#ifndef cudaMemoryTypeUnregistered
+#define cudaMemoryTypeUnregistered hipMemoryTypeUnregistered
+#endif
+#ifndef cudaMemPoolAttrReleaseThreshold
+#define cudaMemPoolAttrReleaseThreshold hipMemPoolAttrReleaseThreshold
+#endif
+#ifndef cudaMemPoolReuseAllowOpportunistic
+#define cudaMemPoolReuseAllowOpportunistic hipMemPoolReuseAllowOpportunistic
+#endif
+#ifndef cudaMemset
+#define cudaMemset hipMemset
+#endif
+#ifndef cudaStreamNonBlocking
+#define cudaStreamNonBlocking hipStreamNonBlocking
+#endif
+#ifndef cudaStreamPerThread
+#define cudaStreamPerThread hipStreamPerThread
+#endif
+#ifndef cudaSuccess
+#define cudaSuccess hipSuccess
+#endif
 
 // functions
-#define cudaDeviceGetAttribute      hipDeviceGetAttribute
+#ifndef cudaDeviceGetAttribute
+#define cudaDeviceGetAttribute hipDeviceGetAttribute
+#endif
+#ifndef cudaDeviceGetDefaultMemPool
 #define cudaDeviceGetDefaultMemPool hipDeviceGetDefaultMemPool
-#define cudaDeviceSynchronize       hipDeviceSynchronize
-#define cudaDriverGetVersion        hipDriverGetVersion
-#define cudaEventCreate             hipEventCreate
-#define cudaEventCreateWithFlags    hipEventCreateWithFlags
-#define cudaEventDestroy            hipEventDestroy
-#define cudaEventElapsedTime        hipEventElapsedTime
-#define cudaEventQuery              hipEventQuery
-#define cudaEventRecord             hipEventRecord
-#define cudaEventSynchronize        hipEventSynchronize
-#define cudaFree                    hipFree
-#define cudaFreeAsync               hipFreeAsync
-#define cudaFreeHost                hipHostFree
-#define cudaFuncGetAttributes       hipFuncGetAttributes
-#define cudaFuncSetCacheConfig      hipFuncSetCacheConfig
-#define cudaFuncSetAttribute(function, attr, value) \
-  hipFuncSetAttribute(reinterpret_cast<const void*>(function), attr, value)
-#define cudaGetDevice                                  hipGetDevice
-#define cudaGetDeviceCount                             hipGetDeviceCount
-#define cudaGetDeviceProperties                        hipGetDeviceProperties
-#define cudaGetErrorName                               hipGetErrorName
-#define cudaGetErrorString                             hipGetErrorString
-#define cudaGetLastError                               hipGetLastError
-#define cudaHostGetDevicePointer                       hipHostGetDevicePointer
-#define cudaHostUnregister                             hipHostUnregister
-#define cudaLaunchHostFunc                             hipLaunchHostFunc
-#define cudaLaunchKernel                               hipLaunchKernel
-#define cudaMalloc                                     hipMalloc
-#define cudaMallocAsync                                hipMallocAsync
-#define cudaMallocFromPoolAsync                        hipMallocFromPoolAsync
-#define cudaMallocHost                                 hipHostMalloc
-#define cudaMallocManaged                              hipMallocManaged
-#define cudaMemcpy                                     hipMemcpy
-#define cudaMemcpy2DAsync                              hipMemcpy2DAsync
-#define cudaMemcpyAsync                                hipMemcpyAsync
-#define cudaMemGetInfo                                 hipMemGetInfo
-#define cudaMemPoolCreate                              hipMemPoolCreate
-#define cudaMemPoolDestroy                             hipMemPoolDestroy
-#define cudaMemPoolSetAttribute                        hipMemPoolSetAttribute
-#define cudaMemsetAsync                                hipMemsetAsync
-#define cudaOccupancyMaxActiveBlocksPerMultiprocessor  hipOccupancyMaxActiveBlocksPerMultiprocessor
-#define cudaOccupancyMaxPotentialBlockSize             hipOccupancyMaxPotentialBlockSize
+#endif
+#ifndef cudaDeviceSynchronize
+#define cudaDeviceSynchronize hipDeviceSynchronize
+#endif
+#ifndef cudaDriverGetVersion
+#define cudaDriverGetVersion hipDriverGetVersion
+#endif
+#ifndef cudaEventCreate
+#define cudaEventCreate hipEventCreate
+#endif
+#ifndef cudaEventCreateWithFlags
+#define cudaEventCreateWithFlags hipEventCreateWithFlags
+#endif
+#ifndef cudaEventDestroy
+#define cudaEventDestroy hipEventDestroy
+#endif
+#ifndef cudaEventElapsedTime
+#define cudaEventElapsedTime hipEventElapsedTime
+#endif
+#ifndef cudaEventQuery
+#define cudaEventQuery hipEventQuery
+#endif
+#ifndef cudaEventRecord
+#define cudaEventRecord hipEventRecord
+#endif
+#ifndef cudaEventSynchronize
+#define cudaEventSynchronize hipEventSynchronize
+#endif
+#ifndef cudaFree
+#define cudaFree hipFree
+#endif
+#ifndef cudaFreeAsync
+#define cudaFreeAsync hipFreeAsync
+#endif
+#ifndef cudaFreeHost
+#define cudaFreeHost hipHostFree
+#endif
+#ifndef cudaFuncGetAttributes
+#define cudaFuncGetAttributes hipFuncGetAttributes
+#endif
+#ifndef cudaFuncSetCacheConfig
+#define cudaFuncSetCacheConfig hipFuncSetCacheConfig
+#endif
+#ifndef cudaGetDevice
+#define cudaGetDevice hipGetDevice
+#endif
+#ifndef cudaGetDeviceCount
+#define cudaGetDeviceCount hipGetDeviceCount
+#endif
+#ifndef cudaGetDeviceProperties
+#define cudaGetDeviceProperties hipGetDeviceProperties
+#endif
+#ifndef cudaGetErrorName
+#define cudaGetErrorName hipGetErrorName
+#endif
+#ifndef cudaGetErrorString
+#define cudaGetErrorString hipGetErrorString
+#endif
+#ifndef cudaGetLastError
+#define cudaGetLastError hipGetLastError
+#endif
+#ifndef cudaHostGetDevicePointer
+#define cudaHostGetDevicePointer hipHostGetDevicePointer
+#endif
+#ifndef cudaHostUnregister
+#define cudaHostUnregister hipHostUnregister
+#endif
+#ifndef cudaLaunchHostFunc
+#define cudaLaunchHostFunc hipLaunchHostFunc
+#endif
+#ifndef cudaLaunchKernel
+#define cudaLaunchKernel hipLaunchKernel
+#endif
+#ifndef cudaMalloc
+#define cudaMalloc hipMalloc
+#endif
+#ifndef cudaMallocAsync
+#define cudaMallocAsync hipMallocAsync
+#endif
+#ifndef cudaMallocFromPoolAsync
+#define cudaMallocFromPoolAsync hipMallocFromPoolAsync
+#endif
+#ifndef cudaMallocHost
+#define cudaMallocHost hipHostMalloc
+#endif
+#ifndef cudaMallocManaged
+#define cudaMallocManaged hipMallocManaged
+#endif
+#ifndef cudaMemcpy
+#define cudaMemcpy hipMemcpy
+#endif
+#ifndef cudaMemcpy2DAsync
+#define cudaMemcpy2DAsync hipMemcpy2DAsync
+#endif
+#ifndef cudaMemcpyAsync
+#define cudaMemcpyAsync hipMemcpyAsync
+#endif
+#ifndef cudaMemGetInfo
+#define cudaMemGetInfo hipMemGetInfo
+#endif
+#ifndef cudaMemPoolCreate
+#define cudaMemPoolCreate hipMemPoolCreate
+#endif
+#ifndef cudaMemPoolDestroy
+#define cudaMemPoolDestroy hipMemPoolDestroy
+#endif
+#ifndef cudaMemPoolSetAttribute
+#define cudaMemPoolSetAttribute hipMemPoolSetAttribute
+#endif
+#ifndef cudaMemsetAsync
+#define cudaMemsetAsync hipMemsetAsync
+#endif
+#ifndef cudaOccupancyMaxActiveBlocksPerMultiprocessor
+#define cudaOccupancyMaxActiveBlocksPerMultiprocessor hipOccupancyMaxActiveBlocksPerMultiprocessor
+#endif
+#ifndef cudaOccupancyMaxPotentialBlockSize
+#define cudaOccupancyMaxPotentialBlockSize hipOccupancyMaxPotentialBlockSize
+#endif
+#ifndef cudaOccupancyMaxPotentialBlockSizeVariableSMem
 #define cudaOccupancyMaxPotentialBlockSizeVariableSMem hipOccupancyMaxPotentialBlockSizeVariableSMem
-#define cudaPeekAtLastError                            hipPeekAtLastError
-#define cudaPointerGetAttributes                       hipPointerGetAttributes
-#define cudaSetDevice                                  hipSetDevice
-#define cudaStreamCreate                               hipStreamCreate
-#define cudaStreamCreateWithFlags                      hipStreamCreateWithFlags
-#define cudaStreamDestroy                              hipStreamDestroy
-#define cudaStreamSynchronize                          hipStreamSynchronize
-#define cudaStreamWaitEvent(a, b, c)                   hipStreamWaitEvent(a, b, c)
-#define cudaLaunchCooperativeKernel                    hipLaunchCooperativeKernel
+#endif
+#ifndef cudaPeekAtLastError
+#define cudaPeekAtLastError hipPeekAtLastError
+#endif
+#ifndef cudaPointerGetAttributes
+#define cudaPointerGetAttributes hipPointerGetAttributes
+#endif
+#ifndef cudaSetDevice
+#define cudaSetDevice hipSetDevice
+#endif
+#ifndef cudaStreamCreate
+#define cudaStreamCreate hipStreamCreate
+#endif
+#ifndef cudaStreamCreateWithFlags
+#define cudaStreamCreateWithFlags hipStreamCreateWithFlags
+#endif
+#ifndef cudaStreamDestroy
+#define cudaStreamDestroy hipStreamDestroy
+#endif
+#ifndef cudaStreamSynchronize
+#define cudaStreamSynchronize hipStreamSynchronize
+#endif
+#ifndef cudaStreamWaitEvent
+#define cudaStreamWaitEvent(a, b, c) hipStreamWaitEvent(a, b, c)
+#endif
+#ifndef cudaLaunchCooperativeKernel
+#define cudaLaunchCooperativeKernel hipLaunchCooperativeKernel
+#endif

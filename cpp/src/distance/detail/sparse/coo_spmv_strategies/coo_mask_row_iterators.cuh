@@ -84,6 +84,10 @@ class mask_row_it {
   value_idx* mask_row_idx;
 };
 
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpass-failed"
+#endif
 template <typename value_idx>
 RAFT_KERNEL fill_chunk_indices_kernel(value_idx* n_chunks_per_row,
                                       value_idx* chunk_indices,
@@ -100,6 +104,9 @@ RAFT_KERNEL fill_chunk_indices_kernel(value_idx* n_chunks_per_row,
     }
   }
 }
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic pop
+#endif
 
 template <typename value_idx>
 class chunked_mask_row_it : public mask_row_it<value_idx> {

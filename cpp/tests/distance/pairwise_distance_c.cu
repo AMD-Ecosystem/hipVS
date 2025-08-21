@@ -31,11 +31,11 @@
  * THE SOFTWARE.
  */
 
- #ifdef __HIP_PLATFORM_AMD__
- #include <cuvs/cuda_runtime.h>
- #else
- #include <cuda.h>
- #endif
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cuda_runtime.h>
+#else
+#include <cuda.h>
+#endif
 
 #include <gtest/gtest.h>
 #include <raft/core/device_mdarray.hpp>
@@ -69,9 +69,9 @@ TEST(PairwiseDistanceC, Distance)
   cuvsDistanceType metric = L2Expanded;
 
   float *index_data, *query_data, *distances_data;
-  cudaMalloc(&index_data, sizeof(float) * n_rows * n_dim);
-  cudaMalloc(&query_data, sizeof(float) * n_queries * n_dim);
-  cudaMalloc(&distances_data, sizeof(float) * n_queries * n_rows);
+  RAFT_CUDA_TRY(cudaMalloc(&index_data, sizeof(float) * n_rows * n_dim));
+  RAFT_CUDA_TRY(cudaMalloc(&query_data, sizeof(float) * n_queries * n_dim));
+  RAFT_CUDA_TRY(cudaMalloc(&distances_data, sizeof(float) * n_queries * n_rows));
 
   generate_random_data(index_data, n_rows * n_dim);
   generate_random_data(query_data, n_queries * n_dim);
@@ -79,7 +79,7 @@ TEST(PairwiseDistanceC, Distance)
   run_pairwise_distance(n_rows, n_queries, n_dim, index_data, query_data, distances_data, metric);
 
   // delete device memory
-  cudaFree(index_data);
-  cudaFree(query_data);
-  cudaFree(distances_data);
+  RAFT_CUDA_TRY(cudaFree(index_data));
+  RAFT_CUDA_TRY(cudaFree(query_data));
+  RAFT_CUDA_TRY(cudaFree(distances_data));
 }

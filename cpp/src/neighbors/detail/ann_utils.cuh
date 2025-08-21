@@ -508,7 +508,7 @@ struct batch_load_iterator {
     size_type batch_len_;
     T* dev_ptr_;
     T* prefetch_dev_ptr_;
-    friend class batch_load_iterator<T>;
+    friend struct batch_load_iterator<T>;
 
     /**
      * Changes the state of the batch to point at the `pos` index.

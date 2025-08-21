@@ -94,6 +94,11 @@ using namespace cuvs::spatial::knn::detail;  // NOLINT
 
 using internal_extents_t = int64_t;  // The default mdspan extent type used internally.
 
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpass-failed"
+#endif
+
 /**
  * @brief Compute residual vectors from the source dataset given by selected indices.
  *
@@ -1342,10 +1347,10 @@ void process_and_fill_codes(raft::resources const& handle,
 
   auto local_src_offset_or_indices =
     std::holds_alternative<IdxT>(src_offset_or_indices)
-      ? SrcOffsetOrIndices<IdxT>{.offset = std::get<IdxT>(src_offset_or_indices),
-                                 .type   = SrcOffsetOrIndices<IdxT>::Offset}
-      : SrcOffsetOrIndices<IdxT>{.indices = std::get<const IdxT*>(src_offset_or_indices),
-                                 .type    = SrcOffsetOrIndices<IdxT>::Indices};
+      ? SrcOffsetOrIndices<IdxT>{.type   = SrcOffsetOrIndices<IdxT>::Offset,
+                                 .offset = std::get<IdxT>(src_offset_or_indices)}
+      : SrcOffsetOrIndices<IdxT>{.type    = SrcOffsetOrIndices<IdxT>::Indices,
+                                 .indices = std::get<const IdxT*>(src_offset_or_indices)};
   kernel<<<blocks, threads, 0, stream>>>(new_vectors_residual.view(),
                                          local_src_offset_or_indices,
                                          new_labels,
@@ -1948,4 +1953,7 @@ void extend(
                   new_indices.has_value() ? new_indices.value().data_handle() : nullptr,
                   n_rows);
 }
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic pop
+#endif
 }  // namespace cuvs::neighbors::ivf_pq::detail

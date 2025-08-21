@@ -250,23 +250,23 @@ void kmeansPlusPlus(raft::resources const& handle,
     {
       // Determine temporary device storage requirements
       size_t temp_storage_bytes = 0;
-      cub::DeviceReduce::ArgMin(nullptr,
-                                temp_storage_bytes,
-                                costPerCandidate.data_handle(),
-                                minClusterIndexAndDistance.data(),
-                                costPerCandidate.extent(0),
-                                stream);
+      RAFT_CUDA_TRY(cub::DeviceReduce::ArgMin(nullptr,
+                                              temp_storage_bytes,
+                                              costPerCandidate.data_handle(),
+                                              minClusterIndexAndDistance.data(),
+                                              costPerCandidate.extent(0),
+                                              stream));
 
       // Allocate temporary storage
       workspace.resize(temp_storage_bytes, stream);
 
       // Run argmin-reduction
-      cub::DeviceReduce::ArgMin(workspace.data(),
-                                temp_storage_bytes,
-                                costPerCandidate.data_handle(),
-                                minClusterIndexAndDistance.data(),
-                                costPerCandidate.extent(0),
-                                stream);
+      RAFT_CUDA_TRY(cub::DeviceReduce::ArgMin(workspace.data(),
+                                              temp_storage_bytes,
+                                              costPerCandidate.data_handle(),
+                                              minClusterIndexAndDistance.data(),
+                                              costPerCandidate.extent(0),
+                                              stream));
 
       IndexT bestCandidateIdx = -1;
       raft::copy(&bestCandidateIdx, &minClusterIndexAndDistance.data()->key, 1, stream);

@@ -173,7 +173,7 @@ struct DivOp {
   HDI DataT operator()(DataT a, int b, int c)
   {
     if (b == 0)
-      return ULLONG_MAX;
+      return static_cast<DataT>(ULLONG_MAX);
     else
       return a / b;
   }
@@ -187,7 +187,7 @@ template <typename DataT>
 struct SilOp {
   HDI DataT operator()(DataT a, DataT b)
   {
-    if (a == 0 && b == 0 || a == b)
+    if ((a == 0 && b == 0) || a == b)
       return 0;
     else if (a == -1)
       return 0;

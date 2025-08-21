@@ -46,8 +46,14 @@ namespace cuvs::neighbors {
 
 namespace detail {
 
+#ifdef __HIP_PLATFORM_AMD__
+#define GCC_ATTRIBUTES
+#else
+#define GCC_ATTRIBUTES [[gnu::optimize(3), gnu::optimize("tree-vectorize")]]
+#endif
+
 template <typename DC, typename IdxT, typename DataT, typename DistanceT, typename ExtentsT>
-[[gnu::optimize(3), gnu::optimize("tree-vectorize")]] void refine_host_impl(
+GCC_ATTRIBUTES void refine_host_impl(
   raft::host_matrix_view<const DataT, ExtentsT, raft::row_major> dataset,
   raft::host_matrix_view<const DataT, ExtentsT, raft::row_major> queries,
   raft::host_matrix_view<const IdxT, ExtentsT, raft::row_major> neighbor_candidates,
@@ -187,7 +193,7 @@ struct distance_comp_inner {
  * All pointers are expected to be accessible on the host.
  */
 template <typename IdxT, typename DataT, typename DistanceT, typename ExtentsT>
-[[gnu::optimize(3), gnu::optimize("tree-vectorize")]] void refine_host(
+GCC_ATTRIBUTES void refine_host(
   raft::host_matrix_view<const DataT, ExtentsT, raft::row_major> dataset,
   raft::host_matrix_view<const DataT, ExtentsT, raft::row_major> queries,
   raft::host_matrix_view<const IdxT, ExtentsT, raft::row_major> neighbor_candidates,

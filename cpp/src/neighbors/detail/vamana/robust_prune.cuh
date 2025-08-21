@@ -94,9 +94,17 @@ VAMANA_FORCE_INLINE __device__ void sort_edges_and_cands(
   // Mark duplicates and re-sort
   // Copy last element over and shuffle to check for duplicate between threads
   new_nbh_list[ELTS * threadIdx.x + (ELTS - 1)] = tmp[ELTS - 1];
-  if (tmp[ELTS - 1].idx == tmp[ELTS - 2].idx) {
-    new_nbh_list[ELTS * threadIdx.x + (ELTS - 1)].idx  = raft::upper_bound<IdxT>();
-    new_nbh_list[ELTS * threadIdx.x + (ELTS - 1)].dist = raft::upper_bound<accT>();
+
+  if constexpr (ELTS >= 2) {
+    // There is an instantiation of this device function with DEG == 32
+    // which causes an out of bounds index error. This constexpr if statement is a workaround to
+    // prevent the out of bounds error. Note that the statements in this block are always reachable
+    // since kernel instantiations launched are always based on the runtime queried wavefront size
+    // of the device.
+    if (tmp[ELTS - 1].idx == tmp[ELTS - 2].idx) {
+      new_nbh_list[ELTS * threadIdx.x + (ELTS - 1)].idx  = raft::upper_bound<IdxT>();
+      new_nbh_list[ELTS * threadIdx.x + (ELTS - 1)].dist = raft::upper_bound<accT>();
+    }
   }
   __shfl_up_sync(raft::LANE_MASK_ALL, tmp[ELTS - 1].idx, 1);
   __syncthreads();
@@ -131,6 +139,10 @@ VAMANA_FORCE_INLINE __device__ void sort_edges_and_cands(
 
 namespace {
 
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpass-failed"
+#endif
 /********************************************************************************************
   GPU kernel for RobustPrune operation for Vamana graph creation
   Input - *graph to be an edgelist of degree number of edges per vector,
@@ -270,6 +282,9 @@ __global__ void RobustPruneKernel(
     }
   }
 }
+#ifdef __HIP_PLATFORM_AMD__
+#pragma clang diagnostic pop
+#endif
 
 }  // namespace
 

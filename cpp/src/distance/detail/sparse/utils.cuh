@@ -138,8 +138,8 @@ void faster_dot_on_csr(raft::resources const& handle,
   int dev_id, sm_count, blocks_per_sm;
 
   const int smem_size = dim * sizeof(value_t);
-  cudaGetDevice(&dev_id);
-  cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, dev_id);
+  RAFT_CUDA_TRY(cudaGetDevice(&dev_id));
+  RAFT_CUDA_TRY(cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, dev_id));
 
   if (dim < 128) {
     constexpr int tpb = 64;
