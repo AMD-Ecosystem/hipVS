@@ -1,0 +1,17 @@
+[package]
+name = "hipvs"
+description = "RAPIDS vector search library"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ffi = { package = "hipvs-sys", path = "../hipvs-sys", version = "0.1.0" }
+ndarray = "0.15"
+
+[dev-dependencies]
+ndarray-rand = "0.14"
+mark-flaky-tests = "1"

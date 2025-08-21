@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cuvs = ">=24.6.0"
+hipvs = { path = "../../rust/hipvs", version = "0.1.0" }
 ndarray = "0.15"
 ndarray-rand = "0.14"

@@ -325,6 +325,9 @@ py.test -v -s
 ```
 ## Rust Library
 
+Building and running the Rust bindings tests assumes that Cargo (the Rust package manager and build tool) is installed and available in your environment.
+If Cargo is not installed, please refer to the [Rustup documentation](https://rustup.rs/) for installation instructions.
+
 The rust library can be built and installed using the `build.sh` script. As a prerequisite, the `hipvs-rust` library depends on the `hipvs` C++ library(`libcuvs.so`) and C library(`libcuvs_c.so`).
 The `hipvs` C++ library must be built and installed before building the rust library. If using the `build.sh` script, the following command can be used to build and install the hipvs C++ and rust libraries:
 ```bash
@@ -334,6 +337,8 @@ cd <HIPVS_ROOT>
 # It will also run the rust tests after building the library.
 ./build.sh libcuvs rust
 ```
+
+Note: The rust option when invoked through `build.sh` will not only build the `hipvs` and `hipvs-sys` crates but also run the tests after.
 
 ### Running the rust example after building through `build.sh`
 ```bash

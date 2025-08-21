@@ -399,11 +399,13 @@ if hasArg docs; then
     mkdir -p _build
     rm -rf _build/*
     LC_ALL=C.UTF-8 sphinx-build -E . _build
-    # Build rust docs
-    pushd ${REPODIR}/rust
-    cargo doc -p cuvs --no-deps
-    rsync -av target/doc/ ${SPHINX_BUILD_DIR}/_build/rust_html
-    popd
+    if [ -x "$(command -v cargo)" ]; then
+        echo "Building hipVS Rust docs..."
+        pushd ${REPODIR}/rust
+        cargo doc -p hipvs --no-deps
+        rsync -av target/doc/* ${REPODIR}/docs_amd/reference/rust_api/rust_html/
+        popd
+    fi
 fi
 
 ################################################################################

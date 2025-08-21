@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-use cuvs::cagra::{Index, IndexParams, SearchParams};
-use cuvs::{ManagedTensor, Resources, Result};
+use hipvs::cagra::{Index, IndexParams, SearchParams};
+use hipvs::{ManagedTensor, Resources, Result};
 
 use ndarray::s;
 use ndarray_rand::rand_distr::Uniform;
