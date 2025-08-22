@@ -32,10 +32,10 @@
  * THE SOFTWARE.
  */
 
+use bindgen::callbacks::{EnumVariantValue, ParseCallbacks};
 use std::env;
 use std::io::BufRead;
 use std::path::PathBuf;
-use bindgen::callbacks::{EnumVariantValue, ParseCallbacks};
 
 /// HipToCuda implements the ParseCallbacks trait to rename all the hip* types to cuda* types
 /// in the generated bindings. This is needed because the rust code is written to use the CUDA
@@ -47,7 +47,9 @@ struct HipToCuda;
 
 /// Helper: change a leading "hip" to "cuda"
 fn rename(original: &str) -> Option<String> {
-    original.strip_prefix("hip").map(|tail| format!("cuda{tail}"))
+    original
+        .strip_prefix("hip")
+        .map(|tail| format!("cuda{tail}"))
 }
 
 impl ParseCallbacks for HipToCuda {
@@ -78,7 +80,7 @@ fn main() {
     println!(
         "cargo:rustc-link-search=native=/opt/rocm/lib" // Assume that ROCm is installed in /opt/rocm
     );
-    println!("cargo:rustc-link-lib=dylib=cuvs_c") ;
+    println!("cargo:rustc-link-lib=dylib=cuvs_c");
     println!("cargo:rustc-link-lib=dylib=amdhip64");
 
     // we need some extra flags both to link against cuvs, and also to run bindgen
@@ -96,12 +98,14 @@ fn main() {
     .lines()
     .map(|x| x.expect("Couldn't parse line from CMakeCache.txt"))
     .collect();
-    let cuvs_c_lib_path = PathBuf::from(cmake_cache
-        .iter()
-        .find(|x| x.starts_with("CUVS_C_LIBRARY_SO_PATH:FILEPATH="))
-        .expect("failed to find CUVS_C_LIBRARY_SO_PATH in CMakeCache.txt")
-        .strip_prefix("CUVS_C_LIBRARY_SO_PATH:FILEPATH=")
-        .unwrap());
+    let cuvs_c_lib_path = PathBuf::from(
+        cmake_cache
+            .iter()
+            .find(|x| x.starts_with("CUVS_C_LIBRARY_SO_PATH:FILEPATH="))
+            .expect("failed to find CUVS_C_LIBRARY_SO_PATH in CMakeCache.txt")
+            .strip_prefix("CUVS_C_LIBRARY_SO_PATH:FILEPATH=")
+            .unwrap(),
+    );
     let cuvs_lib_dir = cuvs_c_lib_path.parent().unwrap();
     println!("cargo:rustc-link-search=native={}", cuvs_lib_dir.display());
     let cmake_cxx_flags = cmake_cache
@@ -133,8 +137,8 @@ fn main() {
     bindgen::Builder::default()
         .header("cuvs_c_wrapper.h")
         .clang_arg("-I../../cpp/include")
-        .clang_arg("-D__HIP_PLATFORM_AMD__")// Usually set by the cmake build or hipcc
-        .clang_arg("-D__HIP_ROCclr__=1")// Usually set by the cmake build or hipcc
+        .clang_arg("-D__HIP_PLATFORM_AMD__") // Usually set by the cmake build or hipcc
+        .clang_arg("-D__HIP_ROCclr__=1") // Usually set by the cmake build or hipcc
         .clang_arg("-I/opt/rocm/include") // Assume that ROCm is installed in /opt/rocm
         // needed to find cudaruntime.h
         .clang_args(cmake_cxx_flags.split(' '))
