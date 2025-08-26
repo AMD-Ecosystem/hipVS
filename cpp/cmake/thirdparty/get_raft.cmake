@@ -37,14 +37,6 @@ function(find_and_configure_raft)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
             "${multiValueArgs}" ${ARGN} )
 
-    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${RAFT_VERSION}")
-        message(STATUS "cuVS: RAFT pinned tag found: ${PKG_PINNED_TAG}. Cloning raft locally.")
-        set(CPM_DOWNLOAD_raft ON)
-    elseif(PKG_USE_RAFT_STATIC AND (NOT CPM_raft_SOURCE))
-        message(STATUS "cuVS: Cloning raft locally to build static libraries.")
-        set(CPM_DOWNLOAD_raft ON)
-    endif()
-
     set(RAFT_COMPONENTS "")
 
     if(PKG_ENABLE_MNMG_DEPENDENCIES)
