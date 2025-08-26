@@ -18,7 +18,6 @@
 
 #include <cuvs/neighbors/brute_force.hpp>
 #include <cuvs/neighbors/hnsw.hpp>
-#include <filesystem>
 #include <hnswlib/hnswalg.h>
 #include <hnswlib/hnswlib.h>
 #include <memory>
@@ -131,7 +130,7 @@ std::enable_if_t<hierarchy == HnswHierarchy::NONE, std::unique_ptr<index<T>>> fr
   index<T>* hnsw_index = nullptr;
   cuvs::neighbors::hnsw::deserialize(
     res, params, filepath, cagra_index.dim(), cagra_index.metric(), &hnsw_index);
-  std::filesystem::remove(filepath);
+  ::remove(filepath.c_str());
   return std::unique_ptr<index<T>>(hnsw_index);
 }
 
