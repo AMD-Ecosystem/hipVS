@@ -229,6 +229,31 @@ ctest --test-dir ./tests # If "--limit-tests" is specified, only a subset of tes
 ./build.sh libcuvs --cache-tool=ccache
 ```
 
+### --allgpuarch
+
+Builds hipVS for all supported GPU architectures, increasing portability but also build time. You can also use --allgpuarch with `build.sh`:
+**Always execute a clean build or manually delete the build directory before running this argument if a previous build is present, to prevent potential build conflicts or errors.**
+
+```bash
+./build.sh clean
+./build.sh libcuvs tests --allgpuarch
+```
+### Compile only for specified GPU arch
+
+When specifying target architectures, provide them as a single string enclosed in double quotes. For multiple architectures, separate each with a semicolon (;).
+
+```bash
+./build.sh libcuvs tests --gpu-arch="gfx90a;gfx942"
+```
+
+OR
+
+```bash
+./build.sh libcuvs tests --gpu-arch="gfx942"
+```
+
+**Do not specify both --gpu-arch and --allgpuarch flags in the same build command. Avoid using multiple separate --gpu-arch flags; always combine all target architectures into one --gpu-arch option.**
+
 ### Using CMake directly
 
 When building hipVS from source, the `build.sh` script offers a nice wrapper around the `cmake` commands to ease the burdens of manually configuring the various available cmake options. When more fine-grained control over the CMake configuration is desired, the `cmake` command can be invoked directly as the example below demonstrates.
@@ -245,7 +270,6 @@ cmake -S .. \
       -DCMAKE_INSTALL_PREFIX=install \
       -DCMAKE_HIP_ARCHITECTURES=NATIVE \
       -DCMAKE_BUILD_TYPE=Release \
-      -DCUDA_BACKEND=OFF \
       -DBUILD_TESTS=OFF \
       -DCMAKE_CXX_COMPILER=hipcc
 # Build the cuvs target
@@ -371,7 +395,6 @@ cmake -S .. \
       -DCMAKE_INSTALL_PREFIX=install \
       -DCMAKE_HIP_ARCHITECTURES=NATIVE \
       -DCMAKE_BUILD_TYPE=Release \
-      -DCUDA_BACKEND=OFF \
       -DRAFT_COMPILE_LIBRARY=ON \
       -DBUILD_TESTS=OFF \
       -DCMAKE_CXX_COMPILER=hipcc
