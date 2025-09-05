@@ -59,7 +59,6 @@ There are several benefits to using hipVS and GPUs for vector search, including
 ##  Limitations
 
 * The library is currently only tested on AMD GPUs with the ROCm stack.
-* Dynamic Batching currently does not support IVF-Flat and IVF-PQ indexes.
 * Multi-GPU and Multi Node functionality is still experimental and not officially supported.
 
 ## References
