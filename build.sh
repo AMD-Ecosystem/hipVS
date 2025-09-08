@@ -98,6 +98,7 @@ EXTRA_CMAKE_HIP_ARGS="-DCMAKE_CXX_COMPILER=hipcc"
 INSTALL_PREFIX=${INSTALL_PREFIX:=${PREFIX:=${CONDA_PREFIX:=$LIBCUVS_BUILD_DIR/install}}}
 PARALLEL_LEVEL=${PARALLEL_LEVEL:=`nproc`}
 BUILD_ABI=${BUILD_ABI:=ON}
+UPDATE_RUST_DOCS=0
 
 # Default to Ninja if generator is not specified
 export CMAKE_GENERATOR="${CMAKE_GENERATOR:=Ninja}"
@@ -399,7 +400,7 @@ if hasArg docs; then
     mkdir -p _build
     rm -rf _build/*
     LC_ALL=C.UTF-8 sphinx-build -E . _build
-    if [ -x "$(command -v cargo)" ]; then
+    if [ -x "$(command -v cargo)" ] && [ -n "${UPDATE_RUST_DOCS}"]; then
         echo "Building hipVS Rust docs..."
         pushd ${REPODIR}/rust
         cargo doc -p hipvs --no-deps

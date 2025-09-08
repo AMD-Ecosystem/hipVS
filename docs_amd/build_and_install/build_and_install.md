@@ -13,6 +13,10 @@ hipVS currently provides C++, C and Python API's.
   - [C/C++ Tests](#c-and-c-tests)
   - [`ccache` and `sccache`](#ccache-and-sccache)
   - [Using CMake directly](#using-cmake-directly)
+  - [GPU Architecture selection](#gpu-architecture-selection)
+    - [All supported GPU architectures](#--allgpuarch)
+    - [Compile only for specified GPU arch](#compile-only-for-specified-gpu-arch)
+
 
 - [Python library](#python-library)
   - [Build and install hipvs python packages ](#build-and-install-hipvs-python-packages)
@@ -112,15 +116,18 @@ export CMAKE_PREFIX_PATH=/opt/rocm/lib/cmake # Set CMAKE_PREFIX_PATH to point to
 **The following environment variables are only required to be set for internal development. This section will be removed when hipVS becomes public.**
 
 
-Set the Github personal access token(`GITHUB_PASS`). Note `GITHUB_PASS` should be configured to authorize access to the `AMD-AI` organization.
+Set the Github personal access token(`GITHUB_PASS`). Note `GITHUB_PASS` should be configured to authorize access to the `AMD-AIOSS` organization.
 ```bash
 export GITHUB_PASS=<GITHUB_PERSONAL_ACCESS_TOKEN>
 ```
 
-hipVS currently depends on custom branch of [`rocmds-logger`](https://github.com/AMD-AI/rocmds-logger) and as a result we need a custom branch of `ROCmDS-cmake` to pull this specific version of `rocmds-logger`. The following environment variables help select this specific version of `ROCmDS-cmake`:
+The following environment variables need to be set to select the version of `ROCmDS-cmake` that's scheduled to be released for General Availability.
+
 ```bash
-export RAPIDS_CMAKE_BRANCH=feat/25.04-logger
-export RAPIDS_CMAKE_URL=https://${GITHUB_PASS}@github.com/AMD-AI/ROCmDS-cmake
+export RAPIDS_CMAKE_SCRIPT_REPO=ROCm-DS/ROCmDS-CMake                          # Which ROCmDS-cmake repository to use when pulling the entrypoint RAPIDS.cmake script.
+export RAPIDS_CMAKE_SCRIPT_BRANCH=release/1.0.x                               # Which branch of the public ROCmDS-cmake git repository to pull the entrypoint RAPIDS.cmake script from.
+export RAPIDS_CMAKE_URL=https://${GITHUB_PASS}@github.com/AMD-AIOSS/ROCmDS-cmake # URL to the internal ROCmDS-cmake git repository
+export RAPIDS_CMAKE_BRANCH=amd-integration/2.0.x                              # ROCmDS-cmake branch to use.
 ```
 
 ## C and C++ library
@@ -229,7 +236,9 @@ ctest --test-dir ./tests # If "--limit-tests" is specified, only a subset of tes
 ./build.sh libcuvs --cache-tool=ccache
 ```
 
-### --allgpuarch
+### GPU Architecture selection
+
+#### --allgpuarch
 
 Builds hipVS for all supported GPU architectures, increasing portability but also build time. You can also use --allgpuarch with `build.sh`:
 **Always execute a clean build or manually delete the build directory before running this argument if a previous build is present, to prevent potential build conflicts or errors.**
@@ -238,7 +247,7 @@ Builds hipVS for all supported GPU architectures, increasing portability but als
 ./build.sh clean
 ./build.sh libcuvs tests --allgpuarch
 ```
-### Compile only for specified GPU arch
+#### Compile only for specified GPU arch
 
 When specifying target architectures, provide them as a single string enclosed in double quotes. For multiple architectures, separate each with a semicolon (;).
 
