@@ -1,7 +1,7 @@
 # Introduction
 
 Examples demonstrating the use of the hipVS library are provided in the `examples` folder.
-Currently, examples targeting C and C++ bindings are available.  These
+Currently, examples targeting C, C++, and Python bindings are available.  These
 example projects can be used as templates to build your own application using
 hipVS, or to add hipVS to existing projects.
 
@@ -167,3 +167,27 @@ A basic port of the C++ IVF PQ example.
 This example is different from the others in that it demonstrates the GPU optimized vector
 distance computation functionality in hipVS. This example computes the L2 distance between two
 vectors using the [cuvsPairwiseDistance](pairwise-distance-c) function and prints the result to the screen.
+
+## Python Examples
+
+Similar to the C and C++ examples, these examples demonstrate the use of kNN and ANN algorithms
+to do vector search. The examples are:
+1. Cagra Example: Computes k nearest neighbors on randomly generated dataset and query
+   vectors using the Cagra algorithm.
+2. IVF Flat Example: Computes k nearest neighbors on randomly generated dataset and query
+   vectors using the IVF-Flat algorithm. Also demonstrates index building with explicitly specified
+   training set and then extending the index with the full input dataset for searching.
+3. IVF PQ Example: Computes k nearest neighbors on randomly generated dataset and query
+   vectors using the IVF-PQ algorithm. First k+n neighbors are found using the quantized search,
+   which are then refined to k vectors using full precision distance computation.
+4. Pairwise L2 Distances Example: Computes the pairwise l2 distance between 2 sets of vectors
+
+To run these examples, you need a Python environment with hipVS and its dependencies installed.
+Please follow this [documentation](../docs_amd/build_and_install/build_and_install.md#build-and-install-hipvs-python-packages),
+to see the list of dependencies and instructions on setting
+up a conda environment for hipVS. Inside the environment, the examples can be run using
+Python, for example:
+
+```bash
+$ python3 examples/python/cagra_example.py
+```
