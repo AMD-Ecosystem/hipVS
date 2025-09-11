@@ -37,6 +37,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-sometimes-uninitialized
     -Wno-unused-but-set-variable
     -Wno-unused-function
+    -Wno-comment
+    -Wno-pass-failed
   )
   # (HIP/AMD): Enable all warnings and treat them as errors. We then disable specific warnings that
   # are problematic. Eventually we want to enable all warnings and treat them as errors by pruning
