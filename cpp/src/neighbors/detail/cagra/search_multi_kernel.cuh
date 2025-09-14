@@ -147,7 +147,7 @@ RAFT_KERNEL random_pickup_kernel(
   dataset_desc = dataset_desc->setup_workspace(smem, queries_ptr, query_id);
   __syncthreads();
 
-  INDEX_T best_index_team_local;
+  INDEX_T best_index_team_local = utils::get_max_value<INDEX_T>();
   DISTANCE_T best_norm2_team_local = utils::get_max_value<DISTANCE_T>();
   for (unsigned i = 0; i < num_distilation; i++) {
     INDEX_T seed_index;
@@ -373,6 +373,14 @@ RAFT_KERNEL compute_distance_to_child_nodes_kernel(
     return;
   }
   const auto parent_index = raw_parent_index & ~index_msb_1_mask;
+
+  // Debug guard: parent_index must be a valid dataset id in [0, dataset_desc->size).
+  // Invariant: entries in parent_candidates_ptr are either the sentinel (~0),"used" (MSB=1),
+  // or a valid id (MSB=0) with id < dataset_desc->size. A prior bug in random_pickup_kernel
+  // could leave best_index_team_local uninitialized, letting garbage propagate here and produce
+  // an out-of-range parent_index. This assert documents the contract and catches any upstream
+  // corruption (e.g., stale/invalid candidates or a bad neighbor graph) early in debug builds.
+  assert(parent_index < dataset_desc->size);
 
   const auto neighbor_list_head_ptr = neighbor_graph_ptr + (graph_degree * parent_index);
 
