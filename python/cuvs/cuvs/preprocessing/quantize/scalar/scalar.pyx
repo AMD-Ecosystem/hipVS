@@ -26,6 +26,8 @@ from cuvs.common.exceptions import check_cuvs
 from cuvs.common.resources import auto_sync_resources
 from cuvs.neighbors.common import _check_input_array
 
+from cuvs.common.c_api cimport cuvsError_t, cuvsLogLastErrorText
+
 
 cdef class QuantizerParams:
     """
@@ -44,7 +46,12 @@ cdef class QuantizerParams:
         check_cuvs(cuvsScalarQuantizerParamsCreate(&self.params))
 
     def __dealloc__(self):
-        check_cuvs(cuvsScalarQuantizerParamsDestroy(self.params))
+        if (
+            cuvsScalarQuantizerParamsDestroy(self.params)
+            == cuvsError_t.CUVS_ERROR
+        ):
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *, quantile=None):
         if quantile is not None:
@@ -68,7 +75,12 @@ cdef class Quantizer:
         check_cuvs(cuvsScalarQuantizerCreate(&self.quantizer))
 
     def __dealloc__(self):
-        check_cuvs(cuvsScalarQuantizerDestroy(self.quantizer))
+        if (
+            cuvsScalarQuantizerDestroy(self.quantizer)
+            == cuvsError_t.CUVS_ERROR
+        ):
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     @property
     def min(self):

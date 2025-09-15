@@ -47,6 +47,8 @@ from libc.stdint cimport (
 
 from cuvs.common.exceptions import check_cuvs
 
+from cuvs.common.c_api cimport cuvsError_t, cuvsLogLastErrorText
+
 
 cdef class IndexParams:
     """
@@ -103,7 +105,12 @@ cdef class IndexParams:
         cuvsIvfFlatIndexParamsCreate(&self.params)
 
     def __dealloc__(self):
-        check_cuvs(cuvsIvfFlatIndexParamsDestroy(self.params))
+        if (
+            cuvsIvfFlatIndexParamsDestroy(self.params)
+            == cuvsError_t.CUVS_ERROR
+        ):
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *,
                  n_lists=1024,
@@ -172,7 +179,9 @@ cdef class Index:
         check_cuvs(cuvsIvfFlatIndexCreate(&self.index))
 
     def __dealloc__(self):
-        check_cuvs(cuvsIvfFlatIndexDestroy(self.index))
+        if cuvsIvfFlatIndexDestroy(self.index) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     @property
     def trained(self):
@@ -257,7 +266,12 @@ cdef class SearchParams:
         cuvsIvfFlatSearchParamsCreate(&self.params)
 
     def __dealloc__(self):
-        check_cuvs(cuvsIvfFlatSearchParamsDestroy(self.params))
+        if (
+            cuvsIvfFlatSearchParamsDestroy(self.params)
+            == cuvsError_t.CUVS_ERROR
+        ):
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *, n_probes=20):
         self.params.n_probes = n_probes

@@ -50,6 +50,8 @@ from libc.stdint cimport (
 from cuvs.common.exceptions import check_cuvs
 from cuvs.neighbors.filters import no_filter
 
+from cuvs.common.c_api cimport cuvsError_t, cuvsLogLastErrorText
+
 
 cdef class CompressionParams:
     """
@@ -84,7 +86,12 @@ cdef class CompressionParams:
         check_cuvs(cuvsCagraCompressionParamsCreate(&self.params))
 
     def __dealloc__(self):
-        check_cuvs(cuvsCagraCompressionParamsDestroy(self.params))
+        if (
+            cuvsCagraCompressionParamsDestroy(self.params)
+            == cuvsError_t.CUVS_ERROR
+        ):
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *,
                  pq_bits=8,
@@ -169,7 +176,9 @@ cdef class IndexParams:
         self.compression = None
 
     def __dealloc__(self):
-        check_cuvs(cuvsCagraIndexParamsDestroy(self.params))
+        if cuvsCagraIndexParamsDestroy(self.params) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *,
                  metric="sqeuclidean",
@@ -228,7 +237,9 @@ cdef class Index:
 
     def __dealloc__(self):
         if self.index is not NULL:
-            check_cuvs(cuvsCagraIndexDestroy(self.index))
+            if cuvsCagraIndexDestroy(self.index) == cuvsError_t.CUVS_ERROR:
+                # don't raise an exception here, just log the error
+                cuvsLogLastErrorText()
 
     @property
     def trained(self):

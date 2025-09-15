@@ -46,6 +46,8 @@ from libc.stdint cimport (
 
 from cuvs.common.exceptions import check_cuvs
 
+from cuvs.common.c_api cimport cuvsError_t, cuvsLogLastErrorText
+
 
 cdef class IndexParams:
     """
@@ -127,7 +129,9 @@ cdef class IndexParams:
         cuvsIvfPqIndexParamsCreate(&self.params)
 
     def __dealloc__(self):
-        check_cuvs(cuvsIvfPqIndexParamsDestroy(self.params))
+        if cuvsIvfPqIndexParamsDestroy(self.params) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *,
                  n_lists=1024,
@@ -229,7 +233,9 @@ cdef class Index:
         check_cuvs(cuvsIvfPqIndexCreate(&self.index))
 
     def __dealloc__(self):
-        check_cuvs(cuvsIvfPqIndexDestroy(self.index))
+        if cuvsIvfPqIndexDestroy(self.index) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     @property
     def trained(self):
@@ -336,7 +342,9 @@ cdef class SearchParams:
         cuvsIvfPqSearchParamsCreate(&self.params)
 
     def __dealloc__(self):
-        check_cuvs(cuvsIvfPqSearchParamsDestroy(self.params))
+        if cuvsIvfPqSearchParamsDestroy(self.params) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *, n_probes=20, lut_dtype=np.float32,
                  internal_distance_dtype=np.float32):

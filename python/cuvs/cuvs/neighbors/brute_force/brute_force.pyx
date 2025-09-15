@@ -36,7 +36,11 @@ from pylibraft.common.interruptible import cuda_interruptible
 from cuvs.distance import DISTANCE_TYPES
 from cuvs.neighbors.common import _check_input_array
 
-from cuvs.common.c_api cimport cuvsResources_t
+from cuvs.common.c_api cimport (
+    cuvsError_t,
+    cuvsLogLastErrorText,
+    cuvsResources_t,
+)
 
 from cuvs.common.exceptions import check_cuvs
 from cuvs.neighbors.filters import no_filter
@@ -56,8 +60,12 @@ cdef class Index:
         check_cuvs(cuvsBruteForceIndexCreate(&self.index))
 
     def __dealloc__(self):
-        if self.index is not NULL:
-            check_cuvs(cuvsBruteForceIndexDestroy(self.index))
+        if (
+            self.index is not NULL and
+            cuvsBruteForceIndexDestroy(self.index) == cuvsError_t.CUVS_ERROR
+        ):
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     @property
     def trained(self):

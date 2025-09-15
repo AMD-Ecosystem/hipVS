@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cuvs/core/c_api.h>
 #include <cuvs/core/exceptions.hpp>
+#include <iostream>
 #include <memory>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resources.hpp>
@@ -151,6 +152,11 @@ thread_local std::string last_error_text = "";
 extern "C" const char* cuvsGetLastErrorText()
 {
   return last_error_text.empty() ? NULL : last_error_text.c_str();
+}
+
+extern "C" void cuvsLogLastErrorText()
+{
+  if (!last_error_text.empty()) { std::cerr << last_error_text << std::endl; }
 }
 
 extern "C" void cuvsSetLastErrorText(const char* error) { last_error_text = error ? error : ""; }

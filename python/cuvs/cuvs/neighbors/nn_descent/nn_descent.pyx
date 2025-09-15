@@ -46,6 +46,8 @@ from libc.stdint cimport (
 
 from cuvs.common.exceptions import check_cuvs
 
+from cuvs.common.c_api cimport cuvsError_t, cuvsLogLastErrorText
+
 
 cdef class IndexParams:
     """
@@ -79,7 +81,12 @@ cdef class IndexParams:
         cuvsNNDescentIndexParamsCreate(&self.params)
 
     def __dealloc__(self):
-        check_cuvs(cuvsNNDescentIndexParamsDestroy(self.params))
+        if (
+            cuvsNNDescentIndexParamsDestroy(self.params)
+            == cuvsError_t.CUVS_ERROR
+        ):
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *,
                  metric=None,
@@ -155,7 +162,9 @@ cdef class Index:
         check_cuvs(cuvsNNDescentIndexCreate(&self.index))
 
     def __dealloc__(self):
-        check_cuvs(cuvsNNDescentIndexDestroy(self.index))
+        if cuvsNNDescentIndexDestroy(self.index) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     @property
     def trained(self):

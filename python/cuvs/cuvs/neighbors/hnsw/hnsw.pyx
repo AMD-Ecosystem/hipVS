@@ -24,6 +24,7 @@ from cuvs.common.resources import auto_sync_resources
 from cuvs.neighbors.common import _check_input_array
 
 from cuvs.common cimport cydlpack
+from cuvs.common.c_api cimport cuvsError_t, cuvsLogLastErrorText
 
 import numpy as np
 
@@ -69,7 +70,9 @@ cdef class IndexParams:
         check_cuvs(cuvsHnswIndexParamsCreate(&self.params))
 
     def __dealloc__(self):
-        check_cuvs(cuvsHnswIndexParamsDestroy(self.params))
+        if cuvsHnswIndexParamsDestroy(self.params) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *,
                  hierarchy="none",
@@ -120,7 +123,9 @@ cdef class Index:
 
     def __dealloc__(self):
         if self.index is not NULL:
-            check_cuvs(cuvsHnswIndexDestroy(self.index))
+            if cuvsHnswIndexDestroy(self.index) == cuvsError_t.CUVS_ERROR:
+                # don't raise an exception here, just log the error
+                cuvsLogLastErrorText()
 
     @property
     def trained(self):
@@ -149,7 +154,9 @@ cdef class ExtendParams:
         check_cuvs(cuvsHnswExtendParamsCreate(&self.params))
 
     def __dealloc__(self):
-        check_cuvs(cuvsHnswExtendParamsDestroy(self.params))
+        if cuvsHnswExtendParamsDestroy(self.params) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
     def __init__(self, *,
                  num_threads=0):

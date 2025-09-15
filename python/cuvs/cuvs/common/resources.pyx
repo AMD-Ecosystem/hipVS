@@ -41,6 +41,8 @@ import functools
 from cuda.bindings.cyruntime cimport cudaStream_t
 
 from cuvs.common.c_api cimport (
+    cuvsError_t,
+    cuvsLogLastErrorText,
     cuvsResources_t,
     cuvsResourcesCreate,
     cuvsResourcesDestroy,
@@ -99,7 +101,9 @@ cdef class Resources:
         return <size_t> self.c_obj
 
     def __dealloc__(self):
-        check_cuvs(cuvsResourcesDestroy(self.c_obj))
+        if cuvsResourcesDestroy(self.c_obj) == cuvsError_t.CUVS_ERROR:
+            # don't raise an exception here, just log the error
+            cuvsLogLastErrorText()
 
 
 _resources_param_string = """
