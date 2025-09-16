@@ -22,10 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-ARG ROCM=6.4.2
+ARG ROCM=7.0
 FROM quay.io/pypa/manylinux_2_28_x86_64
 
-ARG ROCM=6.4.2
+ARG ROCM=7.0
 
 RUN dnf install -y wget
 
@@ -83,10 +83,11 @@ make install
 EOT
 
 RUN <<EOT
-wget -q https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.6.tar.bz2
-bzip2 -d openmpi-5.0.6.tar.bz2
-tar -xvf openmpi-5.0.6.tar
-cd openmpi-5.0.6
+wget -q https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.7.tar.bz2
+bzip2 -d openmpi-5.0.7.tar.bz2
+tar -xvf openmpi-5.0.7.tar
+cd openmpi-5.0.7
+export CFLAGS="-Wno-int-conversion -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch"
 ./configure --prefix=/usr --with-ucx=/usr --with-rocm=/opt/rocm
 make -j $(nproc)
 make install

@@ -23,21 +23,10 @@
 # SOFTWARE.
 
 ARG UBUNTU="24.04"
-ARG ROCM=6.4.2
-# TODO: Change the BASE to point to the public ROCm 7 image when it becomes available
-# ARG BASE=rocm/dev-ubuntu-${UBUNTU}:${ROCM}-complete
-ARG BASE=ubuntu:24.04
+ARG ROCM=7.0
+ARG BASE=rocm/dev-ubuntu-${UBUNTU}:${ROCM}-complete
 FROM ${BASE}
 
-# Args used before a FROM statement are reset. Adding another ARG here keeps the default value the same, and
-# when specifying --build-arg UBUNTU=<SOME_VAL>, SOME_VAL is applied to both UBUNTU args.
-ARG UBUNTU="24.04"
-
-ARG GITHUB_USER
-ARG GITHUB_PASS
-
-ENV GITHUB_USER=${GITHUB_USER}
-ENV GITHUB_PASS=${GITHUB_PASS}
 ENV ROCM=${ROCM}
 
 #Ensures that if any stage in a pipe fails, that the entire RUN command fails
@@ -67,17 +56,6 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         rsync \
         ccache
 EOT
-
-#######################################################################################################################################
-# TODO: Remove this block once we start using a base image with ROCm pre-installed
-RUN wget -N -P /tmp/ https://artifactory-cdn.amd.com/artifactory/list/amdgpu-deb/amdgpu-install-internal_7.0-24.04-1_all.deb
-RUN apt update
-RUN apt-get install -y /tmp/amdgpu-install-internal_7.0-24.04-1_all.deb
-RUN sh -c 'echo deb [arch=amd64 trusted=yes] https://compute-artifactory.amd.com/artifactory/list/rocm-release-archive-24.04-deb/ 7.0 rel-24 > /etc/apt/sources.list.d/rocm-build.list'
-RUN amdgpu-repo --amdgpu-build=2196257
-RUN amdgpu-install -y --usecase=rocm,rocmdev,rocmdevtools,lrt,opencl,openclsdk,hip,hiplibsdk,openmpsdk,mllib,mlsdk
-RUN rm /tmp/amdgpu-*
-#######################################################################################################################################
 
 WORKDIR /third_party_builds
 
