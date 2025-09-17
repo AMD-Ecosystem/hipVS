@@ -63,7 +63,7 @@ set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
 set(CUDA_STATIC_MATH_LIBRARIES OFF) # No static linking with HIP, HIP must be installed
 
 # --- RAFT ---#
-set(CUVS_USE_RAFT_STATIC OFF)
+set(CUVS_STATIC_RAPIDS_LIBRARIES OFF)
 
 # --- cuVS ---#
 set(BUILD_TESTS OFF)
