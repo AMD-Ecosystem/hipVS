@@ -831,7 +831,9 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
 
   if(NOT DISABLE_OPENMP)
     target_link_options(cuvs PRIVATE "-fopenmp=libomp")
-    target_link_options(cuvs_c PRIVATE "-fopenmp=libomp")
+    if(TARGET cuvs_c)
+      target_link_options(cuvs_c PRIVATE "-fopenmp=libomp")
+    endif()
   endif()
 
   # ################################################################################################
