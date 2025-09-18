@@ -939,4 +939,8 @@ set(CPACK_PACKAGING_INSTALL_PREFIX
     "/opt/rocm-ds"
     CACHE PATH "Package install prefix." FORCE
 )
+# Dependencies
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "hipraft (= 0.1.0)")
+set(CPACK_RPM_PACKAGE_REQUIRES "hipraft = 0.1.0")
+
 include(CPack)
