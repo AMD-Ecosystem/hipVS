@@ -28,12 +28,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Use RAPIDS_VERSION from cmake/thirdparty/fetch_rapids.cmake
-set(CUVS_VERSION "${RAPIDS_VERSION}")
+set(CUVS_VERSION "0.1.0")
 set(CUVS_FORK "AMD-AIOSS")
-#set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION}")
 set(CUVS_PINNED_TAG "amd-integration")
-# When PINNED_TAG above doesn't match the default rapids branch,
+# When PINNED_TAG above doesn't match the default branch,
 # force local hipVS clone in build directory
 # even if it's already installed.
 set(CUVS_CLONE_ON_PIN ON)
@@ -43,7 +41,7 @@ function(find_and_configure_cuvs)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
             "${multiValueArgs}" ${ARGN} )
 
-    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUVS_VERSION}")
+    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "amd-integration")
         message(STATUS "CUVS pinned tag found: ${PKG_PINNED_TAG}. Cloning locally.")
         set(CPM_DOWNLOAD_cuvs ON)
     endif()
@@ -74,7 +72,7 @@ endfunction()
 # Change pinned tag here to test a commit in CI
 # To use a different CUVS locally, set the CMake variable
 # CPM_cuvs_SOURCE=/path/to/local/cuvs
-find_and_configure_cuvs(VERSION  ${CUVS_VERSION}.00
+find_and_configure_cuvs(VERSION  ${CUVS_VERSION}
         FORK                     ${CUVS_FORK}
         PINNED_TAG               ${CUVS_PINNED_TAG}
         CLONE_ON_PIN             ${CUVS_CLONE_ON_PIN}
