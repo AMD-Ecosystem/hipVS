@@ -101,18 +101,12 @@ cdef class IndexParams:
         distribution of the newly added data.
     """
 
-    cdef cuvsIvfFlatIndexParams* params
-
     def __cinit__(self):
         cuvsIvfFlatIndexParamsCreate(&self.params)
 
     def __dealloc__(self):
-        if (
-            cuvsIvfFlatIndexParamsDestroy(self.params)
-            == cuvsError_t.CUVS_ERROR
-        ):
-            # don't raise an exception here, just log the error
-            cuvsLogLastErrorText()
+        if self.params != NULL:
+            check_cuvs(cuvsIvfFlatIndexParamsDestroy(self.params))
 
     def __init__(self, *,
                  n_lists=1024,
@@ -293,18 +287,12 @@ cdef class SearchParams:
         The number of clusters to search.
     """
 
-    cdef cuvsIvfFlatSearchParams* params
-
     def __cinit__(self):
         cuvsIvfFlatSearchParamsCreate(&self.params)
 
     def __dealloc__(self):
-        if (
-            cuvsIvfFlatSearchParamsDestroy(self.params)
-            == cuvsError_t.CUVS_ERROR
-        ):
-            # don't raise an exception here, just log the error
-            cuvsLogLastErrorText()
+        if self.params != NULL:
+            check_cuvs(cuvsIvfFlatSearchParamsDestroy(self.params))
 
     def __init__(self, *, n_probes=20):
         self.params.n_probes = n_probes

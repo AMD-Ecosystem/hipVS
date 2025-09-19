@@ -33,6 +33,7 @@ add_subdirectory(ivf_pq)
 add_subdirectory(filters)
 add_subdirectory(nn_descent)
 add_subdirectory(tiered_index)
+add_subdirectory(mg)
 add_subdirectory(all_neighbors)
 
 # Set the list of Cython files to build
