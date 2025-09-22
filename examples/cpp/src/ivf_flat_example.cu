@@ -74,7 +74,7 @@ void ivf_flat_build_search_simple(raft::device_resources const& dev_resources,
 
   // Set search parameters.
   ivf_flat::search_params search_params;
-  search_params.n_probes = index_params.n_lists / 8;
+  search_params.n_probes = index_params.n_lists / 5;
 
   // Search K nearest neighbors for each of the queries.
   ivf_flat::search(
@@ -125,7 +125,7 @@ void ivf_flat_build_extend_search(raft::device_resources const& dev_resources,
 
   // Set search parameters.
   ivf_flat::search_params search_params;
-  search_params.n_probes = index_params.n_lists / 8;
+  search_params.n_probes = index_params.n_lists / 5;
 
   // Create output arrays.
   int64_t topk      = 10;

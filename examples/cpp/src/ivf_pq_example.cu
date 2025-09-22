@@ -66,7 +66,7 @@ void ivf_pq_build_search(raft::device_resources const& dev_resources,
 
   // Set search parameters.
   ivf_pq::search_params search_params;
-  search_params.n_probes = index_params.n_lists / 8;
+  search_params.n_probes = index_params.n_lists / 5;
   // Set the internal search precision to 16-bit floats;
   // usually, this improves the performance at a slight cost to the recall.
   search_params.internal_distance_dtype = CUDA_R_16F;
