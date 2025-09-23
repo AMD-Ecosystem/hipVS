@@ -255,6 +255,39 @@ void batched_insert_vamana(
       int total_edges;
       raft::copy(&total_edges, d_total_edges.data_handle(), 1, stream);
       RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
+      if (total_edges == 0) {
+        // clang-format off
+        /* (HIP/AMD) This additional check was added not to solve any HIP/AMD specific issue,
+           but to address an actual bug in the code. The bug was that if total_edges is 0,
+           then the following statement a few lines below `raft::linalg::map_offset(res, unique_indices.view(), raft::identity_op{})`
+           would result in a kernel launch with 0 blocks. Since this is an invalid
+           configuration it would set the global error flag(with `hipErrorInvalidConfiguration`)
+           and `hipGetLastError()` would return an error.
+
+           In the subsequent iteration after this has happened the global error flag would
+           still be set and the hipcub call to cub::DeviceMergeSort::SortPairs would fail.
+
+           The hipcub error checking macro is defined as follows:
+           ```
+            #define ROCPRIM_DETAIL_HIP_SYNC_AND_RETURN_ON_ERROR(name, size, start)                           \
+                do                                                                                           \
+                {                                                                                            \
+                    auto _error = hipGetLastError();                                                         \
+                    if(_error != hipSuccess)                                                                 \
+                        return _error;                                                                       \
+                    ERROR HANDLING CODE                                                                      \
+                }                                                                                            \
+                while(0)
+           ```
+           In the macro `hipGetLastError()` will return an error code even though the hipcub kernel launch was successful since the global error flag is set.
+        */
+        // clang-format on
+
+        // If no edges were created, skip to next batch. We have no edges to sort and reverse.
+        start += step_size;
+        step_size = std::min<int>(static_cast<int>(step_size * base), max_batchsize);
+        continue;
+      }
 
       auto edge_dest =
         raft::make_device_mdarray<IdxT>(res,
