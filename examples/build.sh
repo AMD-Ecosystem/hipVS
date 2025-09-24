@@ -52,14 +52,8 @@ EXAMPLE_LANGS="c cpp"
 
 if [[ ${CUVS_REPO_REL} != "" ]]; then
   CUVS_REPO_PATH="`readlink -f \"${CUVS_REPO_REL}\"`"
-  if [ -f "${CUVS_REPO_PATH}/cpp/build/cuvs-config.cmake" ]; then
-    LIB_BUILD_DIR="${CUVS_REPO_PATH}/cpp/build"
-    echo "Using existing cuVS build found under ${LIB_BUILD_DIR}"
-    EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -Dcuvs_ROOT=${LIB_BUILD_DIR}"
-  else
-    echo "Using existing cuVS source tree at ${CUVS_REPO_PATH}"
-    EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -DCPM_cuvs_SOURCE=${CUVS_REPO_PATH}"
-  fi
+  echo "Using existing cuVS source tree at ${CUVS_REPO_PATH}"
+  EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS} -DCPM_cuvs_SOURCE=${CUVS_REPO_PATH}"
 fi
 
 if [ "$1" == "clean" ]; then
