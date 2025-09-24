@@ -127,7 +127,7 @@ public class TieredIndexImpl implements TieredIndex {
               : MemorySegment.NULL;
 
       // Get host data
-      MemorySegment hostDataSeg = ((CuVSHostMatrixImpl) dataset).memorySegment();
+      MemorySegment hostDataSeg = ((CuVSMatrixInternal) dataset).memorySegment();
 
       try (var resourceAccess = resources.access()) {
         long cuvsRes = resourceAccess.handle();
@@ -329,7 +329,7 @@ public class TieredIndexImpl implements TieredIndex {
       long cols = extendDataset.columns();
 
       // Get host data
-      MemorySegment hostDataSeg = ((CuVSMatrixBaseImpl) extendDataset).memorySegment();
+      MemorySegment hostDataSeg = ((CuVSMatrixInternal) extendDataset).memorySegment();
 
       try (var resourceAccess = resources.access()) {
         long cuvsRes = resourceAccess.handle();
