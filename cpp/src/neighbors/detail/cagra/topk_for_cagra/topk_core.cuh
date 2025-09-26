@@ -741,7 +741,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_cta_11_core(uint32_t topk,
 #endif
 
   if (!sort) {
-    for (int k = thread_id; k < topk; k += blockDim.x) {
+    for (int k = thread_id; k < std::min(topk, *output_count); k += blockDim.x) {
       const uint32_t i = smem_out_vals[k];
       if (y) { y[k] = x[i]; }
       if (out_vals) {
@@ -763,7 +763,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_cta_11_core(uint32_t topk,
   if (thread_id < numSortThreads) {
     for (int i = 0; i < numTopkPerThread; i++) {
       const int k = thread_id + (numSortThreads * i);
-      if (k < topk) {
+      if (k < std::min(topk, *output_count)) {
         const int j = smem_out_vals[k];
         my_keys[i]  = ((float*)x)[j];
         if (in_vals) {
