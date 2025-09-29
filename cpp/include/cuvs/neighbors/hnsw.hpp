@@ -183,6 +183,10 @@ struct extend_params {
 /**@}*/
 
 /**
+ * @}
+ */
+
+/**
  * @defgroup hnsw_cpp_index_load Load CAGRA index as hnswlib index
  * @{
  */
