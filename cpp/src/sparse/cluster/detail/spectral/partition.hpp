@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@
 #include "../../cluster_solvers.cuh"
 #include "../../eigen_solvers.cuh"
 #include "spectral_util.cuh"
+#include <raft/sparse/linalg/laplacian.cuh>
 #include <raft/spectral/matrix_wrappers.hpp>
 
 #ifdef __HIP_PLATFORM_AMD__
@@ -60,10 +61,6 @@
 namespace cuvs {
 namespace spectral {
 namespace detail {
-
-// =========================================================
-// Spectral partitioner
-// =========================================================
 
 /// Compute spectral graph partition
 /** Compute partition for a weighted undirected graph. This
@@ -117,14 +114,20 @@ std::tuple<vertex_t, weight_t, vertex_t> partition(
   // Compute eigenvectors of Laplacian
 
   // Initialize Laplacian
-  /// sparse_matrix_t<vertex_t, weight_t> A{handle, graph};
-  raft::spectral::matrix::laplacian_matrix_t<vertex_t, weight_t> L{handle, csr_m};
+// <<<<<<< OLD CODE from 4cf565a3b (a684cc5d5) - COMMENTED OUT
+//   /// sparse_matrix_t<vertex_t, weight_t> A{handle, graph};
+//   raft::spectral::matrix::laplacian_matrix_t<vertex_t, weight_t> L{handle, csr_m};
+// =======
+  auto laplacian =
+    raft::sparse::linalg::compute_graph_laplacian(handle, csr_m.to_csr_matrix_view());
+// >>>>>>> END NEW CODE (a684cc5d5)
 
   auto eigen_config = eigen_solver.get_config();
   auto nEigVecs     = eigen_config.n_eigVecs;
 
   // Compute smallest eigenvalues and eigenvectors
-  std::get<0>(stats) = eigen_solver.solve_smallest_eigenvectors(handle, L, eigVals, eigVecs);
+  std::get<0>(stats) =
+    eigen_solver.solve_smallest_eigenvectors(handle, laplacian.view(), eigVals, eigVecs);
 
   // Whiten eigenvector matrix
   transform_eigen_matrix(handle, n, nEigVecs, eigVecs);
