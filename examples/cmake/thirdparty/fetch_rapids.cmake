@@ -33,6 +33,19 @@ set(RAPIDS_VERSION "25.02")
 
 set(RAPIDS_CMAKE_SCRIPT_BRANCH "release/1.0.x" CACHE STRING "Specify the ROCmDS-CMake branch to fetch the cmake file from")
 
+if(NOT DEFINED ENV{RAPIDS_CMAKE_BRANCH})
+    message(STATUS "RAPIDS_CMAKE_BRANCH is not set. Using branch 'amd-integration/2.0.x'.")
+    set(ENV{RAPIDS_CMAKE_BRANCH} "amd-integration/2.0.x")
+endif()
+if(NOT DEFINED ENV{RAPIDS_CMAKE_REPO})
+  message(STATUS "RAPIDS_CMAKE_REPO is not set. Using 'ROCm-DS/ROCmDS-CMake'.")
+  set(ENV{RAPIDS_CMAKE_REPO} "ROCm-DS/ROCmDS-CMake")
+endif()
+if(NOT DEFINED ENV{RAPIDS_CMAKE_VERSION})
+  message(STATUS "RAPIDS_CMAKE_REPO is not set. Using '2.0.0'.")
+  set(ENV{RAPIDS_CMAKE_VERSION} 2.0.0)
+endif()
+
 if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/HIPVS_RAPIDS.cmake)
   set(URL
       "https://raw.githubusercontent.com/ROCm-DS/ROCmDS-CMake/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
