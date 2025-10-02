@@ -11,19 +11,21 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-# Modifications Copyright (c) 2024 Advanced Micro Devices, Inc. Permission is hereby granted, free
-# of charge, to any person obtaining a copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following
-# conditions: The above copyright notice and this permission notice shall be included in all copies
-# or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-# KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+# Modifications Copyright (c) 2024-2025 Advanced Micro Devices, Inc. Permission is hereby granted,
+# free of charge, to any person obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so, subject to the
+# following conditions: The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT
+# WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # ===============================================================================
+
+# cmake-lint: disable=W0106
 file(READ "${CMAKE_CURRENT_LIST_DIR}/VERSION" _rapids_version)
 if(_rapids_version MATCHES [[^([0-9][0-9])\.([0-9][0-9])\.([0-9][0-9])]])
   set(RAPIDS_VERSION_MAJOR "${CMAKE_MATCH_1}")
@@ -44,6 +46,18 @@ if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MI
     set(RAPIDS_CMAKE_SCRIPT_BRANCH "$ENV{RAPIDS_CMAKE_SCRIPT_BRANCH}")
   else()
     set(RAPIDS_CMAKE_SCRIPT_BRANCH release/1.0.x)
+  endif()
+  if(NOT DEFINED ENV{RAPIDS_CMAKE_BRANCH})
+    message(STATUS "RAPIDS_CMAKE_BRANCH is not set. Using branch 'amd-integration/2.0.x'.")
+    set(ENV{RAPIDS_CMAKE_BRANCH} "amd-integration/2.0.x")
+  endif()
+  if(NOT DEFINED ENV{RAPIDS_CMAKE_REPO})
+    message(STATUS "RAPIDS_CMAKE_REPO is not set. Using 'ROCm-DS/ROCmDS-CMake'.")
+    set(ENV{RAPIDS_CMAKE_REPO} "ROCm-DS/ROCmDS-CMake")
+  endif()
+  if(NOT DEFINED ENV{RAPIDS_CMAKE_VERSION})
+    message(STATUS "RAPIDS_CMAKE_REPO is not set. Using '2.0.0'.")
+    set(ENV{RAPIDS_CMAKE_VERSION} 2.0.0)
   endif()
   set(URL
       "https://raw.githubusercontent.com/ROCm-DS/ROCmDS-cmake/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
