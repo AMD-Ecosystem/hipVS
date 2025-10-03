@@ -35,10 +35,9 @@
 
 #include "../../core/nvtx.hpp"
 #include "refine_common.hpp"
+#include <omp.h>
 #include <raft/core/host_mdspan.hpp>
 #include <raft/util/integer_utils.hpp>
-
-#include <omp.h>
 
 #include <algorithm>
 
@@ -92,6 +91,7 @@ DistanceT euclidean_distance_squared_generic(DataT const* a, DataT const* b, siz
 
 struct distance_comp_l2;
 struct distance_comp_inner;
+struct distance_comp_cosine;
 
 // fallback
 template <typename DC, typename DistanceT, typename DataT>
@@ -362,6 +362,26 @@ inline float euclidean_distance_squared<distance_comp_inner, float, ::std::uint8
 //  Refine kernel
 // -----------------------------------------------------------------------------
 
+// Cosine distance: 1 - (a·b)/(||a||·||b||)
+template <typename DistanceT, typename DataT>
+inline DistanceT cosine_distance(DataT const* a, DataT const* b, size_t n)
+{
+  using AccT = double;
+  AccT dot   = AccT{0};
+  AccT na2   = AccT{0};
+  AccT nb2   = AccT{0};
+  for (size_t i = 0; i < n; ++i) {
+    AccT va = static_cast<AccT>(a[i]);
+    AccT vb = static_cast<AccT>(b[i]);
+    dot += va * vb;
+    na2 += va * va;
+    nb2 += vb * vb;
+  }
+  AccT denom = std::sqrt(na2) * std::sqrt(nb2);
+  AccT dist  = denom > AccT{0} ? AccT{1} - (dot / denom) : AccT{1};
+  return static_cast<DistanceT>(dist);
+}
+
 template <typename DC, typename IdxT, typename DataT, typename DistanceT, typename ExtentsT>
 GCC_ATTRIBUTES void refine_host_impl(
   raft::host_matrix_view<const DataT, ExtentsT, raft::row_major> dataset,
@@ -452,7 +472,11 @@ GCC_ATTRIBUTES void refine_host_impl(
             distance = std::numeric_limits<DistanceT>::max();
           } else {
             const DataT* row = dataset.data_handle() + dim * id;
-            distance         = euclidean_distance_squared<DC, DistanceT, DataT>(query, row, dim);
+            if constexpr (std::is_same_v<DC, distance_comp_cosine>) {
+              distance = cosine_distance<DistanceT, DataT>(query, row, dim);
+            } else {
+              distance = euclidean_distance_squared<DC, DistanceT, DataT>(query, row, dim);
+            }
           }
           refined_pairs[tid][j] = std::make_tuple(distance, id);
         }
@@ -497,6 +521,19 @@ struct distance_comp_inner {
   }
 };
 
+struct distance_comp_cosine {
+  template <typename DistanceT>
+  static inline auto eval(const DistanceT&, const DistanceT&) -> DistanceT
+  {
+    return DistanceT{0};
+  }
+  template <typename DistanceT>
+  static inline auto postprocess(const DistanceT& a) -> DistanceT
+  {
+    return a;
+  }
+};
+
 /**
  * Naive CPU implementation of refine operation
  *
@@ -524,6 +561,9 @@ GCC_ATTRIBUTES void refine_host(
         dataset, queries, neighbor_candidates, indices, distances);
     case cuvs::distance::DistanceType::InnerProduct:
       return refine_host_impl<distance_comp_inner>(
+        dataset, queries, neighbor_candidates, indices, distances);
+    case cuvs::distance::DistanceType::CosineExpanded:
+      return refine_host_impl<distance_comp_cosine>(
         dataset, queries, neighbor_candidates, indices, distances);
     default: throw raft::logic_error("Unsupported metric");
   }
