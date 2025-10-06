@@ -31,6 +31,17 @@
 # Use this variable to update RAPIDS and hipVS versions
 set(RAPIDS_VERSION "25.02")
 
+set(RAPIDS_CMAKE_MODULE_PATH
+    $ENV{RAPIDS_CMAKE_MODULE_PATH}
+    CACHE FILEPATH "Announce that ROCmDS-CMake is available via the provided module path."
+)
+if(NOT "${RAPIDS_CMAKE_MODULE_PATH}" STREQUAL "")
+  # Prefer the user-provided path to the default path
+  list(APPEND CMAKE_MODULE_PATH "${RAPIDS_CMAKE_MODULE_PATH}")
+  include(rapids-cmake)
+  return()
+endif()
+
 set(RAPIDS_CMAKE_SCRIPT_BRANCH "release/1.0.x" CACHE STRING "Specify the ROCmDS-CMake branch to fetch the cmake file from")
 
 if(NOT DEFINED ENV{RAPIDS_CMAKE_BRANCH})
