@@ -8,17 +8,16 @@
 hipVS documentation
 ********************************************************************
 
-.. include:: ../README.md
-   :parser: myst_parser.sphinx_
-
-------------
+hipVS is a port of the RAPIDS `cuvs <https://github.com/rapidsai/cuvs>`_ library. It
+follows the directory structure, file naming and API naming as closely as possible to
+minimize porting friction for developers using both projects. It contains state-of-the-art implementations of several algorithms for running approximate nearest neighbors and clustering on the GPU. The primary goal of hipVS is to simplify the use of GPUs for vector similarity search and clustering. For more information, see :doc:`What is hipVS <./what-is-hipVS>`.
 
 .. grid:: 2
   :gutter: 3
 
   .. grid-item-card:: Installation
 
-    * :doc:`Build & installation guide <build_and_install/build_and_install>`
+    * :doc:`Building & installing hipVS <install/build_and_install>`
 
   .. grid-item-card:: Examples
 

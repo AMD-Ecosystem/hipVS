@@ -5,7 +5,7 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-version_number = "1.0.0" # TODO: Parse this from a centralized location.
+version_number = "0.1.0" # TODO: Parse this from a centralized location.
 left_nav_title = f"hipVS {version_number} documentation"
 
 # for PDF output on Read the Docs

@@ -14,7 +14,7 @@ CMake based build workflow.
 The dependencies of the examples project, including hipVS, are automatically fetched and built
 by the CMake scripts, but there are some basic pre-requisites and dependencies that need to be
 satisfied for a successful build. Please refer to the
-[Build and installation](../docs_amd/build_and_install/build_and_install.md#introduction)
+[Build and installation](install/build_and_install.md#introduction)
 documentation for instructions on setting up your developer environment for building hipVS.
 
 The individual example project directories can be copied as a starting point to build a new
