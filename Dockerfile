@@ -54,7 +54,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         rpm \
         libclang-dev \
         rsync \
-        ccache
+        ccache \
+        libopenblas-dev
 EOT
 
 WORKDIR /third_party_builds

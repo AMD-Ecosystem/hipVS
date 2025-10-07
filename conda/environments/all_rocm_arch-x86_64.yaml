@@ -33,10 +33,13 @@ dependencies:
 - pytest==7.*
 - pip:
   - --extra-index-url https://pypi.amd.com/simple
-  - amd-cupy
-  - amd-hipmm==2.0.0b1
-  - amd-libhipmm==2.0.0b1
-  - hip-python
-  - hip-python-as-cuda
+  - --pre
+  - amd-cupy==13.5.1
+  - amd-hipmm==3.0.0b1
+  - amd-libhipmm==3.0.0b1
+  - hip-python~=7.0.0
+  - hip-python-as-cuda~=7.0.0
+  - libhipraft==0.1.0
+  - pylibhipraft==0.1.0
 
 name: all_rocm_arch-x86_64

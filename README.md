@@ -4,7 +4,7 @@
 
 ## What is hipVS?
 
-hipVS is a port of the RAPIDS **[cuvs](https://github.com/rapidsai/cuvs)** library. It aims to
+hipVS is a port of the RAPIDS **[cuvs](https://github.com/rapidsai/cuvs/tree/branch-25.02)** library. It aims to
 follow the latter's directory structure, file naming and API naming as closely as possible to
 minimize porting friction for users that are interested in using both projects.
 

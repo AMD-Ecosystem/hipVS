@@ -76,8 +76,8 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/rapidsai/cuvs"
-Documentation = "https://docs.rapids.ai/api/cuvs/stable/"
+Homepage = "https://rocm.docs.amd.com/projects/hipVS/en/latest/"
+Documentation = "https://rocm.docs.amd.com/projects/hipVS/en/latest/"
 
 [tool.isort]
 line_length = 79

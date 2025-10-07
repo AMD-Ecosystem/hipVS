@@ -14,9 +14,10 @@ subtrees:
   - file: install/build.md
     title: Building hipVS
 
-- caption: Examples
+- caption: How to
   entries:
-  - file: examples_readme.md
+  - file: how-to/using-hipVS.md
+    title: Use hipVS
 
 - caption: Reference
   entries:

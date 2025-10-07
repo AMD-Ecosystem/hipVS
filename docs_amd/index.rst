@@ -8,7 +8,7 @@
 hipVS documentation
 ********************************************************************
 
-hipVS is a port of the RAPIDS `cuvs <https://github.com/rapidsai/cuvs>`_ library. It
+hipVS is a port of the RAPIDS `cuvs <https://github.com/rapidsai/cuvs/tree/branch-25.02>`_ library. It
 follows the directory structure, file naming and API naming as closely as possible to
 minimize porting friction for developers using both projects. It contains state-of-the-art implementations of several algorithms for running approximate nearest neighbors and clustering on the GPU. The primary goal of hipVS is to simplify the use of GPUs for vector similarity search and clustering. For more information, see :doc:`What is hipVS <./what-is-hipVS>`.
 
@@ -20,15 +20,16 @@ minimize porting friction for developers using both projects. It contains state-
     * :doc:`Installing hipVS <install/install>`
     * :doc:`Building hipVS <install/build>`
 
-  .. grid-item-card:: Examples
+  .. grid-item-card:: How to
 
-    * :doc:`Examples <examples_readme>`
+    * :doc:`Use hipVS <how-to/using-hipVS>`
 
   .. grid-item-card:: API reference
 
     * :ref:`C++ API reference <hipvs-cpp>`
     * :ref:`Python API reference <hipvs-python>`
     * :ref:`C API reference <hipvs-c>`
+    * :ref:`Rust API reference <hipvs-rust>`
 
 
 To contribute to the documentation refer to `Contributing to ROCm-DS  <https://rocm.docs.amd.com/projects/rocm-ds/en/latest/contribute/contributing.html>`_.

@@ -30,6 +30,7 @@ Install ROCm ≥ 7.0.2 (or the minimum version supported by the GPUs listed abov
 | [`libblas-dev`](https://www.netlib.org/lapack/)                       | Tested with 3.12.0                           |
 | [`liblapack-dev`](https://www.netlib.org/lapack/)                     | Tested with 3.12.0                           |
 | [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)   | Tested with 7.6.1                            |
+| [`libopenblas-dev`](https://github.com/OpenMathLib/OpenBLAS)          | Tested with 0.3.26                           |
 | **Additional Required Dependencies**                                  |                                              |
 | **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | TBD                                          |
 | **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | TBD                                          |
@@ -238,6 +239,8 @@ ninja install
 ```
 ## Python Library
 
+> hipVS python packages have a dependency on cupy, which requires the `ROCM_HOME` environment variable to be set to the base folder of the rocm installation, typically `/opt/rocm`.
+
 ### Build and install hipvs python packages
 
 #### [Step 1] Setup Conda environment
@@ -302,6 +305,9 @@ python
 ### Running the python tests
 
 ```bash
+#set ROCM_HOME path
+export ROCM_HOME=<path to rcom home> (e.g /opt/rocm)
+
 # From within the hipvs environment
 cd <HIPVS_ROOT>/python/cuvs/
 py.test -v -s
