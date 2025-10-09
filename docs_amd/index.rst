@@ -17,7 +17,8 @@ minimize porting friction for developers using both projects. It contains state-
 
   .. grid-item-card:: Installation
 
-    * :doc:`Building & installing hipVS <install/build_and_install>`
+    * :doc:`Installing hipVS <install/install>`
+    * :doc:`Building hipVS <install/build>`
 
   .. grid-item-card:: Examples
 

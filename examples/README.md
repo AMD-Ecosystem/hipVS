@@ -14,7 +14,7 @@ CMake based build workflow.
 The dependencies of the examples project, including hipVS, are automatically fetched and built
 by the CMake scripts, but there are some basic pre-requisites and dependencies that need to be
 satisfied for a successful build. Please refer to the
-[Build and installation](install/build_and_install.md#introduction)
+[Building hipVS from source](../docs_amd/install/build.md#introduction)
 documentation for instructions on setting up your developer environment for building hipVS.
 
 The individual example project directories can be copied as a starting point to build a new
@@ -183,7 +183,7 @@ to do vector search. The examples are:
 4. Pairwise L2 Distances Example: Computes the pairwise l2 distance between 2 sets of vectors
 
 To run these examples, you need a Python environment with hipVS and its dependencies installed.
-Please follow this [documentation](../docs_amd/build_and_install/build_and_install.md#build-and-install-hipvs-python-packages),
+Please follow this [Building hipVS from source](../docs_amd/install/build.md#build-and-install-hipvs-python-packages),
 to see the list of dependencies and instructions on setting
 up a conda environment for hipVS. Inside the environment, the examples can be run using
 Python, for example:

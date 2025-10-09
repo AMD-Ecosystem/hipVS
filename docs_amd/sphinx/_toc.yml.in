@@ -9,8 +9,10 @@ subtrees:
 
 - caption: Installation
   entries:
-  - file: install/build_and_install.md
-    title: Building and Installing hipVS
+  - file: install/install.md
+    title: Installing hipVS
+  - file: install/build.md
+    title: Building hipVS
 
 - caption: Examples
   entries:

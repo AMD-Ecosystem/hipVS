@@ -1,4 +1,4 @@
-# Introduction
+# Building hipVS from source
 
 hipVS currently provides C++, C and Python API's.
 
@@ -16,17 +16,17 @@ hipVS currently provides C++, C and Python API's.
 
 **Primary requirement**
 hipVS builds against the **AMD ROCm software stack**—that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
-Install ROCm ≥ 6.4.0 (or the minimum version supported by the GPUs listed above) and make sure the `rocminfo` and `hipcc` commands are in your `PATH`.
+Install ROCm ≥ 7.0.2 (or the minimum version supported by the GPUs listed above) and make sure the `rocminfo` and `hipcc` commands are in your `PATH`.
 
 | Name                                                                  | Version / Notes                              |
 | ----------------------------------------------------------            | -------------------------------------------- |
 | [`cmake`](https://cmake.org/)                                         | ≥ 3.31.0                                     |
 | [`ninja`](https://ninja-build.org/)                                   | ≥ 1.11.1                                     |
-| [`hipsolver`](https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/)| Version that comes bundled with ROCm ≥ 6.4.0 |
-| [`hipblas`](https://rocm.docs.amd.com/projects/hipBLAS/en/latest/)    | Version that comes bundled with ROCm ≥ 6.4.0 |
-| [`hipblaslt`](https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/)| Version that comes bundled with ROCm ≥ 6.4.0 |
-| [`hiprand`](https://rocm.docs.amd.com/projects/hipRAND/en/latest/)    | Version that comes bundled with ROCm ≥ 6.4.0 |
-| [`hipsparse`](https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/)| Version that comes bundled with ROCm ≥ 6.4.0 |
+| [`hipsolver`](https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hipblas`](https://rocm.docs.amd.com/projects/hipBLAS/en/latest/)    | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hipblaslt`](https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hiprand`](https://rocm.docs.amd.com/projects/hipRAND/en/latest/)    | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hipsparse`](https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
 | [`libblas-dev`](https://www.netlib.org/lapack/)                       | Tested with 3.12.0                           |
 | [`liblapack-dev`](https://www.netlib.org/lapack/)                     | Tested with 3.12.0                           |
 | [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)   | Tested with 7.6.1                            |
@@ -34,11 +34,11 @@ Install ROCm ≥ 6.4.0 (or the minimum version supported by the GPUs listed abov
 | **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | TBD                                          |
 | **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | TBD                                          |
 | **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | TBD                                          |
-| **\***[`hipCUB`](https://github.com/ROCm/hipCUB)                      | Version that comes bundled with ROCm ≥ 6.4.0 |
-| **\***[`rocThrust`](https://github.com/ROCm/rocThrust)                | Version that comes bundled with ROCm ≥ 6.4.0 |
-| **\*\***[`OpenMP`](https://www.openmp.org/)                           | Version that comes bundled with ROCm ≥ 6.4.0 |
+| **\***[`hipCUB`](https://github.com/ROCm/hipCUB)                      | Version that comes bundled with ROCm ≥ 7.0.2 |
+| **\***[`rocThrust`](https://github.com/ROCm/rocThrust)                | Version that comes bundled with ROCm ≥ 7.0.2 |
+| **\*\***[`OpenMP`](https://www.openmp.org/)                           | Version that comes bundled with ROCm ≥ 7.0.2 |
 | **Optional Dependencies**                                             |                                              |
-| [`RCCL`](https://github.com/ROCm/rccl)                                | Version that comes bundled with ROCm ≥ 6.4.0 |
+| [`RCCL`](https://github.com/ROCm/rccl)                                | Version that comes bundled with ROCm ≥ 7.0.2 |
 | [`UCX`](https://github.com/openucx/ucx)                               | ≥ 1.17.0                                     |
 | [`Googletest`](https://github.com/google/googletest)                  | ≥ 1.13.0                                     |
 | [`Googlebench`](https://github.com/google/benchmark)                  | ≥ 1.13.0                                     |
