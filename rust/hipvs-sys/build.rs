@@ -136,10 +136,14 @@ fn main() {
     // run bindgen to automatically create rust bindings for the cuvs c-api
     bindgen::Builder::default()
         .header("cuvs_c_wrapper.h")
-        .clang_arg("-I../../cpp/include")
-        .clang_arg("-D__HIP_PLATFORM_AMD__") // Usually set by the cmake build or hipcc
-        .clang_arg("-D__HIP_ROCclr__=1") // Usually set by the cmake build or hipcc
-        .clang_arg("-I/opt/rocm/include") // Assume that ROCm is installed in /opt/rocm
+# <<<<<<< OLD CODE from 25cf64540 (fc363a868) - COMMENTED OUT
+#         .clang_arg("-I../../cpp/include")
+#         .clang_arg("-D__HIP_PLATFORM_AMD__") // Usually set by the cmake build or hipcc
+#         .clang_arg("-D__HIP_ROCclr__=1") // Usually set by the cmake build or hipcc
+#         .clang_arg("-I/opt/rocm/include") // Assume that ROCm is installed in /opt/rocm
+# =======
+        .clang_arg("-I../../c/include")
+# >>>>>>> END NEW CODE (fc363a868)
         // needed to find cudaruntime.h
         .clang_args(cmake_cxx_flags.split(' '))
         // include dlpack from the cmake build dependencies

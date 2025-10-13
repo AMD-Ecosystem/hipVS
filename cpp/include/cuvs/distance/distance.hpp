@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,14 +33,16 @@
 
 #pragma once
 
-#include "distance.h"
-
 #include <cstdint>
 #ifdef __HIP_PLATFORM_AMD__
 #include <hip/hip_fp16.h>
 #else
 #include <cuda_fp16.h>
-#endif
+// <<<<<<< OLD CODE from 25cf64540 (fc363a868) - COMMENTED OUT
+// #endif
+// =======
+#include <cuvs/distance/distance.h>
+// >>>>>>> END NEW CODE (fc363a868)
 #include <raft/core/device_csr_matrix.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/resources.hpp>

@@ -37,7 +37,6 @@
 
 #include "ann_utils.cuh"
 #include "cagra/device_common.hpp"
-#include "cuvs/distance/distance.h"
 #include "nn_descent_gnnd.hpp"
 
 #include <cstdint>
