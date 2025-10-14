@@ -1,6 +1,6 @@
 # Building hipVS from source
 
-hipVS currently provides C++, C and Python API's.
+hipVS currently provides C++, C, Python and Rust API's.
 
 ## Tested GPUs
 
