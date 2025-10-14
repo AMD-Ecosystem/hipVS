@@ -33,7 +33,7 @@
 set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(CUVS_FORK "AMD-AIOSS")
 #set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
-set(CUVS_PINNED_TAG "amd-integration")
+set(CUVS_PINNED_TAG "release/rocmds-25.10")
 
 function(find_and_configure_cuvs)
     set(oneValueArgs VERSION FORK PINNED_TAG ENABLE_NVTX CLONE_ON_PIN BUILD_CPU_ONLY BUILD_SHARED_LIBS)

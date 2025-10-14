@@ -29,8 +29,8 @@
 # THE SOFTWARE.
 
 set(CUVS_VERSION "0.1.0")
-set(CUVS_FORK "AMD-AIOSS")
-set(CUVS_PINNED_TAG "amd-integration")
+set(CUVS_FORK "ROCm-DS")
+set(CUVS_PINNED_TAG "release/rocmds-25.10")
 # When PINNED_TAG above doesn't match the default branch,
 # force local hipVS clone in build directory
 # even if it's already installed.
@@ -41,7 +41,7 @@ function(find_and_configure_cuvs)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
             "${multiValueArgs}" ${ARGN} )
 
-    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "amd-integration")
+    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "release/rocmds-25.10")
         message(STATUS "CUVS pinned tag found: ${PKG_PINNED_TAG}. Cloning locally.")
         set(CPM_DOWNLOAD_cuvs ON)
     endif()
@@ -59,7 +59,7 @@ function(find_and_configure_cuvs)
             INSTALL_EXPORT_SET  cuvs-examples-exports
             COMPONENTS ${CUVS_COMPONENTS}
             CPM_ARGS
-            GIT_REPOSITORY https://$ENV{GITHUB_PASS}@github.com/${PKG_FORK}/hipVS.git
+            GIT_REPOSITORY https://github.com/${PKG_FORK}/hipVS.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
