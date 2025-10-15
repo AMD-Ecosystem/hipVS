@@ -219,8 +219,26 @@ struct mapping {
   HDI constexpr auto operator()(const S& x) const -> std::enable_if_t<!std::is_same_v<S, T>, T>
   {
     constexpr double kMult = config<T>::kDivisor / config<S>::kDivisor;
-    if constexpr (std::is_floating_point_v<S>) { return static_cast<T>(x * static_cast<S>(kMult)); }
-    if constexpr (std::is_floating_point_v<T>) { return static_cast<T>(x) * static_cast<T>(kMult); }
+    if constexpr (std::is_floating_point_v<S>) {
+      auto mapped_val = x * static_cast<S>(kMult);
+
+      // AMD/HIP: Sometimes, the float value can be slightly out of range due to floating point
+      // errors. Casting the out-of-range value to an integral value is an undefined behavior, and
+      // different compilers will handle it differently. We were hitting an issue in the test
+      // IvfPq/f32_u08_i64.build_host_input_overlap_search/6,
+      // where the out-of-range input values were causing the integral values to wrap, which cause
+      // much larger difference between actual vs expected values, causing some tests to fail.
+      // Here, we clamp the input values to the correct range before casting to avoid the UB.
+      if constexpr (std::is_same_v<T, std::uint8_t> || std::is_same_v<T, std::int8_t>) {
+        mapped_val = std::clamp(mapped_val,
+                                static_cast<S>(std::numeric_limits<T>::min()),
+                                static_cast<S>(std::numeric_limits<T>::max()));
+      }
+      return static_cast<T>(mapped_val);
+    }
+    if constexpr (std::is_floating_point_v<T>) {
+      return static_cast<T>(x) * static_cast<T>(kMult);
+    }
     return static_cast<T>(static_cast<float>(x) * static_cast<float>(kMult));
   };
   /** @} */
