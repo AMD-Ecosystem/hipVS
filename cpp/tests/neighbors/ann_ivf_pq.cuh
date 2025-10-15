@@ -126,18 +126,6 @@ template <typename T>
 void compare_vectors_l2(
   const raft::resources& res, T a, T b, uint32_t label, double compression_ratio, double eps)
 {
-  auto const test_name =
-    std::string(std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
-  auto const test_suite_name =
-    std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name());
-  if ((test_suite_name == "IvfPq/f32_u08_i64" &&
-       ((test_name == "build_search/6") || (test_name == "build_extend_search/6") ||
-        (test_name == "build_host_input_search/6")))) {
-    // TODO: (HIP/AMD) Investigate. See issue:
-    std::cerr << "Note: Skipping experimental vector reconstruction check for test: "
-                 "IvfPq/f32_u08_i64.{build_extend_search,build_host_input_search}/6\n";
-    return;
-  }
   auto n_rows = a.extent(0);
   auto dim    = a.extent(1);
   rmm::mr::managed_memory_resource managed_memory;
