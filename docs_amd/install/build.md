@@ -1,6 +1,6 @@
 # Building hipVS from source
 
-hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. 
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository.
 
 ## Tested GPUs
 
@@ -45,7 +45,7 @@ Install ROCm 7.0.2 or later, or the minimum version supported by the GPUs listed
 | [`Googlebench`](https://github.com/google/benchmark)                  | ≥ 1.13.0                                     |
 | [`Doxygen`](https://github.com/doxygen/doxygen)                       | >=1.8.20                                     |
 
-> `*` - If not found locally the CMake build system will attempt to download a compatible version using [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake). 
+> `*` - If not found locally the CMake build system will attempt to download a compatible version using [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake).
 >
 > `**` - The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under `/opt/rocm-{version}/llvm`.
 
@@ -203,7 +203,7 @@ Builds hipVS for all supported GPU architectures, increasing portability but als
 ./build.sh libcuvs tests --allgpuarch
 ```
 
-> **Note** 
+> **Note**
 > Always execute a clean build or manually delete the build directory before running this argument if a previous build is present, to prevent potential build conflicts or errors.
 
 #### Compile only for a specified GPU architecture
@@ -267,22 +267,7 @@ micromamba activate hipvs
 ```
 It is recommended to build the python wheels in a conda environment built from `all_rocm_arch-x86_64.yaml`. It is also possible to use `venv` but it is up to the user to install all the required packages in the environment.
 
-#### [Step 2] Build and install hipRAFT python packages from source
-
-hipRAFT pip packages aren't hosted on any PyPI server. As a result these need to be built from source and installed into the hipVS conda environment as a prerequisite.
-
-```bash
-# Inside the hipvs conda environment
-git clone https://github.com/ROCm-DS/hipRAFT.git
-cd hipRAFT
-# Install libraft and pylibraft pip packages into the hipvs conda environment
-./build.sh libraft pylibraft --compile-lib
-# Test the installation
-python
->>> import pylibraft # Import should succeed
-```
-
-#### [Step 3] Building and installing hipVS python package
+#### [Step 2] Building and installing hipVS python package
 
 #### Using build.sh
 
