@@ -18,7 +18,7 @@ Key Features in hipVS v2.0.0:
   - IVF-PQ (Inverted File with Product Quantization)
   - Brute-force (exact k-NN)
 
-* C++, C, and Python interfaces for integration in both production systems and rapid-prototyping environments.
+* C++, C, Python, and Rust interfaces for integration in both production systems and rapid-prototyping environments.
 * API compatibility with RAPIDS cuVS, enabling drop-in portability for existing workflows on AMD hardware.
 * Optimized GPU performance for fast index building, low-latency queries, and high-throughput search.
 * Interoperability with other ROCm-DS components such as hipRAFT, hipDF, and hipGRAPH for end-to-end data-science and AI pipelines.
