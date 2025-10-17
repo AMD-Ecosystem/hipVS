@@ -1,7 +1,7 @@
 # What is hipVS?
 
 hipVS is an API providing GPU-accelerated vector search functions. Vector search is an information
-retrieval method that has been growing in use over the past few  years, partly because of the
+retrieval method that has been growing in use over the past few years, partly because of the
 rising importance of multimedia embeddings created from unstructured data and the need to perform
 semantic search on the embeddings to find items which are semantically similar to each other. 
 Vector search is also used in data mining and machine learning tasks. 
