@@ -225,7 +225,7 @@ OR
 
 ### Using CMake directly
 
-When building `hipVS` from source, the `build.sh` script offers a nice wrapper around the `cmake` commands to ease the burdens of manually configuring the various available cmake options. When more fine-grained control over the CMake configuration is desired, the `cmake` command can be invoked directly as the example below demonstrates.
+The `build.sh` script wraps common CMake configuration options. For finer control, invoke `cmake` directly as shown below.
 
 The `CMAKE_INSTALL_PREFIX` option instructs CMake to install `hipVS` into a specific location.
 
