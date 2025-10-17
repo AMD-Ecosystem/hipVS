@@ -26,6 +26,7 @@ html_theme_options = {"flavor": "rocm-ds", "repository_url": "https://github.com
 
 extensions = [
     "rocm_docs",
+    "rocm_docs.doxygen",
     "breathe",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autodoc",
