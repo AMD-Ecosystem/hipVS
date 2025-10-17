@@ -250,7 +250,7 @@ ninja install
 
 ## Python Library
 
-hipVS python packages have a dependency on `cupy`, which requires the `ROCM_HOME` environment variable to be set to the base folder of the ROCm installation, typically `/opt/rocm`.
+hipVS Python packages have a dependency on `cupy`, which requires the `ROCM_HOME` environment variable to be set to the base folder of the ROCm installation, typically `/opt/rocm`.
 
 ### Build and install hipvs python packages
 
