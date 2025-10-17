@@ -16,7 +16,7 @@ Below are some common use-cases for vector search:
 
 * Semantic search - 
 
-  - Generative AI & retrieval augmented generation (RAG)
+  - Generative AI & Retrieval-Augmented Generation (RAG)
   - Recommender systems
   - Computer vision
   - Image search
