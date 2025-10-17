@@ -36,7 +36,7 @@ Below are some common use-cases for vector search:
 
 ## Benefits of hipVS 
 
-The following are several benefits to using hipVS for AMD GPU-accelerated vector search:
+Following are some benefits of using hipVS for AMD GPU-accelerated vector search:
 
 1. Fast index build
 2. Latency critical and high throughput search
@@ -48,9 +48,9 @@ The following are several benefits to using hipVS for AMD GPU-accelerated vector
 
 ##  Highlights
 
-* **Approximate & exact nearest-neighbor search** – HNSW, IVF-PQ, brute force and more
-* **C++, C , Rust, and Python interfaces** – integrate in low-latency services or rapid prototyping notebooks
-* **API-compatible with cuVS** – drop-in replacement for existing cuVS workflows on AMD GPUs
+* Approximate & exact nearest-neighbor search – HNSW, IVF-PQ, brute force and more
+* C++, C , Rust, and Python interfaces – integrate in low-latency services or rapid prototyping notebooks
+* API-compatible with cuVS – drop-in replacement for existing cuVS workflows on AMD GPUs
 
 ##  Limitations
 
