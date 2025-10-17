@@ -68,7 +68,6 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
 "
 LIBCUVS_BUILD_DIR=${LIBCUVS_BUILD_DIR:=${REPODIR}/cpp/build}
 SPHINX_BUILD_DIR=${REPODIR}/docs
-DOXYGEN_BUILD_DIR=${REPODIR}/docs/doxygen
 PYTHON_BUILD_DIRS="${REPODIR}/python/cuvs/build ${REPODIR}/python/libcuvs/build"
 RUST_BUILD_DIR=${REPODIR}/rust/target
 BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIRS} ${RUST_BUILD_DIR}"
@@ -315,7 +314,7 @@ fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg package || hasArg examples; then
+if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || hasArg examples; then
     COMPILE_LIBRARY=ON
     if [[ ${BUILD_SHARED_LIBS} == "OFF" ]]; then
         CMAKE_TARGET="${CMAKE_TARGET};"
@@ -394,8 +393,6 @@ export RAPIDS_VERSION_MAJOR_MINOR="$(sed -E -e 's/^([0-9]{2})\.([0-9]{2})\.([0-9
 
 if hasArg docs; then
     set -x
-    cd ${DOXYGEN_BUILD_DIR}
-    doxygen Doxyfile
     cd ${SPHINX_BUILD_DIR}
     mkdir -p _build
     rm -rf _build/*
