@@ -10,7 +10,7 @@ hipVS documentation
 
 hipVS is a GPU-accelerated vector search library for AMD GPUs, enabling high-performance approximate and exact nearest-neighbor (ANN) search and clustering workloads. It is part of the ROCm Data Science toolkit (or ROCm-DS), an open-source software collection for high-performance data science applications. Forked from the NVIDIA RAPIDS `https://github.com/rapidsai/cuvs/tree/branch-25.02 <https://github.com/rapidsai/cuvs/tree/branch-25.02>`_  project and aligned with RAPIDS 25.02, hipVS brings state-of-the-art vector similarity capabilities to the :doc:`HIP <hip:index>`/:doc:`ROCm <rocm:index>` software stack and AMD platforms. It is designed to minimize porting friction for users familiar with cuVS by maintaining consistent directory structure, file organization, and API naming. For more information, see :doc:`What is hipVS? <./what-is-hipVS>`
 
-Key Features in hipVS v2.0.0:
+Key Features in hipVS v0.1.0:
 
 * Approximate and exact nearest-neighbor search implementations, including:
 
