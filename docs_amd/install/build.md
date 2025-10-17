@@ -366,7 +366,7 @@ The following command will generate a debian: `hipvs_<VERSION>_amd64.deb` in `<H
 
 ### Custom cpack generators
 
-To generate other types of packages such as `Tar` or `RPM` packages:
+To generate other types of packages such as `tar` or `RPM` packages:
 
 ```bash
 # Configure
