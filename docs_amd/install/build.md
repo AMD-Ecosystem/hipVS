@@ -47,7 +47,7 @@ Install ROCm 7.0.2 or later, or the minimum version supported by the GPUs listed
 
 > `*` - If not found locally the CMake build system will attempt to download a compatible version using [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake). 
 >
-> `**` - The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under /`opt/rocm-{version}/llvm`.
+> `**` - The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under `/opt/rocm-{version}/llvm`.
 
 ## Docker
 
