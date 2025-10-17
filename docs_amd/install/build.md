@@ -92,7 +92,7 @@ A utility script `<HIPVS_ROOT>/build.sh` is provided and is the entry-point to b
 
 `build.sh` uses [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake), which will automatically download any dependencies that are not already installed.
 
-The following will download the required dependencies, build and install the hipVS cmake package to the configured CMake install prefix.
+The following will download the required dependencies, build and install the hipVS CMake package to the configured CMake install prefix.
 
 ```bash
 cd <HIPVS_ROOT>
