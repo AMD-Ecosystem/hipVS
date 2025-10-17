@@ -49,7 +49,7 @@ Following are some benefits of using hipVS for AMD GPU-accelerated vector search
 ##  Highlights
 
 * Approximate & exact nearest-neighbor search – HNSW, IVF-PQ, brute force and more
-* C++, C , Rust, and Python interfaces – integrate in low-latency services or rapid prototyping notebooks
+* C++, C, Rust, and Python interfaces – integrate in low-latency services or rapid prototyping notebooks
 * API-compatible with cuVS – drop-in replacement for existing cuVS workflows on AMD GPUs
 
 ##  Limitations
