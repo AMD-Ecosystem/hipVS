@@ -67,8 +67,8 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
  default action (no args) is to build libcuvs, tests and cuvs targets
 "
 LIBCUVS_BUILD_DIR=${LIBCUVS_BUILD_DIR:=${REPODIR}/cpp/build}
-SPHINX_BUILD_DIR=${REPODIR}/docs_amd
-DOXYGEN_BUILD_DIR=${REPODIR}/docs_amd/doxygen
+SPHINX_BUILD_DIR=${REPODIR}/docs
+DOXYGEN_BUILD_DIR=${REPODIR}/docs/doxygen
 PYTHON_BUILD_DIRS="${REPODIR}/python/cuvs/build ${REPODIR}/python/libcuvs/build"
 RUST_BUILD_DIR=${REPODIR}/rust/target
 BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIRS} ${RUST_BUILD_DIR}"
@@ -404,7 +404,7 @@ if hasArg docs; then
         echo "Building hipVS Rust docs..."
         pushd ${REPODIR}/rust
         cargo doc -p hipvs --no-deps
-        rsync -av target/doc/* ${REPODIR}/docs_amd/reference/rust_api/rust_html/
+        rsync -av target/doc/* ${REPODIR}/docs/reference/rust_api/rust_html/
         popd
     fi
 fi
