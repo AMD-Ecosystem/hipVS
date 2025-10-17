@@ -39,7 +39,11 @@
 #include "cagra/device_common.hpp"
 #include "nn_descent_gnnd.hpp"
 
-#include <cstdint>
+// <<<<<<< OLD CODE from 0d70cb04b (88455931d) - COMMENTED OUT
+// #include <cstdint>
+// =======
+#include "../../core/omp_wrapper.hpp"
+// >>>>>>> END NEW CODE (88455931d)
 #include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/nn_descent.hpp>
 
@@ -69,9 +73,12 @@
 #else
 #include <cuda_runtime.h>
 #include <mma.h>
-#endif
-
-#include <omp.h>
+// <<<<<<< OLD CODE from 0d70cb04b (88455931d) - COMMENTED OUT
+// #endif
+//
+// #include <omp.h>
+// =======
+// >>>>>>> END NEW CODE (88455931d)
 
 #include <limits>
 #include <optional>

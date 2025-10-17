@@ -42,6 +42,7 @@
 
 // TODO: This shouldn't be invoking anything from spatial/knn
 #include "../../../core/nvtx.hpp"
+#include "../../../core/omp_wrapper.hpp"
 #include "../ann_utils.cuh"
 
 #include <raft/util/bitonic_sort.cuh>
@@ -54,7 +55,6 @@
 #endif
 
 #include <float.h>
-#include <omp.h>
 #include <sys/time.h>
 
 #include <climits>
