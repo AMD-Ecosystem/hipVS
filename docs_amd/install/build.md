@@ -1,6 +1,6 @@
 # Building hipVS from source
 
-hipVS currently provides C++, C, Python and Rust API's. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. 
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. 
 
 ## Tested GPUs
 
