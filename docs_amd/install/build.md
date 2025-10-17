@@ -334,7 +334,7 @@ Building and running the Rust bindings tests assumes that Cargo (the Rust packag
 If Cargo is not installed, see the [Rustup documentation](https://rustup.rs/) for installation instructions.
 
 The Rust library can be built and installed using the `build.sh` script. As a prerequisite, the `hipvs-rust` library depends on the `hipvs` C++ library(`libcuvs.so`) and C library(`libcuvs_c.so`).
-The `hipvs` C++ library must be built and installed before building the rust library. If using the `build.sh` script, the following command can be used to build and install the hipVS C++ and Rust libraries:
+The `hipvs` C++ library must be built and installed before building the Rust library. If using the `build.sh` script, the following command can be used to build and install the hipVS C++ and Rust libraries:
 
 ```bash
 # From within a hipvs conda environment:
