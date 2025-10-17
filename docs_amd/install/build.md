@@ -1,22 +1,22 @@
 # Building hipVS from source
 
-hipVS currently provides C++, C, Python and Rust API's.
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. 
 
 ## Tested GPUs
 
-| Accelerator         | Architecture | Wavefront Size | LLVM target |
+| AMD Instinct GPU    | Architecture | Wavefront Size | LLVM target |
 |---------------------|--------------|----------------|-------------|
-| AMD Instinct MI210  | CDNA2        | 64             | gfx90a      |
-| AMD Instinct MI250  | CDNA2        | 64             | gfx90a      |
-| AMD Instinct MI250X | CDNA2        | 64             | gfx90a      |
-| AMD Instinct MI300A | CDNA3        | 64             | gfx942      |
-| AMD Instinct MI300X | CDNA3        | 64             | gfx942      |
+| MI210               | CDNA2        | 64             | gfx90a      |
+| MI250               | CDNA2        | 64             | gfx90a      |
+| MI250X              | CDNA2        | 64             | gfx90a      |
+| MI300A              | CDNA3        | 64             | gfx942      |
+| MI300X              | CDNA3        | 64             | gfx942      |
 
 ## Dependencies
 
-**Primary requirement**
-hipVS builds against the **AMD ROCm software stack**—that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
-Install ROCm ≥ 7.0.2 (or the minimum version supported by the GPUs listed above) and make sure the `rocminfo` and `hipcc` commands are in your `PATH`.
+hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
+
+Install ROCm 7.0.2 or later, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/).
 
 | Name                                                                  | Version / Notes                              |
 | ----------------------------------------------------------            | -------------------------------------------- |
@@ -45,8 +45,9 @@ Install ROCm ≥ 7.0.2 (or the minimum version supported by the GPUs listed abov
 | [`Googlebench`](https://github.com/google/benchmark)                  | ≥ 1.13.0                                     |
 | [`Doxygen`](https://github.com/doxygen/doxygen)                       | >=1.8.20                                     |
 
-> **Note:** In the case of dependencies marked with an asterisk, if not found locally; the CMake build system will attempt to download a compatible version using
-[ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake). The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under /`opt/rocm-{version}/llvm`.
+> `*` - If not found locally the CMake build system will attempt to download a compatible version using [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake). 
+>
+> `**` - The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under `/opt/rocm-{version}/llvm`.
 
 ## Docker
 
@@ -69,7 +70,7 @@ docker run -d -it --cap-add=SYS_PTRACE \
        -v <REPO_ROOT>:<REPO_ROOT> <HIPVS_DEV_IMAGE>  tail -f /dev/null
 docker exec -it <CONTAINER_NAME> bash
 ```
-This container will have all necessary packages installed to build and run hipVS properly. This will create an Ubuntu 24.04 container that has ROCm installed. If you wish to use Ubuntu 22.04, replace the docker build command with the following:
+This container will have all necessary packages installed to build and run hipVS properly. The preceding command will create an Ubuntu 24.04 container that has ROCm installed. If you wish to use Ubuntu 22.04, replace the docker build command with the following:
 
 ```bash
 docker build --build-arg UBUNTU=22.04 -t <HIPVS_DEV_IMAGE> .
@@ -83,20 +84,23 @@ export CMAKE_PREFIX_PATH=/opt/rocm/lib/cmake # Set CMAKE_PREFIX_PATH to point to
 
 ## C and C++ library
 
-The core functionality of hipVS is implemented in HIP/C++ and it's functionality is exposed through `libcuvs.so`. There is C library `libcuvs_c.so` which is a wrapper around the C++ library. The C library is used to provide a C API to the functionality of the C++ library.
+The core functionality of hipVS is implemented in HIP/C++ and its functionality is exposed through `libcuvs.so`. There is also the C library `libcuvs_c.so` which is a wrapper around the C++ library. The C library is used to provide a C API to the functionality of the C++ library.
 
 ### Building and installing using build.sh
 
 A utility script `<HIPVS_ROOT>/build.sh` is provided and is the entry-point to building various components.
 
-`build.sh` uses [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake), which will automatically download any dependencies which are not already installed.
+`build.sh` uses [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake), which will automatically download any dependencies that are not already installed.
 
-The following will download the required dependencies, build and install the hipVS cmake package to the configured CMake install prefix.
+The following will download the required dependencies, build and install the hipVS CMake package to the configured CMake install prefix.
+
 ```bash
 cd <HIPVS_ROOT>
 ./build.sh libcuvs
 ```
+
 The installation destination directory follows a similar structure:
+
 ```bash
 <HIPVS_INSTALLATION_ROOT>
 |-- include # Public C and C++ headers
@@ -120,8 +124,7 @@ The installation destination directory follows a similar structure:
     `-- libcuvs_static.a  # C++ Static Library
 ```
 
-
-### C and C++ Tests
+### C and C++ tests
 
 Compile the tests using the `tests` argument passed to `build.sh`.
 
@@ -129,7 +132,7 @@ Compile the tests using the `tests` argument passed to `build.sh`.
 ./build.sh tests
 ```
 
-The tests are broken apart by algorithm category, so you will find several binaries in `cpp/build/gtests` named `*_TEST`.
+The tests are broken into algorithm categories, so you'll find several binaries in `cpp/build/gtests` named `*_TEST`.
 
 ```bash
 <HIPVS_ROOT>/cpp/build/gtests/
@@ -163,17 +166,19 @@ The tests are broken apart by algorithm category, so you will find several binar
 ```
 
 For example, to run the distance module tests:
+
 ```bash
 ./cpp/build/gtests/DISTANCE_TEST
 ```
 
-It can take sometime to compile all of the tests. You can build individual tests by providing a semicolon-separated list to the `--limit-tests` option in `build.sh`:
+It can take significant time to compile all of the tests. You can build individual tests by providing a semicolon-separated list to the `--limit-tests` option in `build.sh`:
 
 ```bash
 ./build.sh tests -n --limit-tests="cuvs_c_test;STATS_TEST"
 ```
 
 Running all the tests using ctest:
+
 ```bash
 cd <HIPVS_ROOT>/cpp/build/
 ctest --test-dir ./tests # If "--limit-tests" is specified, only a subset of tests are built. To run all the tests remove "--limit-tests" when building through `build.sh`
@@ -187,18 +192,21 @@ ctest --test-dir ./tests # If "--limit-tests" is specified, only a subset of tes
 ./build.sh libcuvs --cache-tool=ccache
 ```
 
-### GPU Architecture selection
+### GPU architecture selection
 
 #### --allgpuarch
 
 Builds hipVS for all supported GPU architectures, increasing portability but also build time. You can also use --allgpuarch with `build.sh`:
-**Always execute a clean build or manually delete the build directory before running this argument if a previous build is present, to prevent potential build conflicts or errors.**
 
 ```bash
 ./build.sh clean
 ./build.sh libcuvs tests --allgpuarch
 ```
-#### Compile only for specified GPU arch
+
+> **Note** 
+> Always execute a clean build or manually delete the build directory before running this argument if a previous build is present, to prevent potential build conflicts or errors.
+
+#### Compile only for a specified GPU architecture
 
 When specifying target architectures, provide them as a single string enclosed in double quotes. For multiple architectures, separate each with a semicolon (;).
 
@@ -212,13 +220,15 @@ OR
 ./build.sh libcuvs tests --gpu-arch="gfx942"
 ```
 
-**Do not specify both --gpu-arch and --allgpuarch flags in the same build command. Avoid using multiple separate --gpu-arch flags; always combine all target architectures into one --gpu-arch option.**
+> **Note**
+> Do not specify both `--gpu-arch` and `--allgpuarch` flags in the same build command. Avoid using multiple separate `--gpu-arch` flags by combining all target architectures into one `--gpu-arch` option.
 
 ### Using CMake directly
 
-When building `hipVS` from source, the `build.sh` script offers a nice wrapper around the `cmake` commands to ease the burdens of manually configuring the various available cmake options. When more fine-grained control over the CMake configuration is desired, the `cmake` command can be invoked directly as the example below demonstrates.
+The `build.sh` script wraps common CMake configuration options. For finer control, invoke `cmake` directly as shown below.
 
 The `CMAKE_INSTALL_PREFIX` option instructs CMake to install `hipVS` into a specific location.
+
 ```bash
 cd <HIPVS_ROOT>/cpp
 mkdir -p build && rm -rf build/*
@@ -237,9 +247,10 @@ ninja cuvs
 # Install
 ninja install
 ```
+
 ## Python Library
 
-> hipVS python packages have a dependency on cupy, which requires the `ROCM_HOME` environment variable to be set to the base folder of the rocm installation, typically `/opt/rocm`.
+hipVS Python packages have a dependency on `CuPy`, which requires the `ROCM_HOME` environment variable to be set to the base folder of the ROCm installation, typically `/opt/rocm`.
 
 ### Build and install hipvs python packages
 
@@ -258,7 +269,7 @@ It is recommended to build the python wheels in a conda environment built from `
 
 #### [Step 2] Build and install hipRAFT python packages from source
 
-> Currently the hipRAFT pip packages aren't hosted on any PyPI server. As a result these need to be built from source and installed into the hipVS conda environment as a prerequisite.
+hipRAFT pip packages aren't hosted on any PyPI server. As a result these need to be built from source and installed into the hipVS conda environment as a prerequisite.
 
 ```bash
 # Inside the hipvs conda environment
@@ -274,7 +285,9 @@ python
 #### [Step 3] Building and installing hipVS python package
 
 #### Using build.sh
+
 The Python libraries can be built and installed using the build.sh script:
+
 ```bash
 # From within the hipvs environment:
 cd <HIPVS_ROOT>
@@ -284,7 +297,9 @@ cd <HIPVS_ROOT>
 python
 >> import cuvs # Import should succeed
 ```
+
 #### Building and installing the wheels manually
+
 ```bash
 # Install the cuvs CMake package in the hipvs conda environment
 cd <HIPVS_ROOT>
@@ -312,13 +327,15 @@ export ROCM_HOME=<path to rcom home> (e.g /opt/rocm)
 cd <HIPVS_ROOT>/python/cuvs/
 py.test -v -s
 ```
+
 ## Rust Library
 
 Building and running the Rust bindings tests assumes that Cargo (the Rust package manager and build tool) is installed and available in your environment.
-If Cargo is not installed, please refer to the [Rustup documentation](https://rustup.rs/) for installation instructions.
+If Cargo is not installed, see the [Rustup documentation](https://rustup.rs/) for installation instructions.
 
-The rust library can be built and installed using the `build.sh` script. As a prerequisite, the `hipvs-rust` library depends on the `hipvs` C++ library(`libcuvs.so`) and C library(`libcuvs_c.so`).
-The `hipvs` C++ library must be built and installed before building the rust library. If using the `build.sh` script, the following command can be used to build and install the hipvs C++ and rust libraries:
+The Rust library can be built and installed using the `build.sh` script. As a prerequisite, the `hipvs-rust` library depends on the `hipvs` C++ library(`libcuvs.so`) and C library(`libcuvs_c.so`).
+The `hipvs` C++ library must be built and installed before building the Rust library. If using the `build.sh` script, the following command can be used to build and install the hipVS C++ and Rust libraries:
+
 ```bash
 # From within a hipvs conda environment:
 cd <HIPVS_ROOT>
@@ -327,9 +344,11 @@ cd <HIPVS_ROOT>
 ./build.sh libcuvs rust
 ```
 
-Note: The rust option when invoked through `build.sh` will not only build the `hipvs` and `hipvs-sys` crates but also run the tests after.
+> **Note**
+> The Rust option invoked through `build.sh` will not only build the `hipvs` and `hipvs-sys` crates, but also run the tests after.
 
-### Running the rust example after building through `build.sh`
+### Running the Rust example after building through `build.sh`
+
 ```bash
 # From within the hipvs environment
 LD_LIBRARY_PATH=$CONDA_PREFIX/lib <HIPVS_ROOT>/rust/target/debug/examples/cagra
@@ -339,7 +358,7 @@ LD_LIBRARY_PATH=$CONDA_PREFIX/lib <HIPVS_ROOT>/rust/target/debug/examples/cagra
 
 ### Packaging with build.sh
 
-The following command will generate a debian : `hipvs_<VERSION>_amd64.deb` in `<HIPVS_ROOT>/cpp/build`.
+The following command will generate a debian: `hipvs_<VERSION>_amd64.deb` in `<HIPVS_ROOT>/cpp/build`.
 
 ```bash
 ./build.sh libcuvs package
@@ -347,7 +366,7 @@ The following command will generate a debian : `hipvs_<VERSION>_amd64.deb` in `<
 
 ### Custom cpack generators
 
-To generate other types of packages like `tar` or `rpm` packages:
+To generate other types of packages such as `tar` or `RPM` packages:
 
 ```bash
 # Configure
@@ -374,7 +393,7 @@ cpack -G TGZ # To generate a TGZ package. hipvs-<version>-Linux.tar.gz will be c
 
 ## Building Documentation
 
-### Prepare environment to build documentation
+Prepare the environment to build documentation using the following commands:
 
 ```bash
 cd <HIPVS_ROOT>

@@ -8,9 +8,22 @@
 hipVS documentation
 ********************************************************************
 
-hipVS is a port of the RAPIDS `cuvs <https://github.com/rapidsai/cuvs/tree/branch-25.02>`_ library. It
-follows the directory structure, file naming and API naming as closely as possible to
-minimize porting friction for developers using both projects. It contains state-of-the-art implementations of several algorithms for running approximate nearest neighbors and clustering on the GPU. The primary goal of hipVS is to simplify the use of GPUs for vector similarity search and clustering. For more information, see :doc:`What is hipVS <./what-is-hipVS>`.
+hipVS is a GPU-accelerated vector search library for AMD GPUs, enabling high-performance approximate and exact nearest-neighbor (ANN) search and clustering workloads. It is part of the ROCm Data Science toolkit (or ROCm-DS), an open-source software collection for high-performance data science applications. Forked from the NVIDIA RAPIDS `https://github.com/rapidsai/cuvs/tree/branch-25.02 <https://github.com/rapidsai/cuvs/tree/branch-25.02>`_  project and aligned with RAPIDS 25.02, hipVS brings state-of-the-art vector similarity capabilities to the :doc:`HIP <hip:index>`/:doc:`ROCm <rocm:index>` software stack and AMD platforms. It is designed to minimize porting friction for users familiar with cuVS by maintaining consistent directory structure, file organization, and API naming. For more information, see :doc:`What is hipVS? <./what-is-hipVS>`
+
+Key Features in hipVS v0.1.0:
+
+* Approximate and exact nearest-neighbor search implementations, including:
+
+  - HNSW (Hierarchical Navigable Small World)
+  - IVF-PQ (Inverted File with Product Quantization)
+  - Brute-force (exact k-NN)
+
+* C++, C, Python, and Rust interfaces for integration in both production systems and rapid-prototyping environments.
+* API compatibility with RAPIDS cuVS, enabling drop-in portability for existing workflows on AMD hardware.
+* Optimized GPU performance for fast index building, low-latency queries, and high-throughput search.
+* Interoperability with other ROCm-DS components such as hipRAFT, hipDF, and hipGRAPH for end-to-end data-science and AI pipelines.
+
+The hipVS code is open and hosted at `https://github.com/ROCm-DS/hipVS <https://github.com/ROCm-DS/hipVS>`_.
 
 .. grid:: 2
   :gutter: 3

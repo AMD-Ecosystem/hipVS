@@ -1,15 +1,22 @@
-# What is hipVS: GPU-accelerated vector search for AMD GPUs
+# What is hipVS?
 
-Vector search is an information retrieval method that has been growing in popularity over the past few  years, partly because of the rising importance of multimedia embeddings created from unstructured data and the need to perform semantic search on the embeddings to find items which are semantically similar to each other.
+hipVS is an API providing GPU-accelerated vector search functions. Vector search is an information
+retrieval method that has been growing in use over the past few years, partly because of the
+rising importance of multimedia embeddings created from unstructured data and the need to perform
+semantic search on the embeddings to find items which are semantically similar to each other. 
+Vector search is also used in data mining and machine learning tasks. 
 
-Vector search is also used in _data mining and machine learning_ tasks and comprises an important step in many _clustering_ and _visualization_ algorithms like [UMAP](https://arxiv.org/abs/2008.00325), [t-SNE](https://lvdmaaten.github.io/tsne/), K-means, and [HDBSCAN](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html).
-
-Finally, faster vector search enables interactions between dense vectors and graphs. Converting a pile of dense vectors into nearest neighbors graphs unlocks the entire world of graph analysis algorithms, such as those found in [GraphBLAS](https://graphblas.org/).
+It comprises an important step in many clustering and visualization algorithms like [UMAP](https://arxiv.org/abs/2008.00325),
+[t-SNE](https://lvdmaaten.github.io/tsne/), K-means, and [HDBSCAN](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html).
+Faster vector search enables interactions between dense vectors and graphs. Converting a pile
+of dense vectors into nearest neighbors graphs unlocks graph analysis algorithms,
+such as those found in [GraphBLAS](https://graphblas.org/).
 
 Below are some common use-cases for vector search:
 
-- ### Semantic search
-  - Generative AI & Retrieval augmented generation (RAG)
+* Semantic search - 
+
+  - Generative AI & Retrieval-Augmented Generation (RAG)
   - Recommender systems
   - Computer vision
   - Image search
@@ -18,8 +25,8 @@ Below are some common use-cases for vector search:
   - Molecular search
   - Model training
 
+* Data mining - 
 
-- ### Data mining
   - Clustering algorithms
   - Visualization algorithms
   - Sampling algorithms
@@ -27,9 +34,9 @@ Below are some common use-cases for vector search:
   - Ensemble methods
   - k-NN graph construction
 
-## Why hipVS?
+## Benefits of hipVS 
 
-There are several benefits to using hipVS and GPUs for vector search, including
+Following are some benefits of using hipVS for AMD GPU-accelerated vector search:
 
 1. Fast index build
 2. Latency critical and high throughput search
@@ -39,21 +46,20 @@ There are several benefits to using hipVS and GPUs for vector search, including
 6. Multiple language support
 7. Building blocks for composing new or accelerating existing algorithms
 
-
 ##  Highlights
 
-* **Approximate & exact nearest-neighbor search** – HNSW, IVF-PQ, brute force and more
-* **C++, C , Rust & Python interfaces** – integrate in low-latency services or rapid prototyping notebooks
-* **API-compatible with cuVS** – drop-in replacement for existing cuVS workflows on AMD hardware
+* Approximate & exact nearest-neighbor search – HNSW, IVF-PQ, brute force and more
+* C++, C, Rust, and Python interfaces – integrate in low-latency services or rapid prototyping notebooks
+* API-compatible with cuVS – drop-in replacement for existing cuVS workflows on AMD GPUs
 
 ##  Limitations
 
-* The library is currently only tested on AMD GPUs with the ROCm stack.
-* Multi-GPU and Multi Node functionality is still experimental and not officially supported.
+* hipVS has been tested on AMD GPUs with the ROCm stack.
+* Multi-GPU and Multinode functionality is experimental.
 
 ## References
 
-For the interested reader, many of the accelerated implementations in hipVS are also based on research papers which can provide a lot more background. We also ask you to please cite the corresponding algorithms by referencing them in your own research.
+Many of the accelerated implementations in hipVS are also based on research papers which provide additional background. You are encouraged to cite the corresponding algorithms by referencing them in your own research.
 - [CAGRA: Highly Parallel Graph Construction and Approximate Nearest Neighbor Search](https://arxiv.org/abs/2308.15136)
 - [Top-K Algorithms on GPU: A Comprehensive Study and New Methods](https://dl.acm.org/doi/10.1145/3581784.3607062)
 - [Fast K-NN Graph Construction by GPU Based NN-Descent](https://dl.acm.org/doi/abs/10.1145/3459637.3482344?casa_token=O_nan1B1F5cAAAAA:QHWDEhh0wmd6UUTLY9_Gv6c3XI-5DXM9mXVaUXOYeStlpxTPmV3nKvABRfoivZAaQ3n8FWyrkWw>)
