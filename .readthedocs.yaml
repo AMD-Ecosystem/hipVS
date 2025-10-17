@@ -23,13 +23,13 @@
 version: 2
 
 sphinx:
-  configuration: docs_amd/conf.py
+  configuration: docs/conf.py
 
 formats: []
 
 python:
   install:
-  - requirements: docs_amd/sphinx/requirements.txt
+  - requirements: docs/sphinx/requirements.txt
 
 build:
   os: ubuntu-22.04

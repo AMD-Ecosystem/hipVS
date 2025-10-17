@@ -385,7 +385,7 @@ cd <HIPVS_ROOT>
 # Activate the hipvs conda environment.
 micromamba activate hipvs
 # Install dependencies and tools required for generating documentation.
-pip install -r docs_amd/sphinx/requirements.txt
+pip install -r docs/sphinx/requirements.txt
 ```
 
 ### Use `build.sh` to generate documentation
@@ -395,4 +395,4 @@ cd <HIPVS_ROOT>
 LD_LIBRARY_PATH=${CONDA_PREFIX}/lib  ./build.sh libcuvs python docs
 ```
 
-Navigate to `<HIPVS_ROOT>/docs_amd/_build` and use the tool of your choice, e.g. Firefox, to open and examine the root level html file, `index.html`. From this point you should be able to navigate through the documentation.
+Navigate to `<HIPVS_ROOT>/docs/_build` and use the tool of your choice, e.g. Firefox, to open and examine the root level html file, `index.html`. From this point you should be able to navigate through the documentation.
