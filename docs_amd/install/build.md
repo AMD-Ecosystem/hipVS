@@ -84,7 +84,7 @@ export CMAKE_PREFIX_PATH=/opt/rocm/lib/cmake # Set CMAKE_PREFIX_PATH to point to
 
 ## C and C++ library
 
-The core functionality of hipVS is implemented in HIP/C++ and it's functionality is exposed through `libcuvs.so`. There is also the C library `libcuvs_c.so` which is a wrapper around the C++ library. The C library is used to provide a C API to the functionality of the C++ library.
+The core functionality of hipVS is implemented in HIP/C++ and its functionality is exposed through `libcuvs.so`. There is also the C library `libcuvs_c.so` which is a wrapper around the C++ library. The C library is used to provide a C API to the functionality of the C++ library.
 
 ### Building and installing using build.sh
 
