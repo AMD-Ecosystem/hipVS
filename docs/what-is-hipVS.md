@@ -54,7 +54,6 @@ Following are some benefits of using hipVS for AMD GPU-accelerated vector search
 
 ##  Limitations
 
-* hipVS has been tested on AMD GPUs with the ROCm stack.
 * Multi-GPU and Multinode functionality is experimental.
 
 ## References
