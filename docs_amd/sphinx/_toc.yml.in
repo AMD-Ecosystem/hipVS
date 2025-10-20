@@ -3,14 +3,21 @@ defaults:
 root: index
 
 subtrees:
+- entries:
+  - file: what-is-hipVS.md
+    title: What is hipVS
 
-- caption: Build and Installation
+- caption: Installation
   entries:
-  - file: build_and_install/build_and_install.md
+  - file: install/install.md
+    title: Installing hipVS
+  - file: install/build.md
+    title: Building hipVS
 
-- caption: Examples
+- caption: How to
   entries:
-  - file: examples_readme.md
+  - file: how-to/using-hipVS.md
+    title: Use hipVS
 
 - caption: Reference
   entries:

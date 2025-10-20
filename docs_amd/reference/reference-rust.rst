@@ -1,3 +1,5 @@
+.. _hipvs-rust:
+
 ~~~~~~~~~~~~~~~~~~~~~~
 Rust API Documentation
 ~~~~~~~~~~~~~~~~~~~~~~
