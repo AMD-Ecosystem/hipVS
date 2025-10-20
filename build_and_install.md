@@ -1,1 +1,0 @@
-docs_amd/install/build_and_install.md
