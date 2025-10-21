@@ -60,25 +60,6 @@ EOT
 WORKDIR /third_party_builds
 
 RUN <<EOT
-wget -q https://github.com/openucx/ucx/releases/download/v1.17.0/ucx-1.17.0.tar.gz
-tar xzf ucx-1.17.0.tar.gz
-cd ucx-1.17.0
-./contrib/configure-release --prefix=/usr --with-rocm=/opt/rocm
-make -j$(nproc)
-make install
-EOT
-
-RUN <<EOT
-wget -q https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.6.tar.bz2
-bzip2 -d openmpi-5.0.6.tar.bz2
-tar -xvf openmpi-5.0.6.tar
-cd openmpi-5.0.6
-./configure --prefix=/usr --with-ucx=/usr --with-rocm=/opt/rocm
-make -j $(nproc)
-make install
-EOT
-
-RUN <<EOT
 apt remove -y --purge --auto-remove cmake || echo "CMake not found"
 wget -q https://github.com/Kitware/CMake/releases/download/v4.0.1/cmake-4.0.1-linux-x86_64.sh
 bash ./cmake-4.0.1-linux-x86_64.sh --skip-license --prefix=/usr/local

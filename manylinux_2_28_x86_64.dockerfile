@@ -72,25 +72,6 @@ wget -q https://github.com/Kitware/CMake/releases/download/v4.0.1/cmake-4.0.1-li
 bash ./cmake-4.0.1-linux-x86_64.sh --skip-license --prefix=/usr/local
 EOT
 
-RUN <<EOT
-wget -q https://github.com/openucx/ucx/releases/download/v1.17.0/ucx-1.17.0.tar.gz
-tar xzf ucx-1.17.0.tar.gz
-cd ucx-1.17.0
-./contrib/configure-release --prefix=/usr --with-rocm=/opt/rocm
-make -j$(nproc)
-make install
-EOT
-
-RUN <<EOT
-wget -q https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.7.tar.bz2
-bzip2 -d openmpi-5.0.7.tar.bz2
-tar -xvf openmpi-5.0.7.tar
-cd openmpi-5.0.7
-export CFLAGS="-Wno-int-conversion -Wno-implicit-function-declaration -Wno-builtin-declaration-mismatch"
-./configure --prefix=/usr --with-ucx=/usr --with-rocm=/opt/rocm
-make -j $(nproc)
-make install
-EOT
 
 RUN <<EOT
 curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
