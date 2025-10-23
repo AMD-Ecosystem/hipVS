@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -577,6 +577,7 @@ template <unsigned MAX_ITOPK,
           unsigned MAX_CANDIDATES,
           unsigned TOPK_BY_BITONIC_SORT,
           class DATASET_DESCRIPTOR_T,
+          class SourceIndexT,
           class SAMPLE_FILTER_T>
 __device__ void search_core(
   uintptr_t result_indices_ptr,                                           // [num_queries, top_k]
@@ -586,6 +587,7 @@ __device__ void search_core(
   const typename DATASET_DESCRIPTOR_T::DATA_T* const queries_ptr,  // [num_queries, dataset_dim]
   const typename DATASET_DESCRIPTOR_T::INDEX_T* const knn_graph,   // [dataset_size, graph_degree]
   const std::uint32_t graph_degree,
+  const SourceIndexT* source_indices_ptr,
   const unsigned num_distilation,
   const uint64_t rand_xor_mask,
   const typename DATASET_DESCRIPTOR_T::INDEX_T* seed_ptr,  // [num_queries, num_seeds]
@@ -608,6 +610,10 @@ __device__ void search_core(
   using DATA_T     = typename DATASET_DESCRIPTOR_T::DATA_T;
   using INDEX_T    = typename DATASET_DESCRIPTOR_T::INDEX_T;
   using DISTANCE_T = typename DATASET_DESCRIPTOR_T::DISTANCE_T;
+
+  auto to_source_index = [source_indices_ptr](INDEX_T x) {
+    return source_indices_ptr == nullptr ? static_cast<SourceIndexT>(x) : source_indices_ptr[x];
+  };
 
 #ifdef _CLK_BREAKDOWN
   std::uint64_t clk_init                 = 0;
@@ -836,7 +842,7 @@ __device__ void search_core(
       for (unsigned p = threadIdx.x; p < search_width; p += blockDim.x) {
         if (parent_list_buffer[p] != invalid_index) {
           const auto parent_id = result_indices_buffer[parent_list_buffer[p]] & ~index_msb_1_mask;
-          if (!sample_filter(query_id, parent_id)) {
+          if (!sample_filter(query_id, to_source_index(parent_id))) {
             // If the parent must not be in the resulting top-k list, remove from the parent list
             result_distances_buffer[parent_list_buffer[p]] = utils::get_max_value<DISTANCE_T>();
             result_indices_buffer[parent_list_buffer[p]]   = invalid_index;
@@ -859,7 +865,8 @@ __device__ void search_core(
     for (unsigned i = threadIdx.x; i < internal_topk + search_width * graph_degree;
          i += blockDim.x) {
       const auto node_id = result_indices_buffer[i] & ~index_msb_1_mask;
-      if (node_id != (invalid_index & ~index_msb_1_mask) && !sample_filter(query_id, node_id)) {
+      if (node_id != (invalid_index & ~index_msb_1_mask) &&
+          !sample_filter(query_id, to_source_index(node_id))) {
         result_distances_buffer[i] = utils::get_max_value<DISTANCE_T>();
         result_indices_buffer[i]   = invalid_index;
       }
@@ -941,16 +948,16 @@ __device__ void search_core(
     index_element_tag == 3
       ? [](uintptr_t ptr,
            uint32_t i,
-           INDEX_T x) { reinterpret_cast<uint64_t*>(ptr)[i] = static_cast<uint64_t>(x); }
+           SourceIndexT x) { reinterpret_cast<uint64_t*>(ptr)[i] = static_cast<uint64_t>(x); }
     : index_element_tag == 2
       ? [](uintptr_t ptr,
            uint32_t i,
-           INDEX_T x) { reinterpret_cast<uint32_t*>(ptr)[i] = static_cast<uint32_t>(x); }
+           SourceIndexT x) { reinterpret_cast<uint32_t*>(ptr)[i] = static_cast<uint32_t>(x); }
     : index_element_tag == 1
       ? [](uintptr_t ptr,
            uint32_t i,
-           INDEX_T x) { reinterpret_cast<uint16_t*>(ptr)[i] = static_cast<uint16_t>(x); }
-      : [](uintptr_t ptr, uint32_t i, INDEX_T x) {
+           SourceIndexT x) { reinterpret_cast<uint16_t*>(ptr)[i] = static_cast<uint16_t>(x); }
+      : [](uintptr_t ptr, uint32_t i, SourceIndexT x) {
           reinterpret_cast<uint8_t*>(ptr)[i] = static_cast<uint8_t>(x);
         };
   for (std::uint32_t i = threadIdx.x; i < top_k; i += blockDim.x) {
@@ -960,9 +967,10 @@ __device__ void search_core(
     if (result_distances_ptr != nullptr) { result_distances_ptr[j] = result_distances_buffer[ii]; }
     constexpr INDEX_T index_msb_1_mask = utils::gen_index_msb_1_mask<INDEX_T>::value;
 
-    write_indices(result_indices_ptr,
-                  j,
-                  result_indices_buffer[ii] & ~index_msb_1_mask);  // clear most significant bit
+    auto internal_index =
+      result_indices_buffer[ii] & ~index_msb_1_mask;  // clear most significant bit
+    auto source_index = to_source_index(internal_index);
+    write_indices(result_indices_ptr, j, source_index);
   }
   if (threadIdx.x == 0 && num_executed_iterations != nullptr) {
     num_executed_iterations[query_id] = iter + 1;
@@ -999,6 +1007,7 @@ template <unsigned MAX_ITOPK,
           unsigned MAX_CANDIDATES,
           unsigned TOPK_BY_BITONIC_SORT,
           class DATASET_DESCRIPTOR_T,
+          class SourceIndexT,
           class SAMPLE_FILTER_T>
 RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel(
   uintptr_t result_indices_ptr,                                           // [num_queries, top_k]
@@ -1008,6 +1017,7 @@ RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel(
   const typename DATASET_DESCRIPTOR_T::DATA_T* const queries_ptr,  // [num_queries, dataset_dim]
   const typename DATASET_DESCRIPTOR_T::INDEX_T* const knn_graph,   // [dataset_size, graph_degree]
   const std::uint32_t graph_degree,
+  const SourceIndexT* source_indices_ptr,
   const unsigned num_distilation,
   const uint64_t rand_xor_mask,
   const typename DATASET_DESCRIPTOR_T::INDEX_T* seed_ptr,  // [num_queries, num_seeds]
@@ -1029,6 +1039,7 @@ RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel(
               MAX_CANDIDATES,
               TOPK_BY_BITONIC_SORT,
               DATASET_DESCRIPTOR_T,
+              SourceIndexT,
               SAMPLE_FILTER_T>(result_indices_ptr,
                                result_distances_ptr,
                                top_k,
@@ -1036,6 +1047,7 @@ RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel(
                                queries_ptr,
                                knn_graph,
                                graph_degree,
+                               source_indices_ptr,
                                num_distilation,
                                rand_xor_mask,
                                seed_ptr,
@@ -1116,6 +1128,7 @@ template <unsigned MAX_ITOPK,
           unsigned MAX_CANDIDATES,
           unsigned TOPK_BY_BITONIC_SORT,
           class DATASET_DESCRIPTOR_T,
+          class SourceIndexT,
           class SAMPLE_FILTER_T>
 RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel_p(
   const DATASET_DESCRIPTOR_T* dataset_desc,
@@ -1124,6 +1137,7 @@ RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel_p(
   uint32_t* completion_counters,
   const typename DATASET_DESCRIPTOR_T::INDEX_T* const knn_graph,  // [dataset_size, graph_degree]
   const std::uint32_t graph_degree,
+  const SourceIndexT* source_indices_ptr,
   const unsigned num_distilation,
   const uint64_t rand_xor_mask,
   const typename DATASET_DESCRIPTOR_T::INDEX_T* seed_ptr,  // [num_queries, num_seeds]
@@ -1185,6 +1199,7 @@ RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel_p(
                 MAX_CANDIDATES,
                 TOPK_BY_BITONIC_SORT,
                 DATASET_DESCRIPTOR_T,
+                SourceIndexT,
                 SAMPLE_FILTER_T>(result_indices_ptr,
                                  result_distances_ptr,
                                  top_k,
@@ -1192,6 +1207,7 @@ RAFT_KERNEL __launch_bounds__(1024, 1) search_kernel_p(
                                  queries_ptr,
                                  knn_graph,
                                  graph_degree,
+                                 source_indices_ptr,
                                  num_distilation,
                                  rand_xor_mask,
                                  seed_ptr,
@@ -1228,6 +1244,7 @@ template <bool Persistent,
           unsigned MAX_CANDIDATES,
           unsigned TOPK_BY_BITONIC_SORT,
           class DATASET_DESCRIPTOR_T,
+          class SourceIndexT,
           class SAMPLE_FILTER_T>
 auto dispatch_kernel = []() {
   if constexpr (Persistent) {
@@ -1235,20 +1252,30 @@ auto dispatch_kernel = []() {
                            MAX_CANDIDATES,
                            TOPK_BY_BITONIC_SORT,
                            DATASET_DESCRIPTOR_T,
+                           SourceIndexT,
                            SAMPLE_FILTER_T>;
   } else {
     return search_kernel<MAX_ITOPK,
                          MAX_CANDIDATES,
                          TOPK_BY_BITONIC_SORT,
                          DATASET_DESCRIPTOR_T,
+                         SourceIndexT,
                          SAMPLE_FILTER_T>;
   }
 }();
 
-template <bool Persistent, typename DATASET_DESCRIPTOR_T, typename SAMPLE_FILTER_T>
+template <bool Persistent,
+          typename DATASET_DESCRIPTOR_T,
+          typename SourceIndexT,
+          typename SAMPLE_FILTER_T>
 struct search_kernel_config {
-  using kernel_t =
-    decltype(dispatch_kernel<Persistent, 64, 64, 0, DATASET_DESCRIPTOR_T, SAMPLE_FILTER_T>);
+  using kernel_t = decltype(dispatch_kernel<Persistent,
+                                            64,
+                                            64,
+                                            0,
+                                            DATASET_DESCRIPTOR_T,
+                                            SourceIndexT,
+                                            SAMPLE_FILTER_T>);
 
   template <unsigned MAX_CANDIDATES, unsigned USE_BITONIC_SORT>
   static auto choose_search_kernel(unsigned itopk_size) -> kernel_t
@@ -1259,6 +1286,7 @@ struct search_kernel_config {
                              MAX_CANDIDATES,
                              USE_BITONIC_SORT,
                              DATASET_DESCRIPTOR_T,
+                             SourceIndexT,
                              SAMPLE_FILTER_T>;
     } else if (itopk_size <= 128) {
       return dispatch_kernel<Persistent,
@@ -1266,6 +1294,7 @@ struct search_kernel_config {
                              MAX_CANDIDATES,
                              USE_BITONIC_SORT,
                              DATASET_DESCRIPTOR_T,
+                             SourceIndexT,
                              SAMPLE_FILTER_T>;
     } else if (itopk_size <= 256) {
       return dispatch_kernel<Persistent,
@@ -1273,6 +1302,7 @@ struct search_kernel_config {
                              MAX_CANDIDATES,
                              USE_BITONIC_SORT,
                              DATASET_DESCRIPTOR_T,
+                             SourceIndexT,
                              SAMPLE_FILTER_T>;
     } else if (itopk_size <= 512) {
       return dispatch_kernel<Persistent,
@@ -1280,6 +1310,7 @@ struct search_kernel_config {
                              MAX_CANDIDATES,
                              USE_BITONIC_SORT,
                              DATASET_DESCRIPTOR_T,
+                             SourceIndexT,
                              SAMPLE_FILTER_T>;
     }
     THROW("No kernel for parametels itopk_size %u, max_candidates %u", itopk_size, MAX_CANDIDATES);
@@ -1305,6 +1336,7 @@ struct search_kernel_config {
                                max_candidates,
                                0,
                                DATASET_DESCRIPTOR_T,
+                               SourceIndexT,
                                SAMPLE_FILTER_T>;
       } else if (itopk_size <= 512) {
         return dispatch_kernel<Persistent,
@@ -1312,6 +1344,7 @@ struct search_kernel_config {
                                max_candidates,
                                0,
                                DATASET_DESCRIPTOR_T,
+                               SourceIndexT,
                                SAMPLE_FILTER_T>;
       }
     }
@@ -1783,15 +1816,20 @@ struct alignas(kCacheLineBytes) launcher_t {
   }
 };
 
-template <typename DataT, typename IndexT, typename DistanceT, typename SampleFilterT>
+template <typename DataT,
+          typename IndexT,
+          typename DistanceT,
+          typename SourceIndexT,
+          typename SampleFilterT>
 struct alignas(kCacheLineBytes) persistent_runner_t : public persistent_runner_base_t {
   using descriptor_base_type = dataset_descriptor_base_t<DataT, IndexT, DistanceT>;
   using index_type           = IndexT;
   using distance_type        = DistanceT;
   using data_type            = DataT;
-  using kernel_config_type   = search_kernel_config<true, descriptor_base_type, SampleFilterT>;
-  using kernel_type          = typename kernel_config_type::kernel_t;
-  using job_desc_type        = job_desc_t<descriptor_base_type>;
+  using kernel_config_type =
+    search_kernel_config<true, descriptor_base_type, SourceIndexT, SampleFilterT>;
+  using kernel_type   = typename kernel_config_type::kernel_t;
+  using job_desc_type = job_desc_t<descriptor_base_type>;
   kernel_type kernel;
   uint32_t block_size;
   dataset_descriptor_host<DataT, IndexT, DistanceT> dd_host;
@@ -1809,6 +1847,7 @@ struct alignas(kCacheLineBytes) persistent_runner_t : public persistent_runner_b
   static inline auto calculate_parameter_hash(
     std::reference_wrapper<const dataset_descriptor_host<DataT, IndexT, DistanceT>> dataset_desc,
     raft::device_matrix_view<const index_type, int64_t, raft::row_major> graph,
+    const SourceIndexT* source_indices_ptr,
     uint32_t num_itopk_candidates,
     uint32_t block_size,  //
     uint32_t smem_size,
@@ -1826,15 +1865,17 @@ struct alignas(kCacheLineBytes) persistent_runner_t : public persistent_runner_b
     float persistent_lifetime,
     float persistent_device_usage) -> uint64_t
   {
-    return uint64_t(graph.data_handle()) ^ dataset_desc.get().team_size ^ num_itopk_candidates ^
-           block_size ^ smem_size ^ hash_bitlen ^ small_hash_reset_interval ^ num_random_samplings ^
-           rand_xor_mask ^ num_seeds ^ itopk_size ^ search_width ^ min_iterations ^ max_iterations ^
+    return uint64_t(graph.data_handle()) ^ uint64_t(source_indices_ptr) ^
+           dataset_desc.get().team_size ^ num_itopk_candidates ^ block_size ^ smem_size ^
+           hash_bitlen ^ small_hash_reset_interval ^ num_random_samplings ^ rand_xor_mask ^
+           num_seeds ^ itopk_size ^ search_width ^ min_iterations ^ max_iterations ^
            uint64_t(persistent_lifetime * 1000) ^ uint64_t(persistent_device_usage * 1000);
   }
 
   persistent_runner_t(
     std::reference_wrapper<const dataset_descriptor_host<DataT, IndexT, DistanceT>> dataset_desc,
     raft::device_matrix_view<const index_type, int64_t, raft::row_major> graph,
+    const SourceIndexT* source_indices_ptr,
     uint32_t num_itopk_candidates,
     uint32_t block_size,  //
     uint32_t smem_size,
@@ -1862,6 +1903,7 @@ struct alignas(kCacheLineBytes) persistent_runner_t : public persistent_runner_b
       dd_host{dataset_desc.get()},
       param_hash(calculate_parameter_hash(dd_host,
                                           graph,
+                                          source_indices_ptr,
                                           num_itopk_candidates,
                                           block_size,
                                           smem_size,
@@ -1935,6 +1977,7 @@ struct alignas(kCacheLineBytes) persistent_runner_t : public persistent_runner_b
        &completion_counters_ptr,
        &graph_ptr,  // [dataset_size, graph_degree]
        &graph_degree,
+       &source_indices_ptr,
        &num_random_samplings,
        &rand_xor_mask,
        &dev_seed_ptr,
@@ -2110,30 +2153,39 @@ auto get_runner(Args... args) -> std::shared_ptr<RunnerT>
   return runner;
 }
 
-template <typename DataT, typename IndexT, typename DistanceT, typename SampleFilterT>
-void select_and_run(const dataset_descriptor_host<DataT, IndexT, DistanceT>& dataset_desc,
-                    raft::device_matrix_view<const IndexT, int64_t, raft::row_major> graph,
-                    uintptr_t topk_indices_ptr,     // [num_queries, topk]
-                    DistanceT* topk_distances_ptr,  // [num_queries, topk]
-                    const DataT* queries_ptr,       // [num_queries, dataset_dim]
-                    uint32_t num_queries,
-                    const IndexT* dev_seed_ptr,         // [num_queries, num_seeds]
-                    uint32_t* num_executed_iterations,  // [num_queries,]
-                    const search_params& ps,
-                    uint32_t topk,
-                    uint32_t num_itopk_candidates,
-                    uint32_t block_size,  //
-                    uint32_t smem_size,
-                    int64_t hash_bitlen,
-                    IndexT* hashmap_ptr,
-                    size_t small_hash_bitlen,
-                    size_t small_hash_reset_interval,
-                    uint32_t num_seeds,
-                    SampleFilterT sample_filter,
-                    cudaStream_t stream)
+template <typename DataT,
+          typename IndexT,
+          typename DistanceT,
+          typename SourceIndexT,
+          typename SampleFilterT>
+void select_and_run(
+  const dataset_descriptor_host<DataT, IndexT, DistanceT>& dataset_desc,
+  raft::device_matrix_view<const IndexT, int64_t, raft::row_major> graph,
+  std::optional<raft::device_vector_view<const SourceIndexT, int64_t>> source_indices,
+  uintptr_t topk_indices_ptr,     // [num_queries, topk]
+  DistanceT* topk_distances_ptr,  // [num_queries, topk]
+  const DataT* queries_ptr,       // [num_queries, dataset_dim]
+  uint32_t num_queries,
+  const IndexT* dev_seed_ptr,         // [num_queries, num_seeds]
+  uint32_t* num_executed_iterations,  // [num_queries,]
+  const search_params& ps,
+  uint32_t topk,
+  uint32_t num_itopk_candidates,
+  uint32_t block_size,  //
+  uint32_t smem_size,
+  int64_t hash_bitlen,
+  IndexT* hashmap_ptr,
+  size_t small_hash_bitlen,
+  size_t small_hash_reset_interval,
+  uint32_t num_seeds,
+  SampleFilterT sample_filter,
+  cudaStream_t stream)
 {
+  const SourceIndexT* source_indices_ptr =
+    source_indices.has_value() ? source_indices->data_handle() : nullptr;
+
   if (ps.persistent) {
-    using runner_type = persistent_runner_t<DataT, IndexT, DistanceT, SampleFilterT>;
+    using runner_type = persistent_runner_t<DataT, IndexT, DistanceT, SourceIndexT, SampleFilterT>;
 
     get_runner<runner_type>(/*
 Note, we're passing the descriptor by reference here, and this reference is going to be passed to a
@@ -2142,6 +2194,7 @@ control is returned in this thread (in persistent_runner_t constructor), so we'r
 */
                             std::cref(dataset_desc),
                             graph,
+                            source_indices_ptr,
                             num_itopk_candidates,
                             block_size,
                             smem_size,
@@ -2161,7 +2214,7 @@ control is returned in this thread (in persistent_runner_t constructor), so we'r
       ->launch(topk_indices_ptr, topk_distances_ptr, queries_ptr, num_queries, topk);
   } else {
     using descriptor_base_type = dataset_descriptor_base_t<DataT, IndexT, DistanceT>;
-    auto kernel                = search_kernel_config<false, descriptor_base_type, SampleFilterT>::
+    auto kernel = search_kernel_config<false, descriptor_base_type, SourceIndexT, SampleFilterT>::
       choose_itopk_and_mx_candidates(ps.itopk_size, num_itopk_candidates, block_size);
     RAFT_CUDA_TRY(
       cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size));
@@ -2176,6 +2229,7 @@ control is returned in this thread (in persistent_runner_t constructor), so we'r
                                                            queries_ptr,
                                                            graph.data_handle(),
                                                            graph.extent(1),
+                                                           source_indices_ptr,
                                                            ps.num_random_samplings,
                                                            ps.rand_xor_mask,
                                                            dev_seed_ptr,
