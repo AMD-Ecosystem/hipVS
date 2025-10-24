@@ -23,6 +23,7 @@
 #include <raft/core/resource/resource_types.hpp>
 #include <raft/core/resources.hpp>
 #include <raft/util/cudart_utils.hpp>
+#include <rapids_logger/logger.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/mr/device/device_memory_resource.hpp>
 #include <rmm/mr/device/managed_memory_resource.hpp>
@@ -213,9 +214,20 @@ extern "C" const char* cuvsGetLastErrorText()
   return last_error_text.empty() ? NULL : last_error_text.c_str();
 }
 
-extern "C" void cuvsLogLastErrorText()
+// <<<<<<< OLD CODE from 62f88924a (b5a3c8c66) - COMMENTED OUT
+// extern "C" void cuvsLogLastErrorText()
+// {
+//   if (!last_error_text.empty()) { std::cerr << last_error_text << std::endl; }
+// =======
+extern "C" void cuvsSetLogLevel(cuvsLogLevel_t verbosity)
 {
-  if (!last_error_text.empty()) { std::cerr << last_error_text << std::endl; }
+  raft::default_logger().set_level(static_cast<rapids_logger::level_enum>(verbosity));
+}
+
+extern "C" cuvsLogLevel_t cuvsGetLogLevel()
+{
+  return static_cast<cuvsLogLevel_t>(raft::default_logger().level());
+// >>>>>>> END NEW CODE (b5a3c8c66)
 }
 
 extern "C" void cuvsSetLastErrorText(const char* error) { last_error_text = error ? error : ""; }
