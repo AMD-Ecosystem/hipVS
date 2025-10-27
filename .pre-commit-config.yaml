@@ -1,21 +1,26 @@
-# Copyright (c) 2022-2025, NVIDIA CORPORATION.
-#
-# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+# <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+# # Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# #
+# # Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+# # Permission is hereby granted, free of charge, to any person obtaining a copy
+# # of this software and associated documentation files (the "Software"), to deal
+# # in the Software without restriction, including without limitation the rights
+# # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# # copies of the Software, and to permit persons to whom the Software is
+# # furnished to do so, subject to the following conditions:
+# # The above copyright notice and this permission notice shall be included in
+# # all copies or substantial portions of the Software.
+# # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# # THE SOFTWARE.
+# =======
+# SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+# >>>>>>> END NEW CODE (5a0ba144f)
 
 repos:
       - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -149,10 +154,86 @@ repos:
                 exclude: |
                   (?x)
                     ^CHANGELOG[.]md$|
-                    ^cpp/cmake/patches/cutlass/build-export[.]patch$|
-                    ^docs_amd/reference/rust_api/rust_html/.
-      - repo: https://github.com/pre-commit/pre-commit-hooks
-        rev: v4.5.0
+# <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+#                     ^cpp/cmake/patches/cutlass/build-export[.]patch$|
+#                     ^docs_amd/reference/rust_api/rust_html/.
+#       - repo: https://github.com/pre-commit/pre-commit-hooks
+#         rev: v4.5.0
+# =======
+                    ^cpp/cmake/patches/cutlass/build-export[.]patch$
+      - repo: https://github.com/rapidsai/pre-commit-hooks
+        rev: v1.2.0
+        hooks:
+          - id: verify-copyright
+            name: verify-copyright-cuvs
+            args: [--fix, --spdx]
+            files: |
+              (?x)
+                [.](cmake|c|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs|java)$|
+                CMakeLists[.]txt$|
+                CMakeLists_standalone[.]txt$|
+                meta[.]yaml$|
+                pyproject[.]toml$|
+                ^python/cuvs_bench/cuvs_bench/split_groundtruth/split_groundtruth[.]pl$|
+                Dockerfile$|
+                pom[.]xml$|
+                ^java/cuvs-java/src/assembly/native-with-deps[.]xml$|
+                ^java/docker-build/build-in-docker$|
+                ^java/docker-build/run-in-docker$|
+                ^[.]flake8$|
+                recipe[.]yaml$|
+                ^[.]pre-commit-config[.]yaml$
+            exclude: |
+              (?x)^(
+                docs/source/sphinxext/github_link[.]py$|
+                cpp/cmake/modules/FindAVX[.]cmake$|
+                cpp/src/neighbors/detail/faiss_distance_utils[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/gemm[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/epilogue[.]cuh$|
+                cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_normvec_smem[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/persistent_gemm[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/epilogue_elementwise[.]cuh$|
+                cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_reduced_vec[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$
+              )
+          - id: verify-copyright
+            name: verify-copyright-scikit-learn
+            args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
+            files: |
+              (?x)^(
+                docs/source/sphinxext/github_link[.]py$
+              )
+          - id: verify-copyright
+            name: verify-copyright-cutlass
+            args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
+            files: |
+              (?x)^(
+                cpp/src/distance/detail/fused_distance_nn/gemm[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/epilogue[.]cuh$|
+                cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_normvec_smem[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/persistent_gemm[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/epilogue_elementwise[.]cuh$|
+                cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_reduced_vec[.]h$|
+                cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$
+              )
+          - id: verify-copyright
+            name: verify-copyright-faiss
+            args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND MIT"]
+            files: |
+              (?x)^(
+                cpp/src/neighbors/detail/faiss_distance_utils[.]h$
+              )
+          - id: verify-alpha-spec
+          - id: verify-codeowners
+            args: [--fix, --project-prefix=cuvs]
+      - repo: https://github.com/rapidsai/dependency-file-generator
+        rev: v1.20.0
+        hooks:
+            - id: rapids-dependency-file-generator
+              args: ["--clean", "--warn-all", "--strict"]
+      - repo: https://github.com/shellcheck-py/shellcheck-py
+        rev: v0.10.0.1
+# >>>>>>> END NEW CODE (5a0ba144f)
         hooks:
               - id: check-json
 
