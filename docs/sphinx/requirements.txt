@@ -117,7 +117,7 @@ markdown-it-py==3.0.0
     #   myst-parser
 markupsafe==3.0.3
     # via jinja2
-matplotlib-inline==0.1.7
+matplotlib-inline==0.2.1
     # via
     #   ipykernel
     #   ipython
@@ -208,7 +208,7 @@ requests==2.32.5
     # via
     #   pygithub
     #   sphinx
-rocm-docs-core==1.26.0
+rocm-docs-core==1.27.0
     # via -r requirements.in
 roman-numerals-py==3.1.0
     # via sphinx
