@@ -32,9 +32,9 @@ Install ROCm 7.0.2 or later, or the minimum version supported by the GPUs listed
 | [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)   | Tested with 7.6.1                            |
 | [`libopenblas-dev`](https://github.com/OpenMathLib/OpenBLAS)          | Tested with 0.3.26                           |
 | **Additional Required Dependencies**                                  |                                              |
-| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | TBD                                          |
-| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | TBD                                          |
-| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | TBD                                          |
+| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | 3.0.0                                          |
+| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | 0.3.0                                          |
+| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | 0.1.0                                          |
 | **\***[`hipCUB`](https://github.com/ROCm/hipCUB)                      | Version that comes bundled with ROCm ≥ 7.0.2 |
 | **\***[`rocThrust`](https://github.com/ROCm/rocThrust)                | Version that comes bundled with ROCm ≥ 7.0.2 |
 | **\*\***[`OpenMP`](https://www.openmp.org/)                           | Version that comes bundled with ROCm ≥ 7.0.2 |
@@ -252,7 +252,7 @@ ninja install
 
 hipVS Python packages have a dependency on `CuPy`, which requires the `ROCM_HOME` environment variable to be set to the base folder of the ROCm installation, typically `/opt/rocm`.
 
-### Build and install hipvs python packages
+### Build and install hipVS python packages
 
 #### [Step 1] Setup Conda environment
 
@@ -343,7 +343,7 @@ LD_LIBRARY_PATH=$CONDA_PREFIX/lib <HIPVS_ROOT>/rust/target/debug/examples/cagra
 
 ### Packaging with build.sh
 
-The following command will generate a debian: `hipvs_<VERSION>_amd64.deb` in `<HIPVS_ROOT>/cpp/build`.
+The following command will generate a debian package: `hipvs_<VERSION>_amd64.deb` in `<HIPVS_ROOT>/cpp/build`.
 
 ```bash
 ./build.sh libcuvs package

@@ -14,7 +14,7 @@ such as those found in [GraphBLAS](https://graphblas.org/).
 
 Below are some common use-cases for vector search:
 
-* Semantic search - 
+* Semantic search
 
   - Generative AI & Retrieval-Augmented Generation (RAG)
   - Recommender systems
@@ -25,7 +25,7 @@ Below are some common use-cases for vector search:
   - Molecular search
   - Model training
 
-* Data mining - 
+* Data mining
 
   - Clustering algorithms
   - Visualization algorithms
