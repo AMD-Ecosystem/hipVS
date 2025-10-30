@@ -31,5 +31,5 @@ conda activate hipVS
 hipVS can then be installed into this environment using pip and the AMD PyPI URL:
 
 ```bash
-pip install hipvs==0.1.0 --extra-index-url=https://pypi.amd.com/simple
+pip install amd-hipvs==0.1.0 --extra-index-url=https://pypi.amd.com/simple
 ```
