@@ -40,7 +40,7 @@ requires = [
 ]
 
 [project]
-name = "hipvs"
+name = "amd-hipvs"
 dynamic = ["version"]
 description = "hipVS: Vector Search on the GPU"
 readme = { file = "README.md", content-type = "text/markdown" }
@@ -51,13 +51,13 @@ authors = [
 license = { text = "Apache 2.0 AND MIT" }
 requires-python = ">=3.10"
 dependencies = [
-    "libhipvs==0.1.*",
+    "amd-libhipvs==0.1.*",
     "numpy>=1.23,<3.0a0",
     "amd_hipmm",
     "hip-python",
     "hip-python-as-cuda",
-    "libhipraft==0.1.*",
-    "pylibhipraft==0.1.*",
+    "amd-libraft==0.1.*",
+    "amd-pylibraft==0.1.*",
 ]
 classifiers = [
     "Intended Audience :: Developers",

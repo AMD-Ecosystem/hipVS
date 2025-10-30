@@ -3,10 +3,10 @@ hip_python>=7.0.2,<7.1
 hip_python_as_cuda>=7.0.2,<7.1
 amd_libhipmm>=3.0.0b1,<3.1.0
 amd_hipmm>=3.0.0b1,<3.1.0
-libhipraft==0.1.0
-pylibhipraft==0.1.0
-libhipvs==0.1.0
-hipvs==0.1.0
+amd-libraft==0.1.0
+amd-pylibraft==0.1.0
+amd-libhipvs==0.1.0
+amd-hipvs==0.1.0
 jupyter
 optuna
 plotly

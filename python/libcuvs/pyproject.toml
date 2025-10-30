@@ -35,7 +35,7 @@ build-backend = "scikit_build_core.build"
 requires = ["scikit-build-core[pyproject]>=0.7.0", "cmake>=3.26.4", "ninja"]
 
 [project]
-name = "libhipvs"
+name = "amd-libhipvs"
 dynamic = ["version"]
 description = "hipVS: Vector Search on the GPU (C++)"
 readme = { file = "README.md", content-type = "text/markdown" }
