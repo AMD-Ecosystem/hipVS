@@ -97,6 +97,8 @@ option(CUVS_COMPILE_DYNAMIC_ONLY "Only build the shared library and skip the sta
 option(CUVS_NVTX "Enable nvtx markers" OFF)
 option(CUVS_RAFT_CLONE_ON_PIN "Explicitly clone RAFT branch when pinned to non-feature branch" ON)
 
+option(ENABLE_CODE_COVERAGE "turn on flags for code coverage" OFF)
+
 if(BUILD_CPU_ONLY)
   set(BUILD_SHARED_LIBS OFF)
   set(BUILD_TESTS OFF)
@@ -243,6 +245,13 @@ endif()
 
 if(BUILD_CAGRA_HNSWLIB)
   include(cmake/thirdparty/get_hnswlib.cmake)
+endif()
+
+# ##################################################################################################
+# * code coverage ------------------------------------------------------------
+if(ENABLE_CODE_COVERAGE)
+  add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+  add_link_options(-fprofile-instr-generate -fcoverage-mapping)
 endif()
 
 # ##################################################################################################
