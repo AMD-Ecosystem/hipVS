@@ -22,7 +22,9 @@ repos:
         rev: v5.0.0
         hooks:
               - id: trailing-whitespace
+                exclude: ^docs_amd/
               - id: end-of-file-fixer
+                exclude: ^docs_amd/
       - repo: https://github.com/PyCQA/isort
         rev: 5.12.0
         hooks:
@@ -137,7 +139,8 @@ repos:
                 exclude: |
                   (?x)
                     ^CHANGELOG[.]md$|
-                    ^cpp/cmake/patches/cutlass/build-export[.]patch$
+                    ^cpp/cmake/patches/cutlass/build-export[.]patch$|
+                    ^docs_amd/reference/rust_api/rust_html/.
       - repo: https://github.com/pre-commit/pre-commit-hooks
         rev: v4.5.0
         hooks:

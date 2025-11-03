@@ -62,25 +62,27 @@ function(ConfigureTest)
   add_executable(${TEST_NAME} ${_CUVS_TEST_PATH})
   target_link_libraries(
     ${TEST_NAME}
-    PRIVATE cuvs
-            cuvs::cuvs
-            raft::raft
-            test_rmm_logger
-            GTest::gtest
-            GTest::gtest_main
-            Threads::Threads
-            stdc++fs # Brad King(https://discourse.cmake.org/t/find-library-does-not-find-stdc-fs/4764/12):
-            # "This requirement comes from the version of the GNU libstdc++ in use.
-            # Early implementations of std::filesystem were kept out of the main -lstdc++ that the
-            # compiler driver links by default in order to avoid committing to a stable ABI immediately.
-            # Instead one must explicitly link -lstdc++fs to get those symbols.
-            # Newer versions of libstdc++ have the symbols integrated."
-            # Without the explicit "-lstdc++fs" we would error out when linking due to missing symbols.
-            ${CUVS_CTK_MATH_DEPENDENCIES}
-            $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-            $<TARGET_NAME_IF_EXISTS:conda_env>
-            $<$<BOOL:${_CUVS_TEST_C_LIB}>:cuvs::c_api>
-            ${_CUVS_TEST_ADDITIONAL_DEP}
+    PRIVATE
+      cuvs
+      cuvs::cuvs
+      raft::raft
+      test_rmm_logger
+      GTest::gtest
+      GTest::gtest_main
+      Threads::Threads
+      stdc++fs # Brad
+               # King(https://discourse.cmake.org/t/find-library-does-not-find-stdc-fs/4764/12):
+      # "This requirement comes from the version of the GNU libstdc++ in use. Early implementations
+      # of std::filesystem were kept out of the main -lstdc++ that the compiler driver links by
+      # default in order to avoid committing to a stable ABI immediately. Instead one must
+      # explicitly link -lstdc++fs to get those symbols. Newer versions of libstdc++ have the
+      # symbols integrated." Without the explicit "-lstdc++fs" we would error out when linking due
+      # to missing symbols.
+      ${CUVS_CTK_MATH_DEPENDENCIES}
+      $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+      $<TARGET_NAME_IF_EXISTS:conda_env>
+      $<$<BOOL:${_CUVS_TEST_C_LIB}>:cuvs::c_api>
+      ${_CUVS_TEST_ADDITIONAL_DEP}
   )
   set_target_properties(
     ${TEST_NAME}

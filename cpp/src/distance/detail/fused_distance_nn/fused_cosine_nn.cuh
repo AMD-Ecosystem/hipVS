@@ -95,69 +95,69 @@ void fusedCosineNN(OutT* min,
                                       KVPReduceOpT,
                                       decltype(distance_op),
                                       decltype(fin_op)>;
-  
-  #ifdef __HIP_PLATFORM_AMD__
-    // Use non-CUTLASS fp32 SIMT kernel.
+
+#ifdef __HIP_PLATFORM_AMD__
+  // Use non-CUTLASS fp32 SIMT kernel.
+  constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));
+  dim3 grid                  = launchConfigGenerator<P>(m, n, shmemSize, kernel);
+
+  kernel<<<grid, blk, shmemSize, stream>>>(
+    min, x, y, xn, yn, m, n, k, maxVal, workspace, redOp, pairRedOp, distance_op, fin_op);
+  RAFT_CUDA_TRY(cudaGetLastError());
+#else
+  // Get pointer to fp32 SIMT kernel to determine the runtime architecture of the
+  // current system. Other methods to determine the architecture (that do not
+  // require a pointer) can be error prone. See:
+  // https://github.com/NVIDIA/cub/issues/545
+  void* kernel_ptr   = reinterpret_cast<void*>(kernel);
+  auto runtime_arch  = arch::kernel_virtual_arch(kernel_ptr);
+  auto cutlass_range = arch::SM_range(arch::SM_80(), arch::SM_future());
+
+  if (cutlass_range.contains(runtime_arch)) {
+    // If device is SM_80 or later, use CUTLASS-based kernel.
+    using cosineOp              = cuvs::distance::detail::ops::cosine_cutlass_op<DataT, DataT>;
+    using kvp_cg_min_reduce_op_ = kvp_cg_min_reduce_op<DataT, IdxT, OutT>;
+    kvp_cg_min_reduce_op_ cg_reduce_op;
+    cosineOp cosine_dist_op;
+
+    IdxT lda, ldb, ldd;
+    lda = k, ldb = k, ldd = n;
+
+    cutlassFusedDistanceNN<DataT,
+                           DataT,
+                           OutT,
+                           IdxT,
+                           P::Veclen,
+                           decltype(cg_reduce_op),
+                           decltype(cosine_dist_op),
+                           ReduceOpT,
+                           KVPReduceOpT>(x,
+                                         y,
+                                         xn,
+                                         yn,
+                                         m,
+                                         n,
+                                         k,
+                                         lda,
+                                         ldb,
+                                         ldd,
+                                         min,
+                                         workspace,
+                                         cg_reduce_op,
+                                         cosine_dist_op,
+                                         redOp,
+                                         pairRedOp,
+                                         stream);
+  } else {
+    // If device less than SM_80, use fp32 SIMT kernel.
     constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));
     dim3 grid                  = launchConfigGenerator<P>(m, n, shmemSize, kernel);
-  
+
     kernel<<<grid, blk, shmemSize, stream>>>(
       min, x, y, xn, yn, m, n, k, maxVal, workspace, redOp, pairRedOp, distance_op, fin_op);
     RAFT_CUDA_TRY(cudaGetLastError());
-  #else
-    // Get pointer to fp32 SIMT kernel to determine the runtime architecture of the
-    // current system. Other methods to determine the architecture (that do not
-    // require a pointer) can be error prone. See:
-    // https://github.com/NVIDIA/cub/issues/545
-    void* kernel_ptr   = reinterpret_cast<void*>(kernel);
-    auto runtime_arch  = arch::kernel_virtual_arch(kernel_ptr);
-    auto cutlass_range = arch::SM_range(arch::SM_80(), arch::SM_future());
-
-    if (cutlass_range.contains(runtime_arch)) {
-      // If device is SM_80 or later, use CUTLASS-based kernel.
-      using cosineOp              = cuvs::distance::detail::ops::cosine_cutlass_op<DataT, DataT>;
-      using kvp_cg_min_reduce_op_ = kvp_cg_min_reduce_op<DataT, IdxT, OutT>;
-      kvp_cg_min_reduce_op_ cg_reduce_op;
-      cosineOp cosine_dist_op;
-
-      IdxT lda, ldb, ldd;
-      lda = k, ldb = k, ldd = n;
-
-      cutlassFusedDistanceNN<DataT,
-                            DataT,
-                            OutT,
-                            IdxT,
-                            P::Veclen,
-                            decltype(cg_reduce_op),
-                            decltype(cosine_dist_op),
-                            ReduceOpT,
-                            KVPReduceOpT>(x,
-                                          y,
-                                          xn,
-                                          yn,
-                                          m,
-                                          n,
-                                          k,
-                                          lda,
-                                          ldb,
-                                          ldd,
-                                          min,
-                                          workspace,
-                                          cg_reduce_op,
-                                          cosine_dist_op,
-                                          redOp,
-                                          pairRedOp,
-                                          stream);
-    } else {
-      // If device less than SM_80, use fp32 SIMT kernel.
-      constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));
-      dim3 grid                  = launchConfigGenerator<P>(m, n, shmemSize, kernel);
-
-      kernel<<<grid, blk, shmemSize, stream>>>(
-        min, x, y, xn, yn, m, n, k, maxVal, workspace, redOp, pairRedOp, distance_op, fin_op);
-      RAFT_CUDA_TRY(cudaGetLastError());
-    }
-  #endif
+  }
+#endif
 }
 
 }  // namespace detail

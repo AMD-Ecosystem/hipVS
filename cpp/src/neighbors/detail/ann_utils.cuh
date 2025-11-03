@@ -236,9 +236,7 @@ struct mapping {
       }
       return static_cast<T>(mapped_val);
     }
-    if constexpr (std::is_floating_point_v<T>) {
-      return static_cast<T>(x) * static_cast<T>(kMult);
-    }
+    if constexpr (std::is_floating_point_v<T>) { return static_cast<T>(x) * static_cast<T>(kMult); }
     return static_cast<T>(static_cast<float>(x) * static_cast<float>(kMult));
   };
   /** @} */

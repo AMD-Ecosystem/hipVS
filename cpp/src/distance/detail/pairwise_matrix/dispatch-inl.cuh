@@ -30,7 +30,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
- 
+
 #pragma once
 
 /* This file has two responsibilities:
@@ -112,11 +112,11 @@ void pairwise_matrix_dispatch(OpT distance_op,
   // - execute normal kernel below SM_80
   namespace arch = raft::util::arch;
 
-  #ifdef __HIP_PLATFORM_AMD__
+#ifdef __HIP_PLATFORM_AMD__
   constexpr bool cutlass_op_unavailable = true;
-  #else
+#else
   constexpr bool cutlass_op_unavailable = !ops::has_cutlass_op<OpT>();
-  #endif
+#endif
 
   if constexpr (cutlass_op_unavailable) {
     // Always execute legacy kernels when no cutlass op is available

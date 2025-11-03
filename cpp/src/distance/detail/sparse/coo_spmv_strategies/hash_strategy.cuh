@@ -299,7 +299,8 @@ class hash_strategy : public coo_spmv_strategy<value_idx, value_t, tpb> {
 
   inline static int get_map_size(int device_id)
   {
-    return (raft::getSharedMemPerBlock() - ((tpb / raft::host_warp_size(device_id)) * sizeof(value_t))) /
+    return (raft::getSharedMemPerBlock() -
+            ((tpb / raft::host_warp_size(device_id)) * sizeof(value_t))) /
            sizeof(typename insert_type::slot_type);
   }
 

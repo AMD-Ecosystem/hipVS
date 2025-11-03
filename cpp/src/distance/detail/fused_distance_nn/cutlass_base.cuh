@@ -193,4 +193,4 @@ void cutlassFusedDistanceNN(const DataT* x,
 };  // namespace cuvs
 
 #pragma GCC diagnostic pop
-#endif //__HIP_PLATFORM_AMD__ 
+#endif  //__HIP_PLATFORM_AMD__

@@ -147,7 +147,7 @@ RAFT_KERNEL random_pickup_kernel(
   dataset_desc = dataset_desc->setup_workspace(smem, queries_ptr, query_id);
   __syncthreads();
 
-  INDEX_T best_index_team_local = utils::get_max_value<INDEX_T>();
+  INDEX_T best_index_team_local    = utils::get_max_value<INDEX_T>();
   DISTANCE_T best_norm2_team_local = utils::get_max_value<DISTANCE_T>();
   for (unsigned i = 0; i < num_distilation; i++) {
     INDEX_T seed_index;

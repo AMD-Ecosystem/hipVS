@@ -37,9 +37,10 @@
 
 import numpy as np
 import pytest
-from cuvs.neighbors import brute_force, filters
 from pylibraft.common import device_ndarray
 from scipy.spatial.distance import cdist
+
+from cuvs.neighbors import brute_force, filters
 
 
 @pytest.mark.parametrize("n_index_rows", [32, 100])

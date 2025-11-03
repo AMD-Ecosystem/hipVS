@@ -54,7 +54,6 @@
 
 #include <limits.h>
 
-
 namespace cuvs {
 namespace distance {
 namespace detail {
@@ -134,7 +133,8 @@ inline void balanced_coo_pairwise_generalized_spmv(
   uint64_t n = (uint64_t)sizeof(value_t) * (uint64_t)config_.a_nrows * (uint64_t)config_.b_nrows;
   RAFT_CUDA_TRY(cudaMemsetAsync(out_dists, 0, n, raft::resource::get_cuda_stream(config_.handle)));
 
-  int max_cols = max_cols_per_block<value_idx, value_t>(raft::resource::get_device_id(config_.handle));
+  int max_cols =
+    max_cols_per_block<value_idx, value_t>(raft::resource::get_device_id(config_.handle));
 
   if (max_cols > config_.a_ncols) {
     dense_smem_strategy<value_idx, value_t, threads_per_block> strategy(config_);
@@ -217,7 +217,8 @@ inline void balanced_coo_pairwise_generalized_spmv_rev(
   int chunk_size = 500000)
 {
   // try dense first
-  int max_cols = max_cols_per_block<value_idx, value_t>(raft::resource::get_device_id(config_.handle));
+  int max_cols =
+    max_cols_per_block<value_idx, value_t>(raft::resource::get_device_id(config_.handle));
 
   if (max_cols > config_.b_ncols) {
     dense_smem_strategy<value_idx, value_t, threads_per_block> strategy(config_);
