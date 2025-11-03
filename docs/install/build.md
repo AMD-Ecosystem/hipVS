@@ -16,7 +16,7 @@ hipVS currently provides C++, C, Python and Rust APIs. The following instruction
 
 hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
 
-Install ROCm 7.0.2 or later, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/).
+Install ROCm 7.0.2, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.0.2/).
 
 | Name                                                                  | Version / Notes                              |
 | ----------------------------------------------------------            | -------------------------------------------- |
