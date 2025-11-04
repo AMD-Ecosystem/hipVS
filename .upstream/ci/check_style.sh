@@ -1,5 +1,5 @@
 #!/bin/bash
-# SPDX-FileCopyrightText: Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 set -euo pipefail
@@ -16,11 +16,19 @@ rapids-mamba-retry env create --yes -f env.yaml -n checks
 conda activate checks
 
 # get config for cmake-format checks
-RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
-FORMAT_FILE_URL="https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION_MAJOR_MINOR}/cmake-format-rapids-cmake.json"
-export RAPIDS_CMAKE_FORMAT_FILE=/tmp/rapids_cmake_ci/cmake-formats-rapids-cmake.json
-mkdir -p $(dirname ${RAPIDS_CMAKE_FORMAT_FILE})
-wget -O ${RAPIDS_CMAKE_FORMAT_FILE} ${FORMAT_FILE_URL}
+# <<<<<<< OLD CODE from 2c3021fbb (cfff44b64) - COMMENTED OUT
+# RAPIDS_VERSION_MAJOR_MINOR="$(rapids-version-major-minor)"
+# FORMAT_FILE_URL="https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION_MAJOR_MINOR}/cmake-format-rapids-cmake.json"
+# export RAPIDS_CMAKE_FORMAT_FILE=/tmp/rapids_cmake_ci/cmake-formats-rapids-cmake.json
+# mkdir -p $(dirname ${RAPIDS_CMAKE_FORMAT_FILE})
+# wget -O ${RAPIDS_CMAKE_FORMAT_FILE} ${FORMAT_FILE_URL}
+# =======
+RAPIDS_BRANCH="$(cat "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"/../RAPIDS_BRANCH)"
+FORMAT_FILE_URL="https://raw.githubusercontent.com/rapidsai/rapids-cmake/${RAPIDS_BRANCH}/cmake-format-rapids-cmake.json"
+export RAPIDS_CMAKE_FORMAT_FILE=/tmp/rapids_cmake_ci/cmake-format-rapids-cmake.json
+mkdir -p "$(dirname "${RAPIDS_CMAKE_FORMAT_FILE}")"
+wget -O ${RAPIDS_CMAKE_FORMAT_FILE} "${FORMAT_FILE_URL}"
+# >>>>>>> END NEW CODE (cfff44b64)
 
 # Run pre-commit checks
 pre-commit run --all-files --show-diff-on-failure
