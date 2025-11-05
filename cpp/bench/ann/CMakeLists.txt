@@ -45,6 +45,8 @@ option(CUVS_ANN_BENCH_USE_CUVS_CAGRA "Include cuVS CAGRA in benchmark" ON)
 option(CUVS_ANN_BENCH_USE_CUVS_BRUTE_FORCE "Include cuVS brute force knn in benchmark" ON)
 option(CUVS_ANN_BENCH_USE_CUVS_CAGRA_HNSWLIB "Include cuVS CAGRA with HNSW search in benchmark" ON)
 option(CUVS_ANN_BENCH_USE_HNSWLIB "Include hnsw algorithm in benchmark" ON)
+# TODO:(HIP/AMD) Enable on the ROCm platform. The GGNN repository requires hipification and
+# significant build system changes.
 option(CUVS_ANN_BENCH_USE_GGNN "Include ggnn algorithm in benchmark" OFF)
 option(CUVS_ANN_BENCH_USE_CUVS_MG "Include cuVS ann mg algorithm in benchmark" ${BUILD_MG_ALGOS})
 option(CUVS_ANN_BENCH_SINGLE_EXE
@@ -135,17 +137,33 @@ function(ConfigureAnnBench)
     )
   endif()
 
+  if(GPU_BUILD)
+    if(CUDA_BACKEND)
+      set(GPU_RUNTIME_LIB CUDA::cudart_static)
+    else()
+      set(GPU_RUNTIME_LIB hip::host)
+    endif()
+  endif()
+
   target_link_libraries(
     ${BENCH_NAME}
     PRIVATE ${ConfigureAnnBench_LINKS}
             nlohmann_json::nlohmann_json
             Threads::Threads
             $<TARGET_NAME_IF_EXISTS:raft::raft_logger>
-            $<$<BOOL:${GPU_BUILD}>:CUDA::cudart_static>
+            stdc++fs
+            ${GPU_RUNTIME_LIB}
             $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
             $<TARGET_NAME_IF_EXISTS:conda_env>
             $<TARGET_NAME_IF_EXISTS:cuvs_bench_logger>
   )
+
+  if(NOT DISABLE_OPENMP)
+    target_link_options(${BENCH_NAME} PRIVATE "-fopenmp=libomp")
+    if(TARGET cuvs_c)
+      target_link_options(${BENCH_NAME} PRIVATE "-fopenmp=libomp")
+    endif()
+  endif()
 
   set_target_properties(
     ${BENCH_NAME}
@@ -163,8 +181,9 @@ function(ConfigureAnnBench)
   set(${ConfigureAnnBench_CXXFLAGS} ${CUVS_CXX_FLAGS} ${ConfigureAnnBench_CXXFLAGS})
 
   target_compile_options(
-    ${BENCH_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${ConfigureAnnBench_CXXFLAGS}>"
-                          "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+    ${BENCH_NAME}
+    PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${ConfigureAnnBench_CXXFLAGS}>"
+            "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
   )
 
   if(CUVS_ANN_BENCH_USE_${ConfigureAnnBench_NAME})
@@ -262,7 +281,7 @@ if(CUVS_ANN_BENCH_USE_CUVS_MG)
     $<$<BOOL:${CUVS_ANN_BENCH_USE_CUVS_MG}>:src/cuvs/cuvs_mg_cagra.cu>
     LINKS
     cuvs
-    nccl
+    $<IF:$<BOOL:${CUDA_BACKEND}>,nccl,roc::rccl>
   )
 endif()
 

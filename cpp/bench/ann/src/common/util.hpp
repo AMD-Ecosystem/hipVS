@@ -13,6 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// MIT License
+//
+// Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #pragma once
 
 #include "ann_types.hpp"
@@ -45,6 +68,19 @@
 #include <string>
 #include <vector>
 
+#define GUARDED_RUNTIME_CALL(call)                                                           \
+  do {                                                                                       \
+    cudaError_t err = (call);                                                                \
+    if (err != cudaSuccess) {                                                                \
+      std::stringstream oss;                                                                 \
+      oss << "CUDA runtime call failed:\n"                                                   \
+          << "  File: " << __FILE__ << "\n"                                                  \
+          << "  Line: " << __LINE__ << "\n"                                                  \
+          << "  Call: " << #call << "\n"                                                     \
+          << "  Error: " << cudaGetErrorString(err) << " (" << static_cast<int>(err) << ")"; \
+      throw std::runtime_error(oss.str());                                                   \
+    }                                                                                        \
+  } while (0)
 namespace cuvs::bench {
 
 /**
@@ -92,7 +128,7 @@ struct cuda_timer {
       : start_(start), stop_(stop), stream_(stream), total_time_(total_time)
     {
 #ifndef BUILD_CPU_ONLY
-      cudaEventRecord(start_, stream_);
+      GUARDED_RUNTIME_CALL(cudaEventRecord(start_, stream_));
 #endif
     }
     cuda_lap() = delete;
@@ -100,10 +136,10 @@ struct cuda_timer {
     ~cuda_lap() noexcept
     {
 #ifndef BUILD_CPU_ONLY
-      cudaEventRecord(stop_, stream_);
-      cudaEventSynchronize(stop_);
+      (void)cudaEventRecord(stop_, stream_);
+      (void)cudaEventSynchronize(stop_);
       float milliseconds = 0.0f;
-      cudaEventElapsedTime(&milliseconds, start_, stop_);
+      (void)cudaEventElapsedTime(&milliseconds, start_, stop_);
       total_time_ += milliseconds / 1000.0;
 #endif
     }
@@ -113,8 +149,8 @@ struct cuda_timer {
   {
 #ifndef BUILD_CPU_ONLY
     if (stream_.has_value()) {
-      cudaEventCreate(&stop_);
-      cudaEventCreate(&start_);
+      GUARDED_RUNTIME_CALL(cudaEventCreate(&stop_));
+      GUARDED_RUNTIME_CALL(cudaEventCreate(&start_));
     }
 #endif
   }
@@ -128,9 +164,9 @@ struct cuda_timer {
   {
 #ifndef BUILD_CPU_ONLY
     if (stream_.has_value()) {
-      cudaStreamSynchronize(stream_.value());
-      cudaEventDestroy(start_);
-      cudaEventDestroy(stop_);
+      (void)cudaStreamSynchronize(stream_.value());
+      (void)cudaEventDestroy(start_);
+      (void)cudaEventDestroy(stop_);
     }
 #endif
   }
@@ -158,10 +194,13 @@ struct cuda_timer {
 #ifndef BUILD_CPU_ONLY
 // ATM, rmm::stream does not support passing in flags; hence this helper type.
 struct non_blocking_stream {
-  non_blocking_stream() { cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking); }
+  non_blocking_stream()
+  {
+    GUARDED_RUNTIME_CALL(cudaStreamCreateWithFlags(&stream_, cudaStreamNonBlocking));
+  }
   ~non_blocking_stream() noexcept
   {
-    if (stream_ != nullptr) { cudaStreamDestroy(stream_); }
+    if (stream_ != nullptr) { (void)cudaStreamDestroy(stream_); }
   }
   non_blocking_stream(non_blocking_stream const&) = delete;
   non_blocking_stream(non_blocking_stream&& other) noexcept { std::swap(stream_, other.stream_); }
@@ -211,10 +250,10 @@ struct ws_buffer {
   {
 #ifndef BUILD_CPU_ONLY
     if (data_device_ != nullptr) {
-      cudaFreeAsync(data_device_, stream_);
-      cudaStreamSynchronize(stream_);
+      (void)cudaFreeAsync(data_device_, stream_);
+      (void)cudaStreamSynchronize(stream_);
     }
-    if (data_host_ != nullptr) { cudaFreeHost(data_host_); }
+    if (data_host_ != nullptr) { (void)cudaFreeHost(data_host_); }
 #else
     if (data_host_ != nullptr) { free(data_host_); }
 #endif
@@ -228,12 +267,12 @@ struct ws_buffer {
 #ifndef BUILD_CPU_ONLY
       case MemoryType::kDevice: {
         if (data_device_ == nullptr) {
-          cudaMallocAsync(&data_device_, size_, stream_);
-          cudaStreamSynchronize(stream_);
+          (void)cudaMallocAsync(&data_device_, size_, stream_);
+          (void)cudaStreamSynchronize(stream_);
           needs_cleanup_device_ = false;
         } else if (needs_cleanup_device_) {
-          cudaMemsetAsync(data_device_, 0, size_, stream_);
-          cudaStreamSynchronize(stream_);
+          (void)cudaMemsetAsync(data_device_, 0, size_, stream_);
+          (void)cudaStreamSynchronize(stream_);
           needs_cleanup_device_ = false;
         }
         return data_device_;
@@ -242,7 +281,7 @@ struct ws_buffer {
       default: {
         if (data_host_ == nullptr) {
 #ifndef BUILD_CPU_ONLY
-          cudaMallocHost(&data_host_, size_);
+          (void)cudaMallocHost(&data_host_, size_);
 #else
           data_host_ = malloc(size_);
 #endif
@@ -268,8 +307,8 @@ struct ws_buffer {
     auto src_ptr = data(src);
     if (dst_ptr == src_ptr) { return; }
 #ifndef BUILD_CPU_ONLY
-    cudaMemcpyAsync(dst_ptr, src_ptr, size_, cudaMemcpyDefault, stream_);
-    cudaStreamSynchronize(stream_);
+    GUARDED_RUNTIME_CALL(cudaMemcpyAsync(dst_ptr, src_ptr, size_, cudaMemcpyDefault, stream_));
+    GUARDED_RUNTIME_CALL(cudaStreamSynchronize(stream_));
 #endif
   }
 
@@ -425,12 +464,12 @@ inline auto cuda_info()
   std::vector<std::tuple<std::string, std::string>> props;
 #ifndef BUILD_CPU_ONLY
   int dev, driver = 0, runtime = 0;
-  cudaDriverGetVersion(&driver);
-  cudaRuntimeGetVersion(&runtime);
+  GUARDED_RUNTIME_CALL(cudaDriverGetVersion(&driver));
+  GUARDED_RUNTIME_CALL(cudaRuntimeGetVersion(&runtime));
 
   cudaDeviceProp device_prop;
-  cudaGetDevice(&dev);
-  cudaGetDeviceProperties(&device_prop, dev);
+  GUARDED_RUNTIME_CALL(cudaGetDevice(&dev));
+  GUARDED_RUNTIME_CALL(cudaGetDeviceProperties(&device_prop, dev));
   props.emplace_back("gpu_name", std::string(device_prop.name));
   props.emplace_back("gpu_sm_count", std::to_string(device_prop.multiProcessorCount));
   props.emplace_back("gpu_sm_freq", std::to_string(device_prop.clockRate * 1e3));

@@ -14,6 +14,28 @@
 # limitations under the License.
 #=============================================================================
 
+# MIT License
+#
+# Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 function(find_and_configure_faiss)
   set(oneValueArgs VERSION REPOSITORY PINNED_TAG BUILD_STATIC_LIBS EXCLUDE_FROM_ALL ENABLE_GPU)
   cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
@@ -23,15 +45,6 @@ function(find_and_configure_faiss)
     HEADER_NAMES  faiss/IndexFlat.h
     LIBRARY_NAMES faiss
     )
-
-  set(patch_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../patches")
-  rapids_cpm_package_override("${patch_dir}/faiss_override.json")
-
-  include("${rapids-cmake-dir}/cpm/detail/package_details.cmake")
-  rapids_cpm_package_details(faiss version repository tag shallow exclude)
-
-  include("${rapids-cmake-dir}/cpm/detail/generate_patch_command.cmake")
-  rapids_cpm_generate_patch_command(faiss ${version} patch_command)
 
   set(BUILD_SHARED_LIBS ON)
   if (PKG_BUILD_STATIC_LIBS)
@@ -48,11 +61,11 @@ function(find_and_configure_faiss)
 
   rapids_cpm_find(faiss ${version}
     GLOBAL_TARGETS faiss faiss_avx2 faiss_gpu faiss::faiss faiss::faiss_avx2
+    PATCH_COMMAND git checkout -- . && git apply ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../patches/faiss.diff
     CPM_ARGS
-    GIT_REPOSITORY ${repository}
-    GIT_TAG ${tag}
-    GIT_SHALLOW ${shallow} ${patch_command}
-    EXCLUDE_FROM_ALL ${exclude}
+    GIT_REPOSITORY https://github.com/facebookresearch/faiss.git
+    GIT_TAG v1.10.0
+    GIT_SHALLOW ON
     OPTIONS
     "FAISS_ENABLE_GPU ${PKG_ENABLE_GPU}"
     "FAISS_ENABLE_CUVS ${PKG_ENABLE_GPU}"
@@ -61,11 +74,8 @@ function(find_and_configure_faiss)
     "FAISS_USE_CUDA_TOOLKIT_STATIC ${CUDA_STATIC_RUNTIME}"
     "BUILD_TESTING OFF"
     "CMAKE_MESSAGE_LOG_LEVEL VERBOSE"
+    "FAISS_ENABLE_ROCM ON"
     )
-
-
-  include("${rapids-cmake-dir}/cpm/detail/display_patch_status.cmake")
-  rapids_cpm_display_patch_status(faiss)
 
   if(TARGET faiss AND NOT TARGET faiss::faiss)
     add_library(faiss::faiss ALIAS faiss)
@@ -110,6 +120,12 @@ function(find_and_configure_faiss)
   else()
     set(CUVS_FAISS_TARGETS faiss::faiss PARENT_SCOPE)
   endif()
+
+  foreach(_t faiss faiss_avx2 faiss_gpu)
+    if(TARGET ${_t})
+      target_compile_options(${_t} PRIVATE -w)
+    endif()
+  endforeach()
 
 endfunction()
 

@@ -13,6 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// MIT License
+//
+// Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #pragma once
 
 #include "../common/ann_types.hpp"
@@ -26,12 +49,21 @@
 #include <faiss/IndexIVFPQ.h>
 #include <faiss/IndexRefine.h>
 #include <faiss/IndexScalarQuantizer.h>
+#ifdef __HIP_PLATFORM_AMD__
+#include <faiss/gpu-rocm/GpuIndexCagra.h>
+#include <faiss/gpu-rocm/GpuIndexFlat.h>
+#include <faiss/gpu-rocm/GpuIndexIVFFlat.h>
+#include <faiss/gpu-rocm/GpuIndexIVFPQ.h>
+#include <faiss/gpu-rocm/GpuIndexIVFScalarQuantizer.h>
+#include <faiss/gpu-rocm/StandardGpuResources.h>
+#else
 #include <faiss/gpu/GpuIndexCagra.h>
 #include <faiss/gpu/GpuIndexFlat.h>
 #include <faiss/gpu/GpuIndexIVFFlat.h>
 #include <faiss/gpu/GpuIndexIVFPQ.h>
 #include <faiss/gpu/GpuIndexIVFScalarQuantizer.h>
 #include <faiss/gpu/StandardGpuResources.h>
+#endif
 #include <faiss/impl/ScalarQuantizer.h>
 #include <faiss/index_io.h>
 #include <omp.h>
@@ -106,12 +138,12 @@ class faiss_gpu : public algo<T>, public algo_gpu {
       training_sample_fraction_{1.0 / double(param.ratio)}
   {
     static_assert(std::is_same_v<T, float>, "faiss support only float type");
-    cudaGetDevice(&device_);
+    GUARDED_RUNTIME_CALL(cudaGetDevice(&device_));
   }
 
   void build(const T* dataset, size_t nrow) final;
 
-  virtual void set_search_param(const search_param_base& param, const void* filter_bitset) {}
+  void set_search_param(const search_param_base& param, const void* filter_bitset) override {}
 
   void set_search_dataset(const T* dataset, size_t nrow) override { dataset_ = dataset; }
 

@@ -35,8 +35,8 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python rust docs tests package examples --uninstall  -v -g -n --compile-static-lib --allgpuarch --no-cpu --no-shared-libs --show_depr_warn -h"
-HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-tests=<targets>] [--gpu-arch="arch"]
+VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --compile-static-lib --allgpuarch --no-cpu --no-shared-libs --show_depr_warn -h"
+HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-bench-ann=<targets>] [--limit-tests=<targets>] [--gpu-arch="arch"]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcuvs          - build the cuvs/hipvs C++ code only. Also builds the C-wrapper library
@@ -47,6 +47,7 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    tests            - build the tests
    package          - package for CI
    examples         - build the examples
+   bench-ann        - build end-to-end ann benchmarks
 
  and <flag> is:
    -v                          - verbose build mode
@@ -55,6 +56,7 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    --uninstall                 - uninstall files for specified targets which were built and installed prior
    --compile-static-lib        - compile static library for all components
    --limit-tests               - semicolon-separated list of test executables to compile (e.g. NEIGHBORS_TEST;CLUSTER_TEST)
+   --limit-bench-ann           - semicolon-separated list of ann benchmark executables to compute (e.g. HNSWLIB_ANN_BENCH;RAFT_IVF_PQ_ANN_BENCH)
    --allgpuarch                - build for all supported GPU architectures
    --gpu-arch=\"arch\"           - build for specific GPU architectures e.g --gpu-arch=\"gfx90a\"
    --no-shared-libs            - build without shared libraries
@@ -83,6 +85,7 @@ INSTALL_TARGET=install
 BUILD_SHARED_LIBS=ON
 
 TEST_TARGETS=""
+ANN_BENCH_TARGETS=""
 
 CACHE_ARGS=""
 LOG_COMPILE_TIME=OFF
@@ -164,6 +167,21 @@ function limitTests {
     fi
 }
 
+function limitAnnBench {
+    # Check for option to limit the set of test binaries to build
+    if [[ -n $(echo $ARGS | { grep -E "\-\-limit\-bench-ann" || true; } ) ]]; then
+        # There are possible weird edge cases that may cause this regex filter to output nothing and fail silently
+        # the true pipe will catch any weird edge cases that may happen and will cause the program to fall back
+        # on the invalid option error
+        LIMIT_ANN_BENCH_TARGETS=$(echo $ARGS | sed -e 's/.*--limit-bench-ann=//' -e 's/ .*//')
+        if [[ -n ${LIMIT_ANN_BENCH_TARGETS} ]]; then
+            # Remove the full LIMIT_TEST_TARGETS argument from list of args so that it passes validArgs function
+            ARGS=${ARGS//--limit-bench-ann=$LIMIT_ANN_BENCH_TARGETS/}
+            ANN_BENCH_TARGETS=${LIMIT_ANN_BENCH_TARGETS}
+        fi
+    fi
+}
+
 function gpuArch {
     # Check if both --gpu-arch and --allgpuarch are specified
     if hasArg --allgpuarch && [[ -n $(echo $ARGS | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
@@ -205,6 +223,7 @@ if (( ${NUMARGS} != 0 )); then
     cmakeArgs
     cacheTool
     limitTests
+    limitAnnBench
     gpuArch
     for a in ${ARGS}; do
         if ! (echo " ${VALIDARGS} " | grep -q " ${a} "); then
@@ -273,6 +292,20 @@ if hasArg tests || (( ${NUMARGS} == 0 )); then
     CMAKE_TARGET="${CMAKE_TARGET};${TEST_TARGETS}"
 fi
 
+if hasArg bench-ann || (( ${NUMARGS} == 0 )); then
+    BUILD_CUVS_BENCH=ON
+    if ! hasArg tests; then
+        BUILD_TESTS=OFF
+    fi
+    COMPILE_LIBRARY=OFF
+    CMAKE_TARGET="${CMAKE_TARGET};${ANN_BENCH_TARGETS}"
+    if hasArg --cpu-only; then
+        BUILD_CPU_ONLY=ON
+        BUILD_SHARED_LIBS=OFF
+        NVTX=OFF
+    fi
+fi
+
 if hasArg package; then
     CMAKE_TARGET="${CMAKE_TARGET};package"
 fi
@@ -314,7 +347,7 @@ fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || hasArg examples; then
+if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || hasArg examples || hasArg bench-ann; then
     COMPILE_LIBRARY=ON
     if [[ ${BUILD_SHARED_LIBS} == "OFF" ]]; then
         CMAKE_TARGET="${CMAKE_TARGET};"
@@ -350,6 +383,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || 
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \
           -DCMAKE_MESSAGE_LOG_LEVEL=${CMAKE_LOG_LEVEL} \
           -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
+          -DBUILD_CUVS_BENCH=${BUILD_CUVS_BENCH} \
           ${EXTRA_CMAKE_HIP_ARGS} \
           ${CACHE_ARGS} \
           ${EXTRA_CMAKE_ARGS}

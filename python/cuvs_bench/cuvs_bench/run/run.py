@@ -14,6 +14,28 @@
 # limitations under the License.
 #
 
+# MIT License
+#
+# Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import itertools
 import os
 import warnings
@@ -358,6 +380,13 @@ def get_build_path(executable: str) -> Optional[str]:
         if os.path.exists(build_path):
             print(f"-- Using cuVS bench from repository in {build_path}.")
             return build_path
+
+    bench_dir = os.getenv("BENCH_DIR")
+    if bench_dir:
+        bench_path = os.path.join(bench_dir, "ann", executable)
+        if os.path.exists(bench_path):
+            print(f"-- Using cuVS bench from {bench_path}.")
+            return bench_path
 
     conda_path = os.getenv("CONDA_PREFIX")
     if conda_path:

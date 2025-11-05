@@ -1,0 +1,166 @@
+# MIT License
+#
+# Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4a70aaf..f22adc9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -41,9 +41,11 @@ include(rapids-cuda)
+ include(rapids-export)
+ include(rapids-find)
+
+-rapids_cuda_init_architectures(faiss)
+-rapids_cuda_init_architectures(pyfaiss)
+-rapids_cuda_init_architectures(faiss_c_library)
++if(NOT FAISS_ENABLE_ROCM)
++  rapids_cuda_init_architectures(faiss)
++  rapids_cuda_init_architectures(pyfaiss)
++  rapids_cuda_init_architectures(faiss_c_library)
++endif()
+ endif()
+
+ project(faiss
+diff --git a/cmake/thirdparty/fetch_rapids.cmake b/cmake/thirdparty/fetch_rapids.cmake
+index 2ed6a78..aecdbda 100644
+--- a/cmake/thirdparty/fetch_rapids.cmake
++++ b/cmake/thirdparty/fetch_rapids.cmake
+@@ -17,8 +17,10 @@
+ # =============================================================================
+ set(RAPIDS_VERSION "24.12")
+
+-if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
+-    file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION}/RAPIDS.cmake
+-            ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
+-endif()
+-include(${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
++if(NOT FAISS_ENABLE_ROCM)
++    if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
++        file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION}/RAPIDS.cmake
++                ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
++    endif()
++    include(${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
++endif()
+\ No newline at end of file
+diff --git a/faiss/gpu/CMakeLists.txt b/faiss/gpu/CMakeLists.txt
+index 04d2890..350a039 100644
+--- a/faiss/gpu/CMakeLists.txt
++++ b/faiss/gpu/CMakeLists.txt
+@@ -258,6 +258,10 @@ if(FAISS_ENABLE_CUVS)
+           utils/CuvsUtils.cu)
+ endif()
+
++if (FAISS_ENABLE_ROCM)
++  list(TRANSFORM FAISS_GPU_SRC REPLACE cu$ hip)
++endif()
++
+ add_library(faiss_gpu STATIC ${FAISS_GPU_SRC})
+ set_target_properties(faiss_gpu PROPERTIES
+   POSITION_INDEPENDENT_CODE ON
+@@ -301,10 +305,6 @@ if(FAISS_ENABLE_CUVS)
+   target_compile_definitions(faiss_gpu PUBLIC USE_NVIDIA_CUVS=1)
+ endif()
+
+-if (FAISS_ENABLE_ROCM)
+-  list(TRANSFORM FAISS_GPU_SRC REPLACE cu$ hip)
+-endif()
+-
+ # Export FAISS_GPU_HEADERS variable to parent scope.
+ set(FAISS_GPU_HEADERS ${FAISS_GPU_HEADERS} PARENT_SCOPE)
+
+@@ -322,7 +322,7 @@ foreach(header ${FAISS_GPU_HEADERS})
+ endforeach()
+
+ if (FAISS_ENABLE_ROCM)
+-  target_link_libraries(faiss_gpu PRIVATE hip::host roc::hipblas)
++  target_link_libraries(faiss_gpu PRIVATE hip::host roc::hipblas $<$<BOOL:${FAISS_ENABLE_CUVS}>:cuvs::cuvs> $<$<BOOL:${FAISS_ENABLE_CUVS}>:OpenMP::OpenMP_CXX>)
+   target_compile_options(faiss_gpu PRIVATE)
+ else()
+   # Prepares a host linker script and enables host linker to support
+diff --git a/faiss/gpu/utils/DeviceDefs.cuh b/faiss/gpu/utils/DeviceDefs.cuh
+index dc4c469..9209720 100644
+--- a/faiss/gpu/utils/DeviceDefs.cuh
++++ b/faiss/gpu/utils/DeviceDefs.cuh
+@@ -9,16 +9,16 @@
+
+ #include <cuda.h>
+
++#ifdef USE_AMD_ROCM
++#include <rocprim/rocprim.hpp>
++#endif
++
+ namespace faiss {
+ namespace gpu {
+
+ #ifdef USE_AMD_ROCM
+
+-#if __AMDGCN_WAVEFRONT_SIZE == 32u
+-constexpr int kWarpSize = 32;
+-#else
+-constexpr int kWarpSize = 64;
+-#endif
++__device__ constexpr int kWarpSize = rocprim::arch::wavefront::max_size();
+
+ // This is a memory barrier for intra-warp writes to shared memory.
+ __forceinline__ __device__ void warpFence() {
+diff --git a/faiss/gpu/utils/MatrixMult-inl.cuh b/faiss/gpu/utils/MatrixMult-inl.cuh
+index b28ea56..ae03571 100644
+--- a/faiss/gpu/utils/MatrixMult-inl.cuh
++++ b/faiss/gpu/utils/MatrixMult-inl.cuh
+@@ -24,17 +24,17 @@ struct GetCudaType;
+
+ template <>
+ struct GetCudaType<float> {
+-    static constexpr hipblasDatatype_t Type = HIPBLAS_R_32F;
++    static constexpr hipDataType Type = HIPBLAS_R_32F;
+ };
+
+ template <>
+ struct GetCudaType<half> {
+-    static constexpr hipblasDatatype_t Type = HIPBLAS_R_16F;
++    static constexpr hipDataType Type = HIPBLAS_R_16F;
+ };
+
+ template <>
+ struct GetCudaType<__hip_bfloat16> {
+-    static constexpr hipblasDatatype_t Type = HIPBLAS_R_16B;
++    static constexpr hipDataType Type = HIPBLAS_R_16B;
+ };
+
+ #else
+@@ -94,7 +94,7 @@ cublasStatus_t rawGemm(
+             C,
+             HIPBLAS_R_32F,
+             ldc,
+-            HIPBLAS_R_32F,
++            HIPBLAS_COMPUTE_32F,
+             HIPBLAS_GEMM_DEFAULT);
+ #else
+
+@@ -199,7 +199,7 @@ cublasStatus_t rawBatchGemm(
+             ldc,
+             strideC,
+             batchCount,
+-            HIPBLAS_R_32F,
++            HIPBLAS_COMPUTE_32F,
+             HIPBLAS_GEMM_DEFAULT);
+ #else
+     return cublasGemmStridedBatchedEx(

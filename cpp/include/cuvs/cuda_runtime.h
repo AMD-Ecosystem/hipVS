@@ -110,11 +110,23 @@
 #ifndef cudaFuncCachePreferShared
 #define cudaFuncCachePreferShared hipFuncCachePreferShared
 #endif
+#ifndef cudaHostRegister
+#define cudaHostRegister hipHostRegister
+#endif
 #ifndef cudaHostRegisterMapped
 #define cudaHostRegisterMapped hipHostRegisterMapped
 #endif
 #ifndef cudaHostRegisterReadOnly
 #define cudaHostRegisterReadOnly hipHostRegisterReadOnly
+#endif
+#ifndef cudaHostRegisterDefault
+#define cudaHostRegisterDefault hipHostRegisterDefault
+#endif
+#ifndef cudaHostRegisterIoMemory
+#define cudaHostRegisterIoMemory hipHostRegisterIoMemory
+#endif
+#ifndef cudaErrorNotSupported
+#define cudaErrorNotSupported hipErrorNotSupported
 #endif
 #ifndef cudaMemAllocationTypePinned
 #define cudaMemAllocationTypePinned hipMemAllocationTypePinned
@@ -180,6 +192,9 @@
 #endif
 #ifndef cudaDriverGetVersion
 #define cudaDriverGetVersion hipDriverGetVersion
+#endif
+#ifndef cudaRuntimeGetVersion
+#define cudaRuntimeGetVersion hipRuntimeGetVersion
 #endif
 #ifndef cudaEventCreate
 #define cudaEventCreate hipEventCreate
