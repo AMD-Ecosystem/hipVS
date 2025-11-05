@@ -5,7 +5,7 @@ root: index
 subtrees:
 - entries:
   - file: what-is-hipVS.md
-    title: What is hipVS
+    title: What is hipVS?
 
 - caption: Installation
   entries:
