@@ -60,7 +60,11 @@ jobs:
       matrix:
         cuda_version:
           - '12.9.1'
-          - '13.0.0'
+# <<<<<<< OLD CODE from cc25d6980 (9d9e6c870) - COMMENTED OUT
+#           - '13.0.0'
+# =======
+          - '13.0.2'
+# >>>>>>> END NEW CODE (9d9e6c870)
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
