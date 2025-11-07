@@ -1,4 +1,4 @@
-rocm-docs-core==1.18.4
+rocm-docs-core==1.27.0
 doxysphinx
 myst-parser
 sphinx-autoapi

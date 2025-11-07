@@ -1,3 +1,27 @@
+<!---
+    MIT License
+
+    Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+-->
+
 # Building hipVS from source
 
 hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository.
@@ -16,7 +40,7 @@ hipVS currently provides C++, C, Python and Rust APIs. The following instruction
 
 hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
 
-Install ROCm 7.0.2 or later, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/).
+Install ROCm 7.0.2, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.0.2/).
 
 | Name                                                                  | Version / Notes                              |
 | ----------------------------------------------------------            | -------------------------------------------- |
@@ -32,9 +56,9 @@ Install ROCm 7.0.2 or later, or the minimum version supported by the GPUs listed
 | [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)   | Tested with 7.6.1                            |
 | [`libopenblas-dev`](https://github.com/OpenMathLib/OpenBLAS)          | Tested with 0.3.26                           |
 | **Additional Required Dependencies**                                  |                                              |
-| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | TBD                                          |
-| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | TBD                                          |
-| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | TBD                                          |
+| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | 3.0.0                                          |
+| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | 0.3.0                                          |
+| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | 0.1.0                                          |
 | **\***[`hipCUB`](https://github.com/ROCm/hipCUB)                      | Version that comes bundled with ROCm ≥ 7.0.2 |
 | **\***[`rocThrust`](https://github.com/ROCm/rocThrust)                | Version that comes bundled with ROCm ≥ 7.0.2 |
 | **\*\***[`OpenMP`](https://www.openmp.org/)                           | Version that comes bundled with ROCm ≥ 7.0.2 |
@@ -252,7 +276,7 @@ ninja install
 
 hipVS Python packages have a dependency on `CuPy`, which requires the `ROCM_HOME` environment variable to be set to the base folder of the ROCm installation, typically `/opt/rocm`.
 
-### Build and install hipvs python packages
+### Build and install hipVS python packages
 
 #### [Step 1] Setup Conda environment
 
@@ -343,7 +367,7 @@ LD_LIBRARY_PATH=$CONDA_PREFIX/lib <HIPVS_ROOT>/rust/target/debug/examples/cagra
 
 ### Packaging with build.sh
 
-The following command will generate a debian: `hipvs_<VERSION>_amd64.deb` in `<HIPVS_ROOT>/cpp/build`.
+The following command will generate a debian package: `hipvs_<VERSION>_amd64.deb` in `<HIPVS_ROOT>/cpp/build`.
 
 ```bash
 ./build.sh libcuvs package
@@ -385,7 +409,7 @@ cd <HIPVS_ROOT>
 # Activate the hipvs conda environment.
 micromamba activate hipvs
 # Install dependencies and tools required for generating documentation.
-pip install -r docs_amd/sphinx/requirements.txt
+pip install -r docs/sphinx/requirements.txt
 ```
 
 ### Use `build.sh` to generate documentation
@@ -395,4 +419,4 @@ cd <HIPVS_ROOT>
 ./build.sh docs clean
 ```
 
-Navigate to `<HIPVS_ROOT>/docs_amd/_build` and use the tool of your choice, e.g. Firefox, to open and examine the root level html file, `index.html`. From this point you should be able to navigate through the documentation.
+Navigate to `<HIPVS_ROOT>/docs/_build` and use the tool of your choice, e.g. Firefox, to open and examine the root level html file, `index.html`. From this point you should be able to navigate through the documentation.

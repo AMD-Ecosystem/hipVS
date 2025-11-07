@@ -1,3 +1,27 @@
+<!---
+    MIT License
+
+    Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+-->
+
 <head>
   <meta charset="UTF-8">
   <meta name="description" content="hipVS documentation and API reference library">
@@ -10,8 +34,8 @@ You can install hipVS via AMD PyPI as described below. This is recommended for u
 
 ## Requirements
 
-hipVS requires ROCm 7.0.2 or later running on a ROCm-supported operating system. Using Ubuntu 22.04 or later is recommended.
-For more information, see [ROCm-DS system requirements](https://rocm.docs.amd.com/projects/rocm-ds/en/docs-25.10/install/requirements.html).
+hipVS requires ROCm 7.0.2 running on a [ROCm-supported operating system](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.0.2/reference/system-requirements.html#supported-operating-systems). Using Ubuntu 22.04 or later is recommended.
+For more information, see [ROCm-DS system requirements](https://rocm.docs.amd.com/projects/rocm-ds-internal/en/latest/install/install.html).
 
 The steps in this topic require a Conda installation. A minimal free version of Conda is [Miniforge](https://conda-forge.org/download/).
 

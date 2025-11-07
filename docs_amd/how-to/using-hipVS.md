@@ -1,11 +1,41 @@
-# Introduction
+<!---
+    MIT License
+
+    Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+-->
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="description" content="hipVS documentation and API reference library">
+  <meta name="keywords" content="Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS">
+</head>
+
+# Using hipVS examples
 
 Examples demonstrating the use of the hipVS library are provided in the `examples` folder.
 Currently, examples targeting C, C++, and Python bindings are available.  These
 example projects can be used as templates to build your own application using
 hipVS, or to add hipVS to existing projects.
 
-# Building the examples
+## Building the examples
 
 To build the examples, use the provided `build.sh` script. This is a bash script
 that calls the appropriate CMake commands, so you can look into it to see the typical
@@ -46,7 +76,7 @@ Use `cuvs::c_api` and `cuvs::cuvs` to use the C and C++ shared libraries respect
 target_link_libraries(your_app_target PRIVATE cuvs::cuvs)
 ```
 
-# hipVS Examples
+## hipVS Examples
 
 These examples demonstrate various k-nearest neighbors vector search algorithms available in hipVS.
 At a high level, each example performs the following steps:
@@ -58,30 +88,28 @@ At a high level, each example performs the following steps:
    vectors—are displayed on the screen.
 The following sections provide more details about the specific algorithms used.
 
-## C++ Examples
+### C++ Examples
 
-### Brute-Force Search with Bitmap Filtering
+#### Brute-Force Search with Bitmap Filtering
 
-This example demonstrates the [Brute Force](../reference/cpp_api/neighbors_bruteforce:bruteforce)
-search algorithm. The index is built using the
-[neighbors::brute_force::build](neighbors-bruteforce-index-build)
+This example demonstrates the {doc}`Brute Force <../reference/cpp_api/neighbors_bruteforce>`
+search algorithm. The index is built using [neighbors::brute_force::build](neighbors-bruteforce-index-build)
 function, and the search is performed using the [neighbors::brute_force::search](neighbors-bruteforce-index-search)
-function. It also demonstrates how to use [neighbors::filtering::bitmap_filter](../reference/cpp_api/neighbors_filter:filtering),
-which specifies vectors in the input dataset to be excluded from the search.
+function. It also demonstrates how to use the `bitmap_filter` parameter to specify vectors in the `search` dataset to
+be included or excluded from the search.
 
-### CAGRA Approximate Nearest Neighbors Search Algorithm
+#### CAGRA Approximate Nearest Neighbors Search Algorithm
 
-This example showcases the [CAGRA](../reference/cpp_api/neighbors_cagra:cagra) approximate nearest
+This example showcases the {doc}`CAGRA <../reference/cpp_api/neighbors_cagra>` approximate nearest
 neighbors search algorithm. This algorithm was specifically developed for GPUs. The search index is
 built using the [neighbors::cagra::build](neighbors-cagra-index-build) function, and the search is
 performed using the [neighbors::cagra::search](neighbors-cagra-index-search) function.
 
-### CAGRA Persistent Kernels Example
+#### CAGRA Persistent Kernels Example
 
-This example explores advanced use cases with the [CAGRA](../reference/cpp_api/neighbors_cagra:cagra)
-algorithm. The search is run in three
-different modes, and their performance is measured for comparison. The query set is split into two
-batches to verify performance consistency across similarly sized groups.
+This example explores advanced use cases with the {doc}`CAGRA <../reference/cpp_api/neighbors_cagra>`
+algorithm. The search is run in three different modes, and their performance is measured for comparison.
+The query set is split into two batches to verify performance consistency across similarly sized groups.
 
 1. **Full batch search**: The algorithm runs the entire batch at once.
 2. **Asynchronous search**: Queries are launched in parallel, limited by `MaxJobSize`.
@@ -90,10 +118,10 @@ batches to verify performance consistency across similarly sized groups.
 
 The execution times for all three methods across both batches are printed to the screen.
 
-### Dynamic Batching Example
+#### Dynamic Batching Example
 
-This example demonstrates [dynamic batching](neighbors-dynamic-batching) in search execution. Similar to the persistent kernel
-example, the queries are split into two batches, and three methods are applied:
+This example demonstrates {doc}`Dynamic Batching <../reference/cpp_api/neighbors_dynamic_batching>` in search execution.
+Similar to the persistent kernel example, the queries are split into two batches, and three methods are applied:
 
 1. Full batch search
 2. Asynchronous search
@@ -101,9 +129,9 @@ example, the queries are split into two batches, and three methods are applied:
 is used. It waits to collect smaller queries before the timeout, and runs them together,
 reducing kernel launch overhead.
 
-### IVF Flat Example
+#### IVF Flat Example
 
-This example demonstrates the [IVF (inverted file index) search algorithm, using flat vectors](../reference/cpp_api/neighbors_ivf_flat:ivf-flat).
+This example demonstrates the {doc}`IVF (inverted file index) search algorithm, using flat vectors <../reference/cpp_api/neighbors_ivf_flat>`.
 Two search methods are shown:
 
 1. Building the index from the full dataset
@@ -113,18 +141,18 @@ The index built from the sub-sampled dataset is extended, using [cuvs::neighbors
 with the entire dataset since
 IVF stores all input vectors in the index. Results from both methods are printed to the screen.
 
-### IVF PQ (Product Quantization) Example
+#### IVF PQ (Product Quantization) Example
 
-Building on the IVF flat example, this version demonstrates the [IVF PQ](../reference/cpp_api/neighbors_ivf_pq:ivf-pq)
+Building on the IVF flat example, this version demonstrates the {doc}`IVF PQ <../reference/cpp_api/neighbors_ivf_pq>`
 algorithm, which stores quantized vector values to save memory. The example uses 16-bit float
-precision for quantization. This example also demonstrates the [cuvs::neighbors::refine](../reference/cpp_api/neighbors_refine:refinement)
+precision for quantization. This example also demonstrates the {doc}`cuvs::neighbors::refinement::refine <../reference/cpp_api/neighbors_refine>`
 functionality, by using IVF PQ to search for *k+n* vectors and refining the results to *k* vectors
 based on their actual distance, computed using full precision. Results from both the base and
 refined searches are shown.
 
-### Vamana Example
+#### Vamana Example
 
-[Vamana](../reference/cpp_api/neighbors_vamana:vamana) is the algorithm used to build the index for the diskANN vector search algorithm.
+{doc}`Vamana <../reference/cpp_api/neighbors_vamana>` is the algorithm used to build the index for the diskANN vector search algorithm.
 This example demonstrates the GPU-optimized implementation of the index computation in hipVS.
 
 The input dataset is provided as a binary file of vectors. The expected format is:
@@ -145,31 +173,31 @@ max_fraction > 0 and <= 1. Typical values are 0.06 or 0.1.
 Default iterations = 1, increase for better quality graph.
 ```
 
-## C Examples
+### C Examples
 
 Most of the C examples are ports of the corresponding C++ examples. One thing to note is that
 the C binding of the hipVS library uses the [DLPack](https://dmlc.github.io/dlpack/latest/)
 library for representing tensor layouts. Following are the C examples:
 
-### CAGRA Example
+#### CAGRA Example
 
 A basic port of the C++ CAGRA example.
 
-### IVF Flat Example
+#### IVF Flat Example
 
 A basic port of the C++ IVF Flat example.
 
-### IVF PQ Example
+#### IVF PQ Example
 
 A basic port of the C++ IVF PQ example.
 
-### L2 Example
+#### L2 Example
 
 This example is different from the others in that it demonstrates the GPU optimized vector
 distance computation functionality in hipVS. This example computes the L2 distance between two
 vectors using the [cuvsPairwiseDistance](pairwise-distance-c) function and prints the result to the screen.
 
-## Python Examples
+### Python Examples
 
 Similar to the C and C++ examples, these examples demonstrate the use of kNN and ANN algorithms
 to do vector search. The examples are:
@@ -184,16 +212,16 @@ to do vector search. The examples are:
 4. Pairwise L2 Distances Example: Computes the pairwise l2 distance between 2 sets of vectors
 
 To run these examples, you need a Python environment with hipVS and its dependencies installed.
-Please follow this [documentation](../install/build.md#python-library),
+Please follow the [Python library](../install/build.md#python-library) documentation
 to see the list of dependencies and instructions on setting
 up a conda environment for hipVS. Inside the environment, the examples can be run using
-Python, for example:
+Python. For example:
 
 ```bash
 $ python3 examples/python/cagra_example.py
 ```
 
-## Jupyter Notebooks
+### Jupyter Notebooks
 
 Some demos in the form of Jupyter notebooks are available under the `hipVS/notebooks` folder.
 The python package dependencies for these notebooks can be installed using
