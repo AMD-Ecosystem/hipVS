@@ -34,6 +34,8 @@
 
 #include "../utils.hpp"
 #include "topk.h"
+#include <cstdint>
+#include <type_traits>
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <hipcub/hipcub.hpp>
@@ -486,8 +488,9 @@ RAFT_DEVICE_INLINE_FUNCTION void select_best_index_for_next_threshold(
     }
   }
   if (threadIdx.x < num_bins) {
-    const int laneid = (raft::warp_size() - 1) -
-                       raft::__CLZ(__ballot_sync(raft::LANE_MASK_ALL, (my_index != 0xffffffff)));
+    using BallotType = std::conditional_t<raft::warp_size() == 32, uint32_t, uint64_t>;
+    const int laneid = (raft::warp_size() - 1) - raft::__CLZ(static_cast<BallotType>(__ballot_sync(
+                                                   raft::LANE_MASK_ALL, (my_index != 0xffffffff))));
     if ((raft::laneId()) == laneid) {
       const uint32_t old_index = atomicMax(best_index, my_index);
       if (old_index < my_index) { atomicMax(best_csum, my_csum); }

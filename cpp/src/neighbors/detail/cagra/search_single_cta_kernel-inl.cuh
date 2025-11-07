@@ -497,8 +497,16 @@ RAFT_DEVICE_INLINE_FUNCTION void move_invalid_to_end_of_list(IdxT* const index_a
         distance_array[i - 1] = distance;
       } else {
         // Check if the index is invalid
-        const auto I_found_invalid         = (index == invalid_index);
-        const bitmask_type who_has_invalid = raft::ballot(I_found_invalid, __activemask());
+        const auto I_found_invalid = (index == invalid_index);
+        using mask_type = std::conditional_t<raft::warp_size() == 32, uint32_t, uint64_t>;
+        // We're intentionally not using bitmask_type(uint64_t) here.
+        // Note the expression `(who_has_invalid << (raft::warp_size() - lane_id)` which is trying
+        // to compute the following: It is trying to check if there is any smaller lane that has
+        // found invalid index. By left shifting the bitmask by (warp_size - lane_id), All the lanes
+        // that found an invalid index will have it's bit shifted out except for the lanes with
+        // smaller lane_id than the current lane. For this to work correctly, the mask_type should
+        // not be wider than the actual warp size.
+        const mask_type who_has_invalid = raft::ballot(I_found_invalid, __activemask());
         // if a value that is loaded by a smaller lane id thread, shift the array
         if ((who_has_invalid << (raft::warp_size() - lane_id)) and i > 0) {
           index_array[i - 1]    = index;
