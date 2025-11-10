@@ -32,7 +32,7 @@ dependencies:
 - pip-tools
 - pytest==7.*
 - pip:
-  - --extra-index-url https://pypi.amd.com/simple
+  - --extra-index-url https://pypi.amd.com/rocm-7.0.2/simple/
   - --pre
   - amd-cupy==13.5.1
   - amd-hipmm==3.0.0b1

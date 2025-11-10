@@ -17,8 +17,13 @@ The steps in this topic require a Conda installation. A minimal free version of 
 
 ## Install hipVS via AMD PyPI
 
+```{warning}
+Only install hipVS using AMD’s official package index.
+To ensure security, integrity, and supportability of your builds, consume packages exclusively from AMD’s official package index. Do not install, mirror, or resolve dependencies from any third‑party or unofficial indexes.
+```
+
 Packaged versions of hipVS and its dependencies are distributed via
-[AMD PyPI](https://pypi.amd.com/simple). This section discusses how to install
+[AMD PyPI](https://pypi.amd.com/rocm-7.0.2/simple). This section discusses how to install
 hipVS via this package index.
 
 Create and activate a Conda environment with Python 3.12 as shown below:
@@ -31,5 +36,5 @@ conda activate hipVS
 hipVS can then be installed into this environment using pip and the AMD PyPI URL:
 
 ```bash
-pip install amd-hipvs==0.1.0 --extra-index-url=https://pypi.amd.com/simple
+pip install amd-hipvs==0.1.0 --extra-index-url=https://pypi.amd.com/rocm-7.0.2/simple
 ```

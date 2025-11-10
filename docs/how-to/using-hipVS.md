@@ -57,7 +57,7 @@ target_link_libraries(your_app_target PRIVATE cuvs::cuvs)
 These examples demonstrate various k-nearest neighbors vector search algorithms available in hipVS.
 At a high level, each example performs the following steps:
 1. Synthetic vector datasets and queries are generated using the random functionality of the
-   [RAFT](https://rocm.docs.amd.com/projects/hipRaft/en/latest/) library.
+   [hipRAFT](https://rocm.docs.amd.com/projects/hipRaft/en/latest/) library.
 2. A search index is built on the dataset, which accelerates subsequent searches.
 3. The search algorithm is run to find the *k* nearest neighbors of the vectors in the query set.
 4. The results—consisting of the indices of the nearest dataset vectors and their distances to the query

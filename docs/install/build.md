@@ -1,6 +1,15 @@
+<!---
+---
+myst:
+  html_meta:
+    "description": "hipVS documentation and API reference library"
+    "keywords": "Nearest-Neighbors, Information-Retrieval, Similarity-Search, GPU, Distance, RAPIDS, ROCm-DS"
+---
+-->
+
 # Building hipVS from source
 
-hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository.
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. To install hipVS for end users, see [Installing hipVS](./install.md). 
 
 ## Tested GPUs
 
@@ -18,32 +27,32 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
 
 Install ROCm 7.0.2, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.0.2/).
 
-| Name                                                                  | Version / Notes                              |
-| ----------------------------------------------------------            | -------------------------------------------- |
-| [`cmake`](https://cmake.org/)                                         | ≥ 3.31.0                                     |
-| [`ninja`](https://ninja-build.org/)                                   | ≥ 1.11.1                                     |
-| [`hipsolver`](https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hipblas`](https://rocm.docs.amd.com/projects/hipBLAS/en/latest/)    | Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hipblaslt`](https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hiprand`](https://rocm.docs.amd.com/projects/hipRAND/en/latest/)    | Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hipsparse`](https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`libblas-dev`](https://www.netlib.org/lapack/)                       | Tested with 3.12.0                           |
-| [`liblapack-dev`](https://www.netlib.org/lapack/)                     | Tested with 3.12.0                           |
-| [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)   | Tested with 7.6.1                            |
-| [`libopenblas-dev`](https://github.com/OpenMathLib/OpenBLAS)          | Tested with 0.3.26                           |
-| **Additional Required Dependencies**                                  |                                              |
-| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | 3.0.0                                          |
-| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | 0.3.0                                          |
-| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | 0.1.0                                          |
-| **\***[`hipCUB`](https://github.com/ROCm/hipCUB)                      | Version that comes bundled with ROCm ≥ 7.0.2 |
-| **\***[`rocThrust`](https://github.com/ROCm/rocThrust)                | Version that comes bundled with ROCm ≥ 7.0.2 |
-| **\*\***[`OpenMP`](https://www.openmp.org/)                           | Version that comes bundled with ROCm ≥ 7.0.2 |
-| **Optional Dependencies**                                             |                                              |
-| [`RCCL`](https://github.com/ROCm/rccl)                                | Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`UCX`](https://github.com/openucx/ucx)                               | ≥ 1.17.0                                     |
-| [`Googletest`](https://github.com/google/googletest)                  | ≥ 1.13.0                                     |
-| [`Googlebench`](https://github.com/google/benchmark)                  | ≥ 1.13.0                                     |
-| [`Doxygen`](https://github.com/doxygen/doxygen)                       | >=1.8.20                                     |
+| Name                                                                                        | Version / Notes                              |
+| ----------------------------------------------------------                                  | -------------------------------------------- |
+| [`cmake`](https://cmake.org/)                                                               | ≥ 3.31.0                                     |
+| [`ninja`](https://ninja-build.org/)                                                         | ≥ 1.11.1                                     |
+| [`hipsolver`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/hipsolver/)      | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hipblas`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/hipblas/)          | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hipblaslt`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/hipblaslt/)      | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hiprand`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/hiprand/)          | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hipsparse`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/hipsparse/)      | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`libblas-dev`](https://www.netlib.org/lapack/)                                             | Tested with 3.12.0                           |
+| [`liblapack-dev`](https://www.netlib.org/lapack/)                                           | Tested with 3.12.0                           |
+| [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)                         | Tested with 7.6.1                            |
+| [`libopenblas-dev`](https://github.com/OpenMathLib/OpenBLAS)                                | Tested with 0.3.26                           |
+| **Additional Required Dependencies**                                                        |                                              |
+| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                                           | 3.0.0                                        |
+| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)                            | 0.3.0                                        |
+| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                                       | 0.1.0                                        |
+| **\***[`hipCUB`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/hipcub)       | Version that comes bundled with ROCm ≥ 7.0.2 |
+| **\***[`rocThrust`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/rocthrust) | Version that comes bundled with ROCm ≥ 7.0.2 |
+| **\*\***[`OpenMP`](https://www.openmp.org/)                                                 | Version that comes bundled with ROCm ≥ 7.0.2 |
+| **Optional Dependencies**                                                                   |                                              |
+| [`RCCL`](https://github.com/ROCm/rccl)                                                      | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`UCX`](https://github.com/openucx/ucx)                                                     | ≥ 1.17.0                                     |
+| [`Googletest`](https://github.com/google/googletest)                                        | ≥ 1.13.0                                     |
+| [`Googlebench`](https://github.com/google/benchmark)                                        | ≥ 1.13.0                                     |
+| [`Doxygen`](https://github.com/doxygen/doxygen)                                             | >=1.8.20                                     |
 
 > `*` - If not found locally the CMake build system will attempt to download a compatible version using [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake).
 >
@@ -203,8 +212,9 @@ Builds hipVS for all supported GPU architectures, increasing portability but als
 ./build.sh libcuvs tests --allgpuarch
 ```
 
-> **Note**
-> Always execute a clean build or manually delete the build directory before running this argument if a previous build is present, to prevent potential build conflicts or errors.
+```{note}
+Always execute a clean build or manually delete the build directory before running this argument if a previous build is present, to prevent potential build conflicts or errors.
+```
 
 #### Compile only for a specified GPU architecture
 
@@ -220,8 +230,9 @@ OR
 ./build.sh libcuvs tests --gpu-arch="gfx942"
 ```
 
-> **Note**
-> Do not specify both `--gpu-arch` and `--allgpuarch` flags in the same build command. Avoid using multiple separate `--gpu-arch` flags by combining all target architectures into one `--gpu-arch` option.
+```{note}
+Do not specify both `--gpu-arch` and `--allgpuarch` flags in the same build command. Avoid using multiple separate `--gpu-arch` flags by combining all target architectures into one `--gpu-arch` option.
+```
 
 ### Using CMake directly
 
@@ -329,8 +340,9 @@ cd <HIPVS_ROOT>
 ./build.sh libcuvs rust
 ```
 
-> **Note**
-> The Rust option invoked through `build.sh` will not only build the `hipvs` and `hipvs-sys` crates, but also run the tests after.
+```{note}
+The Rust option invoked through `build.sh` will not only build the `hipvs` and `hipvs-sys` crates, but also run the tests after.
+```
 
 ### Running the Rust example after building through `build.sh`
 
