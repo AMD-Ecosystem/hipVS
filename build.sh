@@ -35,7 +35,7 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --compile-static-lib --allgpuarch --no-cpu --no-shared-libs --show_depr_warn -h"
+VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --compile-static-lib --allgpuarch --no-shared-libs --show_depr_warn -h --cpu-only"
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-bench-ann=<targets>] [--limit-tests=<targets>] [--gpu-arch="arch"]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
