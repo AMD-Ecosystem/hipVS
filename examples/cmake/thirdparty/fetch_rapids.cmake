@@ -28,8 +28,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Use this variable to update RAPIDS and hipVS versions
-set(RAPIDS_VERSION "00.01.00")
 
 set(RAPIDS_CMAKE_MODULE_PATH
     $ENV{RAPIDS_CMAKE_MODULE_PATH}
@@ -42,24 +40,20 @@ if(NOT "${RAPIDS_CMAKE_MODULE_PATH}" STREQUAL "")
   return()
 endif()
 
-set(RAPIDS_CMAKE_SCRIPT_BRANCH "release/1.0.x" CACHE STRING "Specify the ROCmDS-CMake branch to fetch the cmake file from")
-
-if(NOT DEFINED ENV{RAPIDS_CMAKE_BRANCH})
-    message(STATUS "RAPIDS_CMAKE_BRANCH is not set. Using branch 'release/rocmds-25.10'.")
-    set(ENV{RAPIDS_CMAKE_BRANCH} "release/rocmds-25.10")
+if(DEFINED ENV{RAPIDS_CMAKE_SCRIPT_REPO})
+  set(RAPIDS_CMAKE_SCRIPT_REPO "$ENV{RAPIDS_CMAKE_SCRIPT_REPO}")
+else()
+  set(RAPIDS_CMAKE_SCRIPT_REPO ROCm-DS/ROCmDS-CMake)
 endif()
-if(NOT DEFINED ENV{RAPIDS_CMAKE_REPO})
-  message(STATUS "RAPIDS_CMAKE_REPO is not set. Using 'ROCm-DS/ROCmDS-CMake'.")
-  set(ENV{RAPIDS_CMAKE_REPO} "ROCm-DS/ROCmDS-CMake")
-endif()
-if(NOT DEFINED ENV{RAPIDS_CMAKE_VERSION})
-  message(STATUS "RAPIDS_CMAKE_REPO is not set. Using '2.0.0'.")
-  set(ENV{RAPIDS_CMAKE_VERSION} 2.0.0)
+if(DEFINED ENV{RAPIDS_CMAKE_SCRIPT_BRANCH})
+  set(RAPIDS_CMAKE_SCRIPT_BRANCH "$ENV{RAPIDS_CMAKE_SCRIPT_BRANCH}")
+else()
+  set(RAPIDS_CMAKE_SCRIPT_BRANCH release/rocmds-25.10)
 endif()
 
 if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/HIPVS_RAPIDS.cmake)
   set(URL
-      "https://raw.githubusercontent.com/ROCm-DS/ROCmDS-CMake/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
+      "https://raw.githubusercontent.com/${RAPIDS_CMAKE_SCRIPT_REPO}/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
   )
   file(DOWNLOAD ${URL} ${CMAKE_CURRENT_BINARY_DIR}/HIPVS_RAPIDS.cmake)
 endif()
