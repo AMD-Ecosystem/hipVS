@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
@@ -67,9 +67,14 @@ classifiers = [
 
 [project.optional-dependencies]
 test = [
-    "amd-cupy",
-    "pytest",
+# <<<<<<< OLD CODE from 5f2a3ad5e (d7f7532f9) - COMMENTED OUT
+#     "amd-cupy",
+#     "pytest",
+# =======
+    "cupy-cuda13x>=13.6.0",
+# >>>>>>> END NEW CODE (d7f7532f9)
     "pytest-cov",
+    "pytest<9.0.0a0",
     "scikit-learn",
 ]
 
@@ -142,7 +147,7 @@ regex = "(?P<value>.*)"
 requires = [
     "cmake>=3.30.4",
     "cuda-python>=13.0.1,<14.0a0",
-    "cython>=3.0.0",
+    "cython>=3.0.0,<3.2.0a0",
     "libcuvs==25.12.*,>=0.0.0a0",
     "libraft==25.12.*,>=0.0.0a0",
     "librmm==25.12.*,>=0.0.0a0",
