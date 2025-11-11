@@ -63,6 +63,10 @@ if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MI
   else()
     set(RAPIDS_CMAKE_SCRIPT_BRANCH release/rocmds-25.10)
   endif()
+  if(NOT DEFINED ENV{RAPIDS_CMAKE_VERSION})
+    message(STATUS "RAPIDS_CMAKE_REPO is not set. Using '2.0.0'.")
+    set(ENV{RAPIDS_CMAKE_VERSION} 2.0.0)
+  endif()
   set(URL
       "https://raw.githubusercontent.com/ROCm-DS/ROCmDS-cmake/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
   )
