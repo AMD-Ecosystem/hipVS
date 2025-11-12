@@ -46,6 +46,15 @@ function(find_and_configure_faiss)
     LIBRARY_NAMES faiss
     )
 
+  set(patch_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../patches")
+  rapids_cpm_package_override("${patch_dir}/faiss_override.json")
+
+  include("${rapids-cmake-dir}/cpm/detail/package_details.cmake")
+  rapids_cpm_package_details(faiss version repository tag shallow exclude)
+
+  include("${rapids-cmake-dir}/cpm/detail/generate_patch_command.cmake")
+  rapids_cpm_generate_patch_command(faiss ${version} patch_command)
+
   set(BUILD_SHARED_LIBS ON)
   if (PKG_BUILD_STATIC_LIBS)
     set(BUILD_SHARED_LIBS OFF)
@@ -61,11 +70,11 @@ function(find_and_configure_faiss)
 
   rapids_cpm_find(faiss ${version}
     GLOBAL_TARGETS faiss faiss_avx2 faiss_gpu faiss::faiss faiss::faiss_avx2
-    PATCH_COMMAND git checkout -- . && git apply ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../patches/faiss.diff
     CPM_ARGS
-    GIT_REPOSITORY https://github.com/facebookresearch/faiss.git
-    GIT_TAG v1.10.0
-    GIT_SHALLOW ON
+    GIT_REPOSITORY ${repository}
+    GIT_TAG ${tag}
+    GIT_SHALLOW ${shallow} ${patch_command}
+    EXCLUDE_FROM_ALL ${exclude}
     OPTIONS
     "FAISS_ENABLE_GPU ${PKG_ENABLE_GPU}"
     "FAISS_ENABLE_CUVS ${PKG_ENABLE_GPU}"
