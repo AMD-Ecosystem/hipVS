@@ -53,7 +53,7 @@ function(find_and_configure_faiss)
   rapids_cpm_package_details(faiss version repository tag shallow exclude)
 
   include("${rapids-cmake-dir}/cpm/detail/generate_patch_command.cmake")
-  rapids_cpm_generate_patch_command(faiss ${version} patch_command)
+  rapids_cpm_generate_patch_command(faiss ${version} patch_command build_patch_only)
 
   set(BUILD_SHARED_LIBS ON)
   if (PKG_BUILD_STATIC_LIBS)
