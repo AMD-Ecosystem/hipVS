@@ -68,7 +68,7 @@ function(find_and_configure_faiss)
     set(CUVS_FAISS_OPT_LEVEL "avx2")
   endif()
 
-  rapids_cpm_find(faiss ${version}
+  rapids_cpm_find(faiss ${version} ${build_patch_only}
     GLOBAL_TARGETS faiss faiss_avx2 faiss_gpu faiss::faiss faiss::faiss_avx2
     CPM_ARGS
     GIT_REPOSITORY ${repository}
