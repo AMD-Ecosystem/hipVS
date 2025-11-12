@@ -9,7 +9,7 @@ myst:
 
 # Building hipVS from source
 
-hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. To install hipVS for end users, see [Installing hipVS](./install.md). 
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. To install hipVS for end users, see [Installing hipVS](./install.md).
 
 ## Tested GPUs
 
@@ -278,9 +278,19 @@ micromamba activate hipvs
 ```
 It is recommended to build the python wheels in a conda environment built from `all_rocm_arch-x86_64.yaml`. It is also possible to use `venv` but it is up to the user to install all the required packages in the environment.
 
-#### [Step 2] Building and installing hipVS python package
+#### [Step 2] Install the hipRaft C++ library
 
-#### Using build.sh
+The `hipVS` python packages depend on the `hipRAFT` C++ library. One would need to setup and install the `hipRAFT` library before building the python packages. Follow the instructions in the [hipRAFT build documentation](https://rocm.docs.amd.com/projects/hipRaft/en/latest/install/build.html#c-shared-library-optional) to build and install the `hipRAFT` library into the same conda environment created in Step 1.
+
+```bash
+# From within the hipvs environment:
+cd <HIPVS_ROOT>
+./build.sh libraft --compile-lib
+```
+
+#### [Step 3] Building and installing hipVS python package
+
+##### Using build.sh
 
 The Python libraries can be built and installed using the build.sh script:
 
@@ -294,7 +304,7 @@ python
 >> import cuvs # Import should succeed
 ```
 
-#### Building and installing the wheels manually
+##### Building and installing the wheels manually
 
 ```bash
 # Install the cuvs CMake package in the hipvs conda environment
@@ -332,8 +342,10 @@ If Cargo is not installed, see the [Rustup documentation](https://rustup.rs/) fo
 The Rust library can be built and installed using the `build.sh` script. As a prerequisite, the `hipvs-rust` library depends on the `hipvs` C++ library(`libcuvs.so`) and C library(`libcuvs_c.so`).
 The `hipvs` C++ library must be built and installed before building the Rust library. If using the `build.sh` script, the following command can be used to build and install the hipVS C++ and Rust libraries:
 
+Similar to the how the python packages depend on the `hipRAFT` C++ library, the Rust packages depend on the `hipRAFT` C++ library as well. Ensure that the `hipRAFT` C++ library is built and installed into the conda environment before building the Rust packages. Follow the instructions in [Step 2 of Building and installing hipVS python packages](#step-2-install-the-hipraft-c-library) to build and install the `hipRAFT` C++ library into the conda environment.
+
 ```bash
-# From within a hipvs conda environment:
+# From within a hipvs conda environment in which hipRAFT is already installed.
 cd <HIPVS_ROOT>
 # The following command will first build and install the hipvs C++ library into the conda environment, then build and install the hipvs rust library and example.
 # It will also run the rust tests after building the library.
@@ -344,7 +356,7 @@ cd <HIPVS_ROOT>
 The Rust option invoked through `build.sh` will not only build the `hipvs` and `hipvs-sys` crates, but also run the tests after.
 ```
 
-### Running the Rust example after building through `build.sh`
+### Running the Rust example after building through build.sh
 
 ```bash
 # From within the hipvs environment
@@ -400,7 +412,7 @@ micromamba activate hipvs
 pip install -r docs/sphinx/requirements.txt
 ```
 
-### Use `build.sh` to generate documentation
+### Use build.sh to generate documentation
 
 ```bash
 cd <HIPVS_ROOT>
