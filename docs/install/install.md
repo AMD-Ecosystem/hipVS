@@ -11,7 +11,7 @@ You can install hipVS via AMD PyPI as described below. This is recommended for u
 ## Requirements
 
 hipVS requires ROCm 7.0.2 running on a [ROCm-supported operating system](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.0.2/reference/system-requirements.html#supported-operating-systems). Using Ubuntu 22.04 or later is recommended.
-For more information, see [ROCm-DS system requirements](https://rocm.docs.amd.com/projects/rocm-ds-internal/en/latest/install/install.html).
+For more information, see [ROCm-DS system requirements](https://rocm.docs.amd.com/projects/rocm-ds/en/latest/install/install.html).
 
 The steps in this topic require a Conda installation. A minimal free version of Conda is [Miniforge](https://conda-forge.org/download/).
 
