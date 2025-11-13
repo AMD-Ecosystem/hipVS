@@ -133,9 +133,7 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parent(
       if (__any_sync(raft::LANE_MASK_ALL, (flag_done > 0))) { return; }
     }
     if (i < itopk_size) {
-      using BallotType = std::conditional_t<raft::warp_size() == 32, uint32_t, uint64_t>;
-      j                = (raft::warp_size() - 1) -
-          raft::__CLZ(static_cast<BallotType>(__ballot_sync(raft::LANE_MASK_ALL, is_invalid)));
+      j = raft::warp_highest_active_lane(is_invalid);
       if (j < 0) { return; }
     }
   }

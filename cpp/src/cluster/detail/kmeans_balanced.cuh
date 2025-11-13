@@ -550,19 +550,7 @@ __launch_bounds__((raft::warp_size() * BlockDimY)) RAFT_KERNEL
       i        = (seed * (old + 1)) % n_rows;
     } while (static_cast<IdxT>(cluster_sizes[labels[i]]) < average);
   }
-  // (HIP/AMD): This call was originally `raft::shfl(i, 0)`. The remaining arguments to raft::shfl
-  // were defaulted to (width = WarpSize, mask = LANE_MASK_ALL). On wave32 GPU's this is undefined
-  // behaviour since we only have 32 lanes participating in the shfl, but the mask seemed to
-  // indicate that all 64 lanes were active. The fix below sets the mask correctly based on the warp
-  // size.
-  constexpr uint64_t mask = []() {
-    if constexpr (raft::warp_size() == 32) {
-      return static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
-    } else {
-      return std::numeric_limits<uint64_t>::max();
-    }
-  }();
-  i = raft::shfl(i, 0, raft::warp_size(), mask);
+  i = raft::shfl(i, 0);
 
   // Adjust the center of the selected smaller cluster to gravitate towards
   // a sample from the selected larger cluster.
