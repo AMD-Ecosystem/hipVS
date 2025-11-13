@@ -25,7 +25,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # TODO:(HIP/AMD) We want to prune the following warning disable lists.
   list(APPEND CXX_WARNINGS_DISABLE_LIST -Wno-unused-variable -Wno-reorder-ctor
-       -Wno-unused-local-typedef -Wno-unused-but-set-variable "-Wno-#warnings"
+       -Wno-unused-local-typedef -Wno-unused-but-set-variable
   )
   list(
     APPEND
@@ -39,7 +39,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-unused-function
     -Wno-comment
     -Wno-pass-failed
-    "-Wno-#warnings"
   )
   # (HIP/AMD): Enable all warnings and treat them as errors. We then disable specific warnings that
   # are problematic. Eventually we want to enable all warnings and treat them as errors by pruning
@@ -84,5 +83,5 @@ endif()
 # Debug options
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   message(VERBOSE "CUVS: Building with debugging flags")
-  list(APPEND CUVS_GPU_FLAGS -ggdb -O1)
+  list(APPEND CUVS_GPU_FLAGS -ggdb -O0)
 endif()

@@ -488,7 +488,6 @@ RAFT_DEVICE_INLINE_FUNCTION void select_best_index_for_next_threshold(
     }
   }
   if (threadIdx.x < num_bins) {
-    using BallotType = std::conditional_t<raft::warp_size() == 32, uint32_t, uint64_t>;
     const int laneid = raft::warp_highest_active_lane(my_index != 0xffffffff);
     if ((raft::laneId()) == laneid) {
       const uint32_t old_index = atomicMax(best_index, my_index);
