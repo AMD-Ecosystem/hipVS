@@ -72,7 +72,7 @@
 #include <raft/util/vectorized.cuh>
 
 #include <rmm/cuda_stream_view.hpp>
-#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <hipcub/hipcub.hpp>

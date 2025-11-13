@@ -47,8 +47,8 @@
 #include <raft/core/resources.hpp>
 #include <raft/random/make_blobs.cuh>
 #include <rmm/cuda_stream_pool.hpp>
-#include <rmm/mr/device/device_memory_resource.hpp>
-#include <rmm/mr/device/pool_memory_resource.hpp>
+#include <rmm/mr/device_memory_resource.hpp>
+#include <rmm/mr/pool_memory_resource.hpp>
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <cuvs/cuda_runtime.h>
