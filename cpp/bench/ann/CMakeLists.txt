@@ -49,8 +49,8 @@ option(CUVS_ANN_BENCH_USE_HNSWLIB "Include hnsw algorithm in benchmark" ON)
 # significant build system changes.
 option(CUVS_ANN_BENCH_USE_GGNN "Include ggnn algorithm in benchmark" OFF)
 option(CUVS_ANN_BENCH_USE_DISKANN "Include DISKANN search in benchmark" ON)
-option(CUVS_ANN_BENCH_USE_CUVS_VAMANA "Include cuVS Vamana with DiskANN search in benchmark" ON)
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "(ARM|arm|aarch64)")
+option(CUVS_ANN_BENCH_USE_CUVS_VAMANA "Include cuVS Vamana with DiskANN search in benchmark" OFF)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "(ARM|arm|aarch64)" OR NOT CUDA_BACKEND) # AMD: Does not support DISKANN AIOSS-2686
   set(CUVS_ANN_BENCH_USE_DISKANN OFF)
   set(CUVS_ANN_BENCH_USE_CUVS_VAMANA OFF)
 endif()
