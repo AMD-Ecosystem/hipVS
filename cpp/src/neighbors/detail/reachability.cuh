@@ -228,8 +228,8 @@ void mutual_reachability_graph(const raft::resources& handle,
                     coo_rows.data(),
                     [min_samples] __device__(value_idx c) -> value_idx { return c / min_samples; });
 
-  raft::sparse::linalg::symmetrize(
-    handle, coo_rows.data(), inds.data(), dists.data(), m, m, min_samples * m, out);
+  raft::sparse::linalg::symmetrize<value_idx, value_t, size_t>
+    (handle, coo_rows.data(), inds.data(), dists.data(), m, m, min_samples * m, out);
 
   raft::sparse::convert::sorted_coo_to_csr(out.rows(), out.nnz, indptr, m + 1, stream);
 

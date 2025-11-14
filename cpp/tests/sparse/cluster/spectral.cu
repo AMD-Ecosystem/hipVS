@@ -102,7 +102,7 @@ TEST(Raft, Spectral)
     indices.data(),
     values.data(),
     static_cast<int32_t>(offsets.size() - 1),
-    static_cast<int32_t>(indices.size())};
+    static_cast<uint64_t>(indices.size())};
 
   cuvs::spectral::eigen_solver_config_t<int32_t, float> eig_cfg{
     n_eigenvectors, evs_max_it, restartIter_lanczos, evs_tol, reorthog, seed1};

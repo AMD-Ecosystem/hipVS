@@ -75,7 +75,7 @@ struct distance_graph_impl<Linkage::KNN_GRAPH, value_idx, value_t> {
     // Need to symmetrize knn into undirected graph
     raft::sparse::COO<value_t, value_idx> knn_graph_coo(stream);
 
-    raft::sparse::neighbors::knn_graph(
+    raft::sparse::neighbors::knn_graph<value_idx, value_t, uint64_t>(
       handle, X, m, n, static_cast<raft::distance::DistanceType>(metric), knn_graph_coo, c);
 
     indices.resize(knn_graph_coo.nnz, stream);

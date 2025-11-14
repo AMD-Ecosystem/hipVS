@@ -50,6 +50,7 @@
 #include <raft/core/logger.hpp>
 #include <random>
 #include <thread>
+#include <filesystem>
 
 namespace cuvs::neighbors::hnsw::detail {
 
