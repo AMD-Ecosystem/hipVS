@@ -838,18 +838,28 @@ SECTIONS
 
     target_link_libraries(
       cuvs_static
-      PUBLIC
-        rmm::rmm
-        raft::raft
-        ${CUVS_CTK_MATH_DEPENDENCIES}
-        $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
-        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-        $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
-      PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
-              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
-              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
-              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
-              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# <<<<<<< OLD CODE from c2fcaba2e (b5ce1b00b) - COMMENTED OUT
+#       PUBLIC
+#         rmm::rmm
+#         raft::raft
+#         ${CUVS_CTK_MATH_DEPENDENCIES}
+#         $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
+#         $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+#         $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
+#       PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
+#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
+#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
+#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
+#               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# =======
+      PUBLIC rmm::rmm
+             raft::raft
+             ${CUVS_CTK_MATH_DEPENDENCIES}
+             $<TARGET_NAME_IF_EXISTS:NCCL::NCCL> # needs to be public for DT_NEEDED
+             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>> # header only
+      PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+              $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
+# >>>>>>> END NEW CODE (b5ce1b00b)
     )
   endif()
 
