@@ -1,13 +1,13 @@
 {
     "packages" : {
       "faiss" : {
-        "version": "1.10.0",
+        "version": "1.11.0",
         "git_url": "https://github.com/facebookresearch/faiss.git",
-        "git_tag": "v1.10.0",
+        "git_tag": "v1.11.0",
         "patches" : [
           {
             "file" : "${current_json_dir}/faiss.diff",
-            "issue" : "Apply ROCm compatibility patch",
+            "issue" : "Remove cmake call to rapids_cuda_init_architectures on ROCm builds",
             "fixed_in" : ""
           }
         ]
