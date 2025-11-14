@@ -162,7 +162,6 @@ function(ConfigureAnnBench)
     PRIVATE ${ConfigureAnnBench_LINKS}
             nlohmann_json::nlohmann_json
             Threads::Threads
-            $<TARGET_NAME_IF_EXISTS:raft::raft_logger>
             stdc++fs
             ${GPU_RUNTIME_LIB}
             $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
