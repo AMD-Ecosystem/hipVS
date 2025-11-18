@@ -415,7 +415,7 @@ if(NOT BUILD_CPU_ONLY)
 
   add_library(
     cuvs_objs OBJECT
-    src/cluster/kmeans_balanced_fit_float.cu
+    src/cluster/detail/minClusterDistanceCompute.cu
     src/cluster/kmeans_cluster_cost.cu
     src/cluster/kmeans_fit_mg_float.cu
     src/cluster/kmeans_fit_mg_double.cu
@@ -426,11 +426,19 @@ if(NOT BUILD_CPU_ONLY)
     src/cluster/kmeans_fit_predict_float.cu
     src/cluster/kmeans_predict_double.cu
     src/cluster/kmeans_predict_float.cu
+# <<<<<<< OLD CODE from 8bd1f7222 (b94793e6e) - COMMENTED OUT
+# =======
+    src/cluster/kmeans_balanced_fit_float.cu
+    src/cluster/kmeans_balanced_fit_half.cu
+# >>>>>>> END NEW CODE (b94793e6e)
     src/cluster/kmeans_balanced_fit_predict_float.cu
     src/cluster/kmeans_balanced_predict_float.cu
+    src/cluster/kmeans_balanced_predict_half.cu
     src/cluster/kmeans_balanced_fit_int8.cu
+    src/cluster/kmeans_balanced_fit_uint8.cu
     src/cluster/kmeans_balanced_fit_predict_int8.cu
     src/cluster/kmeans_balanced_predict_int8.cu
+    src/cluster/kmeans_balanced_predict_uint8.cu
     src/cluster/kmeans_transform_double.cu
     src/cluster/kmeans_transform_float.cu
     src/cluster/single_linkage_float.cu
