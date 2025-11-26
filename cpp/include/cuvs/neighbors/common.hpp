@@ -355,6 +355,7 @@ auto make_strided_dataset(
                                   src.extent(0),
                                   cudaMemcpyDefault,
                                   raft::resource::get_cuda_stream(res)));
+  raft::resource::sync_stream(res);
 
   return std::make_unique<out_owning_type>(std::move(out_array), out_layout);
 }
