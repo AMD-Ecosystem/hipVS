@@ -213,7 +213,7 @@ static_assert(std::is_aggregate_v<index_params>);
 static_assert(std::is_aggregate_v<search_params>);
 
 /** Size of the interleaved group. */
-constexpr static uint32_t kIndexGroupSize = 32;
+__device__ constexpr static uint32_t kIndexGroupSize = raft::warp_size();
 /** Stride of the interleaved group for vectorized loads. */
 constexpr static uint32_t kIndexGroupVecLen = 16;
 

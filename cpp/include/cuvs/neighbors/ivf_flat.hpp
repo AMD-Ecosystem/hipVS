@@ -48,7 +48,7 @@ namespace cuvs::neighbors::ivf_flat {
  */
 
 /** Size of the interleaved group (see `index::data` description). */
-constexpr static uint32_t kIndexGroupSize = 32;
+__device__ constexpr static uint32_t kIndexGroupSize = raft::warp_size();
 
 struct index_params : cuvs::neighbors::index_params {
   /** The number of inverted lists (clusters) */
