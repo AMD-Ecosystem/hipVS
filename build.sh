@@ -371,7 +371,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || 
 
     mkdir -p ${LIBCUVS_BUILD_DIR}
     cd ${LIBCUVS_BUILD_DIR}
-    cmake -S ${REPODIR}/cpp -B ${LIBCUVS_BUILD_DIR} \
+    PATH="${PATH}:/opt/rocm/bin/" cmake -S ${REPODIR}/cpp -B ${LIBCUVS_BUILD_DIR} \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
           -DCMAKE_HIP_ARCHITECTURES=${HIPVS_CMAKE_HIP_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
