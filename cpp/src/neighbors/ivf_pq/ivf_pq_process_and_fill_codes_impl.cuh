@@ -96,8 +96,13 @@ template <typename IdxT>
 void launch_process_and_fill_codes_kernel(
   raft::resources const& handle,
   index<IdxT>& index,
-  raft::device_matrix_view<float> new_vectors_residual,
-  cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,
+// <<<<<<< OLD CODE from 3e22861b5 (872443e83) - COMMENTED OUT
+//   raft::device_matrix_view<float> new_vectors_residual,
+//   cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,
+// =======
+  raft::device_matrix_view<float, IdxT> new_vectors_residual,
+  std::variant<IdxT, const IdxT*> src_offset_or_indices,
+// >>>>>>> END NEW CODE (872443e83)
   const uint32_t* new_labels,
   IdxT n_rows)
 {

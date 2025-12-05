@@ -215,8 +215,8 @@ void fit(raft::resources const& handle,
          raft::device_matrix_view<const float, int> X,
          std::optional<raft::device_vector_view<const float, int>> sample_weight,
          raft::device_matrix_view<float, int> centroids,
-         raft::host_scalar_view<float, int> inertia,
-         raft::host_scalar_view<int, int> n_iter);
+         raft::host_scalar_view<float> inertia,
+         raft::host_scalar_view<int> n_iter);
 
 /**
  * @brief Find clusters with k-means algorithm.
@@ -266,8 +266,8 @@ void fit(raft::resources const& handle,
          raft::device_matrix_view<const float, int64_t> X,
          std::optional<raft::device_vector_view<const float, int64_t>> sample_weight,
          raft::device_matrix_view<float, int64_t> centroids,
-         raft::host_scalar_view<float, int64_t> inertia,
-         raft::host_scalar_view<int64_t, int64_t> n_iter);
+         raft::host_scalar_view<float> inertia,
+         raft::host_scalar_view<int64_t> n_iter);
 
 /**
  * @brief Find clusters with k-means algorithm.
@@ -316,8 +316,8 @@ void fit(raft::resources const& handle,
          raft::device_matrix_view<const double, int> X,
          std::optional<raft::device_vector_view<const double, int>> sample_weight,
          raft::device_matrix_view<double, int> centroids,
-         raft::host_scalar_view<double, int> inertia,
-         raft::host_scalar_view<int, int> n_iter);
+         raft::host_scalar_view<double> inertia,
+         raft::host_scalar_view<int> n_iter);
 
 /**
  * @brief Find clusters with k-means algorithm.
@@ -367,8 +367,8 @@ void fit(raft::resources const& handle,
          raft::device_matrix_view<const double, int64_t> X,
          std::optional<raft::device_vector_view<const double, int64_t>> sample_weight,
          raft::device_matrix_view<double, int64_t> centroids,
-         raft::host_scalar_view<double, int64_t> inertia,
-         raft::host_scalar_view<int64_t, int64_t> n_iter);
+         raft::host_scalar_view<double> inertia,
+         raft::host_scalar_view<int64_t> n_iter);
 
 /**
  * @brief Find clusters with k-means algorithm.
@@ -417,8 +417,8 @@ void fit(raft::resources const& handle,
          raft::device_matrix_view<const int8_t, int> X,
          std::optional<raft::device_vector_view<const int8_t, int>> sample_weight,
          raft::device_matrix_view<int8_t, int> centroids,
-         raft::host_scalar_view<int8_t, int> inertia,
-         raft::host_scalar_view<int, int> n_iter);
+         raft::host_scalar_view<int8_t> inertia,
+         raft::host_scalar_view<int> n_iter);
 
 /**
  * @brief Find balanced clusters with k-means algorithm.
@@ -615,6 +615,15 @@ void predict(raft::resources const& handle,
              bool normalize_weight,
              raft::host_scalar_view<float> inertia);
 
+void predict(raft::resources const& handle,
+             const kmeans::params& params,
+             raft::device_matrix_view<const float, int64_t> X,
+             std::optional<raft::device_vector_view<const float, int64_t>> sample_weight,
+             raft::device_matrix_view<const float, int64_t> centroids,
+             raft::device_vector_view<int64_t, int64_t> labels,
+             bool normalize_weight,
+             raft::host_scalar_view<float> inertia);
+
 /**
  * @brief Predict the closest cluster each sample in X belongs to.
  *
@@ -666,10 +675,10 @@ void predict(raft::resources const& handle,
  */
 void predict(raft::resources const& handle,
              const kmeans::params& params,
-             raft::device_matrix_view<const float, int> X,
-             std::optional<raft::device_vector_view<const float, int>> sample_weight,
-             raft::device_matrix_view<const float, int> centroids,
-             raft::device_vector_view<int64_t, int> labels,
+             raft::device_matrix_view<const float, int64_t> X,
+             std::optional<raft::device_vector_view<const float, int64_t>> sample_weight,
+             raft::device_matrix_view<const float, int64_t> centroids,
+             raft::device_vector_view<int64_t, int64_t> labels,
              bool normalize_weight,
              raft::host_scalar_view<float> inertia);
 
@@ -782,10 +791,10 @@ void predict(raft::resources const& handle,
  */
 void predict(raft::resources const& handle,
              const kmeans::params& params,
-             raft::device_matrix_view<const double, int> X,
-             std::optional<raft::device_vector_view<const double, int>> sample_weight,
-             raft::device_matrix_view<const double, int> centroids,
-             raft::device_vector_view<int64_t, int> labels,
+             raft::device_matrix_view<const double, int64_t> X,
+             std::optional<raft::device_vector_view<const double, int64_t>> sample_weight,
+             raft::device_matrix_view<const double, int64_t> centroids,
+             raft::device_vector_view<int64_t, int64_t> labels,
              bool normalize_weight,
              raft::host_scalar_view<double> inertia);
 
