@@ -56,8 +56,8 @@ dependencies = [
     "amd_hipmm",
     "hip-python",
     "hip-python-as-cuda",
-    "amd-libraft==0.1.*",
-    "amd-pylibraft==0.1.*",
+    "amd-libraft==1.0.*",
+    "amd-pylibraft==1.0.*",
 ]
 classifiers = [
     "Intended Audience :: Developers",
