@@ -887,6 +887,12 @@ inline auto enum_variety() -> test_cases_t
     x.search_params.coarse_search_dtype = CUDA_R_16F;
     x.min_recall                        = 0.86;
   });
+
+// As of ROCm 7, hipblasLT does not support a coarse search dtype
+// of CUDA_R_8I, so we disable the test. This test will automatically
+// be enabled for new ROCm versions.
+#ifdef __HIP_PLATFORM_AMD__
+#if ROCM_VERSION_MAJOR > 7
   ADD_CASE({
     x.search_params.coarse_search_dtype = CUDA_R_8I;
     // 8-bit coarse search is experimental and there's no go guarantee of any recall
@@ -894,6 +900,8 @@ inline auto enum_variety() -> test_cases_t
     // cluster centers.
     x.min_recall = 0.1;
   });
+#endif
+#endif
 
   ADD_CASE({
     x.search_params.internal_distance_dtype = CUDA_R_32F;
