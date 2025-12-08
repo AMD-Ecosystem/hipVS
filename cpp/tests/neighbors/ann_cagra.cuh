@@ -1571,7 +1571,7 @@ static std::vector<AnnCagraInputs> relax_recall(std::vector<AnnCagraInputs> inpu
     }
     switch (input.build_algo) {
       case graph_build_algo::IVF_PQ: {
-        reduction_factor = std::min(reduction_factor, 0.90);
+        reduction_factor = std::min(reduction_factor, 0.75);
         break;
       }
       case graph_build_algo::ITERATIVE_CAGRA_SEARCH: {
