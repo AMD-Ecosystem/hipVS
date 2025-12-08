@@ -144,7 +144,7 @@ class faiss_gpu : public algo<T>, public algo_gpu {
     gpu_resource_->noTempMemory();
   }
 
-  virtual void build(const T* dataset, size_t nrow);
+  virtual void build(const T* dataset, size_t nrow) override;
 
   void set_search_param(const search_param_base& param, const void* filter_bitset) override {}
 
@@ -156,7 +156,7 @@ class faiss_gpu : public algo<T>, public algo_gpu {
                       int batch_size,
                       int k,
                       algo_base::index_type* neighbors,
-                      float* distances) const;
+                      float* distances) const override;
 
   [[nodiscard]] auto get_sync_stream() const noexcept -> cudaStream_t override
   {

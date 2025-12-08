@@ -11,36 +11,77 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
+# MIT License
+#
+# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+# associated documentation files (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge, publish, distribute,
+# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+# OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# =============================================================================
 #
 # This is the preferred entry point for projects using rapids-cmake
 #
-# Enforce the minimum required CMake version for all users
-cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
+
+# cmake-lint: disable=W0106
 
 # Allow users to control which version is used
-if(NOT rapids-cmake-version OR NOT rapids-cmake-version MATCHES [[^([0-9][0-9])\.([0-9][0-9])$]])
-  message(
-    FATAL_ERROR "The CMake variable rapids-cmake-version must be defined in the format MAJOR.MINOR."
-  )
+if(NOT rapids-cmake-version)
+  if(DEFINED ENV{RAPIDS_CMAKE_VERSION})
+    set(rapids-cmake-version $ENV{RAPIDS_CMAKE_VERSION})
+  else()
+    # Define a default version if the user doesn't set one
+    set(rapids-cmake-version 25.02)
+  endif()
 endif()
 
 # Allow users to control which GitHub repo is fetched
 if(NOT rapids-cmake-repo)
-  # Define a default repo if the user doesn't set one
-  set(rapids-cmake-repo rapidsai/rapids-cmake)
+  if(DEFINED ENV{RAPIDS_CMAKE_REPO})
+    set(rapids-cmake-repo $ENV{RAPIDS_CMAKE_REPO})
+  else()
+    # Define a default repo if the user doesn't set one
+    set(rapids-cmake-repo "ROCm-DS/ROCmDS-CMake")
+  endif()
 endif()
 
 # Allow users to control which branch is fetched
 if(NOT rapids-cmake-branch)
-  # Define a default branch if the user doesn't set one
-  set(rapids-cmake-branch "branch-${rapids-cmake-version}")
+  if(DEFINED ENV{RAPIDS_CMAKE_BRANCH})
+    set(rapids-cmake-branch $ENV{RAPIDS_CMAKE_BRANCH})
+  else()
+    # Define a default branch if the user doesn't set one
+    set(rapids-cmake-branch "release/rocmds-25.10")
+  endif()
+endif()
+
+if(NOT rapids-cmake-tag AND DEFINED ENV{RAPIDS_CMAKE_TAG})
+  set(rapids-cmake-tag $ENV{RAPIDS_CMAKE_TAG})
+endif()
+
+if(NOT rapids-cmake-sha AND DEFINED ENV{RAPIDS_CMAKE_SHA})
+  set(rapids-cmake-sha $ENV{RAPIDS_CMAKE_SHA})
 endif()
 
 # Allow users to control the exact URL passed to FetchContent
 if(NOT rapids-cmake-url)
-  # Construct a default URL if the user doesn't set one
-  set(rapids-cmake-url "https://github.com/${rapids-cmake-repo}/")
-
+  if(DEFINED ENV{RAPIDS_CMAKE_URL})
+    set(rapids-cmake-url "$ENV{RAPIDS_CMAKE_URL}/")
+  else()
+    # Construct a default URL if the user doesn't set one
+    set(rapids-cmake-url "https://github.com/${rapids-cmake-repo}/")
+  endif()
   # In order of specificity
   if(rapids-cmake-fetch-via-git)
     if(rapids-cmake-sha)
@@ -67,6 +108,10 @@ if(NOT rapids-cmake-url)
   endif()
 endif()
 
+if(POLICY CMP0135)
+  cmake_policy(PUSH)
+  cmake_policy(SET CMP0135 NEW)
+endif()
 include(FetchContent)
 if(rapids-cmake-fetch-via-git)
   FetchContent_Declare(
@@ -77,6 +122,9 @@ if(rapids-cmake-fetch-via-git)
 else()
   string(APPEND rapids-cmake-url "${rapids-cmake-value-to-clone}")
   FetchContent_Declare(rapids-cmake URL "${rapids-cmake-url}")
+endif()
+if(POLICY CMP0135)
+  cmake_policy(POP)
 endif()
 FetchContent_GetProperties(rapids-cmake)
 if(rapids-cmake_POPULATED)

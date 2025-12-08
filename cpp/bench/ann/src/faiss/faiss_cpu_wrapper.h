@@ -126,7 +126,7 @@ class faiss_cpu : public algo<T> {
                       int batch_size,
                       int k,
                       algo_base::index_type* neighbors,
-                      float* distances) const;
+                      float* distances) const override;
 
   [[nodiscard]] auto get_preference() const -> algo_property override
   {
@@ -393,7 +393,7 @@ class faiss_cpu_hnsw_flat : public faiss_cpu<T> {
   }
   void load(const std::string& file) override { this->template load_<faiss::IndexHNSWFlat>(file); }
 
-  std::unique_ptr<algo<T>> copy()
+  std::unique_ptr<algo<T>> copy() override
   {
     return std::make_unique<faiss_cpu_hnsw_flat<T>>(*this);  // use copy constructor
   }

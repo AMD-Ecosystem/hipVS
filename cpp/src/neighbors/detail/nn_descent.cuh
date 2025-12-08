@@ -1028,12 +1028,6 @@ void GnndGraph<Index_t>::clear()
   bloom_filter.clear();
 }
 
-template <typename Index_t>
-GnndGraph<Index_t>::~GnndGraph()
-{
-  assert(h_graph == nullptr);
-}
-
 template <typename Data_t, typename Index_t>
 GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build_config)
   : res(res),
@@ -1049,14 +1043,14 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
     d_data_{raft::make_device_matrix<__half, size_t, raft::row_major>(
       res, nrow_, build_config.dataset_dim)},
     l2_norms_{raft::make_device_vector<DistData_t, size_t>(res, 0)},
-    graph_buffer_{
-      raft::make_device_matrix<ID_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
-    dists_buffer_{
-      raft::make_device_matrix<DistData_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
-    graph_host_buffer_{
-      raft::make_pinned_matrix<ID_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
-    dists_host_buffer_{
-      raft::make_pinned_matrix<DistData_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
+    graph_buffer_{raft::make_device_matrix<ID_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
+    dists_buffer_{raft::make_device_matrix<DistData_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
+    graph_host_buffer_{raft::make_pinned_matrix<ID_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
+    dists_host_buffer_{raft::make_pinned_matrix<DistData_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
     d_locks_{raft::make_device_vector<int, size_t>(res, nrow_)},
     h_rev_graph_new_{
       raft::make_pinned_matrix<Index_t, size_t, raft::row_major>(res, nrow_, NUM_SAMPLES)},
@@ -1071,7 +1065,7 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
 
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   auto graph_buffer_view = raft::make_device_matrix_view<Index_t, int64_t>(
-    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, degree_on_device_);
+    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, get_degree_on_device(res));
   raft::matrix::fill(res, graph_buffer_view, std::numeric_limits<Index_t>::max());
   raft::matrix::fill(res, d_locks_.view(), 0);
 
@@ -1086,7 +1080,7 @@ void GNND<Data_t, Index_t>::reset(raft::resources const& res)
 {
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   auto graph_buffer_view = raft::make_device_matrix_view<Index_t, int64_t>(
-    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, degree_on_device_);
+    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, get_degree_on_device(res));
   raft::matrix::fill(res, graph_buffer_view, std::numeric_limits<Index_t>::max());
   raft::matrix::fill(res, d_locks_.view(), 0);
 }
@@ -1122,7 +1116,7 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream)
                                          ndim_,
                                          graph_buffer_.data_handle(),
                                          dists_buffer_.data_handle(),
-                                         degree_on_device_,
+                                         get_degree_on_device(res),
                                          d_locks_.data_handle(),
                                          l2_norms_.data_handle(),
                                          build_config_.metric);
@@ -1140,7 +1134,7 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream)
                                          ndim_,
                                          graph_buffer_.data_handle(),
                                          dists_buffer_.data_handle(),
-                                         degree_on_device_,
+                                         get_degree_on_device(res),
                                          d_locks_.data_handle(),
                                          l2_norms_.data_handle(),
                                          build_config_.metric);
@@ -1193,7 +1187,7 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
       update_counter_ = 0;
       graph_.update_graph(graph_host_buffer_.data_handle(),
                           dists_host_buffer_.data_handle(),
-                          degree_on_device_,
+                          get_degree_on_device(res),
                           update_counter_);
       if (update_counter_ < build_config_.termination_threshold * nrow_ *
                               build_config_.dataset_dim / counter_interval) {
@@ -1224,7 +1218,7 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
 
     // Reuse dists_buffer_ to save GPU memory. graph_buffer_ cannot be reused, because it
     // contains some information for local_join.
-    ASSERT(degree_on_device_ * sizeof(*(dists_buffer_.data_handle())) >=
+    ASSERT(get_degree_on_device(res) * sizeof(*(dists_buffer_.data_handle())) >=
              NUM_SAMPLES * sizeof(*(graph_buffer_.data_handle())),
            "Invalid precondition");
     add_reverse_edges(graph_.h_graph_new.data_handle(),
@@ -1266,20 +1260,20 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
     if (update_counter_ == -1) { break; }
     raft::copy(graph_host_buffer_.data_handle(),
                graph_buffer_.data_handle(),
-               nrow_ * degree_on_device_,
+               nrow_ * get_degree_on_device(res),
                raft::resource::get_cuda_stream(res));
     raft::resource::sync_stream(res);
     raft::copy(dists_host_buffer_.data_handle(),
                dists_buffer_.data_handle(),
-               nrow_ * degree_on_device_,
+               nrow_ * get_degree_on_device(res),
                raft::resource::get_cuda_stream(res));
 
-    graph_.sample_graph_new(graph_host_buffer_.data_handle(), degree_on_device_);
+    graph_.sample_graph_new(graph_host_buffer_.data_handle(), get_degree_on_device(res));
   }
 
   graph_.update_graph(graph_host_buffer_.data_handle(),
                       dists_host_buffer_.data_handle(),
-                      degree_on_device_,
+                      get_degree_on_device(res),
                       update_counter_);
   raft::resource::sync_stream(res);
   graph_.sort_lists();

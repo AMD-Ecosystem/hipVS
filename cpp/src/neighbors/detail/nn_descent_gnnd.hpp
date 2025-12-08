@@ -38,7 +38,12 @@ constexpr int counter_interval{100};
 template <typename Index_t>
 struct InternalID_t;
 
-inline size_t roundUp32(size_t num) { return (num + 31) / 32 * 32; }
+inline size_t roundUp(size_t num, raft::resources const& res)
+{
+  const auto warp_size = raft::host_warp_size(raft::resource::get_device_id(res));
+  ASSERT(warp_size == 32 || warp_size == 64, "Warp size must be a multiple of 32 or 64");
+  return (num + warp_size - 1) / warp_size * warp_size;
+}
 
 // InternalID_t uses 1 bit for marking (new or old).
 template <>
@@ -197,7 +202,10 @@ struct GnndGraph {
                     std::atomic<int64_t>& update_counter);
   void sort_lists();
   void clear();
-  ~GnndGraph();
+  ~GnndGraph()
+  {
+    assert(h_graph == nullptr);
+  }
 };
 
 template <typename Data_t = float, typename Index_t = int>
@@ -297,9 +305,9 @@ inline BuildConfig get_build_config(raft::resources const& res,
   // to mitigate bucket collisions. `intermediate_degree` is OK to larger than
   // extended_graph_degree.
   extended_graph_degree =
-    roundUp32(static_cast<size_t>(graph_degree * (graph_degree <= 32 ? 1.0 : 1.3)));
-  size_t extended_intermediate_degree =
-    roundUp32(static_cast<size_t>(intermediate_degree * (intermediate_degree <= 32 ? 1.0 : 1.3)));
+    roundUp(static_cast<size_t>(graph_degree * (graph_degree <= 32 ? 1.0 : 1.3)), res);
+  size_t extended_intermediate_degree = roundUp(
+    static_cast<size_t>(intermediate_degree * (intermediate_degree <= 32 ? 1.0 : 1.3)), res);
 
   BuildConfig build_config{.max_dataset_size      = num_rows,
                            .dataset_dim           = num_cols,

@@ -105,7 +105,7 @@ void serialize_to_hnswlib(
 {
   // static_assert(std::is_same_v<IdxT, int> or std::is_same_v<IdxT, uint32_t>,
   //               "An hnswlib index can only be trained with int32 or uint32 IdxT");
-  int dim = (dataset) ? dataset->extent(1) : index_.dim();
+  int dim = dataset.has_value() ? dataset->extent(1) : index_.dim();
   raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> fun_scope("cagra::serialize");
   RAFT_LOG_DEBUG("Saving CAGRA index to hnswlib format, size %zu, dim %u",
                  static_cast<size_t>(index_.size()),

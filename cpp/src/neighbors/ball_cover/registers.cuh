@@ -495,7 +495,7 @@ RAFT_KERNEL block_rbc_kernel_eps_dense(const value_t* X_reordered,
     // Pre-compute landmark_dist & triangularization checks for 32 iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(x_ptr, R + lane_k * n_cols, n_cols)
-                                                        : std::numeric_limits<value_idx>::max();
+                                                        : std::numeric_limits<value_t>::max();
     const int lane_check         = lane_k < n_landmarks
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
@@ -533,7 +533,7 @@ RAFT_KERNEL block_rbc_kernel_eps_dense(const value_t* X_reordered,
         const value_t min_warp_dist =
           limit < R_size ? R_1nn_dists[R_start_offset + limit] : cur_R_dist;
         const value_t dist =
-          (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_idx>::max();
+          (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_t>::max();
         const bool in_range = (dist <= eps2);
         if (in_range) {
           auto index = R_1nn_cols[R_start_offset + i];
@@ -621,7 +621,7 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
     // Pre-compute landmark_dist & triangularization checks for 32 iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(x_ptr, R + lane_k * n_cols, n_cols)
-                                                        : std::numeric_limits<value_idx>::max();
+                                                        : std::numeric_limits<value_t>::max();
     const int lane_check         = lane_k < n_landmarks
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
@@ -659,7 +659,7 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
         const value_t min_warp_dist =
           limit < R_size ? R_1nn_dists[R_start_offset + limit] : cur_R_dist;
         const value_t dist =
-          (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_idx>::max();
+          (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_t>::max();
         const bool in_range = (dist <= eps2);
         if (write_pass) {
           const int mask = raft::ballot(in_range);
@@ -766,7 +766,7 @@ RAFT_KERNEL __launch_bounds__(tpb)
     // Pre-compute landmark_dist & triangularization checks for 32 iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(local_x_ptr, R + lane_k * dim, dim)
-                                                        : std::numeric_limits<value_idx>::max();
+                                                        : std::numeric_limits<value_t>::max();
     const int lane_check         = lane_k < n_landmarks
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
@@ -804,7 +804,7 @@ RAFT_KERNEL __launch_bounds__(tpb)
         const value_t min_warp_dist =
           limit < R_size ? R_1nn_dists[R_start_offset + limit] : cur_R_dist;
         const value_t dist =
-          (i < R_size) ? dfunc(local_x_ptr, y_ptr, dim) : std::numeric_limits<value_idx>::max();
+          (i < R_size) ? dfunc(local_x_ptr, y_ptr, dim) : std::numeric_limits<value_t>::max();
         const bool in_range = (dist <= eps2);
         if (write_pass) {
           const int mask = raft::ballot(in_range);
@@ -898,7 +898,7 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
     // Pre-compute landmark_dist & triangularization checks for 32 iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(x_ptr, R + lane_k * n_cols, n_cols)
-                                                        : std::numeric_limits<value_idx>::max();
+                                                        : std::numeric_limits<value_t>::max();
     const int lane_check         = lane_k < n_landmarks
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
@@ -936,7 +936,7 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
         const value_t min_warp_dist =
           limit < R_size ? R_1nn_dists[R_start_offset + limit] : cur_R_dist;
         const value_t dist =
-          (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_idx>::max();
+          (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_t>::max();
         const bool in_range = (dist <= eps2);
         const int mask      = raft::ballot(in_range);
         if (in_range) {

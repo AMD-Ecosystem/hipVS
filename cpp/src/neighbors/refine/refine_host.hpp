@@ -60,67 +60,6 @@ namespace detail {
 //  Generic implementation
 // -----------------------------------------------------------------------------
 
-template <>
-inline float euclidean_distance_squared<distance_comp_inner, float, ::std::uint8_t>(
-  ::std::uint8_t const* a, ::std::uint8_t const* b, size_t n)
-{
-  size_t n_rounded = n - (n % 16);
-  float dsum       = 0.f;
-
-  if (n_rounded > 0) {
-    float32x4_t vreg_dsum_fp32_0 = vdupq_n_f32(0.f);
-    float32x4_t vreg_dsum_fp32_1 = vreg_dsum_fp32_0;
-    float32x4_t vreg_dsum_fp32_2 = vreg_dsum_fp32_0;
-    float32x4_t vreg_dsum_fp32_3 = vreg_dsum_fp32_0;
-
-    for (size_t i = 0; i < n_rounded; i += 16) {
-      uint8x16_t vreg_a       = vld1q_u8(&a[i]);
-      uint16x8_t vreg_a_u16_0 = vmovl_u8(vget_low_u8(vreg_a));
-      uint16x8_t vreg_a_u16_1 = vmovl_u8(vget_high_u8(vreg_a));
-
-      uint8x16_t vreg_b       = vld1q_u8(&b[i]);
-      uint16x8_t vreg_b_u16_0 = vmovl_u8(vget_low_u8(vreg_b));
-      uint16x8_t vreg_b_u16_1 = vmovl_u8(vget_high_u8(vreg_b));
-
-      vreg_a_u16_0 = vmulq_u16(vreg_a_u16_0, vreg_b_u16_0);
-      vreg_a_u16_1 = vmulq_u16(vreg_a_u16_1, vreg_b_u16_1);
-
-      float32x4_t vreg_res_fp32_0 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(vreg_a_u16_0)));
-      float32x4_t vreg_res_fp32_1 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(vreg_a_u16_0)));
-      float32x4_t vreg_res_fp32_2 = vcvtq_f32_u32(vmovl_u16(vget_low_u16(vreg_a_u16_1)));
-      float32x4_t vreg_res_fp32_3 = vcvtq_f32_u32(vmovl_u16(vget_high_u16(vreg_a_u16_1)));
-
-      vreg_dsum_fp32_0 = vsubq_f32(vreg_dsum_fp32_0, vreg_res_fp32_0);
-      vreg_dsum_fp32_1 = vsubq_f32(vreg_dsum_fp32_1, vreg_res_fp32_1);
-      vreg_dsum_fp32_2 = vsubq_f32(vreg_dsum_fp32_2, vreg_res_fp32_2);
-      vreg_dsum_fp32_3 = vsubq_f32(vreg_dsum_fp32_3, vreg_res_fp32_3);
-    }
-
-    vreg_dsum_fp32_0 = vaddq_f32(vreg_dsum_fp32_0, vreg_dsum_fp32_1);
-    vreg_dsum_fp32_2 = vaddq_f32(vreg_dsum_fp32_2, vreg_dsum_fp32_3);
-    vreg_dsum_fp32_0 = vaddq_f32(vreg_dsum_fp32_0, vreg_dsum_fp32_2);
-
-    dsum = vaddvq_f32(vreg_dsum_fp32_0);  // faddp
-  }
-
-  for (size_t i = n_rounded; i < n; ++i) {
-    dsum += -a[i] * b[i];
-  }
-
-  return dsum;
-}
-
-#endif  // defined(__arm__) || defined(__aarch64__)
-
-// -----------------------------------------------------------------------------
-//  Refine kernel
-// -----------------------------------------------------------------------------
-
-
-// -----------------------------------------------------------------------------
-//  Generic implementation
-// -----------------------------------------------------------------------------
-
 template <typename DC, typename DistanceT, typename DataT>
 DistanceT euclidean_distance_squared_generic(DataT const* a, DataT const* b, size_t n)
 {

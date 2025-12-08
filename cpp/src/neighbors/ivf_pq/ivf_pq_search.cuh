@@ -74,6 +74,7 @@
 namespace cub = hipcub;
 #include <hip/hip_fp16.h>
 #include <raft/util/device_loads_stores_hip.cuh>
+#include <rocm-core/rocm_version.h>
 #else
 #include <cub/cub.cuh>
 #include <cuda_fp16.h>
@@ -331,8 +332,20 @@ void select_clusters(raft::resources const& handle,
     });
 
   using dist_type = half;
+#ifdef __HIP_PLATFORM_AMD__
+#if ROCM_VERSION_MAJOR <= 7
+  float alpha;
+  float beta;
+#else
+  static_assert(false,
+                "As of ROCm 7, hipblaslt does not support half types for alpha and beta. "
+                "Check that this is still the case for ROCm > 7.")
+#endif
+#else
   dist_type alpha;
   dist_type beta;
+#endif
+
   switch (metric) {
     case cuvs::distance::DistanceType::L2SqrtExpanded:
     case cuvs::distance::DistanceType::L2Expanded: {

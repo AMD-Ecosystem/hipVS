@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_fp16.h>
+#else
 #include <cuda_fp16.h>
+#endif
 #include <cuvs/neighbors/cagra.hpp>
 #include <cuvs/neighbors/cagra_index_wrapper.hpp>
 #include <cuvs/neighbors/composite/index.hpp>

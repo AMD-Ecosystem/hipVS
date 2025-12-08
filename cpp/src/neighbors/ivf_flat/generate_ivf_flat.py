@@ -74,7 +74,7 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                                \\
   {                                                                                            \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                          \\
-      std::move(cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset)));           \\
+            cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset));           \\
   }                                                                                            \\
                                                                                                \\
   void build(raft::resources const& handle,                                                    \\
@@ -90,7 +90,7 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                                \\
   {                                                                                            \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                          \\
-      std::move(cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset)));           \\
+      cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset));                     \\
   }                                                                                            \\
                                                                                                \\
   void build(raft::resources const& handle,                                                    \\
@@ -107,8 +107,8 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                      \\
   {                                                                                  \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                \\
-      std::move(cuvs::neighbors::ivf_flat::detail::extend(                           \\
-        handle, new_vectors, new_indices, orig_index)));                             \\
+      cuvs::neighbors::ivf_flat::detail::extend(                                     \\
+        handle, new_vectors, new_indices, orig_index));                              \\
   }                                                                                  \\
                                                                                      \\
   void extend(raft::resources const& handle,                                         \\
@@ -126,8 +126,8 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                      \\
   {                                                                                  \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                \\
-      std::move(cuvs::neighbors::ivf_flat::detail::extend(                           \\
-        handle, new_vectors, new_indices, orig_index)));                             \\
+      cuvs::neighbors::ivf_flat::detail::extend(                                     \\
+        handle, new_vectors, new_indices, orig_index));                              \\
   }                                                                                  \\
                                                                                      \\
   void extend(raft::resources const& handle,                                         \\

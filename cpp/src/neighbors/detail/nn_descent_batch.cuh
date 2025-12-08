@@ -654,11 +654,10 @@ void batch_build(raft::resources const& res,
     graph_degree = intermediate_degree;
   }
 
-  // AMD cherry-pick: likely need to define roundUp64 after cherry picks are done
   size_t extended_graph_degree =
-    roundUp64(static_cast<size_t>(graph_degree * (graph_degree <= 64 ? 1.0 : 1.3)));
-  size_t extended_intermediate_degree = roundUp64(
-    static_cast<size_t>(intermediate_degree * (intermediate_degree <= 64 ? 1.0 : 1.3)));
+    roundUp(static_cast<size_t>(graph_degree * (graph_degree <= 64 ? 1.0 : 1.3)), res);
+  size_t extended_intermediate_degree = roundUp(
+    static_cast<size_t>(intermediate_degree * (intermediate_degree <= 64 ? 1.0 : 1.3)), res);
 
   auto int_graph = raft::make_host_matrix<int, int64_t, row_major>(
     max_cluster_size, static_cast<int64_t>(extended_graph_degree));

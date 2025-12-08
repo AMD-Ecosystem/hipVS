@@ -608,7 +608,7 @@ TEST(CagraC, BuildMergeSearch)
   float distance_host   = 1.0f;
   raft::copy(&neighbor_host, neighbors_d.data(), 1, stream);
   raft::copy(&distance_host, distances_d.data(), 1, stream);
-  cudaStreamSynchronize(stream);
+  [[maybe_unused]] auto ignored = cudaStreamSynchronize(stream);
 
   EXPECT_EQ(neighbor_host, 6);
   EXPECT_NEAR(distance_host, 0.0f, 1e-6);

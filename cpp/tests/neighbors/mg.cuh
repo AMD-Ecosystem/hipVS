@@ -652,7 +652,7 @@ class AnnMGTest : public ::testing::TestWithParam<AnnMGInputs> {
   void TearDown() override {}
 
  private:
-  raft::device_resources_snmg clique_; // AMD Cherry-pick: this might have to be const
+  raft::device_resources_snmg clique_;
   AnnMGInputs ps;
   std::vector<DataT> h_index_dataset;
   std::vector<DataT> h_queries;
