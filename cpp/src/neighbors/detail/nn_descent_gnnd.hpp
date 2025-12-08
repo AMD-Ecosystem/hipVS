@@ -202,10 +202,7 @@ struct GnndGraph {
                     std::atomic<int64_t>& update_counter);
   void sort_lists();
   void clear();
-  ~GnndGraph()
-  {
-    assert(h_graph == nullptr);
-  }
+  ~GnndGraph() { assert(h_graph == nullptr); }
 };
 
 template <typename Data_t = float, typename Index_t = int>

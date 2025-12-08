@@ -1327,43 +1327,41 @@ void optimize(
         raft::make_host_matrix_view<IdxT, int64_t>(
           knn_graph.data_handle(), graph_size, knn_graph_degree));
 
-    constexpr int MAX_DEGREE = 1024;
-    if (knn_graph_degree > MAX_DEGREE) {
-      RAFT_FAIL(
-        "The degree of input knn graph is too large (%zu). "
-        "It must be equal to or smaller than %d.",
-        knn_graph_degree,
-        MAX_DEGREE);
-    }
-    const uint32_t batch_size =
-      std::min(static_cast<uint32_t>(graph_size), static_cast<uint32_t>(256 * 1024));
-    const uint32_t num_batch = (graph_size + batch_size - 1) / batch_size;
-    auto stream              = raft::resource::get_cuda_stream(res);
-    const dim3 threads_prune(raft::host_warp_size(stream), 1, 1);
-    const dim3 blocks_prune(batch_size, 1, 1);
-
-    RAFT_CUDA_TRY(
-      cudaMemsetAsync(dev_stats.data_handle(), 0, sizeof(uint64_t) * 2, stream));
-
-    for (uint32_t i_batch = 0; i_batch < num_batch; i_batch++) {
-      kern_prune<MAX_DEGREE, IdxT>
-        <<<blocks_prune, threads_prune, 0, stream>>>(
-          d_input_graph.data_handle(),
-          graph_size,
+      constexpr int MAX_DEGREE = 1024;
+      if (knn_graph_degree > MAX_DEGREE) {
+        RAFT_FAIL(
+          "The degree of input knn graph is too large (%zu). "
+          "It must be equal to or smaller than %d.",
           knn_graph_degree,
-          output_graph_degree,
-          batch_size,
-          i_batch,
-          d_detour_count.data_handle(),
-          d_num_no_detour_edges.data_handle(),
-          dev_stats.data_handle());
+          MAX_DEGREE);
+      }
+      const uint32_t batch_size =
+        std::min(static_cast<uint32_t>(graph_size), static_cast<uint32_t>(256 * 1024));
+      const uint32_t num_batch = (graph_size + batch_size - 1) / batch_size;
+      auto stream              = raft::resource::get_cuda_stream(res);
+      const dim3 threads_prune(raft::host_warp_size(stream), 1, 1);
+      const dim3 blocks_prune(batch_size, 1, 1);
+
+      RAFT_CUDA_TRY(cudaMemsetAsync(dev_stats.data_handle(), 0, sizeof(uint64_t) * 2, stream));
+
+      for (uint32_t i_batch = 0; i_batch < num_batch; i_batch++) {
+        kern_prune<MAX_DEGREE, IdxT>
+          <<<blocks_prune, threads_prune, 0, stream>>>(d_input_graph.data_handle(),
+                                                       graph_size,
+                                                       knn_graph_degree,
+                                                       output_graph_degree,
+                                                       batch_size,
+                                                       i_batch,
+                                                       d_detour_count.data_handle(),
+                                                       d_num_no_detour_edges.data_handle(),
+                                                       dev_stats.data_handle());
+        raft::resource::sync_stream(res);
+        RAFT_LOG_DEBUG(
+          "# Pruning kNN Graph on GPUs (%.1lf %%)\r",
+          (double)std::min<IdxT>((i_batch + 1) * batch_size, graph_size) / graph_size * 100);
+      }
       raft::resource::sync_stream(res);
-      RAFT_LOG_DEBUG(
-        "# Pruning kNN Graph on GPUs (%.1lf %%)\r",
-        (double)std::min<IdxT>((i_batch + 1) * batch_size, graph_size) / graph_size * 100);
-    }
-    raft::resource::sync_stream(res);
-    RAFT_LOG_DEBUG("\n");
+      RAFT_LOG_DEBUG("\n");
 
       raft::copy(detour_count.data_handle(),
                  d_detour_count.data_handle(),

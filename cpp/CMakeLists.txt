@@ -684,12 +684,12 @@ if(BUILD_SHARED_LIBS)
 
     if(BUILD_MG_ALGOS)
       if(CUDA_BACKEND)
-          rapids_find_generate_module(
-            NCCL
-            HEADER_NAMES nccl.h
-            LIBRARY_NAMES nccl
-          )
-          find_package(NCCL REQUIRED)
+        rapids_find_generate_module(
+          NCCL
+          HEADER_NAMES nccl.h
+          LIBRARY_NAMES nccl
+        )
+        find_package(NCCL REQUIRED)
       endif()
       target_link_libraries(cuvs_objs PRIVATE $<IF:$<BOOL:${CUDA_BACKEND}>,NCCL::NCCL,roc::rccl>)
       target_link_libraries(cuvs PRIVATE $<IF:$<BOOL:${CUDA_BACKEND}>,NCCL::NCCL,roc::rccl>)
@@ -700,8 +700,7 @@ if(BUILD_SHARED_LIBS)
       cuvs
       PUBLIC rmm::rmm raft::raft ${CUVS_CTK_MATH_DEPENDENCIES}
       PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
-              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-              cuvs-cagra-search
+              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> cuvs-cagra-search
     )
 
     if(NOT CUVS_COMPILE_DYNAMIC_ONLY)

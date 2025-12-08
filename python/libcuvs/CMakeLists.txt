@@ -83,7 +83,7 @@ if(CUDA_BACKEND)
   )
 
   if(USE_NCCL_RUNTIME_WHEEL)
-      list(APPEND rpaths "$ORIGIN/../../nvidia/nccl/lib")
+    list(APPEND rpaths "$ORIGIN/../../nvidia/nccl/lib")
   endif()
 else()
   set(rpaths

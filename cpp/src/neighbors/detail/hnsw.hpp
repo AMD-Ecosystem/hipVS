@@ -53,7 +53,6 @@
 #include <filesystem>
 #include <hnswlib/hnswlib.h>
 
-
 #include <filesystem>
 #include <memory>
 #include <omp.h>

@@ -1357,8 +1357,8 @@ void build(raft::resources const& res,
                                        extended_graph_degree,
                                        graph_degree);
 
-  auto int_graph =
-    raft::make_host_matrix<int, int64_t, raft::row_major>(dataset.extent(0), static_cast<int64_t>(extended_graph_degree));
+  auto int_graph = raft::make_host_matrix<int, int64_t, raft::row_major>(
+    dataset.extent(0), static_cast<int64_t>(extended_graph_degree));
 
   GNND<const T, int> nnd(res, build_config);
 
