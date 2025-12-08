@@ -1012,7 +1012,9 @@ void rbc_low_dim_pass_one(raft::resources const& handle,
                           float weight,
                           int dims)
 {
-  if (k <= 32)
+  const auto warp_size = raft::host_warp_size(raft::resource::get_device_id(handle));
+
+  if (k <= 32 && warp_size == 32)
     block_rbc_kernel_registers<value_idx, value_t, 32, 2, 128>
       <<<n_query_rows, 128, 0, raft::resource::get_cuda_stream(handle)>>>(
         index.get_X_reordered().data_handle(),
@@ -1162,8 +1164,8 @@ void rbc_low_dim_pass_two(raft::resources const& handle,
                                                   index.metric,
                                                   bitset.data(),
                                                   weight);
-
-  if (k <= 32)
+  const auto warp_size = raft::host_warp_size(raft::resource::get_device_id(handle));
+  if (k <= 32 && warp_size == 32)
     compute_final_dists_registers<value_idx, value_t, std::uint32_t, std::uint32_t, 32, 2, 128>
       <<<n_query_rows, 128, 0, raft::resource::get_cuda_stream(handle)>>>(
         index.get_X_reordered().data_handle(),
