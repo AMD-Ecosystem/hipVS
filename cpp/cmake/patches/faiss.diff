@@ -32,14 +32,14 @@ index 9a988c5d2..f166fb129 100644
 -  rapids_cuda_init_architectures(faiss)
 -  rapids_cuda_init_architectures(pyfaiss)
 -  rapids_cuda_init_architectures(faiss_c_library)
-+  
++
 +  if(NOT FAISS_ENABLE_ROCM)
 +    rapids_cuda_init_architectures(faiss)
 +    rapids_cuda_init_architectures(pyfaiss)
 +    rapids_cuda_init_architectures(faiss_c_library)
 +  endif()
  endif()
- 
+
  project(faiss
 diff --git a/faiss/gpu/CMakeLists.txt b/faiss/gpu/CMakeLists.txt
 index 0051f047f..e4470e447 100644
@@ -49,17 +49,17 @@ index 0051f047f..e4470e447 100644
            impl/CuvsIVFFlat.cu
            impl/CuvsIVFPQ.cu
            utils/CuvsUtils.cu)
-+  
++
 +  if (FAISS_ENABLE_ROCM)
 +    list(TRANSFORM FAISS_GPU_SRC REPLACE cu$ hip)
 +  endif()
 +
  endif()
- 
+
  add_library(faiss_gpu_objs OBJECT ${FAISS_GPU_SRC})
 @@ -324,7 +329,7 @@ foreach(header ${FAISS_GPU_HEADERS})
  endforeach()
- 
+
  if (FAISS_ENABLE_ROCM)
 -  target_link_libraries(faiss_gpu_objs PRIVATE hip::host roc::hipblas)
 +  target_link_libraries(faiss_gpu_objs PRIVATE hip::host roc::hipblas $<$<BOOL:${FAISS_ENABLE_CUVS}>:cuvs::cuvs>)
@@ -71,18 +71,18 @@ index dc4c469a1..944211da3 100644
 --- a/faiss/gpu/utils/DeviceDefs.cuh
 +++ b/faiss/gpu/utils/DeviceDefs.cuh
 @@ -9,16 +9,17 @@
- 
+
  #include <cuda.h>
- 
+
 +#ifdef USE_AMD_ROCM
 +#include <rocprim/rocprim.hpp>
 +#endif
 +
  namespace faiss {
  namespace gpu {
- 
+
  #ifdef USE_AMD_ROCM
- 
+
 -#if __AMDGCN_WAVEFRONT_SIZE == 32u
 -constexpr int kWarpSize = 32;
 -#else
@@ -90,7 +90,7 @@ index dc4c469a1..944211da3 100644
 -#endif
 +__device__ constexpr int kWarpSize = rocprim::arch::wavefront::max_size();
 +
- 
+
  // This is a memory barrier for intra-warp writes to shared memory.
  __forceinline__ __device__ void warpFence() {
 diff --git a/faiss/gpu/utils/MatrixMult-inl.cuh b/faiss/gpu/utils/MatrixMult-inl.cuh
@@ -98,25 +98,25 @@ index b28ea56da..ae035715f 100644
 --- a/faiss/gpu/utils/MatrixMult-inl.cuh
 +++ b/faiss/gpu/utils/MatrixMult-inl.cuh
 @@ -24,17 +24,17 @@ struct GetCudaType;
- 
+
  template <>
  struct GetCudaType<float> {
 -    static constexpr hipblasDatatype_t Type = HIPBLAS_R_32F;
 +    static constexpr hipDataType Type = HIPBLAS_R_32F;
  };
- 
+
  template <>
  struct GetCudaType<half> {
 -    static constexpr hipblasDatatype_t Type = HIPBLAS_R_16F;
 +    static constexpr hipDataType Type = HIPBLAS_R_16F;
  };
- 
+
  template <>
  struct GetCudaType<__hip_bfloat16> {
 -    static constexpr hipblasDatatype_t Type = HIPBLAS_R_16B;
 +    static constexpr hipDataType Type = HIPBLAS_R_16B;
  };
- 
+
  #else
 @@ -94,7 +94,7 @@ cublasStatus_t rawGemm(
              C,
@@ -126,7 +126,7 @@ index b28ea56da..ae035715f 100644
 +            HIPBLAS_COMPUTE_32F,
              HIPBLAS_GEMM_DEFAULT);
  #else
- 
+
 @@ -199,7 +199,7 @@ cublasStatus_t rawBatchGemm(
              ldc,
              strideC,

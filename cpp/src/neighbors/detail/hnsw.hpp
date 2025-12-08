@@ -44,13 +44,13 @@
 #pragma clang diagnostic ignored "-Wunused-function"
 #include <hnswlib/hnswalg.h>
 #pragma clang diagnostic pop
+#include <filesystem>
 #include <hnswlib/hnswlib.h>
 #include <memory>
 #include <omp.h>
 #include <raft/core/logger.hpp>
 #include <random>
 #include <thread>
-#include <filesystem>
 
 namespace cuvs::neighbors::hnsw::detail {
 

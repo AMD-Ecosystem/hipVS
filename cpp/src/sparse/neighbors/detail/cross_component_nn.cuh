@@ -557,8 +557,14 @@ void cross_component_nn(
   /**
    * Symmetrize resulting edge list
    */
-  raft::sparse::linalg::symmetrize<value_idx, value_t, size_t>(
-    handle, min_edges.rows(), min_edges.cols(), min_edges.vals(), n_rows, n_rows, static_cast<size_t>(size), out);
+  raft::sparse::linalg::symmetrize<value_idx, value_t, size_t>(handle,
+                                                               min_edges.rows(),
+                                                               min_edges.cols(),
+                                                               min_edges.vals(),
+                                                               n_rows,
+                                                               n_rows,
+                                                               static_cast<size_t>(size),
+                                                               out);
 }
 
 };  // end namespace cuvs::sparse::neighbors::detail

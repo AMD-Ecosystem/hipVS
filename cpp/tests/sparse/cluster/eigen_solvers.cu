@@ -43,7 +43,7 @@ TEST(Raft, EigenSolvers)
   index_type* ro{nullptr};
   index_type* ci{nullptr};
   value_type* vs{nullptr};
-  size_t nnz   = 0;
+  size_t nnz       = 0;
   index_type nrows = 0;
 
   sparse_matrix_t<index_type, value_type> sm1{h, ro, ci, vs, nrows, nnz};
