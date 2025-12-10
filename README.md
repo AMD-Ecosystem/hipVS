@@ -1,6 +1,9 @@
 # hipVS
 
-**GPU-accelerated vector search for AMD GPUs**
+# <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
+# **GPU-accelerated vector search for AMD GPUs**
+# =======
+# >>>>>>> END NEW CODE (4be4579c1)
 
 ## What is hipVS?
 
@@ -49,9 +52,13 @@ There are several benefits to using hipVS and GPUs for vector search, including
 6. Multiple language support
 7. Building blocks for composing new or accelerating existing algorithms
 
-# <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
+# <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
+# # <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
+# # =======
+# In addition to the items above, cuVS takes on the burden of keeping non-trivial accelerated code up to date as new NVIDIA architectures and CUDA versions are released. This provides a delightful development experience, guaranteeing that any libraries, databases, or applications built on top of it will always be getting the best performance and scale.
 # =======
-In addition to the items above, cuVS takes on the burden of keeping non-trivial accelerated code up to date as new NVIDIA architectures and CUDA versions are released. This provides a delightful development experience, guaranteeing that any libraries, databases, or applications built on top of it will always be getting the best performance and scale.
+In addition to the items above, cuVS shoulders the burden of keeping non-trivial accelerated code up to date as new NVIDIA architectures and CUDA versions are released. This provides a delightful development experience, guaranteeing that any libraries, databases, or applications built on top of it will always be getting the best performance and scale.
+# >>>>>>> END NEW CODE (4be4579c1)
 
 ## cuVS Technology Stack
 
@@ -77,7 +84,7 @@ It is recommended to use [mamba](https://conda.github.io/conda-libmamba-solver/u
 conda install -c rapidsai -c conda-forge cuvs
 ```
 
-The cuVS Python package can also be `installed through pip <https://docs.rapids.ai/install#pip>`_.
+The cuVS Python package can also be installed through [pip](https://docs.rapids.ai/install#pip>).
 
 ```bash
 # CUDA 13
@@ -98,7 +105,10 @@ conda install -c rapidsai-nightly -c conda-forge cuvs=26.02 cuda-version=13.0
 conda install -c rapidsai-nightly -c conda-forge cuvs=26.02 cuda-version=12.9
 ```
 
-cuVS also has `pip` wheel packages that can be installed. Please see the [Build and Install Guide](https://docs.rapids.ai/api/cuvs/nightly/build/) for more information on installing the available cuVS packages and building from source.
+> [!NOTE]
+> If compiled binary size is a concern, please note that the cuVS builds for CUDA 13 are roughly half the size of CUDA 12 builds. This is a result of improved compression rates in the newer supported CUDA drivers. We will be adopting the newer drivers for CUDA 12 builds in Spring of 2026, which will ultimately bring them down to roughly the size of the CUDA 13 builds. In the meantime, the NVIDIA cuVS team is continuing to shave down the binary sizes for all supported CUDA versions. If binary size is an issue for you, please consider linking to cuVS statically either by building from source or using pre-built `libcuvs-static` conda package.
+
+Please see the [Build and Install Guide](https://docs.rapids.ai/api/cuvs/nightly/build/) for more information on installing the available cuVS packages and building from source.
 
 ## Getting Started
 

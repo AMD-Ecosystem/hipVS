@@ -116,6 +116,7 @@ if(BUILD_CPU_ONLY)
   set(BUILD_TESTS OFF)
   set(BUILD_C_LIBRARY OFF)
   set(BUILD_CAGRA_HNSWLIB OFF)
+  set(INSTALL_CPP_HEADERS OFF)
 elseif(NOT BUILD_SHARED_LIBS)
   set(BUILD_TESTS OFF)
   set(BUILD_C_LIBRARY OFF)
@@ -288,6 +289,17 @@ endif()
 # ##################################################################################################
 # * cuvs ---------------------------------------------------------------------
 if(NOT BUILD_CPU_ONLY)
+
+  add_library(cuvs_cpp_headers INTERFACE)
+  add_library(cuvs::cuvs_cpp_headers ALIAS cuvs_cpp_headers)
+  target_include_directories(
+    cuvs_cpp_headers
+    INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+              "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+              "$<INSTALL_INTERFACE:include>"
+  )
+  target_link_libraries(cuvs_cpp_headers INTERFACE raft::raft rmm::rmm)
+
   add_library(
     cuvs-cagra-search OBJECT
     src/neighbors/cagra_search_float.cu
@@ -386,10 +398,7 @@ if(NOT BUILD_CPU_ONLY)
                CUDA_SEPARABLE_COMPILATION ON
                POSITION_INDEPENDENT_CODE ON
   )
-  target_link_libraries(cuvs-cagra-search PRIVATE raft::raft)
-  target_include_directories(
-    cuvs-cagra-search PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  )
+  target_link_libraries(cuvs-cagra-search PRIVATE cuvs::cuvs_cpp_headers)
   target_compile_options(
     cuvs-cagra-search
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
@@ -645,14 +654,8 @@ if(NOT BUILD_CPU_ONLY)
 
   target_link_libraries(
     cuvs_objs
-    PRIVATE raft::raft rmm::rmm ${CUVS_CTK_MATH_DEPENDENCIES}
+    PRIVATE cuvs::cuvs_cpp_headers ${CUVS_CTK_MATH_DEPENDENCIES}
             $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>
-  )
-
-  target_include_directories(
-    cuvs_objs
-    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-    INTERFACE "$<INSTALL_INTERFACE:include>"
   )
 
   # Endian detection
@@ -743,13 +746,6 @@ if(NOT BUILD_CPU_ONLY)
              $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
     )
 
-    target_include_directories(
-      cuvs
-      PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-             "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-             "$<INSTALL_INTERFACE:include>"
-    )
-
     target_link_libraries(
       cuvs
 # <<<<<<< OLD CODE from 8857048ba (e8d26c865) - COMMENTED OUT
@@ -769,6 +765,7 @@ if(NOT BUILD_CPU_ONLY)
 # =======
       PUBLIC rmm::rmm
              raft::raft
+             cuvs::cuvs_cpp_headers
              ${CUVS_CTK_MATH_DEPENDENCIES}
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>>
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
@@ -838,13 +835,16 @@ SECTIONS
     target_link_options(cuvs_static PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
 # >>>>>>> END NEW CODE (fc363a868)
 
-    target_include_directories(
-      cuvs_static
-      PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-             "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-             "$<INSTALL_INTERFACE:include>"
-    )
-
+# <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
+#     target_include_directories(
+#       cuvs_static
+#       PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+#              "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+#              "$<INSTALL_INTERFACE:include>"
+#     )
+#
+# =======
+# >>>>>>> END NEW CODE (4be4579c1)
     target_link_libraries(
       cuvs_static
 # <<<<<<< OLD CODE from c2fcaba2e (b5ce1b00b) - COMMENTED OUT
@@ -863,6 +863,7 @@ SECTIONS
 # =======
       PUBLIC rmm::rmm
              raft::raft
+             cuvs::cuvs_cpp_headers
              ${CUVS_CTK_MATH_DEPENDENCIES}
              $<TARGET_NAME_IF_EXISTS:NCCL::NCCL> # needs to be public for DT_NEEDED
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>> # header only
@@ -972,72 +973,52 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
   include(GNUInstallDirs)
   include(CPack)
 
-  install(
-    TARGETS ${_cuvs_lib_targets}
-    DESTINATION ${lib_dir}
-    COMPONENT cuvs
-    EXPORT cuvs-exports
-  )
+  set(target_names cuvs cuvs_static cuvs_cpp_headers cuvs_c)
+  set(component_names cuvs_shared cuvs_static cuvs_cpp_headers c_api)
+  set(export_names cuvs-shared-exports cuvs-static-exports cuvs-cpp-headers-exports cuvs-c-exports)
+  foreach(target component export IN ZIP_LISTS target_names component_names export_names)
+    if(TARGET ${target})
+      install(
+        TARGETS ${target}
+        DESTINATION ${lib_dir}
+        COMPONENT ${component}
+        EXPORT ${export}
+      )
 
-  install(
-    DIRECTORY include/cuvs
-    COMPONENT cuvs
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
+      list(APPEND cuvs_components ${component})
+      list(APPEND cuvs_export_sets ${export})
+    endif()
+  endforeach()
 
-  if(BUILD_C_LIBRARY)
+  if(TARGET cuvs_cpp_headers)
     install(
-      TARGETS cuvs_c
-      DESTINATION ${lib_dir}
-      COMPONENT c_api
-      EXPORT cuvs-c-exports
+      DIRECTORY include/cuvs
+      COMPONENT cuvs_cpp_headers
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
+    install(
+      FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cuvs/version_config.h
+      COMPONENT cuvs_cpp_headers
+      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cuvs
+    )
+  endif()
 
+  if(TARGET cuvs_c)
     install(
       DIRECTORY ../c/include/cuvs/
       COMPONENT c_api
       DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cuvs
     )
-
     install(
       FILES ${CUVS_C_BINARY_DIR}/include/cuvs/core/c_config.h
-      COMPONENT cuvs
+      COMPONENT c_api
       DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cuvs/core/
     )
   endif()
 
-  install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cuvs/version_config.h
-    COMPONENT cuvs
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cuvs
-  )
+  include(cmake/modules/generate_cuvs_export.cmake)
+  generate_cuvs_export(COMPONENTS ${cuvs_components} EXPORT_SETS ${cuvs_export_sets})
 
-  if(TARGET cuvs_c)
-    list(APPEND cuvs_components c_api)
-    list(APPEND cuvs_export_sets cuvs-c-exports)
-    set(CUVS_C_TARGET cuvs_c)
-  endif()
-
-  # Use `rapids_export` for 22.04 as it will have COMPONENT support
-  rapids_export(
-    INSTALL cuvs
-    EXPORT_SET cuvs-exports
-    COMPONENTS ${cuvs_components}
-    COMPONENTS_EXPORT_SET ${cuvs_export_sets}
-    GLOBAL_TARGETS cuvs ${CUVS_C_TARGET}
-    NAMESPACE cuvs::
-  )
-
-  # ################################################################################################
-  # * build export -------------------------------------------------------------
-  rapids_export(
-    BUILD cuvs
-    EXPORT_SET cuvs-exports
-    COMPONENTS ${cuvs_components}
-    COMPONENTS_EXPORT_SET ${cuvs_export_sets}
-    GLOBAL_TARGETS cuvs ${CUVS_C_TARGET}
-    NAMESPACE cuvs::
-  )
 endif()
 
 # ##################################################################################################
