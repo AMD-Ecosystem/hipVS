@@ -32,7 +32,7 @@
 
 [build-system]
 build-backend = "scikit_build_core.build"
-requires = ["scikit-build-core[pyproject]>=0.10.0", "cmake>=3.26.4", "ninja"]
+requires = ["scikit-build-core[pyproject]>=0.10.0", "cmake>=3.30", "ninja"]
 
 [project]
 name = "amd-libhipvs"

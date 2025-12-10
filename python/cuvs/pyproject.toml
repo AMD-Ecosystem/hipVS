@@ -34,7 +34,7 @@
 build-backend = "scikit_build_core.build"
 requires = [
     "cython>=3.0.0,<3.1.0a0",
-    "scikit-build-core[pyproject]>=0.7.0",
+    "scikit-build-core[pyproject]>=0.10.0",
     "amd-hipmm",
     "amd-libhipmm",
 ]
