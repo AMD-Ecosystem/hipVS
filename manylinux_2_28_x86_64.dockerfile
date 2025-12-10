@@ -24,7 +24,7 @@
 
 FROM quay.io/pypa/manylinux_2_28_x86_64
 
-ARG ROCM=7.0.2
+ARG ROCM=7.1.1
 
 RUN dnf install -y wget
 
