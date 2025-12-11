@@ -408,12 +408,12 @@ if (( ${NUMARGS} == 0 )) || hasArg python; then
     # Build and install cuvs pip package
     SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
-        python -m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cuvs
+        python -m pip install --no-build-isolation --no-deps ${REPODIR}/python/cuvs
 fi
 
 # Build and (optionally) install the cuvs-bench Python package
 if (( NUMARGS == 0 )) || (hasArg bench-ann && ! hasArg -n); then
-    python -m pip install --no-build-isolation --no-deps --config-settings rapidsai.disable-cuda=true ${REPODIR}/python/cuvs_bench
+    python -m pip install --no-build-isolation --no-deps ${REPODIR}/python/cuvs_bench
 fi
 
 # Build the cuvs Rust bindings
