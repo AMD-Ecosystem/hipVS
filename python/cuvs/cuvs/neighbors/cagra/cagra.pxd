@@ -36,7 +36,7 @@ from cuvs.neighbors.ivf_pq.ivf_pq cimport (
 )
 
 
-cdef extern from "library_types.h":
+cdef extern from "cuvs/library_types.h":
     ctypedef enum cudaDataType_t:
         CUDA_R_32F "CUDA_R_32F"  # float
         CUDA_R_16F "CUDA_R_16F"  # half
