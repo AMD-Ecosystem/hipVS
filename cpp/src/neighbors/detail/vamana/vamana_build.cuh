@@ -30,8 +30,6 @@
 #include <cuvs/neighbors/vamana.hpp>
 #include <raft/core/resource/device_id.hpp>
 
-#include <raft/cluster/kmeans.cuh>
-#include <raft/cluster/kmeans_types.hpp>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/device_resources.hpp>
