@@ -24,6 +24,7 @@
 #include <raft/util/cuda_dev_essentials.cuh>
 #include <raft/util/pow2_utils.cuh>
 #include <variant>
+#include <cuda/std/variant>
 
 namespace cuvs::neighbors::ivf_pq::detail {
 

@@ -19,6 +19,7 @@
 #include <cuda/std/variant>
 #include <cuvs/neighbors/ivf_pq.hpp>
 #include <raft/core/device_mdspan.hpp>
+#include <cuda/std/variant>
 
 namespace cuvs::neighbors::ivf_pq::detail {
 /**

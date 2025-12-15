@@ -181,8 +181,8 @@ class ANNTieredIndexTest : public ::testing::TestWithParam<AnnTieredIndexInputs>
   raft::resources handle_;
   rmm::cuda_stream_view stream_;
   AnnTieredIndexInputs ps;
-  rmm::device_uvector<value_type> database{};
-  rmm::device_uvector<value_type> queries{};
+  rmm::device_uvector<value_type> database {};
+  rmm::device_uvector<value_type> queries {};
 };
 
 const std::vector<AnnTieredIndexInputs> inputs =
