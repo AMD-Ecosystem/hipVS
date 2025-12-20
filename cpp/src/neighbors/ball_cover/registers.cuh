@@ -11,11 +11,15 @@
 #include "registers_types.cuh"  // DistFunc
 #include <cuvs/neighbors/ball_cover.hpp>
 
+#include "../detail/faiss_select/key_value_block_select.cuh"
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
 #include <raft/linalg/unary_op.cuh>
-#include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
-#include <raft/util/bitwise_operations.hpp>
+// <<<<<<< OLD CODE from 5d2d0bb8a (29339f2bd) - COMMENTED OUT
+// #include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
+// #include <raft/util/bitwise_operations.hpp>
+// =======
+// >>>>>>> END NEW CODE (29339f2bd)
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/warp_primitives.cuh>
 
@@ -168,7 +172,7 @@ RAFT_KERNEL compute_final_dists_registers(const value_t* X_reordered,
     local_x_ptr[j] = x_ptr[j];
   }
 
-  using namespace raft::neighbors::detail::faiss_select;
+  using namespace cuvs::neighbors::detail::faiss_select;
   KeyValueBlockSelect<value_t, value_idx, false, Comparator<value_t>, warp_q, thread_q, tpb> heap(
     std::numeric_limits<value_t>::max(),
     std::numeric_limits<value_t>::max(),
@@ -328,7 +332,7 @@ RAFT_KERNEL block_rbc_kernel_registers(const value_t* X_reordered,
   }
 
   // Each warp works on 1 R
-  using namespace raft::neighbors::detail::faiss_select;
+  using namespace cuvs::neighbors::detail::faiss_select;
   KeyValueBlockSelect<value_t, value_idx, false, Comparator<value_t>, warp_q, thread_q, tpb> heap(
     std::numeric_limits<value_t>::max(),
     std::numeric_limits<value_t>::max(),
