@@ -52,11 +52,14 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   endif()
 endif()
 
-# Allow invalid CUDA kernels in the short term
-if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8.0)
-  list(APPEND CUVS_GPU_FLAGS -static-global-template-stub=false)
-endif()
-
+# <<<<<<< OLD CODE from 2aca99707 (cffd0318c) - COMMENTED OUT
+# # Allow invalid CUDA kernels in the short term
+# if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8.0)
+#   list(APPEND CUVS_GPU_FLAGS -static-global-template-stub=false)
+# endif()
+#
+# =======
+# >>>>>>> END NEW CODE (cffd0318c)
 if(CUDA_LOG_COMPILE_TIME)
   list(APPEND CUVS_GPU_FLAGS "--time=nvcc_compile_log.csv")
 endif()
