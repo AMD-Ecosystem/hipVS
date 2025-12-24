@@ -52,6 +52,6 @@ ivf_pq_params::ivf_pq_params(raft::matrix_extent<int64_t> dataset_extents,
   search_params.coarse_search_dtype     = CUDA_R_16F;
   search_params.max_internal_batch_size = 128 * 1024;
 
-  refinement_rate = 1;
+  refinement_rate = 2;
 }
 }  // namespace cuvs::neighbors::cagra::graph_build_params

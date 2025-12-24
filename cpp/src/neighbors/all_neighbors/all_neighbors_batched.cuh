@@ -321,11 +321,7 @@ void multi_gpu_batch_build(const raft::resources& handle,
   size_t k        = global_neighbors.extent(1);
 
   int num_ranks = raft::resource::get_num_ranks(handle);
-  if (num_ranks <= 0) { return; }
-
-  if (params.n_clusters < static_cast<size_t>(num_ranks)) {
-    num_ranks = static_cast<int>(params.n_clusters);
-  }
+  ASSERT(num_ranks > 0, "We need at least 1 GPU when multi_gpu_batch_build is called");
 
   size_t clusters_per_rank = params.n_clusters / num_ranks;
   size_t rem               = params.n_clusters - clusters_per_rank * num_ranks;

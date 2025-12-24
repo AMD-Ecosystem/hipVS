@@ -337,6 +337,7 @@ void select_clusters(raft::resources const& handle,
   float alpha;
   float beta;
 #else
+  // Please see github issue: https://github.com/AMD-AIOSS/hipVS/issues/115
   static_assert(false,
                 "As of ROCm 7, hipblaslt does not support half types for alpha and beta. "
                 "Check that this is still the case for ROCm > 7.")
