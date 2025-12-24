@@ -64,7 +64,8 @@ struct ivf_pq_params {
     auto n_rows     = dataset_extents.extent(0);
     auto n_features = dataset_extents.extent(1);
     if (n_features <= 32) {
-      build_params.pq_dim  = 16;
+      // Ensure pq_dim does not exceed n_features
+      build_params.pq_dim  = std::min(n_features, static_cast<int64_t>(16));
       build_params.pq_bits = 8;
     } else {
       build_params.pq_bits = 4;
