@@ -69,9 +69,11 @@ RAFT_KERNEL compress_to_bits_kernel(
     __syncthreads();
 
     // Drain memory tile into single output element out_elem.
+    // AMD FIX: Loop should iterate over tile_dim_m (64 rows/bits), not tile_dim_n (128 columns)
+    // smem[threadIdx.x] has tile_dim_m elements, and T has tile_dim_m bits
     T out_elem{0};
 #pragma unroll
-    for (int j = 0; j < tile_dim_n; ++j) {
+    for (int j = 0; j < tile_dim_m; ++j) {
       if (smem[threadIdx.x][j]) { out_elem |= T(1) << j; }
     }
     __syncthreads();

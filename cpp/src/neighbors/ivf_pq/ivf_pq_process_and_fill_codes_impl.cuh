@@ -45,7 +45,8 @@ __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kerne
   if (row_ix >= new_vectors.extent(0)) { return; }
 
   const uint32_t cluster_ix = new_labels[row_ix];
-  uint32_t out_ix;
+  // See https://ontrack-internal.amd.com/browse/SWDEV-573004 for details.
+  uint32_t out_ix = 0;
   if (lane_id == 0) { out_ix = atomicAdd(&list_sizes(cluster_ix), 1); }
   out_ix = raft::shfl(out_ix, 0, kSubWarpSize);
 
