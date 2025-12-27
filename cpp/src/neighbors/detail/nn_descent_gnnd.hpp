@@ -167,7 +167,9 @@ class BloomFilter {
 template <typename Index_t>
 struct GnndGraph {
   raft::resources const& res;
-  static constexpr int segment_size = 32;
+  // segment_size must match the warp size used by GPU kernels
+  // On NVIDIA: 32, on AMD/HIP: 64. We now set this in the ctor
+  int segment_size;
   InternalID_t<Index_t>* h_graph;
 
   size_t nrow;

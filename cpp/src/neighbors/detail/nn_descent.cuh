@@ -862,6 +862,7 @@ GnndGraph<Index_t>::GnndGraph(raft::resources const& res,
                               const size_t internal_node_degree,
                               const size_t num_samples)
   : res(res),
+    segment_size(raft::host_warp_size(raft::resource::get_device_id(res))),
     nrow(nrow),
     node_degree(node_degree),
     num_samples(num_samples),
@@ -954,23 +955,37 @@ void GnndGraph<Index_t>::sample_graph(bool sample_new)
     auto list     = h_graph + i * node_degree;
     auto list_old = h_graph_old.data_handle() + i * num_samples;
     auto list_new = h_graph_new.data_handle() + i * num_samples;
-    for (int j = 0; j < segment_size; j++) {
-      for (int k = 0; k < num_segments; k++) {
-        auto neighbor = list[k * segment_size + j];
-        if ((size_t)neighbor.id() >= nrow) continue;
-        if (!neighbor.is_new()) {
-          if (h_list_sizes_old.data_handle()[i].x < num_samples) {
-            list_old[h_list_sizes_old.data_handle()[i].x++] = neighbor.id();
-          }
-        } else if (sample_new) {
-          if (h_list_sizes_new.data_handle()[i].x < num_samples) {
-            list[k * segment_size + j].mark_old();
-            list_new[h_list_sizes_new.data_handle()[i].x++] = neighbor.id();
-          }
+
+    // Iterate through all neighbors with a pattern that ensures good coverage
+    // across all segments and positions before hitting the sample limit.
+    // Pattern visits: seg0[0], seg1[0], seg0[half], seg1[half], seg0[1], seg1[1], ...
+    // This ensures we touch all "quarters" of the graph early.
+    const int half_seg = segment_size / 2;
+    const int total_positions = segment_size * num_segments;
+
+    for (int idx = 0; idx < total_positions; idx++) {
+      // Decode idx into a position that spreads across all segments and halves:
+      // - First iterate across segments (k)
+      // - Then alternate between first/second half of each segment
+      // - Finally increment within each half
+      int k = idx % num_segments;                          // segment index
+      int pos_idx = idx / num_segments;                    // position counter
+      int half = pos_idx % 2;                              // which half (0=first, 1=second)
+      int offset = pos_idx / 2;                            // offset within half
+      int j = half * half_seg + offset;                    // actual position in segment
+
+      if (j >= segment_size) continue;  // safety check for odd segment_size
+
+      auto neighbor = list[k * segment_size + j];
+      if ((size_t)neighbor.id() >= nrow) continue;
+      if (!neighbor.is_new()) {
+        if (h_list_sizes_old.data_handle()[i].x < num_samples) {
+          list_old[h_list_sizes_old.data_handle()[i].x++] = neighbor.id();
         }
-        if (h_list_sizes_old.data_handle()[i].x == num_samples &&
-            h_list_sizes_new.data_handle()[i].x == num_samples) {
-          break;
+      } else if (sample_new) {
+        if (h_list_sizes_new.data_handle()[i].x < num_samples) {
+          list[k * segment_size + j].mark_old();
+          list_new[h_list_sizes_new.data_handle()[i].x++] = neighbor.id();
         }
       }
       if (h_list_sizes_old.data_handle()[i].x == num_samples &&

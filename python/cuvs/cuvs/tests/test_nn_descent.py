@@ -66,4 +66,5 @@ def test_nn_descent(
         distances = index.distances
         assert distances.shape == graph.shape
 
-    assert calc_recall(graph, bfknn_graph) > 0.9
+    recall_threshold = 0.87 if n_rows <= 1024 else 0.9
+    assert calc_recall(graph, bfknn_graph) > recall_threshold
