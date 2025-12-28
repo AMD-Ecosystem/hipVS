@@ -62,6 +62,11 @@ typedef enum { CUVS_ERROR, CUVS_SUCCESS } cuvsError_t;
 const char* cuvsGetLastErrorText();
 
 /**
+ * @brief Logs the last seen error on this thread to the standard error stream
+ */
+void cuvsLogLastErrorText();
+
+/**
  * @brief Sets a string describing an error seen on the thread. Passing NULL
  *        clears any previously seen error message.
  */
