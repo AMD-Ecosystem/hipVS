@@ -113,10 +113,10 @@ void _get_distances(cuvsResources_t res, cuvsNNDescentIndex_t index, DLManagedTe
     RAFT_EXPECTS(src->extent(1) == dst.extent(1), "Output distances has incorrect number of cols");
 
     RAFT_CUDA_TRY(cudaMemcpyAsync(dst.data_handle(),
-                    src->data_handle(),
-                    dst.extent(0) * dst.extent(1) * sizeof(float),
-                    cudaMemcpyDefault,
-                    raft::resource::get_cuda_stream(*res_ptr)));
+                                  src->data_handle(),
+                                  dst.extent(0) * dst.extent(1) * sizeof(float),
+                                  cudaMemcpyDefault,
+                                  raft::resource::get_cuda_stream(*res_ptr)));
 
   } else {
     RAFT_FAIL("Unsupported nn-descent index dtype: %d and bits: %d", dtype.code, dtype.bits);

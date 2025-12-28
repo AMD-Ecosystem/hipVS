@@ -960,7 +960,7 @@ void GnndGraph<Index_t>::sample_graph(bool sample_new)
     // across all segments and positions before hitting the sample limit.
     // Pattern visits: seg0[0], seg1[0], seg0[half], seg1[half], seg0[1], seg1[1], ...
     // This ensures we touch all "quarters" of the graph early.
-    const int half_seg = segment_size / 2;
+    const int half_seg        = segment_size / 2;
     const int total_positions = segment_size * num_segments;
 
     for (int idx = 0; idx < total_positions; idx++) {
@@ -968,11 +968,11 @@ void GnndGraph<Index_t>::sample_graph(bool sample_new)
       // - First iterate across segments (k)
       // - Then alternate between first/second half of each segment
       // - Finally increment within each half
-      int k = idx % num_segments;                          // segment index
-      int pos_idx = idx / num_segments;                    // position counter
-      int half = pos_idx % 2;                              // which half (0=first, 1=second)
-      int offset = pos_idx / 2;                            // offset within half
-      int j = half * half_seg + offset;                    // actual position in segment
+      int k       = idx % num_segments;        // segment index
+      int pos_idx = idx / num_segments;        // position counter
+      int half    = pos_idx % 2;               // which half (0=first, 1=second)
+      int offset  = pos_idx / 2;               // offset within half
+      int j       = half * half_seg + offset;  // actual position in segment
 
       if (j >= segment_size) continue;  // safety check for odd segment_size
 
