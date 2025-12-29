@@ -123,10 +123,18 @@ raft::device_matrix<T, idxT> read_bin_dataset(raft::device_resources const& dev_
 {
   // Read datafile in
   std::ifstream datafile(fname, std::ifstream::binary);
+  if (!datafile) {
+    fprintf(stderr, "Error: Cannot open file '%s'\n", fname.c_str());
+    exit(1);
+  }
   uint32_t N;
   uint32_t dim;
   datafile.read((char*)&N, sizeof(uint32_t));
   datafile.read((char*)&dim, sizeof(uint32_t));
+  if (!datafile) {
+    fprintf(stderr, "Error: Failed to read header from file '%s'\n", fname.c_str());
+    exit(1);
+  }
 
   if (N > max_N) N = max_N;
   printf("Read in file - N:%u, dim:%u\n", N, dim);

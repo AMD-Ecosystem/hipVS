@@ -62,7 +62,9 @@ void vamana_build_and_write(raft::device_resources const& dev_resources,
   index_params.visited_size = visited_size;
   index_params.graph_degree = degree;
   index_params.vamana_iters = iters;
-  index_params.codebooks    = vamana::deserialize_codebooks(codebook_prefix, dataset.extent(1));
+  if (!codebook_prefix.empty()) {
+    index_params.codebooks = vamana::deserialize_codebooks(codebook_prefix, dataset.extent(1));
+  }
 
   std::cout << "Building Vamana index (search graph)" << std::endl;
 
@@ -91,7 +93,9 @@ void usage()
     "degree> <visited_size> <max_fraction> <iterations> <(optional) "
     "codebook prefix>\n");
   printf("Input file expected to be binary file of fp32 vectors.\n");
-  printf("Graph degree sizes supported: 32, 64, 128, 256 (must be greater than or equal to the device warp/wavefront size)\n");
+  printf(
+    "Graph degree sizes supported: 32, 64, 128, 256 (must be greater than or equal to the device "
+    "warp/wavefront size)\n");
   printf("Visited_size must be > degree and a power of 2.\n");
   printf("max_fraction > 0 and <= 1. Typical values are 0.06 or 0.1.\n");
   printf("Default iterations = 1, increase for better quality graph.\n");
@@ -136,11 +140,11 @@ int main(int argc, char* argv[])
 
   // Simple build example to create graph and write to a file
   vamana_build_and_write<float>(dev_resources,
-                                  raft::make_const_mdspan(dataset.view()),
-                                  out_fname,
-                                  degree,
-                                  max_visited,
-                                  max_fraction,
-                                  iters,
-                                  codebook_prefix);
+                                raft::make_const_mdspan(dataset.view()),
+                                out_fname,
+                                degree,
+                                max_visited,
+                                max_fraction,
+                                iters,
+                                codebook_prefix);
 }

@@ -37,6 +37,7 @@
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <cuvs/cuda_runtime.h>
+#include <cuvs/library_types.h>
 #else
 #include <cuda_runtime.h>
 #endif
@@ -50,7 +51,7 @@ void ivf_pq_build_search(cuvsResources_t* res,
   // Create default index params
   cuvsIvfPqIndexParams_t index_params;
   CHECK_CUVS(cuvsIvfPqIndexParamsCreate(&index_params));
-    index_params->n_lists = (uint32_t)sqrt((double)(dataset_tensor->dl_tensor.shape[0]));
+  index_params->n_lists = (uint32_t)sqrt((double)(dataset_tensor->dl_tensor.shape[0]));
   index_params->kmeans_trainset_fraction = 0.1;
   // index_params->metric default is L2Expanded
   index_params->pq_bits = 8;
