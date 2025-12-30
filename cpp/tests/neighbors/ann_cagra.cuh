@@ -1549,39 +1549,8 @@ inline std::vector<AnnCagraInputs> generate_filtering_inputs()
   return inputs;
 }
 
-static std::vector<AnnCagraInputs> relax_recall(std::vector<AnnCagraInputs> inputs)
-{
-#ifdef __HIP_PLATFORM_AMD__
-  // On AMD/HIP backends we observe slightly lower end-to-end search quality.
-  // We gently relax the recall targets:
-  //  - For MULTI_CTA/AUTO modes, cap at 95% of original recall
-  //  - For IVF_PQ builds, cap at 90% of original recall
-  //  - For ITERATIVE_CAGRA_SEARCH cap at 97% of original recall
-  // See issue: internal issue #22
-  for (auto& input : inputs) {
-    double reduction_factor = 1.0;
-    if (input.algo == search_algo::MULTI_CTA || input.algo == search_algo::AUTO) {
-      reduction_factor = std::min(reduction_factor, 0.95);
-    }
-    switch (input.build_algo) {
-      case graph_build_algo::IVF_PQ: {
-        reduction_factor = std::min(reduction_factor, 0.90);
-        break;
-      }
-      case graph_build_algo::ITERATIVE_CAGRA_SEARCH: {
-        reduction_factor = std::min(reduction_factor, 0.97);
-        break;
-      }
-      default: break;
-    }
-    input.min_recall *= reduction_factor;
-  }
-#endif
-  return inputs;
-}
-
-const std::vector<AnnCagraInputs> inputs           = relax_recall(generate_inputs());
-const std::vector<AnnCagraInputs> inputs_addnode   = relax_recall(generate_addnode_inputs());
+const std::vector<AnnCagraInputs> inputs           = generate_inputs();
+const std::vector<AnnCagraInputs> inputs_addnode   = generate_addnode_inputs();
 const std::vector<AnnCagraInputs> inputs_filtering = generate_filtering_inputs();
 
 }  // namespace cuvs::neighbors::cagra

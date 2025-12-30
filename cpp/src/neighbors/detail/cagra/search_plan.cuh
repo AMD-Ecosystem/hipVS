@@ -152,6 +152,7 @@ struct search_plan_impl : public search_plan_impl_base {
 
   uint32_t smem_size;
   uint32_t num_seeds;
+  uint32_t warp_size;
 
   lightweight_uvector<INDEX_T> hashmap;
   lightweight_uvector<uint32_t> num_executed_iterations;  // device or managed?
@@ -170,6 +171,7 @@ struct search_plan_impl : public search_plan_impl_base {
       num_executed_iterations(res),
       dev_seed(res),
       num_seeds(0),
+      warp_size(raft::host_warp_size(raft::resource::get_cuda_stream(res))),
       dataset_desc(dataset_desc)
   {
     adjust_search_params();
@@ -199,7 +201,7 @@ struct search_plan_impl : public search_plan_impl_base {
     uint32_t _max_iterations = max_iterations;
     if (max_iterations == 0) {
       if (algo == search_algo::MULTI_CTA) {
-        constexpr uint32_t mc_itopk_size   = 32;
+        const uint32_t mc_itopk_size       = warp_size;
         constexpr uint32_t mc_search_width = 1;
         _max_iterations                    = mc_itopk_size / mc_search_width;
       } else {
@@ -221,7 +223,9 @@ struct search_plan_impl : public search_plan_impl_base {
       size_t adjusted_itopk_size =
         (size_t)((float)topk / (1.0 - filtering_rate) +
                  (float)(itopk_size - topk) / std::sqrt(1.0 - filtering_rate));
-      if (adjusted_itopk_size % 32) { adjusted_itopk_size += 32 - (adjusted_itopk_size % 32); }
+      if (adjusted_itopk_size % warp_size) {
+        adjusted_itopk_size += warp_size - (adjusted_itopk_size % warp_size);
+      }
       if (itopk_size < adjusted_itopk_size) {
         RAFT_LOG_DEBUG(
           "# internal_topk is increased from %lu to %lu, considering fintering rate %f.",
@@ -231,13 +235,15 @@ struct search_plan_impl : public search_plan_impl_base {
         itopk_size = adjusted_itopk_size;
       }
     }
-    if (itopk_size % 32) {
-      uint32_t itopk32 = itopk_size;
-      itopk32 += 32 - (itopk_size % 32);
-      RAFT_LOG_DEBUG("# internal_topk is increased from %lu to %u, as it must be multiple of 32.",
-                     itopk_size,
-                     itopk32);
-      itopk_size = itopk32;
+    if (itopk_size % warp_size) {
+      uint32_t itopk_aligned = itopk_size;
+      itopk_aligned += warp_size - (itopk_size % warp_size);
+      RAFT_LOG_DEBUG(
+        "# internal_topk is increased from %lu to %u, as it must be multiple of warp_size (%u).",
+        itopk_size,
+        itopk_aligned,
+        warp_size);
+      itopk_size = itopk_aligned;
     }
     team_size = dataset_desc.team_size;
   }
@@ -252,7 +258,7 @@ struct search_plan_impl : public search_plan_impl_base {
     small_hash_reset_interval = 1024 * 1024;
     float max_fill_rate       = hashmap_max_fill_rate;
     if (algo == search_algo::MULTI_CTA) {
-      const uint32_t mc_itopk_size = 32;
+      const uint32_t mc_itopk_size = warp_size;
       const uint32_t mc_num_cta_per_query =
         max(search_width, raft::ceildiv(itopk_size, (size_t)mc_itopk_size));
       RAFT_LOG_DEBUG("# mc_itopk_size: %u", mc_itopk_size);
