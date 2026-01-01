@@ -24,8 +24,12 @@ requires = [
 # <<<<<<< OLD CODE from 09036ed6e (af153368e) - COMMENTED OUT
 # =======
     "rapids-build-backend>=0.4.0,<0.5.0",
-# >>>>>>> END NEW CODE (af153368e)
-    "setuptools",
+# <<<<<<< OLD CODE from 40fad6709 (0561f6914) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (af153368e)
+#     "setuptools",
+# =======
+    "setuptools>=77.0.0",
+# >>>>>>> END NEW CODE (0561f6914)
     "wheel",
 ]
 
@@ -37,7 +41,11 @@ authors = [
     { name = "Advanced Micro Devices, Inc." },
     { name = "NVIDIA Corporation" },
 ]
-license = "Apache-2.0 AND MIT"
+# <<<<<<< OLD CODE from 40fad6709 (0561f6914) - COMMENTED OUT
+# license = "Apache-2.0 AND MIT"
+# =======
+license = "Apache-2.0"
+# >>>>>>> END NEW CODE (0561f6914)
 requires-python = ">=3.10"
 dependencies = [
     "click",
