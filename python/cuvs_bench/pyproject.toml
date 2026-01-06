@@ -37,7 +37,7 @@ requires-python = ">=3.10"
 dependencies = [
     "click",
     "amd-hipvs",
-    "matplotlib",
+    "matplotlib>=3.9",
     "pandas",
     "pyyaml",
     "requests",
@@ -53,6 +53,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [project.urls]

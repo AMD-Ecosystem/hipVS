@@ -61,6 +61,7 @@ footer = """
 
 types = dict(
     float_int64_t=("float", "int64_t"),
+    half_int64_t=("half", "int64_t"),
     int8_t_int64_t=("int8_t", "int64_t"),
     uint8_t_int64_t=("uint8_t", "int64_t"),
 )
@@ -73,7 +74,7 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                                \\
   {                                                                                            \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                          \\
-      std::move(cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset)));           \\
+            cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset));           \\
   }                                                                                            \\
                                                                                                \\
   void build(raft::resources const& handle,                                                    \\
@@ -89,7 +90,7 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                                \\
   {                                                                                            \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                          \\
-      std::move(cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset)));           \\
+      cuvs::neighbors::ivf_flat::detail::build(handle, params, dataset));                     \\
   }                                                                                            \\
                                                                                                \\
   void build(raft::resources const& handle,                                                    \\
@@ -106,8 +107,8 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                      \\
   {                                                                                  \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                \\
-      std::move(cuvs::neighbors::ivf_flat::detail::extend(                           \\
-        handle, new_vectors, new_indices, orig_index)));                             \\
+      cuvs::neighbors::ivf_flat::detail::extend(                                     \\
+        handle, new_vectors, new_indices, orig_index));                              \\
   }                                                                                  \\
                                                                                      \\
   void extend(raft::resources const& handle,                                         \\
@@ -125,8 +126,8 @@ build_macro = """
     ->cuvs::neighbors::ivf_flat::index<T, IdxT>                                      \\
   {                                                                                  \\
     return cuvs::neighbors::ivf_flat::index<T, IdxT>(                                \\
-      std::move(cuvs::neighbors::ivf_flat::detail::extend(                           \\
-        handle, new_vectors, new_indices, orig_index)));                             \\
+      cuvs::neighbors::ivf_flat::detail::extend(                                     \\
+        handle, new_vectors, new_indices, orig_index));                              \\
   }                                                                                  \\
                                                                                      \\
   void extend(raft::resources const& handle,                                         \\

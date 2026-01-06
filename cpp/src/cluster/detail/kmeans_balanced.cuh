@@ -542,7 +542,7 @@ __launch_bounds__((raft::warp_size() * BlockDimY)) RAFT_KERNEL
   if (csize > static_cast<IdxT>(average * threshold)) return;
 
   // choose a "random" i that belongs to a rather large cluster
-  IdxT i;
+  IdxT i = 0;
   IdxT j = raft::laneId();
   if (j == 0) {
     do {

@@ -27,7 +27,7 @@
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
 
-include(../../rapids_config.cmake)
+include(../../cmake/rapids_config.cmake)
 
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../../overrides.cmake")
 
@@ -43,6 +43,8 @@ project(
   VERSION "${RAPIDS_VERSION}"
   LANGUAGES ${lang_list}
 )
+
+option(USE_NCCL_RUNTIME_WHEEL "Use the NCCL wheel at runtime instead of the system library" OFF)
 
 # Check if cuVS is already available. If so, it is the user's responsibility to ensure that the
 # CMake package is also available at build time of the Python cuvs package.
@@ -79,6 +81,10 @@ if(CUDA_BACKEND)
       "$ORIGIN/../../nvidia/cusparse/lib"
       "$ORIGIN/../../nvidia/nvjitlink/lib"
   )
+
+  if(USE_NCCL_RUNTIME_WHEEL)
+    list(APPEND rpaths "$ORIGIN/../../nvidia/nccl/lib")
+  endif()
 else()
   set(rpaths
       "$ORIGIN/../../../../" # Assumes the following conda structure:

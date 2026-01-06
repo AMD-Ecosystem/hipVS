@@ -33,7 +33,7 @@ ARGS=$*
 
 # NOTE: ensure all dir changes are relative to the location of this
 # scripts, and that this script resides in the repo dir!
-REPODIR=$(cd $(dirname $0); pwd)
+REPODIR=$(cd "$(dirname "$0")"; pwd)
 
 VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --allgpuarch --no-shared-libs --show_depr_warn -h --cpu-only"
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-bench-ann=<targets>] [--limit-tests=<targets>] [--gpu-arch="arch"]
@@ -54,6 +54,7 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    -g                          - build for debug
    -n                          - no install step
    --uninstall                 - uninstall files for specified targets which were built and installed prior
+   --cpu-only                  - build CPU only components without CUDA. Currently only applies to bench-ann.
    --limit-tests               - semicolon-separated list of test executables to compile (e.g. NEIGHBORS_TEST;CLUSTER_TEST)
    --limit-bench-ann           - semicolon-separated list of ann benchmark executables to compute (e.g. HNSWLIB_ANN_BENCH;RAFT_IVF_PQ_ANN_BENCH)
    --allgpuarch                - build for all supported GPU architectures
@@ -76,7 +77,6 @@ BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIRS} ${RUST_BUILD_DIR}"
 # Set defaults for vars modified by flags to this script
 CMAKE_LOG_LEVEL=""
 VERBOSE_FLAG=""
-BUILD_ALL_GPU_ARCH=0
 BUILD_TESTS=OFF
 BUILD_TYPE=Release
 COMPILE_LIBRARY=OFF
@@ -89,7 +89,6 @@ ANN_BENCH_TARGETS=""
 CACHE_ARGS=""
 LOG_COMPILE_TIME=OFF
 CLEAN=0
-UNINSTALL=0
 DISABLE_DEPRECATION_WARNINGS=ON
 CMAKE_TARGET=""
 # FIXME(HIP/AMD): rocThrust/rocPrim require CXX compiler to be equal to hipcc
@@ -234,7 +233,6 @@ fi
 
 # This should run before build/install
 if hasArg --uninstall; then
-    UNINSTALL=1
 
     if hasArg cuvs || hasArg libcuvs || (( ${NUMARGS} == 1 )); then
 
@@ -280,10 +278,6 @@ if hasArg -v; then
 fi
 if hasArg -g; then
     BUILD_TYPE=Debug
-fi
-
-if hasArg --allgpuarch; then
-    BUILD_ALL_GPU_ARCH=1
 fi
 
 if hasArg tests || (( ${NUMARGS} == 0 )); then
@@ -354,19 +348,22 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || 
         CMAKE_TARGET="${CMAKE_TARGET};cuvs"
     fi
 
-    if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
-        HIPVS_CMAKE_HIP_ARCHITECTURES="${HIPVS_CMAKE_HIP_ARCHITECTURES:-NATIVE}"
-        if [[ "$HIPVS_CMAKE_HIP_ARCHITECTURES" == "NATIVE" ]]; then
-            echo "Building for the architecture of the GPU in the system..."
-        else
-            echo "Building for the GPU architecture(s) $HIPVS_CMAKE_HIP_ARCHITECTURES ..."
-        fi
-    else
-        HIPVS_CMAKE_HIP_ARCHITECTURES="RAPIDS"
-        echo "Building for *ALL* supported GPU architectures..."
+    # get the current count before the compile starts
+    CACHE_TOOL=${CACHE_TOOL:-sccache}
+    if [[ "$BUILD_REPORT_INCL_CACHE_STATS" == "ON" && -x "$(command -v ${CACHE_TOOL})" ]]; then
+        "${CACHE_TOOL}" --zero-stats
     fi
 
-    CACHE_TOOL=${CACHE_TOOL:-sccache}
+    # Set default GPU architecture if not already set by gpuArch function
+    if [[ -z "${HIPVS_CMAKE_HIP_ARCHITECTURES}" ]]; then
+        if hasArg --allgpuarch; then
+            HIPVS_CMAKE_HIP_ARCHITECTURES="RAPIDS"
+            echo "Building for *ALL* supported GPU architectures..."
+        else
+            HIPVS_CMAKE_HIP_ARCHITECTURES="NATIVE"
+            echo "Building for the architecture of the GPU in the system..."
+        fi
+    fi
 
     mkdir -p ${LIBCUVS_BUILD_DIR}
     cd ${LIBCUVS_BUILD_DIR}
@@ -411,7 +408,12 @@ if (( ${NUMARGS} == 0 )) || hasArg python; then
     # Build and install cuvs pip package
     SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
-        python -m pip install --no-build-isolation ${REPODIR}/python/cuvs
+        python -m pip install --no-build-isolation --no-deps ${REPODIR}/python/cuvs
+fi
+
+# Build and (optionally) install the cuvs-bench Python package
+if (( NUMARGS == 0 )) || (hasArg bench-ann && ! hasArg -n); then
+    python -m pip install --no-build-isolation --no-deps ${REPODIR}/python/cuvs_bench
 fi
 
 # Build the cuvs Rust bindings
@@ -421,8 +423,10 @@ if (( ${NUMARGS} == 0 )) || hasArg rust; then
     LD_LIBRARY_PATH=${INSTALL_PREFIX}/lib cargo test
 fi
 
-export RAPIDS_VERSION="$(sed -E -e 's/^([0-9]{2})\.([0-9]{2})\.([0-9]{2}).*$/\1.\2.\3/' "${REPODIR}/VERSION")"
-export RAPIDS_VERSION_MAJOR_MINOR="$(sed -E -e 's/^([0-9]{2})\.([0-9]{2})\.([0-9]{2}).*$/\1.\2/' "${REPODIR}/VERSION")"
+RAPIDS_VERSION="$(sed -E -e 's/^([0-9]{2})\.([0-9]{2})\.([0-9]{2}).*$/\1.\2.\3/' "${REPODIR}/VERSION")"
+export RAPIDS_VERSION
+RAPIDS_VERSION_MAJOR_MINOR="$(sed -E -e 's/^([0-9]{2})\.([0-9]{2})\.([0-9]{2}).*$/\1.\2/' "${REPODIR}/VERSION")"
+export RAPIDS_VERSION_MAJOR_MINOR
 
 if hasArg docs; then
     set -x

@@ -118,6 +118,9 @@ inline auto operator<<(std::ostream& os, const ivf_pq_inputs& p) -> std::ostream
   PRINT_DIFF_V(.search_params.lut_dtype, cuvs::neighbors::print_dtype{p.search_params.lut_dtype});
   PRINT_DIFF_V(.search_params.internal_distance_dtype,
                cuvs::neighbors::print_dtype{p.search_params.internal_distance_dtype});
+  PRINT_DIFF_V(.search_params.coarse_search_dtype,
+               cuvs::neighbors::print_dtype{p.search_params.coarse_search_dtype});
+  PRINT_DIFF(.search_params.max_internal_batch_size);
   os << "}";
   return os;
 }
@@ -286,10 +289,10 @@ class ivf_pq_test : public ::testing::TestWithParam<ivf_pq_inputs> {
 
   auto build_serialize()
   {
-    std::string filename = "ivf_pq_index";
-    cuvs::neighbors::ivf_pq::serialize(handle_, filename, build_only());
+    tmp_index_file index_file;
+    cuvs::neighbors::ivf_pq::serialize(handle_, index_file.filename, build_only());
     cuvs::neighbors::ivf_pq::index<IdxT> index(handle_);
-    cuvs::neighbors::ivf_pq::deserialize(handle_, filename, &index);
+    cuvs::neighbors::ivf_pq::deserialize(handle_, index_file.filename, &index);
     return index;
   }
 
@@ -302,9 +305,11 @@ class ivf_pq_test : public ::testing::TestWithParam<ivf_pq_inputs> {
     // the original data cannot be reconstructed since the dataset was normalized
     if (index.metric() == cuvs::distance::DistanceType::CosineExpanded) { return; }
     auto& rec_list = index.lists()[label];
-    auto dim       = index.dim();
-    n_take         = std::min<uint32_t>(n_take, rec_list->size.load());
-    n_skip         = std::min<uint32_t>(n_skip, rec_list->size.load() - n_take);
+    // If the data is unbalanced the list might be empty, which is actually nullptr
+    if (!rec_list) { return; }
+    auto dim = index.dim();
+    n_take   = std::min<uint32_t>(n_take, rec_list->size.load());
+    n_skip   = std::min<uint32_t>(n_skip, rec_list->size.load() - n_take);
 
     if (n_take == 0) { return; }
 
@@ -330,7 +335,9 @@ class ivf_pq_test : public ::testing::TestWithParam<ivf_pq_inputs> {
     // NB: this is not reference, the list is retained; the index will have to create a new list on
     // `erase_list` op.
     auto old_list = index->lists()[label];
-    auto n_rows   = old_list->size.load();
+    // If the data is unbalanced the list might be empty, which is actually nullptr
+    if (!old_list) { return; }
+    auto n_rows = old_list->size.load();
     if (n_rows == 0) { return; }
     if (index->metric() == cuvs::distance::DistanceType::CosineExpanded) { return; }
 
@@ -364,7 +371,9 @@ class ivf_pq_test : public ::testing::TestWithParam<ivf_pq_inputs> {
   void check_packing(index<IdxT>* index, uint32_t label)
   {
     auto old_list = index->lists()[label];
-    auto n_rows   = old_list->size.load();
+    // If the data is unbalanced the list might be empty, which is actually nullptr
+    if (!old_list) { return; }
+    auto n_rows = old_list->size.load();
 
     if (n_rows == 0) { return; }
 
@@ -874,6 +883,25 @@ inline auto enum_variety() -> test_cases_t
     x.search_params.lut_dtype = CUDA_R_8U;
     x.min_recall              = 0.84;
   });
+  ADD_CASE({
+    x.search_params.coarse_search_dtype = CUDA_R_16F;
+    x.min_recall                        = 0.86;
+  });
+
+// As of ROCm 7, hipblasLT does not support a coarse search dtype
+// of CUDA_R_8I, so we disable the test. This test will automatically
+// be enabled for new ROCm versions.
+#ifdef __HIP_PLATFORM_AMD__
+#if ROCM_VERSION_MAJOR > 7
+  ADD_CASE({
+    x.search_params.coarse_search_dtype = CUDA_R_8I;
+    // 8-bit coarse search is experimental and there's no go guarantee of any recall
+    // if the data is not normalized. Especially for L2, because we store vector norms alongside the
+    // cluster centers.
+    x.min_recall = 0.1;
+  });
+#endif
+#endif
 
   ADD_CASE({
     x.search_params.internal_distance_dtype = CUDA_R_32F;
@@ -882,6 +910,12 @@ inline auto enum_variety() -> test_cases_t
   ADD_CASE({
     x.search_params.internal_distance_dtype = CUDA_R_16F;
     x.search_params.lut_dtype               = CUDA_R_16F;
+    x.min_recall                            = 0.86;
+  });
+  ADD_CASE({
+    x.search_params.internal_distance_dtype = CUDA_R_16F;
+    x.search_params.lut_dtype               = CUDA_R_16F;
+    x.search_params.coarse_search_dtype     = CUDA_R_16F;
     x.min_recall                            = 0.86;
   });
 
@@ -1017,6 +1051,34 @@ inline auto special_cases() -> test_cases_t
     x.index_params.pq_bits       = 8;
     x.index_params.n_lists       = 1024;
     x.search_params.n_probes     = 50;
+  });
+
+  // Test large max_internal_batch_size
+  ADD_CASE({
+    x.num_db_vecs                           = 500000;
+    x.dim                                   = 100;
+    x.num_queries                           = 128 * 1024 * 1024;
+    x.k                                     = 10;
+    x.index_params.codebook_kind            = ivf_pq::codebook_gen::PER_SUBSPACE;
+    x.index_params.pq_dim                   = 10;
+    x.index_params.pq_bits                  = 8;
+    x.index_params.n_lists                  = 1024;
+    x.search_params.n_probes                = 50;
+    x.search_params.max_internal_batch_size = 64 * 1024 * 1024;
+  });
+
+  // Test small max_internal_batch_size
+  ADD_CASE({
+    x.num_db_vecs                           = 500000;
+    x.dim                                   = 100;
+    x.num_queries                           = 128 * 1024 * 1024;
+    x.k                                     = 10;
+    x.index_params.codebook_kind            = ivf_pq::codebook_gen::PER_SUBSPACE;
+    x.index_params.pq_dim                   = 10;
+    x.index_params.pq_bits                  = 8;
+    x.index_params.n_lists                  = 1024;
+    x.search_params.n_probes                = 50;
+    x.search_params.max_internal_batch_size = 1024 * 1024;
   });
 
   ADD_CASE({

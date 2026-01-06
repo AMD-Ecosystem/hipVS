@@ -31,7 +31,7 @@
 # OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
 
-include(rapids_config.cmake)
+include(cmake/rapids_config.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
 include(rapids-export)

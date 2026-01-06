@@ -4,7 +4,7 @@
 set -euo pipefail
 
 rapids-logger "Downloading artifacts from previous jobs"
-CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
+CPP_CHANNEL=$(rapids-download-conda-from-github cpp)
 
 rapids-logger "Create test conda environment"
 . /opt/conda/etc/profile.d/conda.sh
@@ -32,3 +32,8 @@ export LIBCLANG_PATH=$(dirname $(find /opt/conda -name libclang.so | head -n 1))
 echo "LIBCLANG_PATH=$LIBCLANG_PATH"
 
 bash ./build.sh rust
+
+# Also test out that we can publish cuvs-sys via a dry-run
+pushd ./rust/cuvs-sys
+cargo publish --dry-run
+popd

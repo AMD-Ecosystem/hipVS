@@ -37,6 +37,7 @@
 
 #include "ann_utils.cuh"
 #include "cagra/device_common.hpp"
+#include "nn_descent_gnnd.hpp"
 
 #include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/nn_descent.hpp>
@@ -78,36 +79,6 @@
 
 namespace cuvs::neighbors::nn_descent::detail {
 
-using DistData_t = float;
-constexpr int counter_interval{100};
-template <typename Index_t>
-class InternalID_t;
-
-// InternalID_t uses 1 bit for marking (new or old).
-template <>
-class InternalID_t<int> {
- private:
-  using Index_t = int;
-  Index_t id_{std::numeric_limits<Index_t>::max()};
-
- public:
-  __host__ __device__ bool is_new() const { return id_ >= 0; }
-  __host__ __device__ Index_t& id_with_flag() { return id_; }
-  __host__ __device__ Index_t id() const
-  {
-    if (is_new()) return id_;
-    return -id_ - 1;
-  }
-  __host__ __device__ void mark_old()
-  {
-    if (id_ >= 0) id_ = -id_ - 1;
-  }
-  __host__ __device__ bool operator==(const InternalID_t<int>& other) const
-  {
-    return id() == other.id();
-  }
-};
-
 template <typename Index_t>
 class ResultItem;
 
@@ -120,9 +91,9 @@ class ResultItem<int> {
 
  public:
   __host__ __device__ ResultItem()
-    : id_(std::numeric_limits<Index_t>::max()), dist_(std::numeric_limits<DistData_t>::max()){};
+    : id_(std::numeric_limits<Index_t>::max()), dist_(std::numeric_limits<DistData_t>::max()) {};
   __host__ __device__ ResultItem(const Index_t id_with_flag, const DistData_t dist)
-    : id_(id_with_flag), dist_(dist){};
+    : id_(id_with_flag), dist_(dist) {};
   __host__ __device__ bool is_new() const { return id_ >= 0; }
   __host__ __device__ Index_t& id_with_flag() { return id_; }
   __host__ __device__ Index_t id() const
@@ -249,196 +220,6 @@ __device__ __forceinline__ void warp_bitonic_sort(T* element_ptr, const int lane
   element = xor_swap(element, 0x01, bfe(lane_id, 0));
   return;
 }
-
-struct BuildConfig {
-  size_t max_dataset_size;
-  size_t dataset_dim;
-  size_t node_degree{64};
-  size_t internal_node_degree{0};
-  // If internal_node_degree == 0, the value of node_degree will be assigned to it
-  size_t max_iterations{50};
-  float termination_threshold{0.0001};
-  size_t output_graph_degree{32};
-  cuvs::distance::DistanceType metric{cuvs::distance::DistanceType::L2Expanded};
-};
-
-template <typename Index_t>
-class BloomFilter {
- public:
-  BloomFilter(size_t nrow, size_t num_sets_per_list, size_t num_hashs)
-    : nrow_(nrow),
-      num_sets_per_list_(num_sets_per_list),
-      num_hashs_(num_hashs),
-      bitsets_(nrow * num_bits_per_set_ * num_sets_per_list)
-  {
-  }
-
-  void add(size_t list_id, Index_t key)
-  {
-    if (is_cleared) { is_cleared = false; }
-    uint32_t hash         = hash_0(key);
-    size_t global_set_idx = list_id * num_bits_per_set_ * num_sets_per_list_ +
-                            key % num_sets_per_list_ * num_bits_per_set_;
-    bitsets_[global_set_idx + hash % num_bits_per_set_] = 1;
-    for (size_t i = 1; i < num_hashs_; i++) {
-      hash                                                = hash + hash_1(key);
-      bitsets_[global_set_idx + hash % num_bits_per_set_] = 1;
-    }
-  }
-
-  void set_nrow(size_t nrow) { nrow_ = nrow; }
-
-  bool check(size_t list_id, Index_t key)
-  {
-    bool is_present       = true;
-    uint32_t hash         = hash_0(key);
-    size_t global_set_idx = list_id * num_bits_per_set_ * num_sets_per_list_ +
-                            key % num_sets_per_list_ * num_bits_per_set_;
-    is_present &= bitsets_[global_set_idx + hash % num_bits_per_set_];
-
-    if (!is_present) return false;
-    for (size_t i = 1; i < num_hashs_; i++) {
-      hash = hash + hash_1(key);
-      is_present &= bitsets_[global_set_idx + hash % num_bits_per_set_];
-      if (!is_present) return false;
-    }
-    return true;
-  }
-
-  void clear()
-  {
-    if (is_cleared) return;
-#pragma omp parallel for
-    for (size_t i = 0; i < nrow_ * num_bits_per_set_ * num_sets_per_list_; i++) {
-      bitsets_[i] = 0;
-    }
-    is_cleared = true;
-  }
-
- private:
-  uint32_t hash_0(uint32_t value)
-  {
-    value *= 1103515245;
-    value += 12345;
-    value ^= value << 13;
-    value ^= value >> 17;
-    value ^= value << 5;
-    return value;
-  }
-
-  uint32_t hash_1(uint32_t value)
-  {
-    value *= 1664525;
-    value += 1013904223;
-    value ^= value << 13;
-    value ^= value >> 17;
-    value ^= value << 5;
-    return value;
-  }
-
-  static constexpr int num_bits_per_set_ = 512;
-  bool is_cleared{true};
-  std::vector<bool> bitsets_;
-  size_t nrow_;
-  size_t num_sets_per_list_;
-  size_t num_hashs_;
-};
-
-template <typename Index_t>
-struct GnndGraph {
-  raft::resources const& res;
-  int const segment_size = get_degree_on_device(res);
-  InternalID_t<Index_t>* h_graph;
-
-  size_t nrow;
-  size_t node_degree;
-  int num_samples;
-  int num_segments;
-
-  raft::host_matrix<DistData_t, size_t, raft::row_major> h_dists;
-
-  raft::pinned_matrix<Index_t, size_t> h_graph_new;
-  raft::pinned_vector<int2, size_t> h_list_sizes_new;
-
-  raft::pinned_matrix<Index_t, size_t> h_graph_old;
-  raft::pinned_vector<int2, size_t> h_list_sizes_old;
-  BloomFilter<Index_t> bloom_filter;
-
-  GnndGraph(const GnndGraph&)            = delete;
-  GnndGraph& operator=(const GnndGraph&) = delete;
-  GnndGraph(raft::resources const& res,
-            const size_t nrow,
-            const size_t node_degree,
-            const size_t internal_node_degree,
-            const size_t num_samples);
-  void init_random_graph();
-  // TODO: Create a generic bloom filter utility https://github.com/rapidsai/raft/issues/1827
-  // Use Bloom filter to sample "new" neighbors for local joining
-  void sample_graph_new(InternalID_t<Index_t>* new_neighbors, const size_t width);
-  void sample_graph(bool sample_new);
-  void update_graph(const InternalID_t<Index_t>* new_neighbors,
-                    const DistData_t* new_dists,
-                    const size_t width,
-                    std::atomic<int64_t>& update_counter);
-  void sort_lists();
-  void clear();
-  ~GnndGraph();
-};
-
-template <typename Data_t = float, typename Index_t = int>
-class GNND {
- public:
-  GNND(raft::resources const& res, const BuildConfig& build_config);
-  GNND(const GNND&)            = delete;
-  GNND& operator=(const GNND&) = delete;
-
-  void build(Data_t* data,
-             const Index_t nrow,
-             Index_t* output_graph,
-             bool return_distances,
-             DistData_t* output_distances);
-  ~GNND()    = default;
-  using ID_t = InternalID_t<Index_t>;
-  void reset(raft::resources const& res);
-
- private:
-  void add_reverse_edges(Index_t* graph_ptr,
-                         Index_t* h_rev_graph_ptr,
-                         Index_t* d_rev_graph_ptr,
-                         int2* list_sizes,
-                         cudaStream_t stream = 0);
-  void local_join(cudaStream_t stream = 0);
-
-  raft::resources const& res;
-
-  int const degree_on_device_{get_degree_on_device(res)};
-
-  BuildConfig build_config_;
-  GnndGraph<Index_t> graph_;
-  std::atomic<int64_t> update_counter_;
-
-  size_t nrow_;
-  size_t ndim_;
-
-  raft::device_matrix<__half, size_t, raft::row_major> d_data_;
-  raft::device_vector<DistData_t, size_t> l2_norms_;
-
-  raft::device_matrix<ID_t, size_t, raft::row_major> graph_buffer_;
-  raft::device_matrix<DistData_t, size_t, raft::row_major> dists_buffer_;
-
-  raft::pinned_matrix<ID_t, size_t> graph_host_buffer_;
-  raft::pinned_matrix<DistData_t, size_t> dists_host_buffer_;
-
-  raft::device_vector<int, size_t> d_locks_;
-
-  raft::pinned_matrix<Index_t, size_t> h_rev_graph_new_;
-  raft::pinned_matrix<Index_t, size_t> h_graph_old_;
-  raft::pinned_matrix<Index_t, size_t> h_rev_graph_old_;
-  // int2.x is the number of forward edges, int2.y is the number of reverse edges
-
-  raft::device_vector<int2, size_t> d_list_sizes_new_;
-  raft::device_vector<int2, size_t> d_list_sizes_old_;
-};
 
 constexpr int TILE_ROW_WIDTH = 64;
 constexpr int TILE_COL_WIDTH = 128;
@@ -780,11 +561,12 @@ __device__ __forceinline__ void remove_duplicates(
 template <int BLOCK_SIZE, typename Index_t, typename ID_t = InternalID_t<Index_t>>
 RAFT_KERNEL
 #ifdef __CUDA_ARCH__
-#if (__CUDA_ARCH__) == 750 || ((__CUDA_ARCH__) >= 860 && (__CUDA_ARCH__) <= 890) || \
-  (__CUDA_ARCH__) == 1200
-__launch_bounds__(BLOCK_SIZE)
-#else
+// Use minBlocksPerMultiprocessor = 4 on specific arches
+#if (__CUDA_ARCH__) == 700 || (__CUDA_ARCH__) == 800 || (__CUDA_ARCH__) == 900 || \
+  (__CUDA_ARCH__) == 1000
 __launch_bounds__(BLOCK_SIZE, 4)
+#else
+__launch_bounds__(BLOCK_SIZE)
 #endif
 #endif
   local_join_kernel(const Index_t* graph_new,
@@ -1080,6 +862,7 @@ GnndGraph<Index_t>::GnndGraph(raft::resources const& res,
                               const size_t internal_node_degree,
                               const size_t num_samples)
   : res(res),
+    segment_size(raft::host_warp_size(raft::resource::get_device_id(res))),
     nrow(nrow),
     node_degree(node_degree),
     num_samples(num_samples),
@@ -1172,23 +955,37 @@ void GnndGraph<Index_t>::sample_graph(bool sample_new)
     auto list     = h_graph + i * node_degree;
     auto list_old = h_graph_old.data_handle() + i * num_samples;
     auto list_new = h_graph_new.data_handle() + i * num_samples;
-    for (int j = 0; j < segment_size; j++) {
-      for (int k = 0; k < num_segments; k++) {
-        auto neighbor = list[k * segment_size + j];
-        if ((size_t)neighbor.id() >= nrow) continue;
-        if (!neighbor.is_new()) {
-          if (h_list_sizes_old.data_handle()[i].x < num_samples) {
-            list_old[h_list_sizes_old.data_handle()[i].x++] = neighbor.id();
-          }
-        } else if (sample_new) {
-          if (h_list_sizes_new.data_handle()[i].x < num_samples) {
-            list[k * segment_size + j].mark_old();
-            list_new[h_list_sizes_new.data_handle()[i].x++] = neighbor.id();
-          }
+
+    // Iterate through all neighbors with a pattern that ensures good coverage
+    // across all segments and positions before hitting the sample limit.
+    // Pattern visits: seg0[0], seg1[0], seg0[half], seg1[half], seg0[1], seg1[1], ...
+    // This ensures we touch all "quarters" of the graph early.
+    const int half_seg        = segment_size / 2;
+    const int total_positions = segment_size * num_segments;
+
+    for (int idx = 0; idx < total_positions; idx++) {
+      // Decode idx into a position that spreads across all segments and halves:
+      // - First iterate across segments (k)
+      // - Then alternate between first/second half of each segment
+      // - Finally increment within each half
+      int k       = idx % num_segments;        // segment index
+      int pos_idx = idx / num_segments;        // position counter
+      int half    = pos_idx % 2;               // which half (0=first, 1=second)
+      int offset  = pos_idx / 2;               // offset within half
+      int j       = half * half_seg + offset;  // actual position in segment
+
+      if (j >= segment_size) continue;  // safety check for odd segment_size
+
+      auto neighbor = list[k * segment_size + j];
+      if ((size_t)neighbor.id() >= nrow) continue;
+      if (!neighbor.is_new()) {
+        if (h_list_sizes_old.data_handle()[i].x < num_samples) {
+          list_old[h_list_sizes_old.data_handle()[i].x++] = neighbor.id();
         }
-        if (h_list_sizes_old.data_handle()[i].x == num_samples &&
-            h_list_sizes_new.data_handle()[i].x == num_samples) {
-          break;
+      } else if (sample_new) {
+        if (h_list_sizes_new.data_handle()[i].x < num_samples) {
+          list[k * segment_size + j].mark_old();
+          list_new[h_list_sizes_new.data_handle()[i].x++] = neighbor.id();
         }
       }
       if (h_list_sizes_old.data_handle()[i].x == num_samples &&
@@ -1246,12 +1043,6 @@ void GnndGraph<Index_t>::clear()
   bloom_filter.clear();
 }
 
-template <typename Index_t>
-GnndGraph<Index_t>::~GnndGraph()
-{
-  assert(h_graph == nullptr);
-}
-
 template <typename Data_t, typename Index_t>
 GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build_config)
   : res(res),
@@ -1267,14 +1058,14 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
     d_data_{raft::make_device_matrix<__half, size_t, raft::row_major>(
       res, nrow_, build_config.dataset_dim)},
     l2_norms_{raft::make_device_vector<DistData_t, size_t>(res, 0)},
-    graph_buffer_{
-      raft::make_device_matrix<ID_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
-    dists_buffer_{
-      raft::make_device_matrix<DistData_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
-    graph_host_buffer_{
-      raft::make_pinned_matrix<ID_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
-    dists_host_buffer_{
-      raft::make_pinned_matrix<DistData_t, size_t, raft::row_major>(res, nrow_, degree_on_device_)},
+    graph_buffer_{raft::make_device_matrix<ID_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
+    dists_buffer_{raft::make_device_matrix<DistData_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
+    graph_host_buffer_{raft::make_pinned_matrix<ID_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
+    dists_host_buffer_{raft::make_pinned_matrix<DistData_t, size_t, raft::row_major>(
+      res, nrow_, get_degree_on_device(res))},
     d_locks_{raft::make_device_vector<int, size_t>(res, nrow_)},
     h_rev_graph_new_{
       raft::make_pinned_matrix<Index_t, size_t, raft::row_major>(res, nrow_, NUM_SAMPLES)},
@@ -1289,7 +1080,7 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
 
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   auto graph_buffer_view = raft::make_device_matrix_view<Index_t, int64_t>(
-    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, degree_on_device_);
+    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, get_degree_on_device(res));
   raft::matrix::fill(res, graph_buffer_view, std::numeric_limits<Index_t>::max());
   raft::matrix::fill(res, d_locks_.view(), 0);
 
@@ -1304,7 +1095,7 @@ void GNND<Data_t, Index_t>::reset(raft::resources const& res)
 {
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   auto graph_buffer_view = raft::make_device_matrix_view<Index_t, int64_t>(
-    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, degree_on_device_);
+    reinterpret_cast<Index_t*>(graph_buffer_.data_handle()), nrow_, get_degree_on_device(res));
   raft::matrix::fill(res, graph_buffer_view, std::numeric_limits<Index_t>::max());
   raft::matrix::fill(res, d_locks_.view(), 0);
 }
@@ -1340,7 +1131,7 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream)
                                          ndim_,
                                          graph_buffer_.data_handle(),
                                          dists_buffer_.data_handle(),
-                                         degree_on_device_,
+                                         get_degree_on_device(res),
                                          d_locks_.data_handle(),
                                          l2_norms_.data_handle(),
                                          build_config_.metric);
@@ -1358,7 +1149,7 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream)
                                          ndim_,
                                          graph_buffer_.data_handle(),
                                          dists_buffer_.data_handle(),
-                                         degree_on_device_,
+                                         get_degree_on_device(res),
                                          d_locks_.data_handle(),
                                          l2_norms_.data_handle(),
                                          build_config_.metric);
@@ -1411,7 +1202,7 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
       update_counter_ = 0;
       graph_.update_graph(graph_host_buffer_.data_handle(),
                           dists_host_buffer_.data_handle(),
-                          degree_on_device_,
+                          get_degree_on_device(res),
                           update_counter_);
       if (update_counter_ < build_config_.termination_threshold * nrow_ *
                               build_config_.dataset_dim / counter_interval) {
@@ -1442,7 +1233,7 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
 
     // Reuse dists_buffer_ to save GPU memory. graph_buffer_ cannot be reused, because it
     // contains some information for local_join.
-    ASSERT(degree_on_device_ * sizeof(*(dists_buffer_.data_handle())) >=
+    ASSERT(get_degree_on_device(res) * sizeof(*(dists_buffer_.data_handle())) >=
              NUM_SAMPLES * sizeof(*(graph_buffer_.data_handle())),
            "Invalid precondition");
     add_reverse_edges(graph_.h_graph_new.data_handle(),
@@ -1484,20 +1275,20 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
     if (update_counter_ == -1) { break; }
     raft::copy(graph_host_buffer_.data_handle(),
                graph_buffer_.data_handle(),
-               nrow_ * degree_on_device_,
+               nrow_ * get_degree_on_device(res),
                raft::resource::get_cuda_stream(res));
     raft::resource::sync_stream(res);
     raft::copy(dists_host_buffer_.data_handle(),
                dists_buffer_.data_handle(),
-               nrow_ * degree_on_device_,
+               nrow_ * get_degree_on_device(res),
                raft::resource::get_cuda_stream(res));
 
-    graph_.sample_graph_new(graph_host_buffer_.data_handle(), degree_on_device_);
+    graph_.sample_graph_new(graph_host_buffer_.data_handle(), get_degree_on_device(res));
   }
 
   graph_.update_graph(graph_host_buffer_.data_handle(),
                       dists_host_buffer_.data_handle(),
-                      degree_on_device_,
+                      get_degree_on_device(res),
                       update_counter_);
   raft::resource::sync_stream(res);
   graph_.sort_lists();
@@ -1523,9 +1314,16 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
     raft::matrix::slice<DistData_t, int64_t, raft::row_major>(
       res, raft::make_const_mdspan(graph_d_dists.view()), output_dist_view, coords);
 
+    // distance post-processing
     if (build_config_.metric == cuvs::distance::DistanceType::L2SqrtExpanded) {
       raft::linalg::map(
         res, output_dist_view, raft::sqrt_op{}, raft::make_const_mdspan(output_dist_view));
+    } else if (!cuvs::distance::is_min_close(build_config_.metric)) {
+      // revert negated innerproduct
+      raft::linalg::map(res,
+                        output_dist_view,
+                        raft::mul_const_op<DistData_t>(-1),
+                        raft::make_const_mdspan(output_dist_view));
     }
     raft::resource::sync_stream(res);
   }
@@ -1565,56 +1363,17 @@ void build(raft::resources const& res,
            raft::mdspan<const T, raft::matrix_extent<int64_t>, raft::row_major, Accessor> dataset,
            index<IdxT>& idx)
 {
-  RAFT_EXPECTS(dataset.extent(0) < std::numeric_limits<int>::max() - 1,
-               "The dataset size for GNND should be less than %d",
-               std::numeric_limits<int>::max() - 1);
-  auto allowed_metrics = params.metric == cuvs::distance::DistanceType::L2Expanded ||
-                         params.metric == cuvs::distance::DistanceType::L2SqrtExpanded ||
-                         params.metric == cuvs::distance::DistanceType::CosineExpanded ||
-                         params.metric == cuvs::distance::DistanceType::InnerProduct;
-  RAFT_EXPECTS(allowed_metrics,
-               "The metric for NN Descent should be L2Expanded, L2SqrtExpanded, CosineExpanded or "
-               "InnerProduct");
-  RAFT_EXPECTS(
-    idx.metric() == params.metric,
-    "The metrics set in nn_descent::index_params and nn_descent::index are inconsistent");
-  size_t intermediate_degree = params.intermediate_graph_degree;
-  size_t graph_degree        = params.graph_degree;
-
-  if (intermediate_degree >= static_cast<size_t>(dataset.extent(0))) {
-    RAFT_LOG_WARN(
-      "Intermediate graph degree cannot be larger than dataset size, reducing it to %lu",
-      dataset.extent(0));
-    intermediate_degree = dataset.extent(0) - 1;
-  }
-  if (intermediate_degree < graph_degree) {
-    RAFT_LOG_WARN(
-      "Graph degree (%lu) cannot be larger than intermediate graph degree (%lu), reducing "
-      "graph_degree.",
-      graph_degree,
-      intermediate_degree);
-    graph_degree = intermediate_degree;
-  }
-
-  // The elements in each knn-list are partitioned into different buckets, and we need more buckets
-  // to mitigate bucket collisions. `intermediate_degree` is OK to larger than
-  // extended_graph_degree.
-  size_t extended_graph_degree =
-    align64::roundUp(static_cast<size_t>(graph_degree * (graph_degree <= 64 ? 1.0 : 1.3)));
-  size_t extended_intermediate_degree = align64::roundUp(
-    static_cast<size_t>(intermediate_degree * (intermediate_degree <= 64 ? 1.0 : 1.3)));
+  size_t extended_graph_degree, graph_degree;
+  auto build_config = get_build_config(res,
+                                       params,
+                                       static_cast<size_t>(dataset.extent(0)),
+                                       static_cast<size_t>(dataset.extent(1)),
+                                       idx.metric(),
+                                       extended_graph_degree,
+                                       graph_degree);
 
   auto int_graph = raft::make_host_matrix<int, int64_t, raft::row_major>(
     dataset.extent(0), static_cast<int64_t>(extended_graph_degree));
-
-  BuildConfig build_config{.max_dataset_size      = static_cast<size_t>(dataset.extent(0)),
-                           .dataset_dim           = static_cast<size_t>(dataset.extent(1)),
-                           .node_degree           = extended_graph_degree,
-                           .internal_node_degree  = extended_intermediate_degree,
-                           .max_iterations        = params.max_iterations,
-                           .termination_threshold = params.termination_threshold,
-                           .output_graph_degree   = params.graph_degree,
-                           .metric                = params.metric};
 
   GNND<const T, int> nnd(res, build_config);
 
