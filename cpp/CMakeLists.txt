@@ -630,26 +630,54 @@ if(NOT BUILD_CPU_ONLY)
   endif()
 
   if(BUILD_MG_ALGOS)
-    rapids_find_generate_module(
-      NCCL
-      HEADER_NAMES nccl.h
-      LIBRARY_NAMES nccl
+    if(CUDA_BACKEND)
+      rapids_find_generate_module(
+        NCCL
+        HEADER_NAMES nccl.h
+        LIBRARY_NAMES nccl
+      )
+      find_package(NCCL REQUIRED)
+    else()
+      find_package(rccl CONFIG PATHS "/opt/rocm/")
+    endif()
+    target_link_libraries(
+      cuvs_objs PUBLIC $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,NCCL::NCCL,roc::rccl>>
     )
-    find_package(NCCL REQUIRED)
-    target_link_libraries(cuvs_objs PUBLIC $<BUILD_LOCAL_INTERFACE:NCCL::NCCL>)
 
     target_compile_definitions(cuvs_objs PUBLIC CUVS_BUILD_MG_ALGOS)
     target_compile_definitions(cuvs-cagra-search PUBLIC CUVS_BUILD_MG_ALGOS)
   endif()
 
-  set(CUVS_CUSOLVER_DEPENDENCY CUDA::cusolver${_ctk_static_suffix})
-  set(CUVS_CUBLAS_DEPENDENCY CUDA::cublas${_ctk_static_suffix})
-  set(CUVS_CURAND_DEPENDENCY CUDA::curand${_ctk_static_suffix})
-  set(CUVS_CUSPARSE_DEPENDENCY CUDA::cusparse${_ctk_static_suffix})
+  if(CUDA_BACKEND)
+    set(CUVS_CUSOLVER_DEPENDENCY CUDA::cusolver${_ctk_static_suffix})
+    set(CUVS_CUBLAS_DEPENDENCY CUDA::cublas${_ctk_static_suffix})
+    set(CUVS_CURAND_DEPENDENCY CUDA::curand${_ctk_static_suffix})
+    set(CUVS_CUSPARSE_DEPENDENCY CUDA::cusparse${_ctk_static_suffix})
+  else()
+    find_package(hipsolver CONFIG PATHS "/opt/rocm/")
+    find_package(hipblas CONFIG PATHS "/opt/rocm/")
+    find_package(hipblaslt CONFIG PATHS "/opt/rocm/")
+    find_package(hiprand CONFIG PATHS "/opt/rocm/")
+    find_package(hipsparse CONFIG PATHS "/opt/rocm/")
+    find_package(BLAS REQUIRED)
+    find_package(LAPACK REQUIRED)
 
+    set(CUVS_CUSOLVER_DEPENDENCY hipsolver${_ctk_static_suffix})
+    set(CUVS_CUBLAS_DEPENDENCY hipblas${_ctk_static_suffix})
+    set(CUVS_CUBLASLT_DEPENDENCY hipblaslt${_ctk_static_suffix})
+    set(CUVS_CURAND_DEPENDENCY hiprand${_ctk_static_suffix})
+    set(CUVS_CUSPARSE_DEPENDENCY hipsparse${_ctk_static_suffix})
+    set(CUVS_BLAS_DEPENDENCY ${BLAS_LIBRARIES}${_ctk_static_suffix})
+    set(CUVS_LAPACK_DEPENDENCY ${LAPACK_LIBRARIES}${_ctk_static_suffix})
+  endif()
   set(CUVS_CTK_MATH_DEPENDENCIES ${CUVS_CUBLAS_DEPENDENCY} ${CUVS_CUSOLVER_DEPENDENCY}
                                  ${CUVS_CUSPARSE_DEPENDENCY} ${CUVS_CURAND_DEPENDENCY}
   )
+  if(NOT CUDA_BACKEND)
+    list(APPEND CUVS_CTK_MATH_DEPENDENCIES ${CUVS_CUBLASLT_DEPENDENCY} ${CUVS_BLAS_DEPENDENCY}
+         ${CUVS_LAPACK_DEPENDENCY}
+    )
+  endif()
 
   if(NOT cuvs_compile_mode STREQUAL "static_only")
     add_library(cuvs SHARED $<TARGET_OBJECTS:cuvs_objs>)
@@ -670,7 +698,7 @@ if(NOT BUILD_CPU_ONLY)
       INTERFACE $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--expt-extended-lambda
                 --expt-relaxed-constexpr>
       PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-              "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+              "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
     )
     target_compile_definitions(
       cuvs PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
@@ -684,29 +712,31 @@ if(NOT BUILD_CPU_ONLY)
 
     target_link_libraries(
       cuvs
-      PUBLIC rmm::rmm
-             raft::raft
-             ${CUVS_CTK_MATH_DEPENDENCIES}
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>>
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-             $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-      PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-              cuvs-cagra-search
+      PUBLIC
+        rmm::rmm
+        raft::raft
+        ${CUVS_CTK_MATH_DEPENDENCIES}
+        $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
+        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+        $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
+      PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
+              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> cuvs-cagra-search
     )
-
-    # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
-    file(
-      WRITE "${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld"
-      [=[
+    if(CUDA_BACKEND)
+      # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
+      file(
+        WRITE "${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld"
+        [=[
 SECTIONS
 {
 .nvFatBinSegment : { *(.nvFatBinSegment) }
 .nv_fatbin : { *(.nv_fatbin) }
 }
 ]=]
-    )
-    target_link_options(cuvs PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
+      )
+      target_link_options(cuvs PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
 
+    endif()
   endif()
 
   if(NOT cuvs_compile_mode STREQUAL "shared_only")
@@ -746,13 +776,15 @@ SECTIONS
     )
     target_link_libraries(
       cuvs_static
-      PUBLIC rmm::rmm
-             raft::raft
-             ${CUVS_CTK_MATH_DEPENDENCIES}
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>>
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-             $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-      PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+      PUBLIC
+        rmm::rmm
+        raft::raft
+        ${CUVS_CTK_MATH_DEPENDENCIES}
+        $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
+        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+        $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
+      PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
+              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
     )
   endif()
 

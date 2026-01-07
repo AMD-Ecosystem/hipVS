@@ -41,15 +41,6 @@ else()
   )
 endif()
 
-# Use STRINGS to trim whitespace/newlines
-file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../RAPIDS_BRANCH" _rapids_branch)
-if(NOT _rapids_branch)
-  message(
-    FATAL_ERROR
-      "Could not determine branch name to use for checking out rapids-cmake. The file \"${CMAKE_CURRENT_LIST_DIR}/../RAPIDS_BRANCH\" is missing."
-  )
-endif()
-
 set(RAPIDS_CMAKE_MODULE_PATH
     $ENV{RAPIDS_CMAKE_MODULE_PATH}
     CACHE FILEPATH "Announce that ROCmDS-CMake is available via the provided module path."
