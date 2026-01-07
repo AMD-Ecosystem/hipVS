@@ -67,7 +67,7 @@ void build_mr_linkage(raft::resources const& handle,
 
   // Replace this with mutual reachability graph cronstruction from within all_neighbors wrapper.
   // Reference: https://github.com/rapidsai/cuvs/issues/982
-  cuvs::neighbors::detail::reachability::mutual_reachability_graph<value_idx, value_t>(
+  cuvs::neighbors::detail::reachability::mutual_reachability_graph<value_idx, value_t, nnz_t>(
     handle,
     X.data_handle(),
     m,

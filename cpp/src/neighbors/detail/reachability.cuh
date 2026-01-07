@@ -186,7 +186,7 @@ void mutual_reachability_knn_l2(const raft::resources& handle,
       epilogue);
 }
 
-template <typename value_idx, typename value_t>
+template <typename value_idx, typename value_t, typename nnz_t>
 void mutual_reachability_graph(const raft::resources& handle,
                                const value_t* X,
                                size_t m,
