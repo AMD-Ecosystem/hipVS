@@ -135,16 +135,19 @@ void compute_cluster_offsets(raft::resources const& dev_resources,
 
   temp_storage_bytes = 0;
 
-  cub::DeviceReduce::Max(
-    nullptr, temp_storage_bytes, cluster_sizes.data_handle(), d_max_cluster_size.data(), num_items);
+  RAFT_CUDA_TRY(cub::DeviceReduce::Max(nullptr,
+                                       temp_storage_bytes,
+                                       cluster_sizes.data_handle(),
+                                       d_max_cluster_size.data(),
+                                       num_items));
 
   rmm::device_uvector<int64_t> temp_storage_max(temp_storage_bytes, stream, device_memory);
 
-  cub::DeviceReduce::Max(temp_storage_max.data(),
-                         temp_storage_bytes,
-                         cluster_sizes.data_handle(),
-                         d_max_cluster_size.data(),
-                         num_items);
+  RAFT_CUDA_TRY(cub::DeviceReduce::Max(temp_storage_max.data(),
+                                       temp_storage_bytes,
+                                       cluster_sizes.data_handle(),
+                                       d_max_cluster_size.data(),
+                                       num_items));
 
   max_cluster_size = d_max_cluster_size.value(stream);
 
@@ -179,14 +182,18 @@ void sum_reduce_vector(raft::resources const& dev_resources,
 
   size_t temp_storage_bytes = 0;
 
-  cub::DeviceReduce::Sum(
-    nullptr, temp_storage_bytes, v.data_handle(), s.data_handle(), v.extent(0), stream);
+  RAFT_CUDA_TRY(cub::DeviceReduce::Sum(
+    nullptr, temp_storage_bytes, v.data_handle(), s.data_handle(), v.extent(0), stream));
 
   rmm::device_uvector<char> temp_storage(temp_storage_bytes, stream, device_memory);
   // cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
-  cub::DeviceReduce::Sum(
-    temp_storage.data(), temp_storage_bytes, v.data_handle(), s.data_handle(), v.extent(0), stream);
+  RAFT_CUDA_TRY(cub::DeviceReduce::Sum(temp_storage.data(),
+                                       temp_storage_bytes,
+                                       v.data_handle(),
+                                       s.data_handle(),
+                                       v.extent(0),
+                                       stream));
 
   // raft::resource::sync_stream(dev_resources, stream);
 

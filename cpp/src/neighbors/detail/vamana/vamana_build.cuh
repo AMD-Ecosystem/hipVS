@@ -419,13 +419,13 @@ void batched_insert_vamana(
       void* d_temp_storage      = nullptr;
       size_t temp_storage_bytes = 0;
 
-      cub::DeviceMergeSort::SortPairs(d_temp_storage,
-                                      temp_storage_bytes,
-                                      edge_dest.data_handle(),
-                                      edge_src.data_handle(),
-                                      total_edges,
-                                      CmpEdge<IdxT>(),
-                                      stream);
+      RAFT_CUDA_TRY(cub::DeviceMergeSort::SortPairs(d_temp_storage,
+                                                    temp_storage_bytes,
+                                                    edge_dest.data_handle(),
+                                                    edge_src.data_handle(),
+                                                    total_edges,
+                                                    CmpEdge<IdxT>(),
+                                                    stream));
 
       RAFT_LOG_DEBUG("Temp storage needed for sorting dist (bytes): %lu", temp_storage_bytes);
 
