@@ -564,7 +564,10 @@ __device__ __forceinline__ void remove_duplicates(
 // MAX_RESIDENT_THREAD_PER_SM = BLOCK_SIZE * BLOCKS_PER_SM = 2048
 // For architectures 750 and 860 (890), the values for MAX_RESIDENT_THREAD_PER_SM
 // is 1024 and 1536 respectively, which means the bounds don't work anymore
-template <int BLOCK_SIZE, typename Index_t, typename ID_t = InternalID_t<Index_t>, typename DistEpilogue_t>
+template <int BLOCK_SIZE,
+          typename Index_t,
+          typename ID_t = InternalID_t<Index_t>,
+          typename DistEpilogue_t>
 RAFT_KERNEL
 #ifdef __CUDA_ARCH__
 // Use minBlocksPerMultiprocessor = 4 on specific arches
@@ -676,7 +679,6 @@ __launch_bounds__(BLOCK_SIZE)
   wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major> b_frag;
   wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> c_frag;
   if (metric != cuvs::distance::DistanceType::BitwiseHamming) {
-
     wmma::fill_fragment(c_frag, 0.0f);
     for (int step = 0; step < raft::ceildiv(data_dim, TILE_COL_WIDTH); step++) {
       int num_load_elems = (step == raft::ceildiv(data_dim, TILE_COL_WIDTH) - 1)

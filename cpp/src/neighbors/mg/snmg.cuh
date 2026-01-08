@@ -361,8 +361,10 @@ void sharded_search_with_tree_merge(
                               raft::resource::get_cuda_stream(dev_res));
 
       auto d_trans = raft::make_device_vector<searchIdxT>(dev_res, 2);
-      RAFT_CUDA_TRY(cudaMemsetAsync(
-        d_trans.data_handle(), 0, 2 * sizeof(searchIdxT), raft::resource::get_cuda_stream(dev_res)));
+      RAFT_CUDA_TRY(cudaMemsetAsync(d_trans.data_handle(),
+                                    0,
+                                    2 * sizeof(searchIdxT),
+                                    raft::resource::get_cuda_stream(dev_res)));
 
       int64_t remaining = index.num_ranks_;
       int64_t radix     = 2;

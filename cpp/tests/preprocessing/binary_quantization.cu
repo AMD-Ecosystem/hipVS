@@ -99,7 +99,8 @@ class BinaryQuantizationTest : public ::testing::TestWithParam<BinaryQuantizatio
       // failed.
       const auto col_quantized = raft::div_rounding_up_safe(cols_, 8);
       auto quantized_input_h   = raft::make_host_matrix<QuantI, int64_t>(rows_, col_quantized);
-      auto quantized_input_d   = raft::make_device_matrix<QuantI, int64_t>(handle, rows_, col_quantized);
+      auto quantized_input_d =
+        raft::make_device_matrix<QuantI, int64_t>(handle, rows_, col_quantized);
 
       cuvs::preprocessing::quantize::binary::quantizer<T> quantizer(handle);
       if (train_host_) {

@@ -49,8 +49,8 @@ void ivf_flat_build_search_simple(cuvsResources_t* res,
   // Create default index params
   cuvsIvfFlatIndexParams_t index_params;
   CHECK_CUVS(cuvsIvfFlatIndexParamsCreate(&index_params));
-  index_params->n_lists                  = (uint32_t)sqrt((double)(dataset_tensor->dl_tensor.shape[0]));
-  index_params->kmeans_n_iters           = 20;    // default value
+  index_params->n_lists        = (uint32_t)sqrt((double)(dataset_tensor->dl_tensor.shape[0]));
+  index_params->kmeans_n_iters = 20;  // default value
   index_params->kmeans_trainset_fraction = 0.1;
   // index_params->metric default is L2Expanded
 
@@ -143,7 +143,7 @@ void ivf_flat_build_extend_search(cuvsResources_t* res,
   // Create default index params
   cuvsIvfFlatIndexParams_t index_params;
   CHECK_CUVS(cuvsIvfFlatIndexParamsCreate(&index_params));
-    index_params->n_lists = (uint32_t)sqrt((double)n_dataset);
+  index_params->n_lists           = (uint32_t)sqrt((double)n_dataset);
   index_params->add_data_on_build = false;
   // index_params->metric default is L2Expanded
 
