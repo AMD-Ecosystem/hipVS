@@ -236,8 +236,10 @@ __global__ void RobustPruneKernel(
           for (int occId = pass_start + 1; occId < res_size; occId++) {
             if (occlusion_list[occId] <= alpha &&
                 occlusion_list[occId] != raft::lower_bound<float>()) {
-              T* k_ptr     = const_cast<T*>(&dataset((size_t)(new_nbh_list[occId].idx), 0));
+              T* k_ptr = const_cast<T*>(&dataset((size_t)(new_nbh_list[occId].idx), 0));
+              // dist() uses warp shuffle reduction and returns valid result only in thread 0
               accT djk     = dist<T, accT>(cand_ptr, k_ptr, dim, metric);
+              djk          = raft::shfl(djk, 0);  // Broadcast to all threads
               accT new_occ = (float)(new_nbh_list[occId].dist / djk);
 
               occlusion_list[occId] = std::max(occlusion_list[occId], new_occ);
@@ -258,7 +260,7 @@ __global__ void RobustPruneKernel(
         }
       }
       __syncthreads();
-      for (int out_idx = accept_count + threadIdx.x; out_idx < degree; out_idx++) {
+      for (int out_idx = accept_count + threadIdx.x; out_idx < degree; out_idx += blockDim.x) {
         new_nbh_list[out_idx].idx  = raft::upper_bound<IdxT>();
         new_nbh_list[out_idx].dist = raft::upper_bound<accT>();
       }
