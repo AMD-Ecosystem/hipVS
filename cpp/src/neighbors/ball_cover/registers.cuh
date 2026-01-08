@@ -998,12 +998,10 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k_copy(const int64_t max_k,
   int64_t col_start_idx = adj_ia[row_idx];
   int64_t num_cols      = adj_ia[row_idx + 1] - col_start_idx;
 
-  int64_t limit = raft::Pow2<raft::WarpSize>::roundDown(num_cols);
-  int64_t i     = threadIdx.x;
-  for (; i < limit; i += tpb) {
+  // Simple loop that correctly handles all elements regardless of tpb vs WarpSize
+  for (int64_t i = threadIdx.x; i < num_cols; i += tpb) {
     adj_ja[col_start_idx + i] = tmp[offset + i];
   }
-  if (i < num_cols) { adj_ja[col_start_idx + i] = tmp[offset + i]; }
 }
 
 template <typename value_idx, typename value_t>
