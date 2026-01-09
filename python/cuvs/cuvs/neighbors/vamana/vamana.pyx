@@ -202,7 +202,8 @@ def build(IndexParams index_params, dataset, resources=None):
     >>> n_features = 50
     >>> dataset = cp.random.random_sample((n_samples, n_features),
     ...                                   dtype=cp.float32)
-    >>> build_params = vamana.IndexParams(metric="sqeuclidean")
+    >>> build_params = vamana.IndexParams(
+    ...     metric="sqeuclidean", graph_degree=64, visited_size=128)
     >>> index = vamana.build(build_params, dataset)
     >>> # Serialize index to file for later use with CPU DiskANN
     >>> vamana.save("my_index.bin", index)
@@ -265,7 +266,8 @@ def save(filename, Index index, bool include_dataset=True, resources=None):
     >>> dataset = cp.random.random_sample((n_samples, n_features),
     ...                                   dtype=cp.float32)
     >>> # Build index
-    >>> index = vamana.build(vamana.IndexParams(), dataset)
+    >>> index = vamana.build(vamana.IndexParams(graph_degree=64,
+    ...                                         visited_size=128), dataset)
     >>> # Serialize and save the vamana index
     >>> vamana.save("my_index.bin", index)
     """

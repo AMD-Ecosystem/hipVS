@@ -14,9 +14,21 @@
 
 import numpy as np
 import pytest
+from cuda.bindings.runtime import cudaDeviceProp, cudaGetDeviceProperties
 from pylibraft.common import device_ndarray
 
 from cuvs.neighbors import vamana
+
+
+def get_device_warp_size():
+    prop = cudaDeviceProp()
+    cudaGetDeviceProperties(prop, 0)
+    return prop.warpSize
+
+
+# Initialize graph_degree and visited_size based on device warp size
+graph_degree = get_device_warp_size()
+visited_size = graph_degree * 2
 
 
 def _gen_data(shape, dtype):
@@ -37,7 +49,11 @@ def test_vamana_build_basic(dtype):
     data = _gen_data((n_rows, n_cols), dtype)
     data_dev = device_ndarray(data)
 
-    params = vamana.IndexParams(metric="sqeuclidean")
+    params = vamana.IndexParams(
+        metric="sqeuclidean",
+        graph_degree=graph_degree,
+        visited_size=visited_size,
+    )
     idx = vamana.build(params, data_dev)
 
     # Basic sanity: object type and flags
@@ -57,7 +73,11 @@ def test_vamana_build_basic_host(dtype):
     n_rows, n_cols = 512, 12
     data = _gen_data((n_rows, n_cols), dtype)  # host array
 
-    params = vamana.IndexParams(metric="sqeuclidean")
+    params = vamana.IndexParams(
+        metric="sqeuclidean",
+        graph_degree=graph_degree,
+        visited_size=visited_size,
+    )
     idx = vamana.build(params, data)
 
     assert isinstance(idx, vamana.Index)
@@ -70,7 +90,9 @@ def test_vamana_serialize(tmp_path, include_dataset):
     data = _gen_data((n_rows, n_cols), np.float32)
     data_dev = device_ndarray(data)
 
-    params = vamana.IndexParams()
+    params = vamana.IndexParams(
+        graph_degree=graph_degree, visited_size=visited_size
+    )
     idx = vamana.build(params, data_dev)
 
     out_path = tmp_path / "vamana_index.bin"
@@ -86,7 +108,9 @@ def test_vamana_build_rejects_unsupported_dtype():
     from pylibraft.common import device_ndarray
 
     data_dev = device_ndarray(data)
-    params = vamana.IndexParams()
+    params = vamana.IndexParams(
+        graph_degree=graph_degree, visited_size=visited_size
+    )
 
     with pytest.raises(Exception):
         _ = vamana.build(params, data_dev)
