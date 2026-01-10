@@ -258,11 +258,17 @@ if(NOT BUILD_CPU_ONLY)
   # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
   # INSTALL_EXPORT_SET cuvs-exports)
   include(cmake/thirdparty/get_raft.cmake)
-  if(CUDA_BACKEND)
-    include(cmake/thirdparty/get_cutlass.cmake)
-  elseif(BUILD_CK_BACKEND)
-    include(cmake/thirdparty/get_ck.cmake)
-  endif()
+# <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
+#   if(CUDA_BACKEND)
+#     include(cmake/thirdparty/get_cutlass.cmake)
+#   elseif(BUILD_CK_BACKEND)
+#     include(cmake/thirdparty/get_ck.cmake)
+#   endif()
+# =======
+  include(cmake/thirdparty/get_cutlass.cmake)
+  include(${rapids-cmake-dir}/cpm/cuco.cmake)
+  rapids_cpm_cuco()
+# >>>>>>> END NEW CODE (8efe78e21)
 endif()
 
 if(BUILD_TESTS OR BUILD_C_TESTS)
@@ -401,7 +407,10 @@ if(NOT BUILD_CPU_ONLY)
                CUDA_SEPARABLE_COMPILATION ON
                POSITION_INDEPENDENT_CODE ON
   )
-  target_link_libraries(cuvs-cagra-search PRIVATE cuvs::cuvs_cpp_headers)
+  target_link_libraries(
+    cuvs-cagra-search PRIVATE cuvs::cuvs_cpp_headers
+                              $<TARGET_NAME_IF_EXISTS:nvidia::cutlass::cutlass>
+  )
   target_compile_options(
     cuvs-cagra-search
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
@@ -662,8 +671,12 @@ if(NOT BUILD_CPU_ONLY)
 
   target_link_libraries(
     cuvs_objs
-    PRIVATE cuvs::cuvs_cpp_headers ${CUVS_CTK_MATH_DEPENDENCIES}
-            $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>
+    PRIVATE cuvs::cuvs_cpp_headers
+            cuco::cuco
+            nvidia::cutlass::cutlass
+            ${CUVS_CTK_MATH_DEPENDENCIES}
+            $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+            $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>
   )
 
   # Endian detection
@@ -778,8 +791,13 @@ if(NOT BUILD_CPU_ONLY)
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>>
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
              $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-      PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# >>>>>>> END NEW CODE (e8d26c865)
+# <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
+#       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# # >>>>>>> END NEW CODE (e8d26c865)
+# =======
+      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+              $<COMPILE_ONLY:cuco::cuco>
+# >>>>>>> END NEW CODE (8efe78e21)
     )
     if(CUVS_USE_ROCPROFSYS)
       find_package(rocprofiler-systems REQUIRED)
@@ -875,9 +893,14 @@ SECTIONS
              ${CUVS_CTK_MATH_DEPENDENCIES}
              $<TARGET_NAME_IF_EXISTS:NCCL::NCCL> # needs to be public for DT_NEEDED
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>> # header only
-      PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-              $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# >>>>>>> END NEW CODE (b5ce1b00b)
+# <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
+#       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+#               $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
+# # >>>>>>> END NEW CODE (b5ce1b00b)
+# =======
+      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
+              $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco>
+# >>>>>>> END NEW CODE (8efe78e21)
     )
   endif()
 
