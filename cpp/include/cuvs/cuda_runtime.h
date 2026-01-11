@@ -86,6 +86,12 @@
 #ifndef cudaDevAttrMultiProcessorCount
 #define cudaDevAttrMultiProcessorCount hipDeviceAttributeMultiprocessorCount
 #endif
+#ifndef cudaDevAttrClockRate
+#define cudaDevAttrClockRate hipDeviceAttributeClockRate
+#endif
+#ifndef cudaDevAttrMemoryClockRate
+#define cudaDevAttrMemoryClockRate hipDeviceAttributeMemoryClockRate
+#endif
 #ifndef cudaErrorInvalidValue
 #define cudaErrorInvalidValue hipErrorInvalidValue
 #endif
@@ -178,6 +184,12 @@
 #endif
 #ifndef cudaSuccess
 #define cudaSuccess hipSuccess
+#endif
+#ifndef cudaErrorNoDevice
+#define cudaErrorNoDevice hipErrorNoDevice
+#endif
+#ifndef cudaErrorInvalidDevice
+#define cudaErrorInvalidDevice hipErrorInvalidDevice
 #endif
 
 // functions
