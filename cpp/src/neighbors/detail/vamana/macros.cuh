@@ -50,18 +50,18 @@ namespace cuvs::neighbors::vamana::detail {
   }
 
 // Current supported sizes for degree and visited_size. Note that visited_size must be > degree
-#define SELECT_SORT_SMEM_SIZE(degree, visited_size)  \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 32, 64);   \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 32, 128);  \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 32, 256);  \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 32, 512);  \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 64, 128);  \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 64, 256);  \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 64, 512);  \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 128, 256); \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 128, 512); \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 256, 512); \
-  COMPUTE_SMEM_SIZE(degree, visited_size, 256, 1024);
+#define SELECT_SORT_SMEM_SIZE(degree, visited_size)   \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 32, 64);   \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 32, 128);  \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 32, 256);  \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 32, 512);  \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 64, 128);  \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 64, 256);  \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 64, 512);  \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 128, 256); \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 128, 512); \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 256, 512); \
+  COMPUTE_SMEM_SIZES(degree, visited_size, 256, 1024);
 
 /* Macros to call the CUB BlockSort primitives for supported sizes for GREEDY SEARCH */
 #define SEARCH_CALL_SORT(topk, CANDS)                                                          \

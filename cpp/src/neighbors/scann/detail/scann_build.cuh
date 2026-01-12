@@ -371,6 +371,9 @@ index<T, IdxT> build(
                  bf16_dataset.size(),
                  stream);
     }
+
+    // Make sure work on device is finished before swapping buffers
+    raft::resource::sync_stream(res);
   }
 
   // Codebooks from VPQ have the shape [subspace idx, subspace dim, code]

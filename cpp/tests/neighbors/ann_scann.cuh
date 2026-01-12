@@ -144,7 +144,6 @@ class scann_test : public ::testing::TestWithParam<scann_inputs> {
   void TearDown() override  // NOLINT
   {
     RAFT_CUDA_TRY(cudaGetLastError());
-    RAFT_HIP_TRY(hipGetLastError());
     raft::resource::sync_stream(handle_);
     database.resize(0, stream_);
   }

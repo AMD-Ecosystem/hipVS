@@ -39,14 +39,13 @@
 #include <raft/core/device_mdspan.hpp>
 #include <raft/util/cuda_dev_essentials.cuh>
 #include <raft/util/pow2_utils.cuh>
-#include <variant>
 
 namespace cuvs::neighbors::ivf_pq::detail {
 
 template <uint32_t BlockSize, uint32_t PqBits, typename IdxT>
 __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kernel(
   raft::device_matrix_view<const float, IdxT, raft::row_major> new_vectors,
-  std::variant<IdxT, const IdxT*> src_offset_or_indices,
+  cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,
   const uint32_t* new_labels,
   raft::device_vector_view<uint32_t, uint32_t, raft::row_major> list_sizes,
   raft::device_vector_view<IdxT*, uint32_t, raft::row_major> inds_ptrs,
@@ -61,17 +60,17 @@ __launch_bounds__(BlockSize) static __global__ void process_and_fill_codes_kerne
   if (row_ix >= new_vectors.extent(0)) { return; }
 
   const uint32_t cluster_ix = new_labels[row_ix];
-  uint32_t out_ix;
+  uint32_t out_ix           = 0;
   if (lane_id == 0) { out_ix = atomicAdd(&list_sizes(cluster_ix), 1); }
   out_ix = raft::shfl(out_ix, 0, kSubWarpSize);
 
   // write the label  (one record per subwarp)
   auto pq_indices = inds_ptrs(cluster_ix);
   if (lane_id == 0) {
-    if (std::holds_alternative<IdxT>(src_offset_or_indices)) {
-      pq_indices[out_ix] = std::get<IdxT>(src_offset_or_indices) + row_ix;
+    if (cuda::std::holds_alternative<IdxT>(src_offset_or_indices)) {
+      pq_indices[out_ix] = cuda::std::get<IdxT>(src_offset_or_indices) + row_ix;
     } else {
-      pq_indices[out_ix] = std::get<const IdxT*>(src_offset_or_indices)[row_ix];
+      pq_indices[out_ix] = cuda::std::get<const IdxT*>(src_offset_or_indices)[row_ix];
     }
   }
 

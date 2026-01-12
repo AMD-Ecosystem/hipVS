@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cuda_runtime.h>
+#else
 #include <cuda.h>
+#endif
 #include <gtest/gtest.h>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/handle.hpp>

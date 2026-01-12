@@ -310,7 +310,6 @@ __global__ void GreedySearchKernel(
     }
 
     __syncthreads();
-    if (self_found) query_list[i].size--;
   }
 
   return;

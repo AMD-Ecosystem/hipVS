@@ -474,21 +474,9 @@ RAFT_KERNEL compute_similarity_kernel(uint32_t dim,
     auto pq_thread_data = pq_dataset[label] + group_align::roundDown(threadIdx.x) * pq_line_width +
                           group_align::mod(threadIdx.x) * vec_align::Value;
     pq_line_width *= blockDim.x;
-#ifdef __HIP_PLATFORM_AMD__
-    OutT kDummy = []() {
-      if constexpr (std::is_same_v<OutT, half>) {
-        // constexpr construction of HIP's __half type is not possible. Therefore kDummy when
-        // compiled with AMD clang cannot be constexpr.
-        constexpr __half_raw raw{.x = raft::kHalfUpperBoundAsUint16};
-        return half(raw);
-      } else {
-        return raft::upper_bound<OutT>();
-      }
-    }();
-#else
+
     constexpr OutT kDummy = raft::upper_bound<OutT>();
-#endif
-    OutT query_kth = kDummy;
+    OutT query_kth        = kDummy;
     if constexpr (kManageLocalTopK) { query_kth = OutT(query_kths[query_ix]); }
     OutT early_stop_limit = kDummy;
     switch (metric) {
