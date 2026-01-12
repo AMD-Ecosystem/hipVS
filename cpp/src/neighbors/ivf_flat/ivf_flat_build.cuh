@@ -357,6 +357,7 @@ void extend(raft::resources const& handle,
     }
     ++idx_batch;
   }
+
   // Precompute the centers vector norms for L2Expanded distance
   if (!index->center_norms().has_value()) {
     index->allocate_center_norms(handle);

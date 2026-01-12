@@ -920,6 +920,12 @@ struct mg_index {
 
   // for load balancing mechanism
   std::shared_ptr<std::atomic<int64_t>> round_robin_counter_;
+
+  // Flag to indicate if explicit global indices were used during extend.
+  // When true, search should NOT apply translation offsets since indices
+  // are already global. When false (default), indices are local and need
+  // translation during search.
+  bool uses_global_indices_ = false;
 };
 
 }  // namespace cuvs::neighbors
