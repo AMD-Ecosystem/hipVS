@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.internal;
@@ -159,4 +159,45 @@ public final class CuVSParamsHelper {
       };
     }
   }
+// <<<<<<< OLD CODE from ad5a1ac61 (655f459c0) - COMMENTED OUT
+// =======
+
+  static CloseableHandle createHnswAceParamsNative() {
+    try (var localArena = Arena.ofConfined()) {
+      var paramsPtrPtr = localArena.allocate(cuvsHnswAceParams_t);
+      checkCuVSError(cuvsHnswAceParamsCreate(paramsPtrPtr), "cuvsHnswAceParamsCreate");
+      var paramsPtr = paramsPtrPtr.get(cuvsHnswAceParams_t, 0L);
+      return new CloseableHandle() {
+        @Override
+        public MemorySegment handle() {
+          return paramsPtr;
+        }
+
+        @Override
+        public void close() {
+          checkCuVSError(cuvsHnswAceParamsDestroy(paramsPtr), "cuvsHnswAceParamsDestroy");
+        }
+      };
+    }
+  }
+
+  static CloseableHandle createTieredIndexParams() {
+    try (var localArena = Arena.ofConfined()) {
+      var paramsPtrPtr = localArena.allocate(cuvsTieredIndexParams_t);
+      checkCuVSError(cuvsTieredIndexParamsCreate(paramsPtrPtr), "cuvsTieredIndexParamsCreate");
+      var paramsPtr = paramsPtrPtr.get(cuvsTieredIndexParams_t, 0L);
+      return new CloseableHandle() {
+        @Override
+        public MemorySegment handle() {
+          return paramsPtr;
+        }
+
+        @Override
+        public void close() {
+          checkCuVSError(cuvsTieredIndexParamsDestroy(paramsPtr), "cuvsTieredIndexParamsDestroy");
+        }
+      };
+    }
+  }
+// >>>>>>> END NEW CODE (655f459c0)
 }
