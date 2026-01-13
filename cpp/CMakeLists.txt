@@ -254,9 +254,14 @@ rapids_cpm_init()
 
 if(NOT BUILD_CPU_ONLY)
   # We must find CCCL ourselves before raft so that we get the right version.
-  # TODO(AMD/HIP): Use RAFT's get_cccl.cmake until an AMD cccl equivalent exists
-  # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
-  # INSTALL_EXPORT_SET cuvs-exports)
+# <<<<<<< OLD CODE from 4b9dba417 (d57dab88a) - COMMENTED OUT
+#   # TODO(AMD/HIP): Use RAFT's get_cccl.cmake until an AMD cccl equivalent exists
+#   # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
+#   # INSTALL_EXPORT_SET cuvs-exports)
+# =======
+  include(${rapids-cmake-dir}/cpm/cccl.cmake)
+  rapids_cpm_cccl()
+# >>>>>>> END NEW CODE (d57dab88a)
   include(cmake/thirdparty/get_raft.cmake)
 # <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
 #   if(CUDA_BACKEND)
