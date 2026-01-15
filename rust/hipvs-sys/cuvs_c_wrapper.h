@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
@@ -38,7 +38,10 @@
 #include <hip/hip_runtime_api.h>
 #endif
 
+// wrapper file containing all the C-API's we should automatically be creating rust
+// bindings for
 #include <cuvs/core/c_api.h>
+#include <cuvs/cluster/kmeans.h>
 #include <cuvs/distance/pairwise_distance.h>
 #include <cuvs/neighbors/brute_force.h>
 #include <cuvs/neighbors/ivf_flat.h>
