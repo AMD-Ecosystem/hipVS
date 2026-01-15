@@ -26,7 +26,6 @@ repos:
               - id: trailing-whitespace
                 exclude: ^docs_amd/
               - id: end-of-file-fixer
-                exclude: ^docs_amd/
               - id: check-symlinks
                 exclude: ^docs_amd/
       - repo: https://github.com/PyCQA/isort

@@ -58,14 +58,6 @@ static void set_default_cagra_params(fixture& that)
   that.build_params_upsm.graph_degree              = 64;
   that.search_params_upsm.itopk_size =
     std::clamp<int64_t>(raft::bound_by_power_of_two(that.ps.k) * 16, 128, 512);
-#ifdef __HIP_PLATFORM_AMD__
-  // On AMD/HIP backends we observe slightly lower end-to-end search quality.
-  // See issue: internal issue #22
-  if (that.search_params_upsm.algo == cuvs::neighbors::cagra::search_algo::MULTI_CTA ||
-      that.search_params_upsm.algo == cuvs::neighbors::cagra::search_algo::AUTO) {
-    that.ps.expected_recall *= 0.9;
-  }
-#endif
 }
 
 TEST_P(cagra_F32, single_cta)

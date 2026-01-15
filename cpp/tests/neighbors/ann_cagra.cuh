@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2023-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -222,8 +222,8 @@ void InitDataset(const raft::resources& handle,
 
     if (metric == InnerProduct) {
       auto dataset_view = raft::make_device_matrix_view(datatset_ptr, size, dim);
-      raft::linalg::row_normalize(
-        handle, raft::make_const_mdspan(dataset_view), dataset_view, raft::linalg::L2Norm);
+      raft::linalg::row_normalize<raft::linalg::L2Norm>(
+        handle, raft::make_const_mdspan(dataset_view), dataset_view);
     }
   } else if constexpr (std::is_same_v<DataT, std::uint8_t> || std::is_same_v<DataT, std::int8_t>) {
     if constexpr (std::is_same_v<DataT, std::int8_t>) {
@@ -242,24 +242,21 @@ void InitDataset(const raft::resources& handle,
       const auto normalized_norm =
         (std::is_same_v<DataT, std::uint8_t> ? 40 : 20) * std::sqrt(static_cast<ComputeT>(dim));
 
-      raft::linalg::reduce(dev_row_norm.data_handle(),
-                           datatset_ptr,
-                           dim,
-                           size,
-                           0.f,
-                           true,
-                           true,
-                           raft::resource::get_cuda_stream(handle),
-                           false,
-                           raft::sq_op(),
-                           raft::add_op(),
-                           raft::sqrt_op());
-      raft::linalg::matrix_vector_op(
+      raft::linalg::reduce<true, true>(dev_row_norm.data_handle(),
+                                       datatset_ptr,
+                                       dim,
+                                       size,
+                                       0.f,
+                                       raft::resource::get_cuda_stream(handle),
+                                       false,
+                                       raft::sq_op(),
+                                       raft::add_op(),
+                                       raft::sqrt_op());
+      raft::linalg::matrix_vector_op<raft::Apply::ALONG_COLUMNS>(
         handle,
         raft::make_const_mdspan(dataset_view),
         raft::make_const_mdspan(dev_row_norm.view()),
         dataset_view,
-        raft::linalg::Apply::ALONG_COLUMNS,
         [normalized_norm] __device__(DataT elm, ComputeT norm) {
           const ComputeT v           = elm / norm * normalized_norm;
           const ComputeT max_v_range = std::numeric_limits<DataT>::max();
@@ -355,10 +352,9 @@ class AnnCagraTest : public ::testing::TestWithParam<AnnCagraInputs> {
   template <typename SearchIdxT = IdxT>
   void testCagra()
   {
-    // IVF_PQ and NN_DESCENT graph builds do not support BitwiseHamming
+    // IVF_PQ graph build does not support BitwiseHamming
     if (ps.metric == cuvs::distance::DistanceType::BitwiseHamming &&
-        ((!std::is_same_v<DataT, uint8_t>) ||
-         (ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)))
+        ((!std::is_same_v<DataT, uint8_t>) || (ps.build_algo == graph_build_algo::IVF_PQ)))
       GTEST_SKIP();
     // If the dataset dimension is small and the dataset size is large, there can be a lot of
     // dataset vectors that have the same distance to the query, especially in the binary Hamming
@@ -547,10 +543,9 @@ class AnnCagraAddNodesTest : public ::testing::TestWithParam<AnnCagraInputs> {
     // issue: https://github.com/rapidsai/raft/issues/2276
     if (ps.metric == InnerProduct && ps.build_algo == graph_build_algo::NN_DESCENT) GTEST_SKIP();
     if (ps.compression != std::nullopt) GTEST_SKIP();
-    // IVF_PQ and NN_DESCENT graph builds do not support BitwiseHamming
+    // IVF_PQ graph build does not support BitwiseHamming
     if (ps.metric == cuvs::distance::DistanceType::BitwiseHamming &&
-        ((!std::is_same_v<DataT, uint8_t>) ||
-         (ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)))
+        ((!std::is_same_v<DataT, uint8_t>) || (ps.build_algo == graph_build_algo::IVF_PQ)))
       GTEST_SKIP();
     // If the dataset dimension is small and the dataset size is large, there can be a lot of
     // dataset vectors that have the same distance to the query, especially in the binary Hamming
@@ -757,7 +752,7 @@ class AnnCagraFilterTest : public ::testing::TestWithParam<AnnCagraInputs> {
     if (ps.metric == cuvs::distance::DistanceType::InnerProduct &&
         ps.build_algo == graph_build_algo::NN_DESCENT)
       GTEST_SKIP();
-    // IVF_PQ and NN_DESCENT graph builds do not support BitwiseHamming
+    // IVF_PQ graph build does not support BitwiseHamming
     if (ps.metric == cuvs::distance::DistanceType::BitwiseHamming &&
         ((!std::is_same_v<DataT, uint8_t>) ||
          (ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)))
@@ -968,10 +963,9 @@ class AnnCagraIndexMergeTest : public ::testing::TestWithParam<AnnCagraInputs> {
     // issue: https://github.com/rapidsai/raft/issues/2276
     if (ps.metric == InnerProduct && ps.build_algo == graph_build_algo::NN_DESCENT) GTEST_SKIP();
     if (ps.compression != std::nullopt) GTEST_SKIP();
-    // IVF_PQ and NN_DESCENT graph builds do not support BitwiseHamming
+    // IVF_PQ graph build does not support BitwiseHamming
     if (ps.metric == cuvs::distance::DistanceType::BitwiseHamming &&
-        ((!std::is_same_v<DataT, uint8_t>) ||
-         (ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)))
+        ((!std::is_same_v<DataT, uint8_t>) || (ps.build_algo == graph_build_algo::IVF_PQ)))
       GTEST_SKIP();
     // If the dataset dimension is small and the dataset size is large, there can be a lot of
     // dataset vectors that have the same distance to the query, especially in the binary Hamming
@@ -1555,39 +1549,8 @@ inline std::vector<AnnCagraInputs> generate_filtering_inputs()
   return inputs;
 }
 
-static std::vector<AnnCagraInputs> relax_recall(std::vector<AnnCagraInputs> inputs)
-{
-#ifdef __HIP_PLATFORM_AMD__
-  // On AMD/HIP backends we observe slightly lower end-to-end search quality.
-  // We gently relax the recall targets:
-  //  - For MULTI_CTA/AUTO modes, cap at 95% of original recall
-  //  - For IVF_PQ builds, cap at 90% of original recall
-  //  - For ITERATIVE_CAGRA_SEARCH cap at 97% of original recall
-  // See issue: internal issue #22
-  for (auto& input : inputs) {
-    double reduction_factor = 1.0;
-    if (input.algo == search_algo::MULTI_CTA || input.algo == search_algo::AUTO) {
-      reduction_factor = std::min(reduction_factor, 0.95);
-    }
-    switch (input.build_algo) {
-      case graph_build_algo::IVF_PQ: {
-        reduction_factor = std::min(reduction_factor, 0.90);
-        break;
-      }
-      case graph_build_algo::ITERATIVE_CAGRA_SEARCH: {
-        reduction_factor = std::min(reduction_factor, 0.97);
-        break;
-      }
-      default: break;
-    }
-    input.min_recall *= reduction_factor;
-  }
-#endif
-  return inputs;
-}
-
-const std::vector<AnnCagraInputs> inputs           = relax_recall(generate_inputs());
-const std::vector<AnnCagraInputs> inputs_addnode   = relax_recall(generate_addnode_inputs());
+const std::vector<AnnCagraInputs> inputs           = generate_inputs();
+const std::vector<AnnCagraInputs> inputs_addnode   = generate_addnode_inputs();
 const std::vector<AnnCagraInputs> inputs_filtering = generate_filtering_inputs();
 
 }  // namespace cuvs::neighbors::cagra

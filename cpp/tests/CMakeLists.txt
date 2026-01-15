@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2021-2024, NVIDIA CORPORATION.
+# Copyright (c) 2021-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -37,7 +37,7 @@ rapids_test_init()
 
 function(ConfigureTest)
 
-  set(options OPTIONAL NOCUDA C_LIB)
+  set(options OPTIONAL NOCUDA C_LIB FETCH_CODEBOOKS)
   set(oneValueArgs NAME GPUS PERCENT ADDITIONAL_DEP)
   set(multiValueArgs PATH TARGETS CONFIGURATIONS)
 
@@ -102,6 +102,22 @@ function(ConfigureTest)
     target_compile_definitions(${TEST_NAME} PRIVATE "CUVS_DISABLE_CUDA")
   endif()
 
+  if(_CUVS_TEST_FETCH_CODEBOOKS)
+    set(CODEBOOKS 384_int8_pq_pivots.bin 384_int8_pq_pivots.bin_rotation_matrix.bin
+                  64_float_pq_pivots.bin 64_float_pq_pivots.bin_rotation_matrix.bin
+    )
+
+    foreach(CODEBOOK ${CODEBOOKS})
+      file(
+        DOWNLOAD
+        https://data.rapids.ai/cuvs/tests/data/neighbors/ann_vamana/randomized_codebooks/${CODEBOOK}
+        ${CUVS_BINARY_DIR}/tests/data/neighbors/ann_vamana/randomized_codebooks/${CODEBOOK}
+      )
+    endforeach()
+
+    target_compile_definitions(${TEST_NAME} PRIVATE TEST_DATA_DIR="${CUVS_BINARY_DIR}/tests/data/")
+  endif()
+
   target_include_directories(${TEST_NAME} PUBLIC "$<BUILD_INTERFACE:${CUVS_SOURCE_DIR}/tests>")
 
   target_link_directories(${TEST_NAME} PRIVATE ${HIP_LIB_INSTALL_DIR})
@@ -129,7 +145,7 @@ if(BUILD_TESTS)
 
   ConfigureTest(
     NAME CLUSTER_TEST PATH cluster/kmeans.cu cluster/kmeans_balanced.cu cluster/kmeans_find_k.cu
-    cluster/linkage.cu GPUS 1 PERCENT 100
+    cluster/linkage.cu cluster/connect_knn.cu GPUS 1 PERCENT 100
   )
 
   ConfigureTest(
@@ -157,6 +173,10 @@ if(BUILD_TESTS)
     1
     PERCENT
     100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_ANN_SCANN_TEST PATH neighbors/ann_scann/test_float_int64_t.cu GPUS 1 PERCENT 1
   )
 
   ConfigureTest(
@@ -221,6 +241,7 @@ if(BUILD_TESTS)
     1
     PERCENT
     100
+    FETCH_CODEBOOKS
   )
 
   ConfigureTest(NAME NEIGHBORS_BALL_COVER_TEST PATH neighbors/ball_cover.cu GPUS 1 PERCENT 100)
@@ -292,7 +313,7 @@ if(BUILD_TESTS)
 
   ConfigureTest(
     NAME PREPROCESSING_TEST PATH preprocessing/scalar_quantization.cu
-    preprocessing/binary_quantization.cu GPUS 1 PERCENT 100
+    preprocessing/binary_quantization.cu preprocessing/spectral_embedding.cu GPUS 1 PERCENT 100
   )
 
   ConfigureTest(

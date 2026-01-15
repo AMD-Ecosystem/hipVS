@@ -191,6 +191,9 @@
 #ifndef cublasSgemv
 #define cublasSgemv hipblasSgemv
 #endif
+#ifndef cublasSgemvStridedBatched
+#define cublasSgemvStridedBatched hipblasSgemvStridedBatched
+#endif
 #ifndef cublasSger
 #define cublasSger hipblasSger
 #endif

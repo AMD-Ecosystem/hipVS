@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -59,7 +59,8 @@ set(BUILD_CUVS_C_LIBRARY ON)
 include(../cmake/thirdparty/get_dlpack.cmake)
 include(../cmake/thirdparty/get_cuvs.cmake)
 
-# ------------------ examples ------------------#
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
+
 add_executable(CAGRA_C_EXAMPLE src/cagra_c_example.c)
 target_include_directories(CAGRA_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(CAGRA_C_EXAMPLE PRIVATE cuvs::c_api $<TARGET_NAME_IF_EXISTS:conda_env>)
