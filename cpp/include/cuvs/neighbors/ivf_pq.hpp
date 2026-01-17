@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -593,6 +593,12 @@ auto build(raft::resources const& handle,
 /**
  * @brief Build the index from the dataset for efficient search.
  *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
+ *
  * Usage example:
  * @code{.cpp}
  *   using namespace cuvs::neighbors;
@@ -640,6 +646,12 @@ auto build(raft::resources const& handle,
 /**
  * @brief Build the index from the dataset for efficient search.
  *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
+ *
  * Usage example:
  * @code{.cpp}
  *   using namespace cuvs::neighbors;
@@ -685,6 +697,12 @@ auto build(raft::resources const& handle,
 
 /**
  * @brief Build the index from the dataset for efficient search.
+ *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
  *
  * Usage example:
  * @code{.cpp}
@@ -732,6 +750,12 @@ auto build(raft::resources const& handle,
 
 /**
  * @brief Build the index from the dataset for efficient search.
+ *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
  *
  * Usage example:
  * @code{.cpp}
@@ -785,6 +809,12 @@ auto build(raft::resources const& handle,
 
 /**
  * @brief Build the index from the dataset for efficient search.
+ *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
  *
  * Note, if index_params.add_data_on_build is set to true, the user can set a
  * stream pool in the input raft::resource with at least one stream to enable kernel and copy
@@ -847,6 +877,12 @@ auto build(raft::resources const& handle,
 /**
  * @brief Build the index from the dataset for efficient search.
  *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
+ *
  * Usage example:
  * @code{.cpp}
  *   using namespace cuvs::neighbors;
@@ -893,6 +929,12 @@ auto build(raft::resources const& handle,
 
 /**
  * @brief Build the index from the dataset for efficient search.
+ *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
  *
  * Note, if index_params.add_data_on_build is set to true, the user can set a
  * stream pool in the input raft::resource with at least one stream to enable kernel and copy
@@ -954,6 +996,12 @@ auto build(raft::resources const& handle,
 
 /**
  * @brief Build the index from the dataset for efficient search.
+ *
+ * NB: Currently, the following distance metrics are supported:
+ * - L2Expanded
+ * - L2Unexpanded
+ * - InnerProduct
+ * - CosineExpanded
  *
  * Note, if index_params.add_data_on_build is set to true, the user can set a
  * stream pool in the input raft::resource with at least one stream to enable kernel and copy

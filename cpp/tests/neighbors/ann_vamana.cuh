@@ -83,6 +83,7 @@ struct AnnVamanaInputs {
   cuvs::distance::DistanceType metric;
   bool host_dataset;
   int reverse_batchsize;
+  double insert_iters;
 
   // cagra search params
   int n_queries;
@@ -183,6 +184,8 @@ class AnnVamanaTest : public ::testing::TestWithParam<AnnVamanaInputs> {
     index_params.visited_size      = ps.visited_size;
     index_params.max_fraction      = ps.max_fraction;
     index_params.reverse_batchsize = ps.reverse_batchsize;
+    index_params.vamana_iters      = ps.insert_iters;
+
     // use randomized codebooks to test serialization & quantization code path
     if (ps.dim == 384 && std::is_same_v<DataT, int8_t>)
       index_params.codebooks = vamana::deserialize_codebooks(
@@ -336,6 +339,7 @@ inline std::vector<AnnVamanaInputs> generate_inputs()
     {cuvs::distance::DistanceType::L2Expanded},
     {false},
     {100, 1000000},
+    {1.0, 1.5},
     {100},
     {10},
     {cagra::search_algo::AUTO},
@@ -353,6 +357,7 @@ inline std::vector<AnnVamanaInputs> generate_inputs()
     {cuvs::distance::DistanceType::L2Expanded},
     {false},
     {1000000},
+    {1.0},
     {100},
     {10},
     {cagra::search_algo::AUTO},
@@ -371,6 +376,7 @@ inline std::vector<AnnVamanaInputs> generate_inputs()
     {cuvs::distance::DistanceType::L2Expanded},
     {false},
     {1000000},
+    {1.0},
     {100},
     {10},
     {cagra::search_algo::AUTO},
@@ -389,6 +395,7 @@ inline std::vector<AnnVamanaInputs> generate_inputs()
     {cuvs::distance::DistanceType::L2Expanded},
     {false},
     {1000000},
+    {1.0},
     {100},
     {10},
     {cagra::search_algo::AUTO},

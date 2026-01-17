@@ -680,6 +680,7 @@ __launch_bounds__(BLOCK_SIZE)
   wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> c_frag;
   if (metric != cuvs::distance::DistanceType::BitwiseHamming) {
     wmma::fill_fragment(c_frag, 0.0f);
+
     for (int step = 0; step < raft::ceildiv(data_dim, TILE_COL_WIDTH); step++) {
       int num_load_elems = (step == raft::ceildiv(data_dim, TILE_COL_WIDTH) - 1)
                              ? data_dim - step * TILE_COL_WIDTH

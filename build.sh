@@ -85,6 +85,7 @@ BUILD_SHARED_LIBS=ON
 
 TEST_TARGETS=""
 ANN_BENCH_TARGETS=""
+BUILD_MG_ALGOS=ON
 
 CACHE_ARGS=()
 LOG_COMPILE_TIME=OFF
@@ -439,11 +440,11 @@ if hasArg docs; then
     set -x
     cd ${DOXYGEN_BUILD_DIR}
     doxygen Doxyfile
-    cd ${SPHINX_BUILD_DIR}
-    sphinx-build -b html source _html
-    cd ${REPODIR}/rust
+    cd "${SPHINX_BUILD_DIR}"
+    make html
+    cd "${REPODIR}"/rust
     cargo doc -p cuvs --no-deps
-    rsync -av ${RUST_BUILD_DIR}/doc/ ${SPHINX_BUILD_DIR}/_html/_static/rust
+    rsync -av "${RUST_BUILD_DIR}"/doc/ "${SPHINX_BUILD_DIR}"/build/html/_static/rust
 fi
 
 ################################################################################

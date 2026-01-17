@@ -86,6 +86,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MI
     )
   endif()
 endif()
-include("${CMAKE_CURRENT_BINARY_DIR}/CUVS_RAPIDS-${RAPIDS_VERSION_MAJOR_MINOR}.cmake")
+
 set(rapids-cmake-version "${RAPIDS_VERSION_MAJOR_MINOR}")
+set(rapids-cmake-branch "${_rapids_branch}")
 include("${CMAKE_CURRENT_LIST_DIR}/RAPIDS.cmake")

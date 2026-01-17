@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,6 +58,12 @@ cdef extern from "cuvs/core/c_api.h":
     cuvsError_t cuvsStreamSet(cuvsResources_t res, cudaStream_t stream)
     cuvsError_t cuvsStreamSync(cuvsResources_t res)
     const char * cuvsGetLastErrorText()
+
+    cuvsError_t cuvsMultiGpuResourcesCreate(cuvsResources_t* res)
+    cuvsError_t cuvsMultiGpuResourcesCreateWithDeviceIds(
+        cuvsResources_t* res,
+        DLManagedTensor* device_ids)
+    cuvsError_t cuvsMultiGpuResourcesDestroy(cuvsResources_t res)
 
     cuvsError_t cuvsMatrixCopy(cuvsResources_t res, DLManagedTensor * src,
                                DLManagedTensor * dst)

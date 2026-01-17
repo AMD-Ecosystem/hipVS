@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -72,9 +89,14 @@ void deserialize(const raft::resources& clique,
   std::ifstream is(filename, std::ios::in | std::ios::binary);
   if (!is) { RAFT_FAIL("Cannot open file %s", filename.c_str()); }
 
+  char dtype_string[4];
+  is.read(dtype_string, 4);
+
   const auto& handle = raft::resource::set_current_device_to_root_rank(clique);
-  index.mode_        = (cuvs::neighbors::distribution_mode)deserialize_scalar<int>(handle, is);
-  index.num_ranks_   = deserialize_scalar<int>(handle, is);
+  index.mode_ =
+    static_cast<cuvs::neighbors::distribution_mode>(deserialize_scalar<int>(handle, is));
+  index.num_ranks_           = deserialize_scalar<int>(handle, is);
+  index.uses_global_indices_ = static_cast<bool>(deserialize_scalar<int>(handle, is));
 
   if (index.num_ranks_ != raft::resource::get_num_ranks(clique)) {
     RAFT_FAIL("Serialized index has %d ranks whereas NCCL clique has %d ranks",
@@ -139,6 +161,21 @@ void extend(const raft::resources& clique,
             std::optional<raft::host_vector_view<const IdxT, int64_t>> new_indices)
 {
   int64_t n_rows = new_vectors.extent(0);
+
+  // If explicit indices are provided in SHARDED mode on an EMPTY index,
+  // mark the index as using global indices. This tells search not to apply
+  // translation offsets since indices are already global.
+  // We only do this for empty indices because if the index was built with
+  // add_data_on_build=True, those vectors have local (auto-assigned) indices
+  // and we can't mix indexing schemes.
+  if (index.mode_ == SHARDED && new_indices.has_value()) {
+    bool index_is_empty = true;
+    for (int rank = 0; rank < index.num_ranks_ && index_is_empty; rank++) {
+      if (index.ann_interfaces_[rank].size() > 0) { index_is_empty = false; }
+    }
+    if (index_is_empty) { index.uses_global_indices_ = true; }
+  }
+
   if (index.mode_ == REPLICATED) {
     RAFT_LOG_DEBUG("REPLICATED EXTEND: %d*%drows", index.num_ranks_, n_rows);
 
@@ -274,13 +311,21 @@ void sharded_search_with_direct_merge(
       }
     }
 
-    const auto& root_handle_      = raft::resource::set_current_device_to_root_rank(clique);
-    auto h_trans                  = std::vector<searchIdxT>(index.num_ranks_);
-    searchIdxT translation_offset = 0;
-    for (int rank = 0; rank < index.num_ranks_; rank++) {
-      h_trans[rank] = translation_offset;
-      translation_offset += index.ann_interfaces_[rank].size();
+    const auto& root_handle_ = raft::resource::set_current_device_to_root_rank(clique);
+    auto h_trans             = std::vector<searchIdxT>(index.num_ranks_);
+
+    if (!index.uses_global_indices_) {
+      std::transform_exclusive_scan(index.ann_interfaces_.begin(),
+                                    index.ann_interfaces_.end(),
+                                    h_trans.begin(),
+                                    searchIdxT(0),
+                                    std::plus<searchIdxT>(),
+                                    [](const auto& ann_if) { return ann_if.size(); });
+    } else {
+      // All zeros - no translation needed for global indices
+      std::fill(h_trans.begin(), h_trans.end(), searchIdxT(0));
     }
+
     auto d_trans = raft::make_device_vector<searchIdxT>(root_handle_, index.num_ranks_);
 
     raft::copy(d_trans.data_handle(),
@@ -350,15 +395,24 @@ void sharded_search_with_tree_merge(
       cuvs::neighbors::search(
         dev_res, ann_if, search_params, query_partition, neighbors_view, distances_view);
 
-      searchIdxT translation_offset = 0;
-      for (int r = 0; r < rank; r++) {
-        translation_offset += index.ann_interfaces_[r].size();
+      // Only apply translation offset if indices are LOCAL (not global).
+      // When uses_global_indices_ is true, indices are already global and
+      // should NOT be translated.
+      if (!index.uses_global_indices_) {
+        searchIdxT translation_offset =
+          std::transform_reduce(index.ann_interfaces_.begin(),
+                                index.ann_interfaces_.begin() + rank,
+                                searchIdxT(0),
+
+                                std::plus<searchIdxT>(),
+                                [](const auto& ann_if) -> searchIdxT { return ann_if.size(); });
+
+        raft::linalg::addScalar(neighbors_view.data_handle(),
+                                neighbors_view.data_handle(),
+                                translation_offset,
+                                part_size,
+                                raft::resource::get_cuda_stream(dev_res));
       }
-      raft::linalg::addScalar(neighbors_view.data_handle(),
-                              neighbors_view.data_handle(),
-                              translation_offset,
-                              part_size,
-                              raft::resource::get_cuda_stream(dev_res));
 
       auto d_trans = raft::make_device_vector<searchIdxT>(dev_res, 2);
       RAFT_CUDA_TRY(cudaMemsetAsync(d_trans.data_handle(),
@@ -604,7 +658,7 @@ void search(const raft::resources& clique,
     int64_t n_batches = raft::ceildiv(n_rows, (int64_t)n_rows_per_batch);
     if (n_batches <= 1) n_rows_per_batch = n_rows;
 
-    if (merge_mode == MERGE_ON_ROOT_RANK) {
+    if (merge_mode == MERGE_ON_ROOT_RANK && index.num_ranks_ > 1) {
       RAFT_LOG_DEBUG("SHARDED SEARCH WITH MERGE_ON_ROOT_RANK MERGE MODE: %d*%drows",
                      n_batches,
                      n_rows_per_batch);
@@ -619,7 +673,7 @@ void search(const raft::resources& clique,
                                        n_cols,
                                        n_neighbors,
                                        n_batches);
-    } else if (merge_mode == TREE_MERGE) {
+    } else if (merge_mode == TREE_MERGE && index.num_ranks_ > 1) {
       ASSERT(index.num_ranks_ % 2 == 0,
              "The number of ranks should be even when running sharded search in TREE_MERGE mode.");
       RAFT_LOG_DEBUG(
@@ -635,6 +689,28 @@ void search(const raft::resources& clique,
                                      n_cols,
                                      n_neighbors,
                                      n_batches);
+    } else {
+      const int rank = 0;
+#pragma omp parallel for
+      for (int64_t batch_idx = 0; batch_idx < n_batches; batch_idx++) {
+        int64_t offset                  = batch_idx * n_rows_per_batch;
+        int64_t query_offset            = offset * n_cols;
+        int64_t output_offset           = offset * n_neighbors;
+        int64_t n_rows_of_current_batch = std::min(n_rows_per_batch, n_rows - offset);
+
+        run_search_batch(clique,
+                         index,
+                         rank,
+                         search_params,
+                         queries,
+                         neighbors,
+                         distances,
+                         query_offset,
+                         output_offset,
+                         n_rows_of_current_batch,
+                         n_cols,
+                         n_neighbors);
+      }
     }
   }
 }
@@ -647,9 +723,15 @@ void serialize(const raft::resources& clique,
   std::ofstream of(filename, std::ios::out | std::ios::binary);
   if (!of) { RAFT_FAIL("Cannot open file %s", filename.c_str()); }
 
+  std::string dtype_string = raft::detail::numpy_serializer::get_numpy_dtype<T>().to_string();
+  dtype_string.resize(4);
+  of << dtype_string;
+
   const auto& handle = raft::resource::set_current_device_to_root_rank(clique);
+
   serialize_scalar(handle, of, (int)index.mode_);
-  serialize_scalar(handle, of, index.num_ranks_);
+  serialize_scalar(handle, of, (int)index.num_ranks_);
+  serialize_scalar(handle, of, (int)index.uses_global_indices_);
 
   for (int rank = 0; rank < index.num_ranks_; rank++) {
     const raft::resources& dev_res = raft::resource::set_current_device_to_rank(clique, rank);

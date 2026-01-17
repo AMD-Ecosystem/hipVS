@@ -12,7 +12,24 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ **/
 
 #pragma once
 
@@ -181,11 +198,18 @@ index<T, IdxT> build(
       res, kmeans_params, batch_view, raft::make_const_mdspan(centroids_view), batch_labels_view);
 
     dataset_vec_batches.prefetch_next_batch();
+
+    // Make sure work on device is finished before swapping buffers
+    raft::resource::sync_stream(res);
   }
 
   // AVQ update of KMeans centroids
-  apply_avq(
-    res, dataset, centroids_view, raft::make_const_mdspan(labels_view), params.partitioning_eta);
+  apply_avq(res,
+            dataset,
+            centroids_view,
+            raft::make_const_mdspan(labels_view),
+            params.partitioning_eta,
+            copy_stream);
 
   raft::device_vector_view<uint32_t, int64_t> soar_labels_view = idx.soar_labels();
 
@@ -312,18 +336,9 @@ index<T, IdxT> build(
     // quantize dataset to bfloat16, if enabled. Similar to SOAR, quantization
     // is performed in this loop to improve locality
     // TODO (rmaschal): Might be more efficient to do on CPU, to avoid DtoH copy
-
     auto bf16_dataset = raft::make_device_matrix<int16_t, int64_t>(res, batch_view.extent(0), dim);
 
     if (params.bf16_enabled) {
-      // raft::linalg::map_offset(res, bf16_dataset.view(), [batch_view, dim] __device__(size_t i) {
-      //   int64_t row_idx = i / dim;
-      //   int64_t col_idx = i % dim;
-
-      //  nv_bfloat16 val = __float2bfloat16(batch_view(row_idx, col_idx));
-
-      //  return reinterpret_cast<int16_t&>(val);
-      //});
       raft::linalg::unaryOp(
         bf16_dataset.data_handle(),
         batch_view.data_handle(),
@@ -356,6 +371,9 @@ index<T, IdxT> build(
                  bf16_dataset.size(),
                  stream);
     }
+
+    // Make sure work on device is finished before swapping buffers
+    raft::resource::sync_stream(res);
   }
 
   // Codebooks from VPQ have the shape [subspace idx, subspace dim, code]

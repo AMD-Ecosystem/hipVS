@@ -24,8 +24,11 @@
 
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
+#include <raft/linalg/unary_op.cuh>
 #include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
+#include <raft/util/bitwise_operations.hpp>
 #include <raft/util/cuda_utils.cuh>
+#include <raft/util/warp_primitives.cuh>
 
 #include <thrust/count.h>
 #include <thrust/fill.h>
@@ -492,7 +495,7 @@ RAFT_KERNEL block_rbc_kernel_eps_dense(const value_t* X_reordered,
 
 #pragma nounroll
   for (uint32_t cur_k0 = 0; cur_k0 < n_landmarks; cur_k0 += raft::WarpSize) {
-    // Pre-compute landmark_dist & triangularization checks for 32 iterations
+    // Pre-compute landmark_dist & triangularization checks for WarpSize iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(x_ptr, R + lane_k * n_cols, n_cols)
                                                         : std::numeric_limits<value_t>::max();
@@ -500,14 +503,14 @@ RAFT_KERNEL block_rbc_kernel_eps_dense(const value_t* X_reordered,
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
 
-    int lane_mask = raft::ballot(lane_check);
+    bitmask_type lane_mask = raft::ballot(lane_check);
     if (lane_mask == 0) continue;
 
-    // reverse to use __clz instead of __ffs
-    lane_mask = __brev(lane_mask);
+    // reverse to use __CLZ instead of __ffs
+    lane_mask = __BREV(lane_mask);
     do {
       // look for next k_offset
-      const uint32_t k_offset = __clz(lane_mask);
+      const uint32_t k_offset = __CLZ(lane_mask);
 
       const uint32_t cur_k = cur_k0 + k_offset;
 
@@ -515,7 +518,8 @@ RAFT_KERNEL block_rbc_kernel_eps_dense(const value_t* X_reordered,
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      lane_mask &= (0x7fffffff >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
@@ -593,8 +597,8 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
   constexpr int num_warps = tpb / raft::WarpSize;
 
   // process 1 query per warp
-  const uint32_t lid      = raft::laneId();
-  const uint32_t lid_mask = (1 << lid) - 1;
+  const uint32_t lid          = raft::laneId();
+  const bitmask_type lid_mask = (static_cast<bitmask_type>(1) << lid) - 1;
 
   // this should help the compiler to prevent branches
   const int query_id = raft::shfl(blockIdx.x * num_warps + (threadIdx.x / raft::WarpSize), 0);
@@ -618,7 +622,7 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
 
 #pragma nounroll
   for (uint32_t cur_k0 = 0; cur_k0 < n_landmarks; cur_k0 += raft::WarpSize) {
-    // Pre-compute landmark_dist & triangularization checks for 32 iterations
+    // Pre-compute landmark_dist & triangularization checks for WarpSize iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(x_ptr, R + lane_k * n_cols, n_cols)
                                                         : std::numeric_limits<value_t>::max();
@@ -626,14 +630,14 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
 
-    int lane_mask = raft::ballot(lane_check);
+    bitmask_type lane_mask = raft::ballot(lane_check);
     if (lane_mask == 0) continue;
 
-    // reverse to use __clz instead of __ffs
-    lane_mask = __brev(lane_mask);
+    // reverse to use __CLZ instead of __ffs
+    lane_mask = __BREV(lane_mask);
     do {
       // look for next k_offset
-      const uint32_t k_offset = __clz(lane_mask);
+      const uint32_t k_offset = __CLZ(lane_mask);
 
       const uint32_t cur_k = cur_k0 + k_offset;
 
@@ -641,7 +645,8 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      lane_mask &= (0x7fffffff >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
@@ -662,13 +667,13 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
           (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_t>::max();
         const bool in_range = (dist <= eps2);
         if (write_pass) {
-          const int mask = raft::ballot(in_range);
+          const bitmask_type mask = raft::ballot(in_range);
           if (in_range) {
             const uint32_t index   = R_1nn_cols[R_start_offset + i];
-            const uint32_t row_pos = __popc(mask & lid_mask);
+            const uint32_t row_pos = __POPC(mask & lid_mask);
             adj_ja[row_pos]        = index;
           }
-          adj_ja += __popc(mask);
+          adj_ja += __POPC(mask);
         } else {
           column_index_offset += (in_range);
         }
@@ -685,13 +690,13 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
         const value_t dist          = dfunc(x_ptr, y_ptr, n_cols);
         const bool in_range         = (dist <= eps2);
         if (write_pass) {
-          const int mask = raft::ballot(in_range);
+          const bitmask_type mask = raft::ballot(in_range);
           if (in_range) {
             const uint32_t index   = R_1nn_cols[R_start_offset + i0 + lid];
-            const uint32_t row_pos = __popc(mask & lid_mask);
+            const uint32_t row_pos = __POPC(mask & lid_mask);
             adj_ja[row_pos]        = index;
           }
-          adj_ja += __popc(mask);
+          adj_ja += __POPC(mask);
         } else {
           column_index_offset += (in_range);
         }
@@ -733,8 +738,8 @@ RAFT_KERNEL __launch_bounds__(tpb)
   constexpr int num_warps = tpb / raft::WarpSize;
 
   // process 1 query per warp
-  const uint32_t lid      = raft::laneId();
-  const uint32_t lid_mask = (1 << lid) - 1;
+  const uint32_t lid          = raft::laneId();
+  const bitmask_type lid_mask = (static_cast<bitmask_type>(1) << lid) - 1;
 
   // this should help the compiler to prevent branches
   const int query_id = raft::shfl(blockIdx.x * num_warps + (threadIdx.x / raft::WarpSize), 0);
@@ -763,7 +768,7 @@ RAFT_KERNEL __launch_bounds__(tpb)
 
 #pragma nounroll
   for (uint32_t cur_k0 = 0; cur_k0 < n_landmarks; cur_k0 += raft::WarpSize) {
-    // Pre-compute landmark_dist & triangularization checks for 32 iterations
+    // Pre-compute landmark_dist & triangularization checks for WarpSize iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(local_x_ptr, R + lane_k * dim, dim)
                                                         : std::numeric_limits<value_t>::max();
@@ -771,14 +776,14 @@ RAFT_KERNEL __launch_bounds__(tpb)
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
 
-    int lane_mask = raft::ballot(lane_check);
+    bitmask_type lane_mask = raft::ballot(lane_check);
     if (lane_mask == 0) continue;
 
-    // reverse to use __clz instead of __ffs
-    lane_mask = __brev(lane_mask);
+    // reverse to use __CLZ instead of __ffs
+    lane_mask = __BREV(lane_mask);
     do {
       // look for next k_offset
-      const uint32_t k_offset = __clz(lane_mask);
+      const uint32_t k_offset = __CLZ(lane_mask);
 
       const uint32_t cur_k = cur_k0 + k_offset;
 
@@ -786,7 +791,8 @@ RAFT_KERNEL __launch_bounds__(tpb)
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      lane_mask &= (0x7fffffff >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
@@ -807,13 +813,13 @@ RAFT_KERNEL __launch_bounds__(tpb)
           (i < R_size) ? dfunc(local_x_ptr, y_ptr, dim) : std::numeric_limits<value_t>::max();
         const bool in_range = (dist <= eps2);
         if (write_pass) {
-          const int mask = raft::ballot(in_range);
+          const bitmask_type mask = raft::ballot(in_range);
           if (in_range) {
             const uint32_t index   = R_1nn_cols[R_start_offset + i];
-            const uint32_t row_pos = __popc(mask & lid_mask);
+            const uint32_t row_pos = __POPC(mask & lid_mask);
             adj_ja[row_pos]        = index;
           }
-          adj_ja += __popc(mask);
+          adj_ja += __POPC(mask);
         } else {
           column_index_offset += (in_range);
         }
@@ -830,13 +836,13 @@ RAFT_KERNEL __launch_bounds__(tpb)
         const value_t dist          = dfunc(local_x_ptr, y_ptr, dim);
         const bool in_range         = (dist <= eps2);
         if (write_pass) {
-          const int mask = raft::ballot(in_range);
+          const bitmask_type mask = raft::ballot(in_range);
           if (in_range) {
             const uint32_t index   = R_1nn_cols[R_start_offset + i0 + lid];
-            const uint32_t row_pos = __popc(mask & lid_mask);
+            const uint32_t row_pos = __POPC(mask & lid_mask);
             adj_ja[row_pos]        = index;
           }
-          adj_ja += __popc(mask);
+          adj_ja += __POPC(mask);
         } else {
           column_index_offset += (in_range);
         }
@@ -876,8 +882,8 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
   constexpr int num_warps = tpb / raft::WarpSize;
 
   // process 1 query per warp
-  const uint32_t lid      = raft::laneId();
-  const uint32_t lid_mask = (1 << lid) - 1;
+  const uint32_t lid          = raft::laneId();
+  const bitmask_type lid_mask = (static_cast<bitmask_type>(1) << lid) - 1;
 
   // this should help the compiler to prevent branches
   const int query_id = raft::shfl(blockIdx.x * num_warps + (threadIdx.x / raft::WarpSize), 0);
@@ -895,7 +901,7 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
 
 #pragma nounroll
   for (uint32_t cur_k0 = 0; cur_k0 < n_landmarks; cur_k0 += raft::WarpSize) {
-    // Pre-compute landmark_dist & triangularization checks for 32 iterations
+    // Pre-compute landmark_dist & triangularization checks for WarpSize iterations
     const uint32_t lane_k        = cur_k0 + lid;
     const value_t lane_R_dist_sq = lane_k < n_landmarks ? dfunc(x_ptr, R + lane_k * n_cols, n_cols)
                                                         : std::numeric_limits<value_t>::max();
@@ -903,14 +909,14 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
                                      ? static_cast<int>(lane_R_dist_sq <= squared(eps + R_radius[lane_k]))
                                      : 0;
 
-    int lane_mask = raft::ballot(lane_check);
+    bitmask_type lane_mask = raft::ballot(lane_check);
     if (lane_mask == 0) continue;
 
-    // reverse to use __clz instead of __ffs
-    lane_mask = __brev(lane_mask);
+    // reverse to use __CLZ instead of __ffs
+    lane_mask = __BREV(lane_mask);
     do {
       // look for next k_offset
-      const uint32_t k_offset = __clz(lane_mask);
+      const uint32_t k_offset = __CLZ(lane_mask);
 
       const uint32_t cur_k = cur_k0 + k_offset;
 
@@ -918,7 +924,8 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      lane_mask &= (0x7fffffff >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
@@ -937,17 +944,17 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
           limit < R_size ? R_1nn_dists[R_start_offset + limit] : cur_R_dist;
         const value_t dist =
           (i < R_size) ? dfunc(x_ptr, y_ptr, n_cols) : std::numeric_limits<value_t>::max();
-        const bool in_range = (dist <= eps2);
-        const int mask      = raft::ballot(in_range);
+        const bool in_range     = (dist <= eps2);
+        const bitmask_type mask = raft::ballot(in_range);
         if (in_range) {
-          auto row_pos = column_count + __popc(mask & lid_mask);
+          auto row_pos = column_count + __POPC(mask & lid_mask);
           // we still continue to look for more hits to return valid vd
           if (row_pos < max_k) {
             auto index   = R_1nn_cols[R_start_offset + i];
             tmp[row_pos] = index;
           }
         }
-        column_count += __popc(mask);
+        column_count += __POPC(mask);
         // abort in case subsequent points cannot possibly be in reach
         i *= (cur_R_dist - min_warp_dist <= eps);
       }
@@ -960,16 +967,16 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
         const value_t min_warp_dist = R_1nn_dists[R_start_offset + i0];
         const value_t dist          = dfunc(x_ptr, y_ptr, n_cols);
         const bool in_range         = (dist <= eps2);
-        const int mask              = raft::ballot(in_range);
+        const bitmask_type mask     = raft::ballot(in_range);
         if (in_range) {
-          auto row_pos = column_count + __popc(mask & lid_mask);
+          auto row_pos = column_count + __POPC(mask & lid_mask);
           // we still continue to look for more hits to return valid vd
           if (row_pos < max_k) {
             auto index   = R_1nn_cols[R_start_offset + i0 + lid];
             tmp[row_pos] = index;
           }
         }
-        column_count += __popc(mask);
+        column_count += __POPC(mask);
         // abort in case subsequent points cannot possibly be in reach
         i0 *= (cur_R_dist - min_warp_dist <= eps);
       }
@@ -991,12 +998,10 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k_copy(const int64_t max_k,
   int64_t col_start_idx = adj_ia[row_idx];
   int64_t num_cols      = adj_ia[row_idx + 1] - col_start_idx;
 
-  int64_t limit = raft::Pow2<raft::WarpSize>::roundDown(num_cols);
-  int64_t i     = threadIdx.x;
-  for (; i < limit; i += tpb) {
+  // Simple loop that correctly handles all elements regardless of tpb vs WarpSize
+  for (int64_t i = threadIdx.x; i < num_cols; i += tpb) {
     adj_ja[col_start_idx + i] = tmp[offset + i];
   }
-  if (i < num_cols) { adj_ja[col_start_idx + i] = tmp[offset + i]; }
 }
 
 template <typename value_idx, typename value_t>
@@ -1325,15 +1330,20 @@ void rbc_eps_pass(raft::resources const& handle,
                   value_idx* adj_ja,
                   value_idx* vd)
 {
+  // Compute number of warps per block based on actual warp size
+  constexpr int tpb   = 64;  // threads per block
+  const int warp_size = raft::host_warp_size(raft::resource::get_device_id(handle));
+  const int num_warps = tpb / warp_size;
+
   // if max_k == nullptr we are either pass 1 or pass 2
   if (max_k == nullptr) {
     if (adj_ja == nullptr) {
       // pass 1 -> only compute adj_ia / vd
       value_idx* vd_ptr = (vd != nullptr) ? vd : adj_ia;
       if (index.n == 2 || index.n == 3) {
-        block_rbc_kernel_eps_csr_pass_xd<value_idx, value_t, 64>
-          <<<raft::ceildiv<int64_t>(n_query_rows, 2),
-             64,
+        block_rbc_kernel_eps_csr_pass_xd<value_idx, value_t, tpb>
+          <<<raft::ceildiv<int64_t>(n_query_rows, num_warps),
+             tpb,
              0,
              raft::resource::get_cuda_stream(handle)>>>(index.get_X_reordered().data_handle(),
                                                         query,
@@ -1353,9 +1363,9 @@ void rbc_eps_pass(raft::resources const& handle,
                                                         false,
                                                         index.n);
       } else {
-        block_rbc_kernel_eps_csr_pass<value_idx, value_t, 64>
-          <<<raft::ceildiv<int64_t>(n_query_rows, 2),
-             64,
+        block_rbc_kernel_eps_csr_pass<value_idx, value_t, tpb>
+          <<<raft::ceildiv<int64_t>(n_query_rows, num_warps),
+             tpb,
              0,
              raft::resource::get_cuda_stream(handle)>>>(index.get_X_reordered().data_handle(),
                                                         query,
@@ -1384,9 +1394,9 @@ void rbc_eps_pass(raft::resources const& handle,
     } else {
       // pass 2 -> fill in adj_ja
       if (index.n == 2 || index.n == 3) {
-        block_rbc_kernel_eps_csr_pass_xd<value_idx, value_t, 64>
-          <<<raft::ceildiv<int64_t>(n_query_rows, 2),
-             64,
+        block_rbc_kernel_eps_csr_pass_xd<value_idx, value_t, tpb>
+          <<<raft::ceildiv<int64_t>(n_query_rows, num_warps),
+             tpb,
              0,
              raft::resource::get_cuda_stream(handle)>>>(index.get_X_reordered().data_handle(),
                                                         query,
@@ -1406,24 +1416,26 @@ void rbc_eps_pass(raft::resources const& handle,
                                                         true,
                                                         index.n);
       } else {
-        block_rbc_kernel_eps_csr_pass<value_idx, value_t, 64>
-          <<<raft::ceildiv<int64_t>(n_query_rows, 2), 64, 0, resource::get_cuda_stream(handle)>>>(
-            index.get_X_reordered().data_handle(),
-            query,
-            n_query_rows,
-            index.n,
-            R,
-            index.m,
-            eps,
-            index.n_landmarks,
-            index.get_R_indptr().data_handle(),
-            index.get_R_1nn_cols().data_handle(),
-            index.get_R_1nn_dists().data_handle(),
-            index.get_R_radius().data_handle(),
-            dfunc,
-            adj_ia,
-            adj_ja,
-            true);
+        block_rbc_kernel_eps_csr_pass<value_idx, value_t, tpb>
+          <<<raft::ceildiv<int64_t>(n_query_rows, num_warps),
+             tpb,
+             0,
+             raft::resource::get_cuda_stream(handle)>>>(index.get_X_reordered().data_handle(),
+                                                        query,
+                                                        n_query_rows,
+                                                        index.n,
+                                                        R,
+                                                        index.m,
+                                                        eps,
+                                                        index.n_landmarks,
+                                                        index.get_R_indptr().data_handle(),
+                                                        index.get_R_1nn_cols().data_handle(),
+                                                        index.get_R_1nn_dists().data_handle(),
+                                                        index.get_R_radius().data_handle(),
+                                                        dfunc,
+                                                        adj_ia,
+                                                        adj_ja,
+                                                        true);
       }
     }
   } else {
@@ -1433,24 +1445,26 @@ void rbc_eps_pass(raft::resources const& handle,
     rmm::device_uvector<value_idx> tmp(n_query_rows * max_k_in,
                                        raft::resource::get_cuda_stream(handle));
 
-    block_rbc_kernel_eps_max_k<value_idx, value_t, 64>
-      <<<raft::ceildiv<int64_t>(n_query_rows, 2), 64, 0, raft::resource::get_cuda_stream(handle)>>>(
-        index.get_X_reordered().data_handle(),
-        query,
-        n_query_rows,
-        index.n,
-        R,
-        index.m,
-        eps,
-        index.n_landmarks,
-        index.get_R_indptr().data_handle(),
-        index.get_R_1nn_cols().data_handle(),
-        index.get_R_1nn_dists().data_handle(),
-        index.get_R_radius().data_handle(),
-        dfunc,
-        vd_ptr,
-        max_k_in,
-        tmp.data());
+    block_rbc_kernel_eps_max_k<value_idx, value_t, tpb>
+      <<<raft::ceildiv<int64_t>(n_query_rows, num_warps),
+         tpb,
+         0,
+         raft::resource::get_cuda_stream(handle)>>>(index.get_X_reordered().data_handle(),
+                                                    query,
+                                                    n_query_rows,
+                                                    index.n,
+                                                    R,
+                                                    index.m,
+                                                    eps,
+                                                    index.n_landmarks,
+                                                    index.get_R_indptr().data_handle(),
+                                                    index.get_R_1nn_cols().data_handle(),
+                                                    index.get_R_1nn_dists().data_handle(),
+                                                    index.get_R_radius().data_handle(),
+                                                    dfunc,
+                                                    vd_ptr,
+                                                    max_k_in,
+                                                    tmp.data());
 
     int64_t actual_max = thrust::reduce(raft::resource::get_thrust_policy(handle),
                                         vd_ptr,
@@ -1460,13 +1474,14 @@ void rbc_eps_pass(raft::resources const& handle,
 
     if (actual_max > max_k_in) {
       // ceil vd to max_k
-      thrust::transform(raft::resource::get_thrust_policy(handle),
-                        vd_ptr,
-                        vd_ptr + n_query_rows,
-                        vd_ptr,
-                        [max_k_in] __device__(value_idx vd_count) {
-                          return vd_count > max_k_in ? max_k_in : vd_count;
-                        });
+      raft::linalg::unaryOp(
+        vd_ptr,
+        vd_ptr,
+        n_query_rows,
+        [max_k_in] __device__(value_idx vd_count) {
+          return vd_count > max_k_in ? max_k_in : vd_count;
+        },
+        raft::resource::get_cuda_stream(handle));
     }
 
     thrust::exclusive_scan(raft::resource::get_thrust_policy(handle),
@@ -1475,9 +1490,16 @@ void rbc_eps_pass(raft::resources const& handle,
                            adj_ia,
                            (value_idx)0);
 
-    block_rbc_kernel_eps_max_k_copy<value_idx, 32>
-      <<<n_query_rows, 32, 0, raft::resource::get_cuda_stream(handle)>>>(
-        max_k_in, adj_ia, tmp.data(), adj_ja);
+    const auto warp_size = raft::host_warp_size(raft::resource::get_device_id(handle));
+    if (warp_size == 64) {
+      block_rbc_kernel_eps_max_k_copy<value_idx, 64>
+        <<<n_query_rows, 64, 0, raft::resource::get_cuda_stream(handle)>>>(
+          max_k_in, adj_ia, tmp.data(), adj_ja);
+    } else {
+      block_rbc_kernel_eps_max_k_copy<value_idx, 32>
+        <<<n_query_rows, 32, 0, raft::resource::get_cuda_stream(handle)>>>(
+          max_k_in, adj_ia, tmp.data(), adj_ja);
+    }
 
     // return 'new' max-k
     *max_k = actual_max;

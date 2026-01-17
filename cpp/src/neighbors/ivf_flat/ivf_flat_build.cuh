@@ -60,6 +60,7 @@
 #include <rmm/cuda_stream_view.hpp>
 
 #include <cstdint>
+#include <limits>
 
 namespace cuvs::neighbors::ivf_flat {
 using namespace cuvs::spatial::knn::detail;  // NOLINT
@@ -356,6 +357,7 @@ void extend(raft::resources const& handle,
     }
     ++idx_batch;
   }
+
   // Precompute the centers vector norms for L2Expanded distance
   if (!index->center_norms().has_value()) {
     index->allocate_center_norms(handle);
@@ -389,6 +391,19 @@ void extend(raft::resources const& handle,
         index->center_norms()->data_handle(), index->centers().data_handle(), dim, n_lists, stream);
     }
     RAFT_LOG_TRACE_VEC(index->center_norms()->data_handle(), std::min<uint32_t>(dim, 20));
+  }
+
+  // Fix: Replace zero center norms with epsilon to avoid NaN in coarse distance computation.
+  // Zero norms occur when kmeans produces empty clusters (zero-vector centers).
+  // Cosine distance computation: dist/(query_norm * center_norm) becomes NaN if center_norm = 0.
+  // By replacing zero with epsilon, empty clusters get large distances and are never selected.
+  if (index->center_norms().has_value()) {
+    constexpr float epsilon = std::numeric_limits<float>::min();
+    thrust::transform(raft::resource::get_thrust_policy(handle),
+                      index->center_norms()->data_handle(),
+                      index->center_norms()->data_handle() + n_lists,
+                      index->center_norms()->data_handle(),
+                      [epsilon] __device__(float norm) { return norm == 0.0f ? epsilon : norm; });
   }
 }
 

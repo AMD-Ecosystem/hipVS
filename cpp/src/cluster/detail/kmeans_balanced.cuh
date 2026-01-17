@@ -176,6 +176,18 @@ inline std::enable_if_t<std::is_floating_point_v<MathT>> predict_core(
       raft::linalg::rowNorm<raft::linalg::L2Norm, true, MathT, IdxT>(
         centroidsNorm.data_handle(), centers, dim, n_clusters, stream, raft::sqrt_op{});
 
+      // Fix: Replace zero norms with epsilon to avoid NaN from division by zero in cosine distance.
+      // Zero-norm centers occur when hierarchical kmeans produces empty clusters.
+      // Cosine distance = 1 - dot/(norm_x * norm_y) becomes NaN if norm_y = 0.
+      // By setting zero norms to epsilon, empty clusters get max distance and are never selected.
+      constexpr MathT epsilon = std::numeric_limits<MathT>::min();
+      thrust::transform(
+        raft::resource::get_thrust_policy(handle),
+        centroidsNorm.data_handle(),
+        centroidsNorm.data_handle() + n_clusters,
+        centroidsNorm.data_handle(),
+        [epsilon] __device__(MathT norm) { return norm == MathT(0) ? epsilon : norm; });
+
       cuvs::distance::fusedDistanceNNMinReduce<MathT, raft::KeyValuePair<IdxT, MathT>, IdxT>(
         minClusterAndDistance.data_handle(),
         dataset,
