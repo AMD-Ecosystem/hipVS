@@ -1,0 +1,930 @@
+<!--
+# MIT License
+#
+# Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hipVS Benchmark Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>{{INLINE_CSS}}</style>
+</head>
+<body>
+    <header>
+        <h1>hipVS Benchmark Visualization</h1>
+        <p class="subtitle">Interactive performance analysis across systems and algorithms</p>
+    </header>
+
+    <div class="container">
+        <div class="system-cards" id="systemCards"></div>
+
+        <div class="tab-container">
+            <div class="tabs">
+                <button class="tab active" data-tab="build">Index Build Performance</button>
+                <button class="tab" data-tab="overview">Search Performance</button>
+                <button class="tab" data-tab="relative">Relative Performance</button>
+                <button class="tab" data-tab="sysinfo">System Info</button>
+                <button class="tab" data-tab="data">Raw Data</button>
+            </div>
+
+            <div class="controls global-filters">
+                <div class="control-group">
+                    <label>Systems</label>
+                    <div class="checkbox-group" id="systemFilters"></div>
+                </div>
+                <div class="control-group">
+                    <label>Algorithms</label>
+                    <div class="checkbox-group" id="algoFilters"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="overview">
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Scale</label>
+                        <select id="scaleSelect">
+                            <option value="linear">Linear</option>
+                            <option value="log" selected>Logarithmic</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="system-legend" id="systemLegend"></div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h2>Recall vs Latency (lower is better)</h2>
+                        <div class="chart-container">
+                            <canvas id="recallLatencyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h2>Recall vs Throughput (higher is better)</h2>
+                        <div class="chart-container">
+                            <canvas id="recallThroughputChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="relative">
+                <div class="chart-card">
+                    <h2>Relative Build Performance</h2>
+                    <p class="card-description">
+                        Average build time across all configurations for each algorithm.
+                        The fastest system is shown as 1x, others are relative (higher = slower).
+                    </p>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="relativeBuildChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h2>Relative Search Latency</h2>
+                    <p class="card-description">
+                        Latency at the optimal point (minimum latency at maximum recall) for each algorithm.
+                        The fastest system is shown as 1x, others are relative (higher = slower).
+                    </p>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="relativeSearchLatencyChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h2>Relative Search Throughput</h2>
+                    <p class="card-description">
+                        Throughput at the optimal point (maximum throughput at maximum recall) for each algorithm.
+                        The system with the lowest throughput is shown as 1x, others are relative to that (higher = more queries per second).
+                    </p>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="relativeSearchThroughputChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content active" id="build">
+                <div class="controls">
+                    <div class="control-group">
+                        <label>Show Top N</label>
+                        <select id="buildTopN">
+                            <option value="20">Top 20</option>
+                            <option value="50">Top 50</option>
+                            <option value="100">Top 100</option>
+                            <option value="0" selected>All</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h2>Index Build Times</h2>
+                    <div class="build-chart-wrapper">
+                        <div class="chart-container" id="buildChartContainer">
+                            <canvas id="buildTimeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="sysinfo">
+                <div class="chart-card">
+                    <h2>System Information</h2>
+                    <p class="card-description">
+                        Hardware and software specifications for each benchmarked system.
+                        This information helps ensure reproducibility and fair comparisons.
+                    </p>
+                    <div id="systemInfoContent"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="data">
+                <div class="chart-card">
+                    <h2>Raw Benchmark Data</h2>
+                    <div style="overflow-x: auto;">
+                        <table class="comparison-table" id="rawDataTable">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chartData = {{CHART_DATA}};
+
+        // Compact data format: points are [recall, latency, throughput, index_name_idx]
+        // series use {s: system, a: algorithm, p: points}
+        // buildTimes use {s: system, a: algorithm, i: index_name_idx, t: time}
+
+        // XSS protection: escape HTML special characters
+        const escapeHtml = (str) => {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        // Normalize "null" strings from system info JSON
+        const normalizeValue = (val) => {
+            if (val === null || val === 'null' || val === undefined || val === '') return '-';
+            return escapeHtml(val);
+        };
+
+        const colors = {
+            systems: ['#ed1c24', '#ff6b35', '#ffc845', '#00c853', '#00bcd4', '#9c27b0'],
+            algorithms: {
+                'cuvs_cagra': '#ed1c24',
+                'cuvs_cagra_hnswlib': '#ff6b35',
+                'cuvs_ivf_flat': '#ffc845',
+                'cuvs_ivf_pq': '#00c853',
+            }
+        };
+
+        // Generate colors for algorithms not in the predefined list
+        const dynamicColors = ['#00bcd4', '#9c27b0', '#ff5722', '#795548', '#607d8b', '#e91e63'];
+        chartData.algorithms.forEach((algo, i) => {
+            if (!colors.algorithms[algo]) {
+                colors.algorithms[algo] = dynamicColors[i % dynamicColors.length];
+            }
+        });
+
+        // Helper to expand compact point array to object
+        const expandPoint = (p) => ({
+            recall: p[0],
+            latency: p[1],
+            throughput: p[2],
+            index_name: p[3] >= 0 ? chartData.indexNames[p[3]] : ''
+        });
+
+        // Helper to get index name from build data
+        const getIndexName = (idx) => idx >= 0 ? chartData.indexNames[idx] : '';
+
+        let charts = {};
+        const systemIndex = Object.fromEntries(chartData.systems.map((s, i) => [s.name, i]));
+        const systemColor = Object.fromEntries(chartData.systems.map((s, i) => [s.name, colors.systems[i]]));
+        let activeFilters = {
+            systems: new Set(chartData.systems.map(s => s.name)),
+            algorithms: new Set(chartData.algorithms)
+        };
+
+        function init() {
+            renderSystemCards();
+            renderFilters();
+            renderSystemLegend();
+            renderCharts();
+            setupEventListeners();
+            renderRelativeBuildPerformance();
+            renderRelativeSearchLatency();
+            renderRelativeSearchThroughput();
+            renderSystemInfo();
+            renderRawData();
+        }
+
+        function renderSystemCards() {
+            const container = document.getElementById('systemCards');
+            container.innerHTML = chartData.systems.map((sys, i) => `
+                <div class="system-card">
+                    <h3>${escapeHtml(sys.name)}</h3>
+                    <p><strong>GPU:</strong> ${escapeHtml(sys.gpu)}</p>
+                    <p><strong>Dataset:</strong> ${escapeHtml(sys.dataset)}</p>
+                    <p><strong>Records:</strong> ${Number(sys.n_records).toLocaleString()}</p>
+                </div>
+            `).join('');
+        }
+
+        function renderFilters() {
+            const systemContainer = document.getElementById('systemFilters');
+            systemContainer.innerHTML = chartData.systems.map((sys, i) => `
+                <label class="checkbox-label checked">
+                    <input type="checkbox" value="${escapeHtml(sys.name)}" checked data-filter="system">
+                    <span style="color: ${colors.systems[i]}">${escapeHtml(sys.name)}</span>
+                </label>
+            `).join('');
+
+            const algoContainer = document.getElementById('algoFilters');
+            algoContainer.innerHTML = chartData.algorithms.map(algo => `
+                <label class="checkbox-label checked">
+                    <input type="checkbox" value="${algo}" checked data-filter="algorithm">
+                    <span style="color: ${colors.algorithms[algo] || '#888'}">${algo}</span>
+                </label>
+            `).join('');
+        }
+
+        function renderSystemLegend() {
+            const container = document.getElementById('systemLegend');
+            if (chartData.systems.length <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+
+            const pointSymbols = ['●', '◆', '▲', '■', '★', '✕'];
+
+            container.innerHTML = `
+                <span class="legend-title">Line styles by system:</span>
+                ${chartData.systems.map((sys, i) => {
+                    const dashPattern = systemDashPatterns[i % systemDashPatterns.length];
+                    const symbol = pointSymbols[i % pointSymbols.length];
+                    let lineStyle = 'solid';
+                    if (dashPattern.length === 2) lineStyle = dashPattern[0] > 5 ? 'dashed' : 'dotted';
+                    else if (dashPattern.length > 2) lineStyle = 'dash-dot';
+
+                    return `<span class="system-legend-item">
+                        <svg width="32" height="16" class="line-sample">
+                            <line x1="0" y1="8" x2="32" y2="8"
+                                stroke="${colors.systems[i]}"
+                                stroke-width="2.5"
+                                stroke-dasharray="${dashPattern.join(',') || 'none'}"/>
+                        </svg>
+                        <span class="point-symbol" style="color: ${colors.systems[i]}">${symbol}</span>
+                        <span style="color: ${colors.systems[i]}">${escapeHtml(sys.name)}</span>
+                    </span>`;
+                }).join('')}
+            `;
+        }
+
+        // Distinct dash patterns for each system (solid, dashed, dotted, dash-dot, long-dash, etc.)
+        const systemDashPatterns = [
+            [],           // solid
+            [8, 4],       // dashed
+            [2, 3],       // dotted
+            [12, 4, 2, 4],// dash-dot
+            [16, 6],      // long-dash
+            [4, 4, 12, 4],// short-long
+        ];
+
+        // Distinct point styles for each system
+        const systemPointStyles = ['circle', 'rectRot', 'triangle', 'rect', 'star', 'crossRot'];
+
+        function getFilteredSeries() {
+            return chartData.series.filter(d =>
+                activeFilters.systems.has(d.s) &&
+                activeFilters.algorithms.has(d.a)
+            );
+        }
+
+        function renderCharts() {
+            renderRecallLatencyChart();
+            renderRecallThroughputChart();
+            renderBuildTimeChart();
+        }
+
+        function getDatasetConfig(filteredSeries, yIdx) {
+            // yIdx: 1 for latency, 2 for throughput
+            return filteredSeries.map((d) => {
+                const sysIdx = systemIndex[d.s] ?? 0;
+                const baseColor = colors.algorithms[d.a] || systemColor[d.s] || '#888';
+
+                return {
+                    label: `${d.s} - ${d.a}`,
+                    data: d.p.map(p => ({
+                        x: p[0],
+                        y: p[yIdx],
+                        recall: p[0],
+                        latency: p[1],
+                        throughput: p[2],
+                        index_name: getIndexName(p[3])
+                    })),
+                    backgroundColor: baseColor + '80',
+                    borderColor: baseColor,
+                    borderWidth: 2.5,
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
+                    pointStyle: systemPointStyles[sysIdx % systemPointStyles.length],
+                    showLine: true,
+                    tension: 0.1,
+                    borderDash: systemDashPatterns[sysIdx % systemDashPatterns.length],
+                };
+            });
+        }
+
+        function renderRecallLatencyChart() {
+            const ctx = document.getElementById('recallLatencyChart');
+            const scale = document.getElementById('scaleSelect').value;
+
+            if (charts.recallLatency) charts.recallLatency.destroy();
+
+            charts.recallLatency = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: getDatasetConfig(getFilteredSeries(), 1) },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Recall', color: '#999999' },
+                            min: 0.3,
+                            max: 1.0,
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        },
+                        y: {
+                            type: scale === 'log' ? 'logarithmic' : 'linear',
+                            title: { display: true, text: 'Latency (ms)', color: '#999999' },
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f0f0f0', font: { family: 'JetBrains Mono', size: 11 } }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1a1a',
+                            titleColor: '#ed1c24',
+                            bodyColor: '#f0f0f0',
+                            borderColor: '#3d3d3d',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: (ctx) => {
+                                    const p = ctx.raw;
+                                    return [
+                                        `Recall: ${(p.recall * 100).toFixed(2)}%`,
+                                        `Latency: ${p.latency.toFixed(4)} ms`,
+                                        `Throughput: ${p.throughput.toLocaleString()} QPS`,
+                                        `Index: ${p.index_name || 'N/A'}`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRecallThroughputChart() {
+            const ctx = document.getElementById('recallThroughputChart');
+            const scale = document.getElementById('scaleSelect').value;
+
+            if (charts.recallThroughput) charts.recallThroughput.destroy();
+
+            charts.recallThroughput = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets: getDatasetConfig(getFilteredSeries(), 2) },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Recall', color: '#999999' },
+                            min: 0.3,
+                            max: 1.0,
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        },
+                        y: {
+                            type: scale === 'log' ? 'logarithmic' : 'linear',
+                            title: { display: true, text: 'Throughput (QPS)', color: '#999999' },
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f0f0f0', font: { family: 'JetBrains Mono', size: 11 } }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1a1a1a',
+                            titleColor: '#ed1c24',
+                            bodyColor: '#f0f0f0',
+                            borderColor: '#3d3d3d',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: (ctx) => {
+                                    const p = ctx.raw;
+                                    return [
+                                        `Recall: ${(p.recall * 100).toFixed(2)}%`,
+                                        `Throughput: ${p.throughput.toLocaleString()} QPS`,
+                                        `Latency: ${p.latency.toFixed(4)} ms`,
+                                        `Index: ${p.index_name || 'N/A'}`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBuildTimeChart() {
+            const ctx = document.getElementById('buildTimeChart');
+            const container = document.getElementById('buildChartContainer');
+            const topN = parseInt(document.getElementById('buildTopN').value) || 0;
+
+            // Use pre-computed and pre-sorted buildByIndex, just filter by active selections
+            const buildByIndex = chartData.buildByIndex || [];
+            let filtered = buildByIndex.filter(entry =>
+                activeFilters.algorithms.has(entry.a)
+            );
+
+            // Apply Top N limit (data is already sorted by max time descending)
+            if (topN > 0) filtered = filtered.slice(0, topN);
+            const labels = filtered.map(entry => entry.n);
+
+            // Dynamic height based on number of bars, capped at 3000px for very large datasets
+            const dynamicHeight = Math.min(3000, Math.max(400, labels.length * 28));
+            container.style.height = dynamicHeight + 'px';
+
+            const datasets = chartData.systems
+                .filter(s => activeFilters.systems.has(s.name))
+                .map((sys) => ({
+                    label: escapeHtml(sys.name),
+                    data: filtered.map(entry => entry.sys[sys.name] || 0),
+                    backgroundColor: systemColor[sys.name] + '80',
+                    borderColor: systemColor[sys.name],
+                    borderWidth: 1,
+                }));
+
+            // Use chart.update() if chart exists and only data changed, else recreate
+            if (charts.buildTime) {
+                charts.buildTime.data.labels = labels.map(escapeHtml);
+                charts.buildTime.data.datasets = datasets;
+                charts.buildTime.update('none'); // 'none' disables animation for faster update
+                return;
+            }
+
+            charts.buildTime = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: labels.map(escapeHtml), datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    animation: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Build Time (seconds)', color: '#999999' },
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        },
+                        y: {
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999', font: { size: 10, family: 'JetBrains Mono' } }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f0f0f0', font: { family: 'JetBrains Mono', size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRelativeBuildPerformance() {
+            const ctx = document.getElementById('relativeBuildChart');
+            if (!ctx) return;
+
+            const relativeData = chartData.relativeBuild || {};
+            // Filter algorithms based on active filters
+            const algorithms = Object.keys(relativeData)
+                .filter(algo => activeFilters.algorithms.has(algo))
+                .sort();
+
+            if (algorithms.length === 0) {
+                ctx.parentElement.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No build data available.</p>';
+                return;
+            }
+
+            // Create datasets from pre-computed data, filtered by active systems
+            const datasets = chartData.systems
+                .filter(sys => activeFilters.systems.has(sys.name))
+                .map((sys) => ({
+                    label: sys.name,
+                    data: algorithms.map(algo => relativeData[algo]?.[sys.name] || 0),
+                    backgroundColor: systemColor[sys.name] + '80',
+                    borderColor: systemColor[sys.name],
+                    borderWidth: 1,
+                }));
+
+            if (charts.relativeBuild) charts.relativeBuild.destroy();
+
+            charts.relativeBuild = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: algorithms, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Relative Time (1x = fastest)', color: '#999999' },
+                            min: 0,
+                            grid: { color: '#3d3d3d' },
+                            ticks: {
+                                color: '#999999',
+                                callback: (value) => value.toFixed(1) + 'x'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f0f0f0', font: { family: 'JetBrains Mono', size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(2)}x`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRelativeSearchLatency() {
+            const ctx = document.getElementById('relativeSearchLatencyChart');
+            if (!ctx) return;
+
+            const relativeData = chartData.relativeSearchLatency || {};
+            const algorithms = Object.keys(relativeData)
+                .filter(algo => activeFilters.algorithms.has(algo))
+                .sort();
+
+            if (algorithms.length === 0) {
+                ctx.parentElement.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No search data available.</p>';
+                return;
+            }
+
+            const datasets = chartData.systems
+                .filter(sys => activeFilters.systems.has(sys.name))
+                .map((sys) => ({
+                    label: sys.name,
+                    data: algorithms.map(algo => relativeData[algo]?.[sys.name]?.relative || 0),
+                    backgroundColor: systemColor[sys.name] + '80',
+                    borderColor: systemColor[sys.name],
+                    borderWidth: 1,
+                }));
+
+            if (charts.relativeSearchLatency) charts.relativeSearchLatency.destroy();
+
+            charts.relativeSearchLatency = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: algorithms, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Relative Latency (1x = fastest)', color: '#999999' },
+                            min: 0,
+                            grid: { color: '#3d3d3d' },
+                            ticks: {
+                                color: '#999999',
+                                callback: (value) => value.toFixed(1) + 'x'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f0f0f0', font: { family: 'JetBrains Mono', size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const algo = algorithms[ctx.dataIndex];
+                                    const sys = ctx.dataset.label;
+                                    const info = relativeData[algo]?.[sys];
+                                    if (!info) return `${sys}: N/A`;
+                                    return [
+                                        `${sys}: ${info.relative.toFixed(2)}x`,
+                                        `Recall: ${(info.recall * 100).toFixed(2)}%`,
+                                        `Latency: ${info.latency.toFixed(4)} ms`,
+                                        `Throughput: ${info.throughput.toLocaleString()} QPS`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRelativeSearchThroughput() {
+            const ctx = document.getElementById('relativeSearchThroughputChart');
+            if (!ctx) return;
+
+            const relativeData = chartData.relativeSearchThroughput || {};
+            const algorithms = Object.keys(relativeData)
+                .filter(algo => activeFilters.algorithms.has(algo))
+                .sort();
+
+            if (algorithms.length === 0) {
+                ctx.parentElement.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No search data available.</p>';
+                return;
+            }
+
+            const datasets = chartData.systems
+                .filter(sys => activeFilters.systems.has(sys.name))
+                .map((sys) => ({
+                    label: sys.name,
+                    data: algorithms.map(algo => relativeData[algo]?.[sys.name]?.relative || 0),
+                    backgroundColor: systemColor[sys.name] + '80',
+                    borderColor: systemColor[sys.name],
+                    borderWidth: 1,
+                }));
+
+            if (charts.relativeSearchThroughput) charts.relativeSearchThroughput.destroy();
+
+            charts.relativeSearchThroughput = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: algorithms, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: { color: '#3d3d3d' },
+                            ticks: { color: '#999999' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Relative Throughput (1x = slowest)', color: '#999999' },
+                            min: 0,
+                            grid: { color: '#3d3d3d' },
+                            ticks: {
+                                color: '#999999',
+                                callback: (value) => value.toFixed(1) + 'x'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#f0f0f0', font: { family: 'JetBrains Mono', size: 11 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const algo = algorithms[ctx.dataIndex];
+                                    const sys = ctx.dataset.label;
+                                    const info = relativeData[algo]?.[sys];
+                                    if (!info) return `${sys}: N/A`;
+                                    return [
+                                        `${sys}: ${info.relative.toFixed(2)}x faster`,
+                                        `Recall: ${(info.recall * 100).toFixed(2)}%`,
+                                        `Latency: ${info.latency.toFixed(4)} ms`,
+                                        `Throughput: ${info.throughput.toLocaleString()} QPS`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderSystemInfo() {
+            const container = document.getElementById('systemInfoContent');
+            const sysInfo = chartData.systemInfo || {};
+
+            if (Object.keys(sysInfo).length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No system information available. Use --system-info to provide system info JSON files.</p>';
+                return;
+            }
+
+            // Use DocumentFragment for better performance with multiple systems
+            const fragment = document.createDocumentFragment();
+            const grid = document.createElement('div');
+            grid.className = 'sysinfo-grid';
+
+            chartData.systems.forEach((sys, idx) => {
+                const info = sysInfo[sys.name];
+                const card = document.createElement('div');
+                card.className = 'sysinfo-card';
+
+                if (!info) {
+                    card.innerHTML = `
+                        <h3 style="color: ${colors.systems[idx]}">${escapeHtml(sys.name)}</h3>
+                        <p class="sysinfo-na">No system info provided</p>`;
+                    grid.appendChild(card);
+                    return;
+                }
+
+                // Helper to create a table row with escaped values
+                const row = (label, value) => `<tr><td>${label}</td><td>${normalizeValue(value)}</td></tr>`;
+
+                card.innerHTML = `
+                    <h3 style="color: ${colors.systems[idx]}">${escapeHtml(sys.name)}</h3>
+
+                    <div class="sysinfo-section">
+                        <h4>System</h4>
+                        <table class="sysinfo-table">
+                            ${row('Hostname', info.collection_info?.hostname)}
+                            ${row('OS', info.system?.os)}
+                            ${row('Kernel', info.system?.kernel)}
+                            ${row('Architecture', info.system?.architecture)}
+                        </table>
+                    </div>
+
+                    <div class="sysinfo-section">
+                        <h4>CPU</h4>
+                        <table class="sysinfo-table">
+                            ${row('Model', info.cpu?.model)}
+                            ${row('Sockets', info.cpu?.physical_cpus)}
+                            ${row('Cores', info.cpu?.total_cores)}
+                            ${row('Cores/Socket', info.cpu?.cores_per_socket)}
+                        </table>
+                    </div>
+
+                    <div class="sysinfo-section">
+                        <h4>Memory</h4>
+                        <table class="sysinfo-table">
+                            ${row('Total RAM', info.memory?.total_gb != null ? info.memory.total_gb + ' GB' : null)}
+                            ${row('Swap', info.memory?.swap_gb != null ? info.memory.swap_gb + ' GB' : null)}
+                        </table>
+                    </div>
+
+                    <div class="sysinfo-section">
+                        <h4>GPU</h4>
+                        <table class="sysinfo-table">
+                            ${row('Architecture', info.gpu?.arch)}
+                            ${row('Driver', info.gpu?.driver_version)}
+                        </table>
+                    </div>
+
+                    <div class="sysinfo-section">
+                        <h4>ROCm</h4>
+                        <table class="sysinfo-table">
+                            ${row('Version', info.rocm?.version)}
+                        </table>
+                    </div>
+
+                    <div class="sysinfo-section">
+                        <h4>Collection</h4>
+                        <table class="sysinfo-table">
+                            ${row('Timestamp', info.collection_info?.timestamp)}
+                        </table>
+                    </div>`;
+                grid.appendChild(card);
+            });
+
+            fragment.appendChild(grid);
+            container.innerHTML = '';
+            container.appendChild(fragment);
+        }
+
+        function renderRawData() {
+            const thead = document.querySelector('#rawDataTable thead');
+            const tbody = document.querySelector('#rawDataTable tbody');
+
+            thead.innerHTML = '<tr><th>System</th><th>Algorithm</th><th>Recall</th><th>Latency (ms)</th><th>Throughput (QPS)</th><th>Index</th></tr>';
+
+            let rows = '';
+            chartData.series.forEach(d => {
+                d.p.slice(0, 10).forEach(pt => {
+                    const p = expandPoint(pt);
+                    rows += `<tr>
+                        <td>${escapeHtml(d.s)}</td>
+                        <td style="color: ${colors.algorithms[d.a] || '#fff'}">${escapeHtml(d.a)}</td>
+                        <td>${(p.recall * 100).toFixed(2)}%</td>
+                        <td>${p.latency.toFixed(4)}</td>
+                        <td>${Math.round(p.throughput).toLocaleString()}</td>
+                        <td>${escapeHtml(p.index_name) || '-'}</td>
+                    </tr>`;
+                });
+            });
+
+            tbody.innerHTML = rows;
+        }
+
+        function setupEventListeners() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                });
+            });
+
+            document.querySelectorAll('[data-filter]').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const type = e.target.dataset.filter;
+                    const value = e.target.value;
+                    const label = e.target.parentElement;
+
+                    if (type === 'system') {
+                        if (e.target.checked) {
+                            activeFilters.systems.add(value);
+                            label.classList.add('checked');
+                        } else {
+                            activeFilters.systems.delete(value);
+                            label.classList.remove('checked');
+                        }
+                    } else {
+                        if (e.target.checked) {
+                            activeFilters.algorithms.add(value);
+                            label.classList.add('checked');
+                        } else {
+                            activeFilters.algorithms.delete(value);
+                            label.classList.remove('checked');
+                        }
+                    }
+
+                    // Destroy charts to force full rebuild with new filters
+                    if (charts.buildTime) {
+                        charts.buildTime.destroy();
+                        charts.buildTime = null;
+                    }
+                    // Destroy relative charts to force rebuild
+                    if (charts.relativeBuild) {
+                        charts.relativeBuild.destroy();
+                        charts.relativeBuild = null;
+                    }
+                    if (charts.relativeSearchLatency) {
+                        charts.relativeSearchLatency.destroy();
+                        charts.relativeSearchLatency = null;
+                    }
+                    if (charts.relativeSearchThroughput) {
+                        charts.relativeSearchThroughput.destroy();
+                        charts.relativeSearchThroughput = null;
+                    }
+
+                    renderCharts();
+                    renderRelativeBuildPerformance();
+                    renderRelativeSearchLatency();
+                    renderRelativeSearchThroughput();
+                });
+            });
+
+            document.getElementById('scaleSelect').addEventListener('change', renderCharts);
+            document.getElementById('buildTopN').addEventListener('change', renderBuildTimeChart);
+        }
+
+        init();
+    </script>
+</body>
+</html>
