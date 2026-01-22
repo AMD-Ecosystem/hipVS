@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -143,7 +143,8 @@ struct search : search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_T, Outp
     //
     // Determine the thread block size
     //
-    const unsigned min_block_size = raft::host_warp_size(raft::resource::get_cuda_stream(res)) * 2;
+    const int warp_size           = raft::host_warp_size(raft::resource::get_cuda_stream(res));
+    const unsigned min_block_size = warp_size * 2;
     constexpr unsigned min_block_size_radix = 256;
     constexpr unsigned max_block_size       = 1024;
     //
@@ -193,7 +194,7 @@ struct search : search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_T, Outp
       // If block size is 32, upper limit of shared memory size per
       // thread block is set to 4096. This is GPU generation dependent.
       constexpr unsigned ulimit_smem_size_cta32 = 4096;
-      while (smem_size > ulimit_smem_size_cta32 / 32 * block_size) {
+      while (smem_size > ulimit_smem_size_cta32 / warp_size * block_size) {
         block_size *= 2;
       }
 
@@ -229,7 +230,7 @@ struct search : search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_T, Outp
         smem_size += topk_by_radix_sort<MAX_ITOPK, INDEX_T>::smem_size * sizeof(std::uint32_t);
       }
     }
-    RAFT_LOG_DEBUG("# smem_size: %u", smem_size);
+
     hashmap_size = 0;
     if (small_hash_bitlen == 0 && !this->persistent) {
       hashmap_size = max_queries * hashmap::get_size(hash_bitlen);

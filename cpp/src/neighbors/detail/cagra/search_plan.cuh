@@ -14,6 +14,28 @@
  * limitations under the License.
  */
 
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #pragma once
 
 #include "hashmap.hpp"
@@ -300,8 +322,15 @@ struct search_plan_impl : public search_plan_impl_base {
         // visited per iteration.
         //
         const auto max_visited_nodes = itopk_size + (search_width * graph_degree * 1);
-        unsigned min_bitlen          = 8;   // 256
-        unsigned max_bitlen          = 13;  // 8K
+        unsigned min_bitlen          = 8;  // 256
+        // On AMD GPUs (warp_size=64), the LDS (shared memory) is limited to 64KB.
+        // We need to account for other shared memory usage when determining max_bitlen.
+        // Estimate: result_buffer (~itopk + search_width*graph_degree)*8 + radix_sort(~10KB) +
+        // dataset_ws To be safe on AMD, limit small hash to leave room for other smem usage.
+        // We're being conservative with a limit to avoid exceeding 64KB LDS
+        // With max_bitlen=11, hash table is 2K entries = 8KB, leaving ~50KB for other uses
+        const unsigned max_bitlen = (warp_size == 64) ? 11 : 13;
+
         if (min_bitlen < hashmap_min_bitlen) { min_bitlen = hashmap_min_bitlen; }
         hash_bitlen = min_bitlen;
         while (max_visited_nodes > hashmap::get_size(hash_bitlen) * max_fill_rate) {

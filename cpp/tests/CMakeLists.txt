@@ -11,7 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-# Modifications Copyright (c) 2024-2025 Advanced Micro Devices, Inc. Permission is hereby granted,
+# Modifications Copyright (c) 2024-2026 Advanced Micro Devices, Inc. Permission is hereby granted,
 # free of charge, to any person obtaining a copy of this software and associated documentation files
 # (the "Software"), to deal in the Software without restriction, including without limitation the
 # rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
@@ -187,6 +187,13 @@ if(BUILD_TESTS)
   ConfigureTest(
     NAME NEIGHBORS_ANN_BRUTE_FORCE_TEST
     PATH neighbors/ann_brute_force/test_float.cu neighbors/ann_brute_force/test_half.cu
+    GPUS 1
+    PERCENT 100
+  )
+
+  ConfigureTest(
+    NAME NEIGHBORS_ANN_CAGRA_TEST_LARGE_DATASET
+    PATH neighbors/ann_cagra/test_large_dataset.cu
     GPUS 1
     PERCENT 100
   )

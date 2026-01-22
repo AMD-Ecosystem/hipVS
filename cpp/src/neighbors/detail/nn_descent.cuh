@@ -15,7 +15,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -40,6 +40,7 @@
 #include "cuvs/distance/distance.h"
 #include "nn_descent_gnnd.hpp"
 
+#include <cstdint>
 #include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/nn_descent.hpp>
 
@@ -593,7 +594,9 @@ __launch_bounds__(BLOCK_SIZE)
                     int* locks,
                     DistData_t* l2_norms,
                     cuvs::distance::DistanceType metric,
-                    DistEpilogue_t dist_epilogue)
+                    DistEpilogue_t dist_epilogue,
+                    const size_t batch_offset,
+                    const size_t total_nrow)
 {
 #if (__CUDA_ARCH__ >= 700) || defined(__HIP_PLATFORM_AMD__)
 #ifdef __HIP_PLATFORM_AMD__
@@ -621,7 +624,7 @@ __launch_bounds__(BLOCK_SIZE)
   Index_t* new_neighbors = s_list;
   Index_t* old_neighbors = s_list + MAX_NUM_BI_SAMPLES;
 
-  size_t list_id      = blockIdx.x;
+  size_t list_id      = batch_offset + blockIdx.x;
   int2 list_new_size2 = sizes_new[list_id];
   int list_new_size   = list_new_size2.x + list_new_size2.y;
   int2 list_old_size2 = sizes_old[list_id];
@@ -758,7 +761,7 @@ __launch_bounds__(BLOCK_SIZE)
     int idx_in_list = step * num_warps + tx / raft::warp_size();
     if (idx_in_list >= list_new_size) continue;
     auto min_elem = get_min_item(s_list[idx_in_list], idx_in_list, new_neighbors, s_distances);
-    if (min_elem.id() < gridDim.x) {
+    if (static_cast<size_t>(min_elem.id()) < total_nrow) {
       insert_to_global_graph(min_elem, s_list[idx_in_list], graph, dists, graph_width, locks);
     }
   }
@@ -873,7 +876,7 @@ __launch_bounds__(BLOCK_SIZE)
       if (temp_min_item.dist() < min_elem.dist()) { min_elem = temp_min_item; }
     }
 
-    if (min_elem.id() < gridDim.x) {
+    if (static_cast<size_t>(min_elem.id()) < total_nrow) {
       insert_to_global_graph(min_elem, s_list[idx_in_list], graph, dists, graph_width, locks);
     }
   }
@@ -1180,44 +1183,58 @@ template <typename DistEpilogue_t>
 void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_epilogue)
 {
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
+  // The maximum number of threads in a kernel is (2^32 - 1), so the maximum grid dimension is (2^32
+  // - 1) / BLOCK_SIZE.
   if (host_warp_size(stream) == 32) {
-    constexpr int BLOCK_SIZE = 512;
-    local_join_kernel<BLOCK_SIZE>
-      <<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
-                                         h_rev_graph_new_.data_handle(),
-                                         d_list_sizes_new_.data_handle(),
-                                         h_graph_old_.data_handle(),
-                                         h_rev_graph_old_.data_handle(),
-                                         d_list_sizes_old_.data_handle(),
-                                         NUM_SAMPLES,
-                                         d_data_.data_handle(),
-                                         ndim_,
-                                         graph_buffer_.data_handle(),
-                                         dists_buffer_.data_handle(),
-                                         get_degree_on_device(res),
-                                         d_locks_.data_handle(),
-                                         l2_norms_.data_handle(),
-                                         build_config_.metric,
-                                         dist_epilogue);
+    constexpr int BLOCK_SIZE     = 512;
+    constexpr size_t kMaxGridDim = std::numeric_limits<uint32_t>::max() / BLOCK_SIZE;
+    for (size_t batch_offset = 0; batch_offset < nrow_; batch_offset += kMaxGridDim) {
+      size_t batch_size = std::min(kMaxGridDim, nrow_ - batch_offset);
+      local_join_kernel<BLOCK_SIZE>
+        <<<batch_size, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
+                                                h_rev_graph_new_.data_handle(),
+                                                d_list_sizes_new_.data_handle(),
+                                                h_graph_old_.data_handle(),
+                                                h_rev_graph_old_.data_handle(),
+                                                d_list_sizes_old_.data_handle(),
+                                                NUM_SAMPLES,
+                                                d_data_.data_handle(),
+                                                ndim_,
+                                                graph_buffer_.data_handle(),
+                                                dists_buffer_.data_handle(),
+                                                get_degree_on_device(res),
+                                                d_locks_.data_handle(),
+                                                l2_norms_.data_handle(),
+                                                build_config_.metric,
+                                                dist_epilogue,
+                                                batch_offset,
+                                                nrow_);
+    }
   } else {
-    constexpr int BLOCK_SIZE = 1024;
-    local_join_kernel<BLOCK_SIZE>
-      <<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
-                                         h_rev_graph_new_.data_handle(),
-                                         d_list_sizes_new_.data_handle(),
-                                         h_graph_old_.data_handle(),
-                                         h_rev_graph_old_.data_handle(),
-                                         d_list_sizes_old_.data_handle(),
-                                         NUM_SAMPLES,
-                                         d_data_.data_handle(),
-                                         ndim_,
-                                         graph_buffer_.data_handle(),
-                                         dists_buffer_.data_handle(),
-                                         get_degree_on_device(res),
-                                         d_locks_.data_handle(),
-                                         l2_norms_.data_handle(),
-                                         build_config_.metric,
-                                         dist_epilogue);
+    constexpr int BLOCK_SIZE     = 1024;
+    constexpr size_t kMaxGridDim = std::numeric_limits<uint32_t>::max() / BLOCK_SIZE;
+    for (size_t batch_offset = 0; batch_offset < nrow_; batch_offset += kMaxGridDim) {
+      size_t batch_size = std::min(kMaxGridDim, nrow_ - batch_offset);
+      local_join_kernel<BLOCK_SIZE>
+        <<<batch_size, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
+                                                h_rev_graph_new_.data_handle(),
+                                                d_list_sizes_new_.data_handle(),
+                                                h_graph_old_.data_handle(),
+                                                h_rev_graph_old_.data_handle(),
+                                                d_list_sizes_old_.data_handle(),
+                                                NUM_SAMPLES,
+                                                d_data_.data_handle(),
+                                                ndim_,
+                                                graph_buffer_.data_handle(),
+                                                dists_buffer_.data_handle(),
+                                                get_degree_on_device(res),
+                                                d_locks_.data_handle(),
+                                                l2_norms_.data_handle(),
+                                                build_config_.metric,
+                                                dist_epilogue,
+                                                batch_offset,
+                                                nrow_);
+    }
   }
 }
 

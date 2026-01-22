@@ -15,7 +15,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -43,6 +43,7 @@
 #include "topk_for_cagra/topk.h"  // TODO replace with raft topk if possible
 #include "utils.hpp"
 
+#include <cstddef>
 #include <raft/core/detail/macros.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/logger.hpp>
@@ -220,10 +221,10 @@ struct search : public search_plan_impl<DataT, IndexT, DistanceT, SAMPLE_FILTER_
 
   void check(const uint32_t topk) override
   {
-    RAFT_EXPECTS(num_cta_per_query * 32 >= topk,
-                 "`num_cta_per_query` (%u) * 32 must be equal to or greater than "
+    RAFT_EXPECTS(num_cta_per_query * raft::host_warp_size(0) >= topk,
+                 "`num_cta_per_query` (%u) * warp_size must be equal to or greater than "
                  "`topk` (%u) when 'search_mode' is \"multi-cta\". "
-                 "(`num_cta_per_query`=max(`search_width`, ceildiv(`itopk_size`, 32)))",
+                 "(`num_cta_per_query`=max(`search_width`, ceildiv(`itopk_size`, warp_size)))",
                  num_cta_per_query,
                  topk);
   }
