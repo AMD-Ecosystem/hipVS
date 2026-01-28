@@ -540,7 +540,11 @@ if(NOT BUILD_CPU_ONLY)
     src/neighbors/cagra_build_half.cu
     src/neighbors/cagra_build_int8.cu
     src/neighbors/cagra_extend_float.cu
-    src/neighbors/cagra_build_uint8.cu
+# <<<<<<< OLD CODE from e62f53e60 (d75b7189a) - COMMENTED OUT
+#     src/neighbors/cagra_build_uint8.cu
+# =======
+    src/neighbors/cagra_extend_half.cu
+# >>>>>>> END NEW CODE (d75b7189a)
     src/neighbors/cagra_extend_int8.cu
     src/neighbors/cagra_extend_uint8.cu
     src/neighbors/cagra_optimize.cu
