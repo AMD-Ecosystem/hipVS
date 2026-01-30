@@ -48,7 +48,10 @@ namespace cuvs::neighbors::ivf_flat {
  */
 
 /** Size of the interleaved group (see `index::data` description). */
-__device__ constexpr static uint32_t kIndexGroupSize = raft::warp_size();
+
+// Use fixed 64 for consistent host/device values across wf32 and wf64 targets
+// This ensures type consistency between host and device code.
+constexpr static uint32_t kIndexGroupSize = 64;
 
 struct index_params : cuvs::neighbors::index_params {
   /** The number of inverted lists (clusters) */
@@ -112,28 +115,29 @@ struct list_spec {
   using list_extents = raft::matrix_extent<SizeT>;
   using index_type   = IdxT;
 
-  SizeT align_max;
-  SizeT align_min;
   uint32_t dim;
+  const bool conservative_memory_allocation = false;
 
   constexpr list_spec(uint32_t dim, bool conservative_memory_allocation)
-    : dim(dim),
-      align_min(kIndexGroupSize),
-      align_max(conservative_memory_allocation ? kIndexGroupSize : 1024)
+    : dim(dim), conservative_memory_allocation(conservative_memory_allocation)
   {
   }
 
   // Allow casting between different size-types (for safer size and offset calculations)
   template <typename OtherSizeT>
   constexpr explicit list_spec(const list_spec<OtherSizeT, ValueT, IdxT>& other_spec)
-    : dim{other_spec.dim}, align_min{other_spec.align_min}, align_max{other_spec.align_max}
+    : dim{other_spec.dim}, conservative_memory_allocation{other_spec.conservative_memory_allocation}
   {
   }
 
   /** Determine the extents of an array enough to hold a given amount of data. */
   constexpr auto make_list_extents(SizeT n_rows) const -> list_extents
   {
-    return raft::make_extents<SizeT>(n_rows, dim);
+    // Round up to kIndexGroupSize to ensure enough memory for interleaved data layout.
+    // The build kernel writes data in interleaved groups of kIndexGroupSize vectors,
+    // so we must allocate full groups even if only partially filled.
+    SizeT rounded_rows = ((n_rows + kIndexGroupSize - 1) / kIndexGroupSize) * kIndexGroupSize;
+    return raft::make_extents<SizeT>(rounded_rows, dim);
   }
 };
 

@@ -304,12 +304,27 @@ void extend(raft::resources const& handle,
     raft::copy(new_list_sizes.data(), list_sizes_ptr, n_lists, stream);
     raft::resource::sync_stream(handle);
     auto& lists = index->lists();
-    for (uint32_t label = 0; label < n_lists; label++) {
-      ivf::resize_list(handle,
-                       lists[label],
-                       list_device_spec,
-                       new_list_sizes[label],
-                       raft::Pow2<kIndexGroupSize>::roundUp(old_list_sizes[label]));
+
+    const uint32_t warp_size = raft::host_warp_size(raft::resource::get_device_id(handle));
+
+    if (warp_size == 32) {
+      for (uint32_t label = 0; label < n_lists; label++) {
+        ivf::resize_list(handle,
+                         lists[label],
+                         list_device_spec,
+                         new_list_sizes[label],
+                         raft::Pow2<32>::roundUp(old_list_sizes[label]));
+      }
+    } else if (warp_size == 64) {
+      for (uint32_t label = 0; label < n_lists; label++) {
+        ivf::resize_list(handle,
+                         lists[label],
+                         list_device_spec,
+                         new_list_sizes[label],
+                         raft::Pow2<64>::roundUp(old_list_sizes[label]));
+      }
+    } else {
+      RAFT_FAIL("Unsupported warp size: %d", warp_size);
     }
   }
   // Update the pointers and the sizes

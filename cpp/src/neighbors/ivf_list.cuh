@@ -49,10 +49,12 @@ list<SpecT, SizeT, SpecExtraArgs...>::list(raft::resources const& res,
                                            size_type n_rows)
   : size{n_rows}, data{res}, indices{res}
 {
-  auto capacity = raft::round_up_safe<SizeT>(n_rows, spec.align_max);
-  if (n_rows < spec.align_max) {
-    capacity = raft::bound_by_power_of_two<SizeT>(std::max<SizeT>(n_rows, spec.align_min));
-    capacity = std::min<SizeT>(capacity, spec.align_max);
+  const SizeT warp_size = raft::host_warp_size(raft::resource::get_device_id(res));
+  const SizeT align_max = spec.conservative_memory_allocation ? warp_size : SizeT{1024};
+  SizeT capacity        = raft::round_up_safe<SizeT>(n_rows, align_max);
+  if (n_rows < align_max) {
+    capacity = raft::bound_by_power_of_two<SizeT>(std::max<SizeT>(n_rows, warp_size));
+    capacity = std::min<SizeT>(capacity, align_max);
   }
   try {
     data    = raft::make_device_mdarray<value_type>(res, spec.make_list_extents(capacity));

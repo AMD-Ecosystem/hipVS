@@ -83,12 +83,24 @@ void serialize(raft::resources const& handle, std::ostream& os, const index<T, I
   serialize_mdspan(handle, os, sizes_host.view());
 
   list_spec<uint32_t, T, IdxT> list_store_spec{index_.dim(), true};
-  for (uint32_t label = 0; label < index_.n_lists(); label++) {
-    ivf::serialize_list(handle,
-                        os,
-                        index_.lists()[label],
-                        list_store_spec,
-                        raft::Pow2<kIndexGroupSize>::roundUp(sizes_host(label)));
+  const uint32_t warp_size = raft::host_warp_size(raft::resource::get_device_id(handle));
+
+  if (warp_size == 32) {
+    for (uint32_t label = 0; label < index_.n_lists(); label++) {
+      ivf::serialize_list(handle,
+                          os,
+                          index_.lists()[label],
+                          list_store_spec,
+                          raft::Pow2<32>::roundUp(sizes_host(label)));
+    }
+  } else if (warp_size == 64) {
+    for (uint32_t label = 0; label < index_.n_lists(); label++) {
+      ivf::serialize_list(handle,
+                          os,
+                          index_.lists()[label],
+                          list_store_spec,
+                          raft::Pow2<64>::roundUp(sizes_host(label)));
+    }
   }
   raft::resource::sync_stream(handle);
 }

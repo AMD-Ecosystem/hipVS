@@ -912,6 +912,10 @@ RAFT_KERNEL __launch_bounds__(kThreadsPerBlock)
 
       constexpr int kUnroll        = raft::WarpSize / Veclen;
       constexpr uint32_t kNumWarps = kThreadsPerBlock / raft::WarpSize;
+
+      // Precompute interleaved group alignment helpers
+      using align_group = raft::Pow2<kIndexGroupSize>;
+
       // Every warp reads WarpSize vectors and computes the distances to them.
       // Then, the distances and corresponding ids are distributed among the threads,
       // and each thread adds one (id, dist) pair to the filtering queue.
@@ -920,21 +924,32 @@ RAFT_KERNEL __launch_bounds__(kThreadsPerBlock)
         AccT dist         = 0;
         AccT norm_query   = 0;
         AccT norm_dataset = 0;
-        // This is where this warp begins reading data (start position of an interleaved group)
-        const T* data = list_data_ptrs[list_id] + (group_id * kIndexGroupSize) * dim;
 
         // This is the vector a given lane/thread handles
         const uint32_t vec_id = group_id * raft::WarpSize + lane_id;
+
+        // Derive which interleaved group this vector belongs to and its offset within
+        // This is the key fix for wf32: vec_id and data access must be consistent
+        const uint32_t interleaved_group_id = align_group::div(vec_id);
+        const uint32_t offset_in_group      = align_group::mod(vec_id);
+
+        // Data pointer for the correct interleaved group
+        const T* data = list_data_ptrs[list_id] + (interleaved_group_id * kIndexGroupSize) * dim;
+
         const bool valid =
           vec_id < list_length && sample_filter(queries_offset + blockIdx.y, list_id, vec_id);
 
         if (valid) {
+          // Use offset_in_group (not lane_id) to access the correct vector within the
+          // interleaved group. This is critical for wf32 where WarpSize != kIndexGroupSize.
+          const int load_idx = static_cast<int>(offset_in_group);
+
           // Process first shm_assisted_dim dimensions (always using shared memory)
           loadAndComputeDist<kUnroll, decltype(compute_dist), Veclen, T, AccT, ComputeNorm> lc(
             dist, compute_dist, norm_query, norm_dataset);
           for (int pos = 0; pos < shm_assisted_dim;
                pos += raft::WarpSize, data += kIndexGroupSize * raft::WarpSize) {
-            lc.runLoadShmemCompute(data, query_shared, lane_id, pos);
+            lc.runLoadShmemCompute(data, query_shared, load_idx, pos);
           }
 
           if (dim > query_smem_elems) {
@@ -951,7 +966,7 @@ RAFT_KERNEL __launch_bounds__(kThreadsPerBlock)
               dist, compute_dist, norm_query, norm_dataset);
             for (int pos = full_warps_along_dim; pos < dim;
                  pos += Veclen, data += kIndexGroupSize * Veclen) {
-              lc.runLoadShmemCompute(data, query_shared, lane_id, pos);
+              lc.runLoadShmemCompute(data, query_shared, load_idx, pos);
             }
           }
         }
