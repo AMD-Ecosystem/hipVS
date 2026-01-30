@@ -508,6 +508,9 @@ RAFT_KERNEL block_rbc_kernel_eps_dense(const value_t* X_reordered,
 
     // reverse to use __CLZ instead of __ffs
     lane_mask = __BREV(lane_mask);
+    // Use bitmask MSB position for the mask, not WarpSize - 1
+    // This is critical for AMD wf32 where bitmask_type is 64-bit but WarpSize is 32
+    constexpr int kBitmaskMSBIndex = sizeof(bitmask_type) * 8 - 1;
     do {
       // look for next k_offset
       const uint32_t k_offset = __CLZ(lane_mask);
@@ -518,8 +521,8 @@ RAFT_KERNEL block_rbc_kernel_eps_dense(const value_t* X_reordered,
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
-      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex)) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex)) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
@@ -635,6 +638,9 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
 
     // reverse to use __CLZ instead of __ffs
     lane_mask = __BREV(lane_mask);
+    // Use bitmask MSB position for the mask, not WarpSize - 1
+    // This is critical for AMD wf32 where bitmask_type is 64-bit but WarpSize is 32
+    constexpr int kBitmaskMSBIndex = sizeof(bitmask_type) * 8 - 1;
     do {
       // look for next k_offset
       const uint32_t k_offset = __CLZ(lane_mask);
@@ -645,8 +651,8 @@ RAFT_KERNEL block_rbc_kernel_eps_csr_pass(const value_t* X_reordered,
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
-      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex )) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex)) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
@@ -781,6 +787,9 @@ RAFT_KERNEL __launch_bounds__(tpb)
 
     // reverse to use __CLZ instead of __ffs
     lane_mask = __BREV(lane_mask);
+    // Use bitmask MSB position for the mask, not WarpSize - 1
+    // This is critical for AMD wf32 where bitmask_type is 64-bit but WarpSize is 32
+    constexpr int kBitmaskMSBIndex = sizeof(bitmask_type) * 8 - 1;
     do {
       // look for next k_offset
       const uint32_t k_offset = __CLZ(lane_mask);
@@ -791,8 +800,8 @@ RAFT_KERNEL __launch_bounds__(tpb)
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
-      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex )) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex)) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
@@ -914,6 +923,9 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
 
     // reverse to use __CLZ instead of __ffs
     lane_mask = __BREV(lane_mask);
+    // Use bitmask MSB position for the mask, not WarpSize - 1
+    // This is critical for AMD wf32 where bitmask_type is 64-bit but WarpSize is 32
+    constexpr int kBitmaskMSBIndex = sizeof(bitmask_type) * 8 - 1;
     do {
       // look for next k_offset
       const uint32_t k_offset = __CLZ(lane_mask);
@@ -924,8 +936,8 @@ RAFT_KERNEL block_rbc_kernel_eps_max_k(const value_t* X_reordered,
       const value_idx R_start_offset = R_indptr[cur_k];
 
       // update lane_mask for next iteration - erase bits up to k_offset
-      // Note: (~(static_cast<bitmask_type>(1) << (WarpSize - 1))) gives all bits except MSB set
-      lane_mask &= ((~(static_cast<bitmask_type>(1) << (raft::WarpSize - 1))) >> k_offset);
+      // Note: (~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex )) gives all bits except MSB set
+      lane_mask &= ((~(static_cast<bitmask_type>(1) << kBitmaskMSBIndex)) >> k_offset);
 
       const uint32_t R_size = R_indptr[cur_k + 1] - R_start_offset;
 
