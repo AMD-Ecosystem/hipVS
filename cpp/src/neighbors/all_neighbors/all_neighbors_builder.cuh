@@ -36,6 +36,7 @@
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/matrix/gather.cuh>
 #include <raft/util/cudart_utils.hpp>
+#include <raft/util/pow2_utils.cuh>
 
 namespace cuvs::neighbors::all_neighbors::detail {
 using namespace cuvs::neighbors;
@@ -351,8 +352,14 @@ struct all_neighbors_builder_nn_descent : public all_neighbors_builder<T, IdxT> 
                                                              graph_degree);
     build_config.output_graph_degree = this->k;
     nnd_builder.emplace(this->res, build_config);
+    // Allocate int_graph with align64-rounded degree to match GnndGraph's internal node_degree
+    // which is align64::roundUp(build_config.node_degree). Without this, on wf32 machines
+    // extended_graph_degree may be 32 but GnndGraph uses 64-element rows, causing out-of-bounds.
+    // Note: GNND::build writes results with stride extended_graph_degree, not the rounded value.
+    using align64          = raft::Pow2<64>;
+    extended_graph_degree_ = extended_graph_degree;
     int_graph.emplace(raft::make_host_matrix<int, IdxT, row_major>(
-      this->max_cluster_size, static_cast<IdxT>(extended_graph_degree)));
+      this->max_cluster_size, static_cast<IdxT>(align64::roundUp(extended_graph_degree))));
 
     if constexpr (std::is_same_v<
                     DistEpilogueT,
@@ -460,11 +467,13 @@ struct all_neighbors_builder_nn_descent : public all_neighbors_builder<T, IdxT> 
 
       auto tmp_indices = raft::make_host_matrix<IdxT, IdxT>(int_graph.value().extent(0), this->k);
 
-      // host slice
+      // host slice - use extended_graph_degree_ as stride since GNND::build writes with that
+      // stride, not the larger align64-rounded allocation stride
+      auto* int_graph_ptr = int_graph.value().data_handle();
 #pragma omp parallel for
       for (size_t i = 0; i < num_rows; i++) {
         for (size_t j = 0; j < this->k; j++) {
-          tmp_indices(i, j) = static_cast<IdxT>(int_graph.value()(i, j));
+          tmp_indices(i, j) = static_cast<IdxT>(int_graph_ptr[i * extended_graph_degree_ + j]);
         }
       }
 
@@ -498,6 +507,7 @@ struct all_neighbors_builder_nn_descent : public all_neighbors_builder<T, IdxT> 
 
   std::optional<nn_descent::detail::GNND<const T, int>> nnd_builder;
   std::optional<raft::host_matrix<int, IdxT>> int_graph;
+  size_t extended_graph_degree_{0};  // stride used by GNND::build for output
 
   DistEpilogueT dist_epilogue;
   std::optional<raft::device_vector<T, IdxT>> batch_core_distances;

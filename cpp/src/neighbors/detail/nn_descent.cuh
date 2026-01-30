@@ -1131,7 +1131,9 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
       res, nrow_, get_degree_on_device(res))},
     dists_host_buffer_{raft::make_pinned_matrix<DistData_t, size_t, raft::row_major>(
       res, nrow_, get_degree_on_device(res))},
-    d_locks_{raft::make_device_vector<int, size_t>(res, nrow_)},
+    // d_locks_ needs nrow * num_segments elements, where num_segments = node_degree / warp_size
+    d_locks_{raft::make_device_vector<int, size_t>(
+      res, nrow_ * (align64::roundUp(build_config.node_degree) / get_degree_on_device(res)))},
     h_rev_graph_new_{
       raft::make_pinned_matrix<Index_t, size_t, raft::row_major>(res, nrow_, NUM_SAMPLES)},
     h_graph_old_(
@@ -1465,8 +1467,10 @@ void build(raft::resources const& res,
                                        extended_graph_degree,
                                        graph_degree);
 
+  // Allocate int_graph with align64-rounded degree to match GnndGraph's internal node_degree
+  // which is align64::roundUp(build_config.node_degree)
   auto int_graph = raft::make_host_matrix<int, int64_t, raft::row_major>(
-    dataset.extent(0), static_cast<int64_t>(extended_graph_degree));
+    dataset.extent(0), static_cast<int64_t>(align64::roundUp(extended_graph_degree)));
 
   GNND<const T, int> nnd(res, build_config);
 
@@ -1487,7 +1491,8 @@ void build(raft::resources const& res,
 #pragma omp parallel for
   for (size_t i = 0; i < static_cast<size_t>(dataset.extent(0)); i++) {
     for (size_t j = 0; j < graph_degree; j++) {
-      auto graph                  = idx.graph().data_handle();
+      auto graph = idx.graph().data_handle();
+      // GNND::build() shrinking code writes with stride extended_graph_degree (not aligned)
       graph[i * graph_degree + j] = int_graph.data_handle()[i * extended_graph_degree + j];
     }
   }

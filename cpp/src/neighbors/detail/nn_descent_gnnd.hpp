@@ -38,11 +38,10 @@ constexpr int counter_interval{100};
 template <typename Index_t>
 struct InternalID_t;
 
-inline size_t roundUp(size_t num, raft::resources const& res)
+inline size_t roundUp64(size_t num)
 {
-  const auto warp_size = raft::host_warp_size(raft::resource::get_device_id(res));
-  ASSERT(warp_size == 32 || warp_size == 64, "Warp size must be a multiple of 32 or 64");
-  return (num + warp_size - 1) / warp_size * warp_size;
+  constexpr auto multiple = 64;
+  return (num + multiple - 1) / multiple * multiple;
 }
 
 // InternalID_t uses 1 bit for marking (new or old).
@@ -309,9 +308,9 @@ inline BuildConfig get_build_config(raft::resources const& res,
   // to mitigate bucket collisions. `intermediate_degree` is OK to larger than
   // extended_graph_degree.
   extended_graph_degree =
-    roundUp(static_cast<size_t>(graph_degree * (graph_degree <= 32 ? 1.0 : 1.3)), res);
-  size_t extended_intermediate_degree = roundUp(
-    static_cast<size_t>(intermediate_degree * (intermediate_degree <= 32 ? 1.0 : 1.3)), res);
+    roundUp64(static_cast<size_t>(graph_degree * (graph_degree <= 32 ? 1.0 : 1.3)));
+  size_t extended_intermediate_degree =
+    roundUp64(static_cast<size_t>(intermediate_degree * (intermediate_degree <= 32 ? 1.0 : 1.3)));
 
   BuildConfig build_config{.max_dataset_size      = num_rows,
                            .dataset_dim           = num_cols,
