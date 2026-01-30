@@ -46,6 +46,7 @@
 #ifdef __HIP_PLATFORM_AMD__
 #include <cuvs/cuda_runtime.h>
 #endif
+#include <algorithm>
 #include <rmm/cuda_stream_view.hpp>  // rmm::cuda_stream_view
 #include <type_traits>
 
@@ -471,6 +472,7 @@ RAFT_KERNEL compute_similarity_kernel(uint32_t dim,
     uint32_t n_samples_aligned    = group_align::roundUp(n_samples);
     constexpr uint32_t kChunkSize = (kIndexGroupVecLen * 8u) / PqBits;
     uint32_t pq_line_width = raft::div_rounding_up_unsafe(pq_dim, kChunkSize) * kIndexGroupVecLen;
+
     auto pq_thread_data = pq_dataset[label] + group_align::roundDown(threadIdx.x) * pq_line_width +
                           group_align::mod(threadIdx.x) * vec_align::Value;
     pq_line_width *= blockDim.x;
@@ -787,7 +789,8 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
   //   1. It's a power-of-two for efficient L1 caching of pq_centers values
   //      (multiples of `1 << pq_bits`).
   //   2. It should be large enough to fully utilize an SM.
-  uint32_t n_threads_min = dev_props.warpSize;
+  //   3. It must be at least kIndexGroupSize for correct interleaved data access.
+  uint32_t n_threads_min = kIndexGroupSize;
   while (dev_props.maxBlocksPerMultiProcessor * int(n_threads_min) <
          dev_props.maxThreadsPerMultiProcessor) {
     n_threads_min *= 2;

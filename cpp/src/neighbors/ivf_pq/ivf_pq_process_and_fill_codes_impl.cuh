@@ -96,10 +96,13 @@ void launch_process_and_fill_codes_kernel(
   const uint32_t* new_labels,
   IdxT n_rows)
 {
-  constexpr uint32_t kBlockSize  = 256;
-  const uint32_t threads_per_vec = std::min<uint32_t>(raft::WarpSize, index.pq_book_size());
+  constexpr uint32_t kBlockSize = 256;
+  // Use runtime warp size instead of compile-time raft::WarpSize (which is 64 on host)
+  const uint32_t warp_size       = raft::host_warp_size(raft::resource::get_device_id(handle));
+  const uint32_t threads_per_vec = std::min<uint32_t>(warp_size, index.pq_book_size());
   dim3 blocks(raft::div_rounding_up_safe<IdxT>(n_rows, kBlockSize / threads_per_vec), 1, 1);
   dim3 threads(kBlockSize, 1, 1);
+
   auto kernel = [](uint32_t pq_bits) {
     switch (pq_bits) {
       case 4: return process_and_fill_codes_kernel<kBlockSize, 4, IdxT>;

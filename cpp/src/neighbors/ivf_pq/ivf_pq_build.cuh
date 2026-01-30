@@ -1145,6 +1145,7 @@ void extend(raft::resources const& handle,
   // Try to allocate an index with the same parameters and the projected new size
   // (which can be slightly larger than index->size() + n_rows, due to padding).
   // If this fails, the index would be too big to fit in the device anyway.
+
   std::optional<list_data<IdxT, size_t>> placeholder_list(
     std::in_place_t{},
     handle,

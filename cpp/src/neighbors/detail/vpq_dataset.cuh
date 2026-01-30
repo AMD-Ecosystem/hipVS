@@ -497,7 +497,9 @@ auto process_and_fill_codes_subspaces(
   // TODO: with scaling workspace we could choose the batch size dynamically
   constexpr ix_t kReasonableMaxBatchSize = 65536;
   constexpr ix_t kBlockSize              = 256;
-  const ix_t threads_per_vec             = std::min<ix_t>(raft::WarpSize, pq_n_centers);
+  // Use runtime warp size instead of compile-time raft::WarpSize
+  const ix_t warp_size       = raft::host_warp_size(raft::resource::get_device_id(res));
+  const ix_t threads_per_vec = std::min<ix_t>(warp_size, pq_n_centers);
   dim3 threads(kBlockSize, 1, 1);
   ix_t max_batch_size = std::min<ix_t>(n_rows, kReasonableMaxBatchSize);
   auto kernel         = [](uint32_t pq_bits) {

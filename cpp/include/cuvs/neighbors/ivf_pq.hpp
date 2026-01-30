@@ -234,7 +234,7 @@ static_assert(std::is_aggregate_v<index_params>);
 static_assert(std::is_aggregate_v<search_params>);
 
 /** Size of the interleaved group. */
-__device__ constexpr static uint32_t kIndexGroupSize = raft::warp_size();
+constexpr static uint32_t kIndexGroupSize = 64;
 /** Stride of the interleaved group for vectorized loads. */
 constexpr static uint32_t kIndexGroupVecLen = 16;
 
@@ -261,8 +261,7 @@ struct list_spec {
   using list_extents = raft::
     extents<SizeT, raft::dynamic_extent, raft::dynamic_extent, kIndexGroupSize, kIndexGroupVecLen>;
 
-  SizeT align_max;
-  SizeT align_min;
+  const bool conservative_memory_allocation = false;
   uint32_t pq_bits;
   uint32_t pq_dim;
 
@@ -280,10 +279,7 @@ template <typename SizeT, typename IdxT>
 constexpr list_spec<SizeT, IdxT>::list_spec(uint32_t pq_bits,
                                             uint32_t pq_dim,
                                             bool conservative_memory_allocation)
-  : pq_bits(pq_bits),
-    pq_dim(pq_dim),
-    align_min(kIndexGroupSize),
-    align_max(conservative_memory_allocation ? kIndexGroupSize : 1024)
+  : pq_bits(pq_bits), pq_dim(pq_dim), conservative_memory_allocation(conservative_memory_allocation)
 {
 }
 
@@ -292,8 +288,7 @@ template <typename OtherSizeT>
 constexpr list_spec<SizeT, IdxT>::list_spec(const list_spec<OtherSizeT, IdxT>& other_spec)
   : pq_bits{other_spec.pq_bits},
     pq_dim{other_spec.pq_dim},
-    align_min{other_spec.align_min},
-    align_max{other_spec.align_max}
+    conservative_memory_allocation{other_spec.conservative_memory_allocation}
 {
 }
 
