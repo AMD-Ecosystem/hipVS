@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 # Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
@@ -45,8 +45,12 @@ authors = [
 # license = "Apache-2.0 AND MIT"
 # =======
 license = "Apache-2.0"
-# >>>>>>> END NEW CODE (0561f6914)
-requires-python = ">=3.10"
+# <<<<<<< OLD CODE from a2020b3ae (386565b98) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (0561f6914)
+# requires-python = ">=3.10"
+# =======
+requires-python = ">=3.11"
+# >>>>>>> END NEW CODE (386565b98)
 dependencies = [
     "click",
 # <<<<<<< OLD CODE from 50dd37fd1 (f713356e6) - COMMENTED OUT
@@ -82,7 +86,6 @@ classifiers = [
     "Topic :: Database",
     "Topic :: Scientific/Engineering",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",

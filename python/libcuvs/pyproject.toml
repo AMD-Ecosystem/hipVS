@@ -64,11 +64,15 @@ authors = [
 # license = { text = "Apache-2.0 AND MIT" }
 # =======
 license = "Apache-2.0"
-# >>>>>>> END NEW CODE (0561f6914)
-requires-python = ">=3.10"
-# <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
-# dependencies = []
+# <<<<<<< OLD CODE from a2020b3ae (386565b98) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (0561f6914)
+# requires-python = ">=3.10"
+# # <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
+# # dependencies = []
+# # =======
 # =======
+requires-python = ">=3.11"
+# >>>>>>> END NEW CODE (386565b98)
 dependencies = [
     "cuda-toolkit[cublas,curand,cusolver,cusparse]>=12,<14",
     "libraft==26.4.*,>=0.0.0a0",
