@@ -62,15 +62,19 @@ jobs:
       matrix:
         cuda_version:
           - '12.9.1'
-# <<<<<<< OLD CODE from 1bad3fe49 (25cf5dab5) - COMMENTED OUT
-# # <<<<<<< OLD CODE from cc25d6980 (9d9e6c870) - COMMENTED OUT
-# #           - '13.0.0'
+# <<<<<<< OLD CODE from eeab28d09 (f1447513d) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 1bad3fe49 (25cf5dab5) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from cc25d6980 (9d9e6c870) - COMMENTED OUT
+# # #           - '13.0.0'
+# # # =======
+# #           - '13.0.2'
+# # # >>>>>>> END NEW CODE (9d9e6c870)
 # # =======
-#           - '13.0.2'
-# # >>>>>>> END NEW CODE (9d9e6c870)
+#           - '13.1.0'
+# # >>>>>>> END NEW CODE (25cf5dab5)
 # =======
-          - '13.1.0'
-# >>>>>>> END NEW CODE (25cf5dab5)
+          - '13.1.1'
+# >>>>>>> END NEW CODE (f1447513d)
     with:
       build_type: ${{ inputs.build_type }}
       branch: ${{ inputs.branch }}
