@@ -26,7 +26,7 @@
 # # THE SOFTWARE.
 # =======
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # >>>>>>> END NEW CODE (5a0ba144f)
@@ -44,8 +44,12 @@ include(rapids-find)
 # ------------- configure project --------------#
 option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
 
-# CXX is needed for building dependencies
-set(lang_list "C" "CXX")
+# <<<<<<< OLD CODE from 12c02fa43 (62e0cbce4) - COMMENTED OUT
+# # CXX is needed for building dependencies
+# set(lang_list "C" "CXX")
+# =======
+rapids_cuda_init_architectures(test_cuvs_c)
+# >>>>>>> END NEW CODE (62e0cbce4)
 
 if(CUDA_BACKEND)
   include(rapids-cuda)
@@ -65,6 +69,7 @@ rapids_cpm_init()
 set(BUILD_CUVS_C_LIBRARY ON)
 include(../cmake/thirdparty/get_dlpack.cmake)
 include(../cmake/thirdparty/get_cuvs.cmake)
+find_package(CUDAToolkit REQUIRED)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
 
