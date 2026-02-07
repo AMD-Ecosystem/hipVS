@@ -1,37 +1,41 @@
 /*
-// <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-//  * Copyright (c) 2023-2024, NVIDIA CORPORATION.
-//  *
-//  * Licensed under the Apache License, Version 2.0 (the "License");
-//  * you may not use this file except in compliance with the License.
-//  * You may obtain a copy of the License at
-//  *
-//  *     http://www.apache.org/licenses/LICENSE-2.0
-//  *
-//  * Unless required by applicable law or agreed to in writing, software
-//  * distributed under the License is distributed on an "AS IS" BASIS,
-//  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  * See the License for the specific language governing permissions and
-//  * limitations under the License.
-//  *
-//  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-//  * Permission is hereby granted, free of charge, to any person obtaining a copy
-//  * of this software and associated documentation files (the "Software"), to deal
-//  * in the Software without restriction, including without limitation the rights
-//  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  * copies of the Software, and to permit persons to whom the Software is
-//  * furnished to do so, subject to the following conditions:
-//  * The above copyright notice and this permission notice shall be included in
-//  * all copies or substantial portions of the Software.
-//  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  * THE SOFTWARE.
+// <<<<<<< OLD CODE from 6bae917b1 (cc1a0c4ff) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
 // =======
- * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (cc1a0c4ff)
  * SPDX-License-Identifier: Apache-2.0
 // >>>>>>> END NEW CODE (5a0ba144f)
  */
@@ -114,17 +118,25 @@ template <typename T>
 RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x, uint32_t team_size_bitshift) -> T
 {
   switch (team_size_bitshift) {
-    // TODO: (HIP/AMD) This was originally using raft::shfl_xor but this completely breaks
-    // single-CTA search. When calling raft::shfl_xor we would fail to exit the main loop in
-    // *search_core*. This needs further investigation. raft::shfl_xor should after it being inlined
-    // should be calling __shfl_xor_sync under the hood so this makes no  sense. See:internal issue
-    // #20
-    case 6: x += __shfl_xor_sync(__activemask(), x, 32, raft::warp_size());
-    case 5: x += __shfl_xor_sync(__activemask(), x, 16, raft::warp_size());
-    case 4: x += __shfl_xor_sync(__activemask(), x, 8, raft::warp_size());
-    case 3: x += __shfl_xor_sync(__activemask(), x, 4, raft::warp_size());
-    case 2: x += __shfl_xor_sync(__activemask(), x, 2, raft::warp_size());
-    case 1: x += __shfl_xor_sync(__activemask(), x, 1, raft::warp_size());
+// <<<<<<< OLD CODE from 6bae917b1 (cc1a0c4ff) - COMMENTED OUT
+//     // TODO: (HIP/AMD) This was originally using raft::shfl_xor but this completely breaks
+//     // single-CTA search. When calling raft::shfl_xor we would fail to exit the main loop in
+//     // *search_core*. This needs further investigation. raft::shfl_xor should after it being inlined
+//     // should be calling __shfl_xor_sync under the hood so this makes no  sense. See:internal issue
+//     // #20
+//     case 6: x += __shfl_xor_sync(__activemask(), x, 32, raft::warp_size());
+//     case 5: x += __shfl_xor_sync(__activemask(), x, 16, raft::warp_size());
+//     case 4: x += __shfl_xor_sync(__activemask(), x, 8, raft::warp_size());
+//     case 3: x += __shfl_xor_sync(__activemask(), x, 4, raft::warp_size());
+//     case 2: x += __shfl_xor_sync(__activemask(), x, 2, raft::warp_size());
+//     case 1: x += __shfl_xor_sync(__activemask(), x, 1, raft::warp_size());
+// =======
+    case 5: x += raft::shfl_xor(x, 16); [[fallthrough]];
+    case 4: x += raft::shfl_xor(x, 8); [[fallthrough]];
+    case 3: x += raft::shfl_xor(x, 4); [[fallthrough]];
+    case 2: x += raft::shfl_xor(x, 2); [[fallthrough]];
+    case 1: x += raft::shfl_xor(x, 1); [[fallthrough]];
+// >>>>>>> END NEW CODE (cc1a0c4ff)
     default: return x;
   }
 }
@@ -149,8 +161,12 @@ RAFT_DEVICE_INLINE_FUNCTION void compute_distance_to_random_nodes(
   const uint32_t num_blocks = 1)
 {
   const auto team_size_bits = dataset_desc.team_size_bitshift_from_smem();
-  const auto max_i = raft::round_up_safe<uint32_t>(num_pickup, raft::warp_size() >> team_size_bits);
-  const auto compute_distance = dataset_desc.compute_distance_impl;
+// <<<<<<< OLD CODE from 6bae917b1 (cc1a0c4ff) - COMMENTED OUT
+//   const auto max_i = raft::round_up_safe<uint32_t>(num_pickup, raft::warp_size() >> team_size_bits);
+//   const auto compute_distance = dataset_desc.compute_distance_impl;
+// =======
+  const auto max_i = raft::round_up_safe<uint32_t>(num_pickup, warp_size >> team_size_bits);
+// >>>>>>> END NEW CODE (cc1a0c4ff)
 
   for (uint32_t i = threadIdx.x >> team_size_bits; i < max_i; i += (blockDim.x >> team_size_bits)) {
     const bool valid_i = (i < num_pickup);
@@ -159,7 +175,7 @@ RAFT_DEVICE_INLINE_FUNCTION void compute_distance_to_random_nodes(
     DistanceT best_norm2_team_local = raft::upper_bound<DistanceT>();
     for (uint32_t j = 0; j < num_distilation; j++) {
       // Select a node randomly and compute the distance to it
-      IndexT seed_index;
+      IndexT seed_index = 0;
       if (valid_i) {
         // uint32_t gid = i + (num_pickup * (j + (num_distilation * block_id)));
         uint32_t gid = block_id + (num_blocks * (i + (num_pickup * j)));
