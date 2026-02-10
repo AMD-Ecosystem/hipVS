@@ -219,7 +219,7 @@ function gpuArch {
 
     # Check for gpu-arch option
     if [[ -n $(echo "$ARGS" | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
-        GPU_ARCH_ARG=$(echo "$ARGS" | { grep -Eo "\-\-gpu\-arch=.+( |$)" || true; })
+        GPU_ARCH_ARG=$(echo "$ARGS" | { grep -Eo "\-\-gpu\-arch=[^ ]+" || true; })
         if [[ -n ${GPU_ARCH_ARG} ]]; then
             # Remove the full argument from ARGS
             ARGS=${ARGS//$GPU_ARCH_ARG/}
@@ -365,10 +365,17 @@ fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || hasArg examples || hasArg bench-ann; then
+# <<<<<<< OLD CODE from 8626ab5ad (131cbc479) - COMMENTED OUT
+# if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || hasArg examples || hasArg bench-ann; then
+# =======
+if (( NUMARGS == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
+# >>>>>>> END NEW CODE (131cbc479)
     COMPILE_LIBRARY=ON
     if [[ "${BUILD_SHARED_LIBS}" != "OFF" ]]; then
         CMAKE_TARGET+=("cuvs")
+        if hasArg examples; then
+            CMAKE_TARGET+=("cuvs_c")
+        fi
     fi
 
     # get the current count before the compile starts
