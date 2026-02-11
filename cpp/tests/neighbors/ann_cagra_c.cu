@@ -103,6 +103,7 @@ TEST(CagraC, BuildSearch)
   // build index
   cuvsCagraIndexParams_t build_params;
   cuvsCagraIndexParamsCreate(&build_params);
+  build_params->nn_descent_niter = 40;
   cuvsCagraBuild(res, build_params, &dataset_tensor, index);
 
   // create queries DLTensor

@@ -45,6 +45,7 @@ def test_nn_descent(
     params = nn_descent.IndexParams(
         metric=metric,
         graph_degree=graph_degree,
+        max_iterations=40,
         return_distances=return_distances,
     )
     index = nn_descent.build(
