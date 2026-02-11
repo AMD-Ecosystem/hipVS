@@ -146,8 +146,8 @@ cdef class IndexParams:
 
     Parameters
     ----------
-    hierarchy : string, default = "none" (optional)
-        The hierarchy of the HNSW index. Valid values are ["none", "cpu"].
+    hierarchy : string, default = "gpu" (optional)
+        The hierarchy of the HNSW index. Valid values are ["none", "cpu", "gpu"].
         - "none": No hierarchy is built.
         - "cpu": Hierarchy is built using CPU.
         - "gpu": Hierarchy is built using GPU.
@@ -186,7 +186,7 @@ cdef class IndexParams:
             cuvsLogLastErrorText()
 
     def __init__(self, *,
-                 hierarchy="none",
+                 hierarchy="gpu",
                  ef_construction=200,
                  num_threads=0,
                  M=32,
