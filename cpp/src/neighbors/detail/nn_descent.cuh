@@ -1290,14 +1290,20 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
   graph_.init_random_graph();
   graph_.sample_graph(true);
 
-  auto update_and_sample = [&](bool update_graph) {
+  auto update_and_sample = [&](bool update_graph, size_t iteration) {
     if (update_graph) {
       update_counter_ = 0;
       graph_.update_graph(graph_host_buffer_.data_handle(),
                           dists_host_buffer_.data_handle(),
                           get_degree_on_device(res),
                           update_counter_);
-      if (update_counter_ < build_config_.termination_threshold * nrow_ *
+      // Only check termination after a minimum number of iterations.
+      // On wf32 the first few iterations produce sparse updates that can
+      // miss all sampled rows (counter_interval=100), triggering a false
+      // early termination before the graph has had a chance to converge.
+      constexpr size_t min_iterations_before_termination = 5;
+      if (iteration >= min_iterations_before_termination &&
+          update_counter_ < build_config_.termination_threshold * nrow_ *
                               build_config_.dataset_dim / counter_interval) {
         update_counter_ = -1;
       }
@@ -1320,7 +1326,7 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
                raft::resource::get_cuda_stream(res));
     raft::resource::sync_stream(res);
 
-    std::thread update_and_sample_thread(update_and_sample, it);
+    std::thread update_and_sample_thread(update_and_sample, it > 0, it);
 
     RAFT_LOG_DEBUG("# GNND iteraton: %lu / %lu", it + 1, build_config_.max_iterations);
 
