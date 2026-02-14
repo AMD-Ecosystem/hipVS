@@ -439,6 +439,29 @@ if(NOT BUILD_CPU_ONLY)
     )
   endif()
 
+  set(JIT_LTO_TARGET_ARCHITECTURE "")
+  set(JIT_LTO_COMPILATION OFF)
+  set(JIT_LTO_FILES "")
+  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+    set(JIT_LTO_TARGET_ARCHITECTURE "75-real")
+    set(JIT_LTO_COMPILATION ON)
+  endif()
+
+  if(JIT_LTO_COMPILATION)
+    # Generate interleaved scan kernel files at build time
+    include(cmake/modules/generate_jit_lto_kernels.cmake)
+    generate_jit_lto_kernels(cuvs_jit_lto_kernels)
+    add_library(cuvs::cuvs_jit_lto_kernels ALIAS cuvs_jit_lto_kernels)
+
+    set(JIT_LTO_FILES
+        src/detail/jit_lto/AlgorithmLauncher.cu
+        src/detail/jit_lto/AlgorithmPlanner.cu
+        src/detail/jit_lto/FragmentDatabase.cu
+        src/detail/jit_lto/FragmentEntry.cu
+        src/detail/jit_lto/nvjitlink_checker.cpp
+    )
+  endif()
+
   add_library(
     cuvs_objs OBJECT
     src/cluster/detail/minClusterDistanceCompute.cu
@@ -663,6 +686,7 @@ if(NOT BUILD_CPU_ONLY)
     src/stats/silhouette_score.cu
     src/stats/trustworthiness_score.cu
     ${CUVS_MG_ALGOS}
+    $<$<BOOL:${JIT_LTO_COMPILATION}>:${JIT_LTO_FILES}>
   )
 
   set_target_properties(
@@ -681,7 +705,12 @@ if(NOT BUILD_CPU_ONLY)
   target_compile_definitions(
     cuvs_objs
     PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-            $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED> $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
+# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
+#             $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED> $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
+# =======
+            $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+            $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
+# >>>>>>> END NEW CODE (43d648565)
   )
 
   target_link_libraries(
@@ -692,6 +721,13 @@ if(NOT BUILD_CPU_ONLY)
             ${CUVS_CTK_MATH_DEPENDENCIES}
             $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
             $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>
+  )
+
+  target_include_directories(
+    cuvs_objs
+    PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+           "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../c/include>"
+    INTERFACE "$<INSTALL_INTERFACE:include>"
   )
 
   # Endian detection
@@ -779,7 +815,11 @@ if(NOT BUILD_CPU_ONLY)
       cuvs
       PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
              $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-             $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
+# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
+#              $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
+# =======
+             $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
+# >>>>>>> END NEW CODE (43d648565)
     )
 
     target_link_libraries(
@@ -806,13 +846,22 @@ if(NOT BUILD_CPU_ONLY)
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>>
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
              $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
-#       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# # >>>>>>> END NEW CODE (e8d26c865)
+# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
+# # <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
+# #       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# # # >>>>>>> END NEW CODE (e8d26c865)
+# # =======
+#       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+#               $<COMPILE_ONLY:cuco::cuco>
+# # >>>>>>> END NEW CODE (8efe78e21)
 # =======
-      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-              $<COMPILE_ONLY:cuco::cuco>
-# >>>>>>> END NEW CODE (8efe78e21)
+      PRIVATE
+        $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+        $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+        $<COMPILE_ONLY:cuco::cuco>
+        $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
+        $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
+# >>>>>>> END NEW CODE (43d648565)
     )
     if(CUVS_USE_ROCPROFSYS)
       find_package(rocprofiler-systems REQUIRED)
@@ -855,8 +904,10 @@ SECTIONS
 
     target_compile_options(cuvs_static PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>")
     target_compile_definitions(
-      cuvs_static PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-                         $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+      cuvs_static
+      PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
+             $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+             $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
     )
 
 # <<<<<<< OLD CODE from 25cf64540 (fc363a868) - COMMENTED OUT
@@ -908,14 +959,24 @@ SECTIONS
              ${CUVS_CTK_MATH_DEPENDENCIES}
              $<TARGET_NAME_IF_EXISTS:NCCL::NCCL> # needs to be public for DT_NEEDED
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>> # header only
-# <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
-#       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-#               $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# # >>>>>>> END NEW CODE (b5ce1b00b)
+# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
+# # <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
+# #       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# #               $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
+# # # >>>>>>> END NEW CODE (b5ce1b00b)
+# # =======
+#       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
+#               $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco>
+# # >>>>>>> END NEW CODE (8efe78e21)
 # =======
-      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-              $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco>
-# >>>>>>> END NEW CODE (8efe78e21)
+      PRIVATE
+        $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+        $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
+        $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
+        $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+        $<COMPILE_ONLY:cuco::cuco>
+        $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
+# >>>>>>> END NEW CODE (43d648565)
     )
   endif()
 
@@ -1019,9 +1080,11 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
   include(GNUInstallDirs)
   include(CPack)
 
-  set(target_names cuvs cuvs_static cuvs_cpp_headers cuvs_c)
-  set(component_names cuvs_shared cuvs_static cuvs_cpp_headers c_api)
-  set(export_names cuvs-shared-exports cuvs-static-exports cuvs-cpp-headers-exports cuvs-c-exports)
+  set(target_names cuvs cuvs_static cuvs_jit_lto_kernels cuvs_cpp_headers cuvs_c)
+  set(component_names cuvs_shared cuvs_static cuvs_static cuvs_cpp_headers c_api)
+  set(export_names cuvs-shared-exports cuvs-static-exports cuvs-static-exports
+                   cuvs-cpp-headers-exports cuvs-c-exports
+  )
   foreach(target component export IN ZIP_LISTS target_names component_names export_names)
     if(TARGET ${target})
       install(
@@ -1062,6 +1125,8 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
     )
   endif()
 
+  list(REMOVE_DUPLICATES cuvs_components)
+  list(REMOVE_DUPLICATES cuvs_export_sets)
   include(cmake/modules/generate_cuvs_export.cmake)
   generate_cuvs_export(COMPONENTS ${cuvs_components} EXPORT_SETS ${cuvs_export_sets})
 
