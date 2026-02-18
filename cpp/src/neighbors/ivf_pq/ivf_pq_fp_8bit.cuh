@@ -60,12 +60,15 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/mr/per_device_resource.hpp>
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#include <hip/hip_fp16.h>
-#else
-#include <cub/cub.cuh>
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hipcub/hipcub.hpp>
+// namespace cub = hipcub;
+// #include <hip/hip_fp16.h>
+// #else
+// #include <cub/cub.cuh>
+// =======
+// >>>>>>> END NEW CODE (27898589f)
 #include <cuda_fp16.h>
 #endif
 

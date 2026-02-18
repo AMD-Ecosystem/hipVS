@@ -46,12 +46,16 @@
 #include <cstdint>
 #include <type_traits>
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#else
-#include <cub/cub.cuh>
-#endif
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hipcub/hipcub.hpp>
+// namespace cub = hipcub;
+// #else
+// #include <cub/cub.cuh>
+// #endif
+// =======
+#include <cub/block/block_scan.cuh>
+// >>>>>>> END NEW CODE (27898589f)
 
 #include <raft/core/detail/macros.hpp>
 #include <raft/core/error.hpp>

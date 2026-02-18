@@ -45,14 +45,24 @@
 #include <raft/linalg/unary_op.cuh>
 #include <raft/matrix/detail/select_warpsort.cuh>  // matrix::detail::select::warpsort::warp_sort_distributed
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#else
-#include <cub/cub.cuh>
-#endif
-
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hipcub/hipcub.hpp>
+// namespace cub = hipcub;
+// #else
+// #include <cub/cub.cuh>
+// #endif
+//
+// =======
+// >>>>>>> END NEW CODE (27898589f)
 namespace cuvs::neighbors::ivf::detail {
+
+// Forward declaration of helper function to avoid including cub/device/* in header
+void sort_cluster_sizes_descending(uint32_t* input,
+                                   uint32_t* output,
+                                   uint32_t n_lists,
+                                   rmm::cuda_stream_view stream,
+                                   rmm::mr::device_memory_resource* tmp_res);
 
 /**
  * Default value returned by `search` when the `n_probes` is too small and top-k is too large.
@@ -288,26 +298,32 @@ void recompute_internal_state(const raft::resources& res, Index& index)
   }
 
   // Sort the cluster sizes in the descending order.
-  int begin_bit             = 0;
-  int end_bit               = sizeof(uint32_t) * 8;
-  size_t cub_workspace_size = 0;
-  RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(nullptr,
-                                                         cub_workspace_size,
-                                                         index.list_sizes().data_handle(),
-                                                         sorted_sizes.data(),
-                                                         index.n_lists(),
-                                                         begin_bit,
-                                                         end_bit,
-                                                         stream));
-  rmm::device_buffer cub_workspace(cub_workspace_size, stream, tmp_res);
-  RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(cub_workspace.data(),
-                                                         cub_workspace_size,
-                                                         index.list_sizes().data_handle(),
-                                                         sorted_sizes.data(),
-                                                         index.n_lists(),
-                                                         begin_bit,
-                                                         end_bit,
-                                                         stream));
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+//   int begin_bit             = 0;
+//   int end_bit               = sizeof(uint32_t) * 8;
+//   size_t cub_workspace_size = 0;
+//   RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(nullptr,
+//                                                          cub_workspace_size,
+//                                                          index.list_sizes().data_handle(),
+//                                                          sorted_sizes.data(),
+//                                                          index.n_lists(),
+//                                                          begin_bit,
+//                                                          end_bit,
+//                                                          stream));
+//   rmm::device_buffer cub_workspace(cub_workspace_size, stream, tmp_res);
+//   RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(cub_workspace.data(),
+//                                                          cub_workspace_size,
+//                                                          index.list_sizes().data_handle(),
+//                                                          sorted_sizes.data(),
+//                                                          index.n_lists(),
+//                                                          begin_bit,
+//                                                          end_bit,
+//                                                          stream));
+// =======
+  // Use helper function to avoid including cub/device/* in this header
+  sort_cluster_sizes_descending(
+    index.list_sizes().data_handle(), sorted_sizes.data(), index.n_lists(), stream, tmp_res);
+// >>>>>>> END NEW CODE (27898589f)
   // copy the results to CPU
   std::vector<uint32_t> sorted_sizes_host(index.n_lists());
   raft::copy(sorted_sizes_host.data(), sorted_sizes.data(), index.n_lists(), stream);

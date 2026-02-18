@@ -66,13 +66,16 @@
 
 #include <rmm/device_uvector.hpp>
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#else
-#include <cub/cub.cuh>
-#endif
-
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hipcub/hipcub.hpp>
+// namespace cub = hipcub;
+// #else
+// #include <cub/cub.cuh>
+// #endif
+//
+// =======
+// >>>>>>> END NEW CODE (27898589f)
 #include <gtest/gtest.h>
 
 #include <vector>

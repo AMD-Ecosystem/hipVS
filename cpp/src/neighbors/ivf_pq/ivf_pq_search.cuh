@@ -78,14 +78,18 @@
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/mr/per_device_resource.hpp>
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#include <hip/hip_fp16.h>
-#include <raft/util/device_loads_stores_hip.cuh>
-#include <rocm-core/rocm_version.h>
-#else
-#include <cub/cub.cuh>
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hipcub/hipcub.hpp>
+// namespace cub = hipcub;
+// #include <hip/hip_fp16.h>
+// #include <raft/util/device_loads_stores_hip.cuh>
+// #include <rocm-core/rocm_version.h>
+// #else
+// #include <cub/cub.cuh>
+// =======
+#include <cub/device/device_radix_sort.cuh>
+// >>>>>>> END NEW CODE (27898589f)
 #include <cuda_fp16.h>
 #include <raft/util/device_loads_stores.cuh>
 #endif

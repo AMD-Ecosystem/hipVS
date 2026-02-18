@@ -57,8 +57,12 @@ namespace cub = hipcub;
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_radix_sort.cuh>
 #include <cub/block/block_store.cuh>
-#include <cub/cub.cuh>
-#endif
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #include <cub/cub.cuh>
+// #endif
+// =======
+#include <cub/warp/warp_reduce.cuh>
+// >>>>>>> END NEW CODE (27898589f)
 
 namespace cuvs {
 namespace distance {
