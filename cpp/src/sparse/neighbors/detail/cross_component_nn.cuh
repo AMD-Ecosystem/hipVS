@@ -63,15 +63,19 @@
 
 #include <rmm/device_uvector.hpp>
 
-// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
-// #ifdef __HIP_PLATFORM_AMD__
-// #include <hipcub/hipcub.hpp>
-// namespace cub = hipcub;
-// #else
-// #include <cub/cub.cuh>
-// #endif
+// <<<<<<< OLD CODE from ca8ffe2de (a9d40ae8d) - COMMENTED OUT
+// // <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// // #ifdef __HIP_PLATFORM_AMD__
+// // #include <hipcub/hipcub.hpp>
+// // namespace cub = hipcub;
+// // #else
+// // #include <cub/cub.cuh>
+// // #endif
+// // =======
+// // >>>>>>> END NEW CODE (27898589f)
 // =======
-// >>>>>>> END NEW CODE (27898589f)
+#include <cuda/std/tuple>
+// >>>>>>> END NEW CODE (a9d40ae8d)
 #include <thrust/copy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/gather.h>
@@ -81,7 +85,6 @@
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cstdint>
 #include <limits>
@@ -239,15 +242,15 @@ struct TupleComp {
   __host__ __device__ bool operator()(const one& t1, const two& t2)
   {
     // sort first by each sample's color,
-    if (thrust::get<0>(t1) < thrust::get<0>(t2)) return true;
-    if (thrust::get<0>(t1) > thrust::get<0>(t2)) return false;
+    if (cuda::std::get<0>(t1) < cuda::std::get<0>(t2)) return true;
+    if (cuda::std::get<0>(t1) > cuda::std::get<0>(t2)) return false;
 
     // then by the color of each sample's closest neighbor,
-    if (thrust::get<1>(t1) < thrust::get<1>(t2)) return true;
-    if (thrust::get<1>(t1) > thrust::get<1>(t2)) return false;
+    if (cuda::std::get<1>(t1) < cuda::std::get<1>(t2)) return true;
+    if (cuda::std::get<1>(t1) > cuda::std::get<1>(t2)) return false;
 
     // then sort by value in descending order
-    return thrust::get<2>(t1).value < thrust::get<2>(t2).value;
+    return cuda::std::get<2>(t1).value < cuda::std::get<2>(t2).value;
   }
 };
 
@@ -483,8 +486,8 @@ void sort_by_color(raft::resources const& handle,
   thrust::copy(exec_policy, arg_sort_iter, arg_sort_iter + n_rows, src_indices);
 
   auto keys = thrust::make_zip_iterator(
-    thrust::make_tuple(colors, nn_colors, (raft::KeyValuePair<value_idx, value_t>*)kvp));
-  auto vals = thrust::make_zip_iterator(thrust::make_tuple(src_indices));
+    cuda::std::make_tuple(colors, nn_colors, (raft::KeyValuePair<value_idx, value_t>*)kvp));
+  auto vals = thrust::make_zip_iterator(cuda::std::make_tuple(src_indices));
   // get all the colors in contiguous locations so we can map them to warps.
   thrust::sort_by_key(exec_policy, keys, keys + n_rows, vals, TupleComp());
 }
