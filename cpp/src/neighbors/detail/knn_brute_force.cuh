@@ -85,7 +85,8 @@
 #endif
 #include <rmm/cuda_device.hpp>
 #include <rmm/device_uvector.hpp>
-#include <thrust/iterator/transform_iterator.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
 
 #include <cstdint>
 #include <iostream>
