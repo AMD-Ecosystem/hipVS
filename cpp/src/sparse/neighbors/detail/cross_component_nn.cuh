@@ -63,23 +63,26 @@
 
 #include <rmm/device_uvector.hpp>
 
-// <<<<<<< OLD CODE from ca8ffe2de (a9d40ae8d) - COMMENTED OUT
-// // <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
-// // #ifdef __HIP_PLATFORM_AMD__
-// // #include <hipcub/hipcub.hpp>
-// // namespace cub = hipcub;
-// // #else
-// // #include <cub/cub.cuh>
-// // #endif
+// <<<<<<< OLD CODE from d138e4661 (2d26ea963) - COMMENTED OUT
+// // <<<<<<< OLD CODE from ca8ffe2de (a9d40ae8d) - COMMENTED OUT
+// // // <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// // // #ifdef __HIP_PLATFORM_AMD__
+// // // #include <hipcub/hipcub.hpp>
+// // // namespace cub = hipcub;
+// // // #else
+// // // #include <cub/cub.cuh>
+// // // #endif
+// // // =======
+// // // >>>>>>> END NEW CODE (27898589f)
 // // =======
-// // >>>>>>> END NEW CODE (27898589f)
 // =======
+#include <cuda/iterator>
+// >>>>>>> END NEW CODE (2d26ea963)
 #include <cuda/std/tuple>
 // >>>>>>> END NEW CODE (a9d40ae8d)
 #include <thrust/copy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/gather.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/scatter.h>
@@ -481,8 +484,8 @@ void sort_by_color(raft::resources const& handle,
                    value_idx* src_indices,
                    size_t n_rows)
 {
-  auto exec_policy = raft::resource::get_thrust_policy(handle);
-  thrust::counting_iterator<value_idx> arg_sort_iter(0);
+  auto exec_policy   = raft::resource::get_thrust_policy(handle);
+  auto arg_sort_iter = cuda::make_counting_iterator<value_idx>(0);
   thrust::copy(exec_policy, arg_sort_iter, arg_sort_iter + n_rows, src_indices);
 
   auto keys = thrust::make_zip_iterator(
