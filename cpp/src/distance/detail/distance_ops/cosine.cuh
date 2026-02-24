@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -52,6 +52,21 @@ struct cosine_cutlass_op {
     return static_cast<AccT>(1.0) - static_cast<AccT>(accVal / (aNorm * bNorm));
   }
   __device__ AccT operator()(DataT aData) const noexcept { return raft::to_float(aData); }
+};
+
+// Epilogue operator for CK Tile based kernel
+struct cosine_ck_op {
+  template <typename E, typename C, typename Nx, typename Ny>
+  __device__ void operator()(E& e, const C& c, const Nx& norm_x, const Ny& norm_y) const
+  {
+    constexpr float kEpsilon  = 1e-8f;
+    E dot_product             = static_cast<E>(c);
+    float norm_a_times_norm_b = static_cast<float>(norm_x) * static_cast<float>(norm_y);
+    float similarity          = (norm_a_times_norm_b > kEpsilon)
+                                  ? (static_cast<float>(dot_product) / norm_a_times_norm_b)
+                                  : 0.0f;
+    e                         = static_cast<E>(1.0f - similarity);
+  }
 };
 
 /**
@@ -114,6 +129,8 @@ struct cosine_distance_op {
   {
     return cosine_cutlass_op<DataT, AccT>();
   }
+
+  constexpr cosine_ck_op get_ck_op() const { return cosine_ck_op(); }
 };
 
 }  // namespace cuvs::distance::detail::ops

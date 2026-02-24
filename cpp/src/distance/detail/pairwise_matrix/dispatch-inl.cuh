@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -49,6 +49,9 @@
  *    do not require as large an include files set, which speeds up the build.
  */
 
+#ifdef CUVS_CK_ENABLED
+#include "../distance_ops/ck.cuh"  // ops::has_ck_op
+#endif
 #include "../distance_ops/cutlass.cuh"           // ops::has_cutlass_op
 #include "../pairwise_matrix/dispatch_sm60.cuh"  // dispatch_sm60
 #include "../pairwise_matrix/params.cuh"         // pairwise_matrix_params
@@ -77,6 +80,19 @@ void pairwise_matrix_sm80_dispatch(OpT,
                                    pairwise_matrix_params<IdxT, DataT, OutT, FinOpT>,
                                    SM_compat_t,
                                    cudaStream_t);
+
+#ifdef CUVS_CK_ENABLED
+template <typename OpT,
+          typename IdxT,
+          typename DataT,
+          typename OutT,
+          typename FinOpT,
+          typename SM_compat_t>
+void pairwise_matrix_ck_dispatch(OpT,
+                                 pairwise_matrix_params<IdxT, DataT, OutT, FinOpT>,
+                                 SM_compat_t,
+                                 cudaStream_t);
+#endif
 
 template <typename OpT,
           typename DataT,
@@ -112,11 +128,16 @@ void pairwise_matrix_dispatch(OpT distance_op,
   // - execute normal kernel below SM_80
   namespace arch = raft::util::arch;
 
-#ifdef __HIP_PLATFORM_AMD__
-  constexpr bool cutlass_op_unavailable = true;
-#else
+#ifdef CUVS_CK_ENABLED
+  if constexpr (ops::has_ck_op<OpT>()) {
+    auto any_range = arch::SM_range(arch::SM_min(), arch::SM_future());
+    pairwise_matrix_ck_dispatch(distance_op, params, any_range, stream);
+  } else {
+    auto any_range = arch::SM_range(arch::SM_min(), arch::SM_future());
+    pairwise_matrix_sm60_dispatch(distance_op, params, any_range, stream);
+  }
+#elif !defined(__HIP_PLATFORM_AMD__)
   constexpr bool cutlass_op_unavailable = !ops::has_cutlass_op<OpT>();
-#endif
 
   if constexpr (cutlass_op_unavailable) {
     // Always execute legacy kernels when no cutlass op is available
@@ -150,6 +171,11 @@ void pairwise_matrix_dispatch(OpT distance_op,
       sm60_wrapper.launch(distance_op, params, stream);
     }
   }
+#else
+  // HIP without CK, or unknown platform: use the SM60 (legacy) path.
+  auto any_range = arch::SM_range(arch::SM_min(), arch::SM_future());
+  pairwise_matrix_sm60_dispatch(distance_op, params, any_range, stream);
+#endif
 }
 
 };  // namespace cuvs::distance::detail

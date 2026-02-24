@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -87,6 +87,17 @@ struct l2_exp_cutlass_op {
     } else {
       return aData;
     }
+  }
+};
+
+// Epilogue operator for CK Tile based kernel
+struct l2_exp_ck_op {
+  template <typename E, typename C, typename Nx, typename Ny>
+  __device__ void operator()(E& e, const C& c, const Nx& norm_x, const Ny& norm_y) const
+  {
+    E dot         = static_cast<E>(c);
+    E norm_sq_sum = static_cast<E>(norm_x) + static_cast<E>(norm_y);
+    e             = norm_sq_sum - static_cast<E>(2.0) * dot;
   }
 };
 
@@ -170,6 +181,8 @@ struct l2_exp_distance_op {
   {
     return l2_exp_cutlass_op<DataT, AccT>(sqrt);
   }
+
+  constexpr l2_exp_ck_op get_ck_op() const { return l2_exp_ck_op(); }
 };
 
 }  // namespace cuvs::distance::detail::ops
