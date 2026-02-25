@@ -14,18 +14,22 @@
 #include "../detail/faiss_select/key_value_block_select.cuh"
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
-#include <raft/linalg/unary_op.cuh>
-// <<<<<<< OLD CODE from 5d2d0bb8a (29339f2bd) - COMMENTED OUT
-// #include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
-// #include <raft/util/bitwise_operations.hpp>
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// #include <raft/linalg/unary_op.cuh>
+// // <<<<<<< OLD CODE from 5d2d0bb8a (29339f2bd) - COMMENTED OUT
+// // #include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
+// // #include <raft/util/bitwise_operations.hpp>
+// // =======
+// // >>>>>>> END NEW CODE (29339f2bd)
 // =======
-// >>>>>>> END NEW CODE (29339f2bd)
+#include <raft/linalg/map.cuh>
+#include <raft/matrix/init.cuh>
+// >>>>>>> END NEW CODE (844faff67)
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/warp_primitives.cuh>
 
 #include <cuda/functional>
-#include <thrust/count.h>
-#include <thrust/fill.h>
+#include <thrust/reduce.h>
 #include <thrust/scan.h>
 
 #include <limits.h>
@@ -1156,8 +1160,9 @@ void rbc_low_dim_pass_two(raft::resources const& handle,
 
   rmm::device_uvector<std::uint32_t> bitset(bitset_size * n_query_rows,
                                             raft::resource::get_cuda_stream(handle));
-  thrust::fill(
-    raft::resource::get_thrust_policy(handle), bitset.data(), bitset.data() + bitset.size(), 0);
+  raft::matrix::fill(handle,
+                     raft::make_device_vector_view<std::uint32_t>(bitset.data(), bitset.size()),
+                     std::uint32_t(0));
 
   perform_post_filter_registers<value_idx, value_t, std::uint32_t, 128>
     <<<n_query_rows,
@@ -1480,14 +1485,12 @@ void rbc_eps_pass(raft::resources const& handle,
 
     if (actual_max > max_k_in) {
       // ceil vd to max_k
-      raft::linalg::unaryOp(
-        vd_ptr,
-        vd_ptr,
-        n_query_rows,
-        [max_k_in] __device__(value_idx vd_count) {
-          return vd_count > max_k_in ? max_k_in : vd_count;
-        },
-        raft::resource::get_cuda_stream(handle));
+      raft::linalg::map(handle,
+                        raft::make_device_vector_view<const value_idx>(vd_ptr, n_query_rows),
+                        raft::make_device_vector_view<value_idx>(vd_ptr, n_query_rows),
+                        [max_k_in] __device__(value_idx vd_count) {
+                          return vd_count > max_k_in ? max_k_in : vd_count;
+                        });
     }
 
     thrust::exclusive_scan(raft::resource::get_thrust_policy(handle),

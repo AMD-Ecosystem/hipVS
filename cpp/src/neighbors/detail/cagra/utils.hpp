@@ -1,37 +1,41 @@
 /*
-// <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-//  * Copyright (c) 2023-2024, NVIDIA CORPORATION.
-//  *
-//  * Licensed under the Apache License, Version 2.0 (the "License");
-//  * you may not use this file except in compliance with the License.
-//  * You may obtain a copy of the License at
-//  *
-//  *     http://www.apache.org/licenses/LICENSE-2.0
-//  *
-//  * Unless required by applicable law or agreed to in writing, software
-//  * distributed under the License is distributed on an "AS IS" BASIS,
-//  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  * See the License for the specific language governing permissions and
-//  * limitations under the License.
-//  *
-//  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-//  * Permission is hereby granted, free of charge, to any person obtaining a copy
-//  * of this software and associated documentation files (the "Software"), to deal
-//  * in the Software without restriction, including without limitation the rights
-//  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  * copies of the Software, and to permit persons to whom the Software is
-//  * furnished to do so, subject to the following conditions:
-//  * The above copyright notice and this permission notice shall be included in
-//  * all copies or substantial portions of the Software.
-//  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  * THE SOFTWARE.
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
 // =======
- * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (844faff67)
  * SPDX-License-Identifier: Apache-2.0
 // >>>>>>> END NEW CODE (5a0ba144f)
  */
@@ -39,9 +43,11 @@
 #pragma once
 
 // TODO: This shouldn't be invoking anything from detail outside of neighbors namespace
+#include <raft/core/copy.cuh>
 #include <raft/core/detail/macros.hpp>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/host_mdarray.hpp>
+#include <raft/matrix/init.cuh>
 #include <raft/util/integer_utils.hpp>
 
 #include <rmm/resource_ref.hpp>
@@ -220,10 +226,7 @@ class device_matrix_view_from_host {
       // The user may opt to set this resource to managed memory to allow large allocations.
       device_mem_.emplace(raft::make_device_mdarray<T, IdxT>(
         res, raft::resource::get_large_workspace_resource(res), host_view.extents()));
-      raft::copy(device_mem_->data_handle(),
-                 host_view.data_handle(),
-                 host_view.extent(0) * host_view.extent(1),
-                 raft::resource::get_cuda_stream(res));
+      raft::copy(res, device_mem_->view(), host_view);
       device_ptr = device_mem_->data_handle();
     }
   }
@@ -281,10 +284,7 @@ class host_matrix_view_from_device {
       // allocate memory and copy over
       host_mem_.emplace(
         raft::make_host_matrix<T, IdxT>(device_view.extent(0), device_view.extent(1)));
-      raft::copy(host_mem_->data_handle(),
-                 device_view.data_handle(),
-                 device_view.extent(0) * device_view.extent(1),
-                 raft::resource::get_cuda_stream(res));
+      raft::copy(res, host_mem_->view(), device_view);
       host_ptr = host_mem_->data_handle();
     }
   }
@@ -322,12 +322,10 @@ void copy_with_padding(
       raft::make_device_mdarray<T>(res, mr, raft::make_extents<int64_t>(src.extent(0), padded_dim));
   }
   if (dst.extent(1) == src.extent(1)) {
-    raft::copy(
-      dst.data_handle(), src.data_handle(), src.size(), raft::resource::get_cuda_stream(res));
+    raft::copy(res, dst.view(), src);
   } else {
     // copy with padding
-    RAFT_CUDA_TRY(cudaMemsetAsync(
-      dst.data_handle(), 0, dst.size() * sizeof(T), raft::resource::get_cuda_stream(res)));
+    raft::matrix::fill(res, dst.view(), T(0));
     RAFT_CUDA_TRY(cudaMemcpy2DAsync(dst.data_handle(),
                                     sizeof(T) * dst.extent(1),
                                     src.data_handle(),

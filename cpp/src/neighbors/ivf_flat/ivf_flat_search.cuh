@@ -1,37 +1,41 @@
 /*
-// <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-//  * Copyright (c) 2022-2025, NVIDIA CORPORATION.
-//  *
-//  * Licensed under the Apache License, Version 2.0 (the "License");
-//  * you may not use this file except in compliance with the License.
-//  * You may obtain a copy of the License at
-//  *
-//  *     http://www.apache.org/licenses/LICENSE-2.0
-//  *
-//  * Unless required by applicable law or agreed to in writing, software
-//  * distributed under the License is distributed on an "AS IS" BASIS,
-//  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  * See the License for the specific language governing permissions and
-//  * limitations under the License.
-//  *
-//  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-//  * Permission is hereby granted, free of charge, to any person obtaining a copy
-//  * of this software and associated documentation files (the "Software"), to deal
-//  * in the Software without restriction, including without limitation the rights
-//  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  * copies of the Software, and to permit persons to whom the Software is
-//  * furnished to do so, subject to the following conditions:
-//  * The above copyright notice and this permission notice shall be included in
-//  * all copies or substantial portions of the Software.
-//  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  * THE SOFTWARE.
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2022-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
 // =======
- * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (844faff67)
  * SPDX-License-Identifier: Apache-2.0
 // >>>>>>> END NEW CODE (5a0ba144f)
  */
@@ -51,10 +55,10 @@
 #include <raft/core/error.hpp>
 #include <raft/core/logger.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
-#include <raft/core/resources.hpp>   // raft::resources
-#include <raft/linalg/gemm.cuh>      // raft::linalg::gemm
-#include <raft/linalg/norm.cuh>      // raft::linalg::norm
-#include <raft/linalg/unary_op.cuh>  // raft::linalg::unary_op
+#include <raft/core/resources.hpp>  // raft::resources
+#include <raft/linalg/gemm.cuh>     // raft::linalg::gemm
+#include <raft/linalg/map.cuh>      // raft::linalg::map
+#include <raft/linalg/norm.cuh>     // raft::linalg::norm
 #include <raft/matrix/detail/select_warpsort.cuh>
 
 #include <rmm/resource_ref.hpp>
@@ -123,8 +127,12 @@ void search_impl(raft::resources const& handle,
   if constexpr (std::is_same_v<T, float>) {
     converted_queries_ptr = const_cast<float*>(queries);
   } else {
-    raft::linalg::unaryOp(
-      converted_queries_ptr, queries, n_queries * index.dim(), utils::mapping<float>{}, stream);
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<float>(converted_queries_ptr, n_queries * index.dim()),
+      utils::mapping<float>{},
+      raft::make_const_mdspan(
+        raft::make_device_vector_view<const T>(queries, n_queries * index.dim())));
   }
 
   float alpha = 1.0f;
@@ -136,11 +144,12 @@ void search_impl(raft::resources const& handle,
     case cuvs::distance::DistanceType::L2SqrtExpanded: {
       alpha = -2.0f;
       beta  = 1.0f;
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(query_norm_dev.data(),
-                                                        converted_queries_ptr,
-                                                        static_cast<IdxT>(index.dim()),
-                                                        static_cast<IdxT>(n_queries),
-                                                        stream);
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const float, IdxT, raft::row_major>(
+          converted_queries_ptr, static_cast<IdxT>(n_queries), static_cast<IdxT>(index.dim())),
+        raft::make_device_vector_view<float, IdxT>(query_norm_dev.data(),
+                                                   static_cast<IdxT>(n_queries)));
       utils::outer_add(query_norm_dev.data(),
                        (IdxT)n_queries,
                        index.center_norms()->data_handle(),
@@ -152,12 +161,13 @@ void search_impl(raft::resources const& handle,
       break;
     }
     case cuvs::distance::DistanceType::CosineExpanded: {
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(query_norm_dev.data(),
-                                                        converted_queries_ptr,
-                                                        static_cast<IdxT>(index.dim()),
-                                                        static_cast<IdxT>(n_queries),
-                                                        stream,
-                                                        raft::sqrt_op{});
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const float, IdxT, raft::row_major>(
+          converted_queries_ptr, static_cast<IdxT>(n_queries), static_cast<IdxT>(index.dim())),
+        raft::make_device_vector_view<float, IdxT>(query_norm_dev.data(),
+                                                   static_cast<IdxT>(n_queries)),
+        raft::sqrt_op{});
       alpha = -1.0f;
       beta  = 0.0f;
       break;
@@ -316,7 +326,7 @@ void search_impl(raft::resources const& handle,
   if (!manage_local_topk) {
     // post process distances && neighbor IDs
     ivf::detail::postprocess_distances(
-      distances, distances, index.metric(), n_queries, k, 1.0, false, stream);
+      handle, distances, distances, index.metric(), n_queries, k, 1.0, false);
   }
   ivf::detail::postprocess_neighbors(neighbors,
                                      neighbors_uint32,

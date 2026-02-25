@@ -1,38 +1,42 @@
 /*
-// <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-//  * Copyright (c) 2024-2025, NVIDIA CORPORATION.
-//  *
-//  * Licensed under the Apache License, Version 2.0 (the "License");
-//  * you may not use this file except in compliance with the License.
-//  * You may obtain a copy of the License at
-//  *
-//  *     http://www.apache.org/licenses/LICENSE-2.0
-//  *
-//  * Unless required by applicable law or agreed to in writing, software
-//  * distributed under the License is distributed on an "AS IS" BASIS,
-//  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-//  * See the License for the specific language governing permissions and
-//  * limitations under the License.
-//  *
-//  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-//  * Permission is hereby granted, free of charge, to any person obtaining a copy
-//  * of this software and associated documentation files (the "Software"), to deal
-//  * in the Software without restriction, including without limitation the rights
-//  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  * copies of the Software, and to permit persons to whom the Software is
-//  * furnished to do so, subject to the following conditions:
-//  * The above copyright notice and this permission notice shall be included in
-//  * all copies or substantial portions of the Software.
-//  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  * THE SOFTWARE.
-//  **/
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2024-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// //  **/
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
 // =======
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (844faff67)
  * SPDX-License-Identifier: Apache-2.0
  */
 // >>>>>>> END NEW CODE (5a0ba144f)
@@ -59,11 +63,16 @@
 // #include <raft/cluster/kmeans_types.hpp>
 // =======
 #include <cuda_bf16.h>
-// >>>>>>> END NEW CODE (d0d896695)
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// // >>>>>>> END NEW CODE (d0d896695)
+// =======
+#include <raft/core/copy.cuh>
+// >>>>>>> END NEW CODE (844faff67)
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/error.hpp>
 #include <raft/core/host_device_accessor.hpp>
+#include <raft/core/host_mdspan.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/linalg/map.cuh>
 #include <raft/matrix/copy.cuh>
@@ -235,10 +244,12 @@ index<T, IdxT> build(
     auto sub_pq_codebook =
       create_pq_codebook<T>(res, raft::make_const_mdspan(sub_trainset.view()), pq_params);
 
-    raft::copy(full_codebook.data_handle() + (subspace * sub_pq_codebook.size()),
-               sub_pq_codebook.data_handle(),
-               sub_pq_codebook.size(),
-               stream);
+    raft::copy(
+      res,
+      raft::make_device_vector_view(
+        full_codebook.data_handle() + (subspace * sub_pq_codebook.size()), sub_pq_codebook.size()),
+      raft::make_device_vector_view<const float>(sub_pq_codebook.data_handle(),
+                                                 sub_pq_codebook.size()));
   }
   raft::resource::sync_stream(res);
 
@@ -322,21 +333,26 @@ index<T, IdxT> build(
 
     // Copy unpacked codes to host
     // TODO (rmaschal): these copies are blocking and not overlapped
-    raft::copy(idx.quantized_residuals().data_handle() + batch.offset() * num_subspaces,
-               quantized_residuals.data_handle(),
-               quantized_residuals.size(),
-               stream);
+    raft::copy(res,
+               raft::make_host_vector_view(
+                 idx.quantized_residuals().data_handle() + batch.offset() * num_subspaces,
+                 quantized_residuals.size()),
+               raft::make_device_vector_view<const uint8_t>(quantized_residuals.data_handle(),
+                                                            quantized_residuals.size()));
 
-    raft::copy(idx.quantized_soar_residuals().data_handle() + batch.offset() * num_subspaces,
-               quantized_soar_residuals.data_handle(),
-               quantized_soar_residuals.size(),
-               stream);
+    raft::copy(res,
+               raft::make_host_vector_view(
+                 idx.quantized_soar_residuals().data_handle() + batch.offset() * num_subspaces,
+                 quantized_soar_residuals.size()),
+               raft::make_device_vector_view<const uint8_t>(quantized_soar_residuals.data_handle(),
+                                                            quantized_soar_residuals.size()));
 
     if (params.reordering_bf16) {
-      raft::copy(idx.bf16_dataset().data_handle() + batch.offset() * dim,
-                 bf16_dataset.data_handle(),
-                 bf16_dataset.size(),
-                 stream);
+      raft::copy(res,
+                 raft::make_host_vector_view(
+                   idx.bf16_dataset().data_handle() + batch.offset() * dim, bf16_dataset.size()),
+                 raft::make_device_vector_view<const int16_t>(bf16_dataset.data_handle(),
+                                                              bf16_dataset.size()));
     }
 
     // Make sure work on device is finished before swapping buffers
