@@ -54,18 +54,12 @@ struct cosine_cutlass_op {
   __device__ AccT operator()(DataT aData) const noexcept { return raft::to_float(aData); }
 };
 
-// Epilogue operator for CK Tile based kernel
+// Epilogue operator for CK Tile based kernel (mirrors cosine_cutlass_op formula)
 struct cosine_ck_op {
   template <typename E, typename C, typename Nx, typename Ny>
   __device__ void operator()(E& e, const C& c, const Nx& norm_x, const Ny& norm_y) const
   {
-    constexpr float kEpsilon  = 1e-8f;
-    E dot_product             = static_cast<E>(c);
-    float norm_a_times_norm_b = static_cast<float>(norm_x) * static_cast<float>(norm_y);
-    float similarity          = (norm_a_times_norm_b > kEpsilon)
-                                  ? (static_cast<float>(dot_product) / norm_a_times_norm_b)
-                                  : 0.0f;
-    e                         = static_cast<E>(1.0f - similarity);
+    e = static_cast<E>(static_cast<C>(1) - c / (norm_x * norm_y));
   }
 };
 

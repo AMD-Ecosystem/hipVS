@@ -70,7 +70,7 @@
 #include <ck_tile/ops/common/utils.hpp>
 #include <ck_tile/ops/gemm/warp/warp_gemm_dispatcher.hpp>
 
-namespace ck {
+namespace cuvs::distance::detail {
 
 // --- Problem config: tile layout matching CShuffleEpilogue (TiledMMAPermuteN=false) ---
 // [CShuffleEpilogue] Problem struct; we omit DsDataType, DsLayout, NumDTensor (no D tensors)
@@ -375,4 +375,4 @@ struct PairwiseDistanceCkEpilogue {
   }
 };
 
-}  // namespace ck
+}  // namespace cuvs::distance::detail

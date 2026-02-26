@@ -90,14 +90,12 @@ struct l2_exp_cutlass_op {
   }
 };
 
-// Epilogue operator for CK Tile based kernel
+// Epilogue operator for CK Tile based kernel (mirrors l2_exp_cutlass_op formula)
 struct l2_exp_ck_op {
   template <typename E, typename C, typename Nx, typename Ny>
   __device__ void operator()(E& e, const C& c, const Nx& norm_x, const Ny& norm_y) const
   {
-    E dot         = static_cast<E>(c);
-    E norm_sq_sum = static_cast<E>(norm_x) + static_cast<E>(norm_y);
-    e             = norm_sq_sum - static_cast<E>(2.0) * dot;
+    e = static_cast<E>(norm_x + norm_y - static_cast<C>(2) * c);
   }
 };
 

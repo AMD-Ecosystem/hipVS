@@ -40,39 +40,36 @@ namespace {
 
 constexpr int kWarmupIterations = 3;
 
-struct float_to_half_op {
-  __host__ __device__ half operator()(float x) const
-  {
-#ifdef __HIP_PLATFORM_AMD__
-    return __float2half(x);
-#else
-    return __float2half_rn(x);
-#endif
-  }
-};
-
 template <typename T>
-void fill_random_matrices(raft::resources const& handle,
+auto make_random_matrices(raft::resources const& handle,
                           raft::random::RngState& r,
-                          raft::device_matrix_view<T, int64_t, raft::layout_c_contiguous> x,
-                          raft::device_matrix_view<T, int64_t, raft::layout_c_contiguous> y,
-                          double lo,
-                          double hi)
+                          int64_t n_rows_x,
+                          int64_t n_rows_y,
+                          int64_t n_cols)
+  -> std::pair<raft::device_matrix<T, int64_t, raft::layout_c_contiguous>,
+               raft::device_matrix<T, int64_t, raft::layout_c_contiguous>>
 {
+  auto x_float = raft::make_device_matrix<float>(handle, n_rows_x, n_cols);
+  auto y_float = raft::make_device_matrix<float>(handle, n_rows_y, n_cols);
+
+  static constexpr auto kLowerBound = -1.0f;
+  static constexpr auto kUpperBound = 1.0f;
+  raft::random::uniform(handle, r, x_float.data_handle(), x_float.size(), kLowerBound, kUpperBound);
+  raft::random::uniform(handle, r, y_float.data_handle(), y_float.size(), kLowerBound, kUpperBound);
+
   if constexpr (std::is_same_v<T, half>) {
-    auto x_float = raft::make_device_matrix<float>(handle, x.extent(0), x.extent(1));
-    auto y_float = raft::make_device_matrix<float>(handle, y.extent(0), y.extent(1));
-    raft::random::uniform(
-      handle, r, x_float.data_handle(), x.size(), static_cast<float>(lo), static_cast<float>(hi));
-    raft::random::uniform(
-      handle, r, y_float.data_handle(), y.size(), static_cast<float>(lo), static_cast<float>(hi));
-    raft::linalg::unary_op(handle, raft::make_const_mdspan(x_float.view()), x, float_to_half_op{});
-    raft::linalg::unary_op(handle, raft::make_const_mdspan(y_float.view()), y, float_to_half_op{});
+    struct float_to_half_op {
+      __host__ __device__ half operator()(float x) const { return __float2half(x); }
+    };
+    auto x = raft::make_device_matrix<T>(handle, n_rows_x, n_cols);
+    auto y = raft::make_device_matrix<T>(handle, n_rows_y, n_cols);
+    raft::linalg::unary_op(
+      handle, raft::make_const_mdspan(x_float.view()), x.view(), float_to_half_op{});
+    raft::linalg::unary_op(
+      handle, raft::make_const_mdspan(y_float.view()), y.view(), float_to_half_op{});
+    return {x, y};
   } else {
-    raft::random::uniform(
-      handle, r, x.data_handle(), x.size(), static_cast<T>(lo), static_cast<T>(hi));
-    raft::random::uniform(
-      handle, r, y.data_handle(), y.size(), static_cast<T>(lo), static_cast<T>(hi));
+    return {x_float, y_float};
   }
 }
 
@@ -83,19 +80,15 @@ void run_pairwise_distance_bench(
   raft::resources handle;
   auto stream = raft::resource::get_cuda_stream(handle);
 
-  auto x    = raft::make_device_matrix<T>(handle, m, k);
-  auto y    = raft::make_device_matrix<T>(handle, n, k);
-  auto dist = raft::make_device_matrix<float>(handle, m, n);
-
   raft::random::RngState r(12345);
-  fill_random_matrices(handle, r, x.view(), y.view(), -1.0, 1.0);
+  auto [x, y] = make_random_matrices<T>(handle, r, m, n, k);
+  auto dist   = raft::make_device_matrix<float>(handle, m, n);
   raft::resource::sync_stream(handle, stream);
 
-  float metric_arg = 2.0f;
   for (int i = 0; i < kWarmupIterations; ++i) {
-    cuvs::distance::pairwise_distance(handle, x.view(), y.view(), dist.view(), metric, metric_arg);
-    raft::resource::sync_stream(handle, stream);
+    cuvs::distance::pairwise_distance(handle, x.view(), y.view(), dist.view(), metric);
   }
+  raft::resource::sync_stream(handle, stream);
 
   cudaEvent_t start_ev = nullptr;
   cudaEvent_t stop_ev  = nullptr;
@@ -105,7 +98,7 @@ void run_pairwise_distance_bench(
   double gpu_time_total_s = 0.0;
   for (auto _ : state) {
     RAFT_CUDA_TRY(cudaEventRecord(start_ev, stream));
-    cuvs::distance::pairwise_distance(handle, x.view(), y.view(), dist.view(), metric, metric_arg);
+    cuvs::distance::pairwise_distance(handle, x.view(), y.view(), dist.view(), metric);
     RAFT_CUDA_TRY(cudaEventRecord(stop_ev, stream));
     RAFT_CUDA_TRY(cudaEventSynchronize(stop_ev));
     float ms = 0.0f;
@@ -126,26 +119,25 @@ void run_pairwise_distance_bench(
 const auto kBenchArgs = std::vector<std::vector<int64_t>>{
   {1024, 4096, 8192, 16384}, {1024, 4096, 8192, 16384}, {16, 32, 64, 128, 256, 512, 1024}};
 
+template <typename T>
+void register_benchmark_for_type(const std::string& name, cuvs::distance::DistanceType metric)
+{
+  auto type_name = typeid(T).name();
+  benchmark::RegisterBenchmark("pairwise_distance/" + name + "_" + type_name,
+                               [metric](benchmark::State& state) {
+                                 auto m = static_cast<int64_t>(state.range(0));
+                                 auto n = static_cast<int64_t>(state.range(1));
+                                 auto k = static_cast<int64_t>(state.range(2));
+                                 run_pairwise_distance_bench<T>(state, metric, m, n, k);
+                               })
+    ->ArgsProduct({kBenchArgs[0], kBenchArgs[1], kBenchArgs[2]})
+    ->Unit(benchmark::kMillisecond);
+}
+
 void register_benchmarks(const std::string& name, cuvs::distance::DistanceType metric)
 {
-  benchmark::RegisterBenchmark("pairwise_distance/" + name + "_float",
-                               [metric](benchmark::State& state) {
-                                 auto m = static_cast<int64_t>(state.range(0));
-                                 auto n = static_cast<int64_t>(state.range(1));
-                                 auto k = static_cast<int64_t>(state.range(2));
-                                 run_pairwise_distance_bench<float>(state, metric, m, n, k);
-                               })
-    ->ArgsProduct({kBenchArgs[0], kBenchArgs[1], kBenchArgs[2]})
-    ->Unit(benchmark::kMillisecond);
-  benchmark::RegisterBenchmark("pairwise_distance/" + name + "_half",
-                               [metric](benchmark::State& state) {
-                                 auto m = static_cast<int64_t>(state.range(0));
-                                 auto n = static_cast<int64_t>(state.range(1));
-                                 auto k = static_cast<int64_t>(state.range(2));
-                                 run_pairwise_distance_bench<half>(state, metric, m, n, k);
-                               })
-    ->ArgsProduct({kBenchArgs[0], kBenchArgs[1], kBenchArgs[2]})
-    ->Unit(benchmark::kMillisecond);
+  register_benchmark_for_type<float>(name, metric);
+  register_benchmark_for_type<half>(name, metric);
 }
 
 }  // namespace

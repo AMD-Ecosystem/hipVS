@@ -87,8 +87,13 @@ using GemmShape = ck_tile::TileGemmShape<
                     GemmDistanceConfig::N_Warp_Tile,
                     GemmDistanceConfig::K_Warp_Tile>>;
 
+// Values for TilePartitionerGroupNum and TilePartitionerM01 are taken from
+// https://github.com/ROCm/rocm-libraries/blob/rocm-7.2.0/projects/composablekernel/example/ck_tile/19_gemm_multi_d/gemm_multi_d_fp16.cpp#L53-L54.
+/// Number of big groups for spatial workgroup partitioning. Groups workgroups spatially to
+/// improve cache utilization (grouped rows of column-vectors WGP pattern, tuned for gfx94x).
 static constexpr ck_tile::index_t TilePartitionerGroupNum = 8;
-static constexpr ck_tile::index_t TilePartitionerM01      = 4;
+/// Number of groups in the M dimension within spatially local workgroup processors.
+static constexpr ck_tile::index_t TilePartitionerM01 = 4;
 
 using TilePartitioner = ck_tile::
   GemmSpatiallyLocalTilePartitioner<GemmShape, TilePartitionerGroupNum, TilePartitionerM01>;
@@ -182,21 +187,21 @@ struct PairwiseDistanceCkKernelArgs {
   ck_tile::index_t k_batch;
 };
 
-// Epilogue problem matching CShuffleEpilogue layout for dispatch_ck GemmShape.
+// Convenience alias binding DataT/DistT/ScalarVec to the GemmShape-derived epilogue problem.
 template <typename DataT, typename DistT, bool ScalarVec>
-using PairwiseDistanceCkEpilogueProblem =
-  ck::PairwiseDistanceCkEpilogueProblem<float,
-                                        DistT,
-                                        GemmShape::kM,
-                                        GemmShape::kN,
-                                        GemmShape::BlockWarps::at(ck_tile::number<0>{}),
-                                        GemmShape::BlockWarps::at(ck_tile::number<1>{}),
-                                        GemmShape::WarpTile::at(ck_tile::number<0>{}),
-                                        GemmShape::WarpTile::at(ck_tile::number<1>{}),
-                                        GemmShape::WarpTile::at(ck_tile::number<2>{}),
-                                        ScalarVec,
-                                        1,
-                                        1>;
+using EpilogueProblemFor =
+  PairwiseDistanceCkEpilogueProblem<float,
+                                    DistT,
+                                    GemmShape::kM,
+                                    GemmShape::kN,
+                                    GemmShape::BlockWarps::at(ck_tile::number<0>{}),
+                                    GemmShape::BlockWarps::at(ck_tile::number<1>{}),
+                                    GemmShape::WarpTile::at(ck_tile::number<0>{}),
+                                    GemmShape::WarpTile::at(ck_tile::number<1>{}),
+                                    GemmShape::WarpTile::at(ck_tile::number<2>{}),
+                                    ScalarVec,
+                                    1,
+                                    1>;
 
 // Pairwise distance CK kernel: ElementWiseOp(e, c, norm_x, norm_y).
 template <typename DataT, typename DistT, typename Layout, bool ScalarVec, typename ElementWiseOp>
@@ -211,8 +216,7 @@ struct PairwiseDistanceCkKernel {
   using KernelArgs = PairwiseDistanceCkKernelArgs<DataT, DistT>;
 
   using EpilogueType =
-    ck::PairwiseDistanceCkEpilogue<PairwiseDistanceCkEpilogueProblem<DataT, DistT, ScalarVec>,
-                                   ElementWiseOp>;
+    PairwiseDistanceCkEpilogue<EpilogueProblemFor<DataT, DistT, ScalarVec>, ElementWiseOp>;
 
   static constexpr ck_tile::index_t kBlockSize = HelperKernel::kBlockSize;
 

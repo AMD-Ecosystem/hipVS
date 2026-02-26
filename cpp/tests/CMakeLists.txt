@@ -334,19 +334,6 @@ if(BUILD_TESTS)
     PERCENT 100
   )
 
-  if(BUILD_CK_BACKEND)
-    ConfigureTest(
-      NAME CK_REFERENCE_DISTANCE_TEST
-      PATH distance/ck_reference/ck_sandbox.cu
-      ADDITIONAL_DEP
-        composable_kernel::device_other_operations
-        composable_kernel::device_gemm_operations
-        composable_kernel::utility
-      GPUS 1
-      PERCENT 100
-    )
-  endif()
-
   ConfigureTest(
     NAME SPARSE_TEST
     PATH sparse/cluster/cluster_solvers.cu sparse/cluster/eigen_solvers.cu

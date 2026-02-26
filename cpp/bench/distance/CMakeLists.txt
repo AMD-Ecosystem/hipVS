@@ -25,7 +25,7 @@ add_executable(pairwise_distance_bench pairwise_distance_bench.cu)
 
 target_link_libraries(
   pairwise_distance_bench PRIVATE cuvs cuvs::cuvs raft::raft benchmark::benchmark Threads::Threads
-                                  stdc++fs $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+                                  stdc++fs
 )
 
 set_target_properties(

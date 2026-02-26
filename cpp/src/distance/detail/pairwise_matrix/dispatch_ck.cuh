@@ -59,23 +59,33 @@ struct has_sqrt_member : std::false_type {};
 template <typename T>
 struct has_sqrt_member<T, std::void_t<decltype(std::declval<T>().sqrt)>> : std::true_type {};
 
-// Buffer descriptor max bytes is 4GB - 1. The reason for this limitation is that deep withing CK
-// they use uint32_t for the buffer descriptor size. This leads to a 4GB limit on the buffer
-// descriptor size.
-constexpr uint64_t kBufferDescriptorMaxBytes = (uint64_t{1} << 32) - 1;
+// Buffer descriptor max bytes is 4GB - 1. The AMD GPU buffer resource descriptor (used by CK's
+// raw buffer load/store) has a 32-bit range field. See ck_tile/core/arch/amd_buffer_addressing.hpp:
+// struct buffer_resource { const void* ptr; uint32_t range; uint32_t config; } and
+// make_wave_buffer_resource(ptr, uint32_t size = 0xffffffff).
+constexpr uint64_t kBufferDescriptorMaxBytes = std::numeric_limits<uint32_t>::max();
 
 /**
  * @brief Calculate the maximum batch size for M.
  *
+ * Constrains both output (mb*nb*sizeof(OutT)) and A matrix (mb*k*sizeof(DataT)) to stay under
+ * the 4GB buffer descriptor limit.
+ *
+ * @tparam DataT
  * @tparam OutT
  * @param n
+ * @param k
  * @return int64_t
  */
-template <typename OutT>
-inline int64_t max_m_per_batch(int64_t n)
+template <typename DataT, typename OutT>
+inline int64_t max_m_per_batch(int64_t n, int64_t k)
 {
   constexpr int64_t M_Tile = GemmDistanceConfig::M_Tile;
-  int64_t limit = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(n) * sizeof(OutT)));
+  if (n <= 0 || k <= 0) return M_Tile;
+  int64_t limit_out =
+    static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(n) * sizeof(OutT)));
+  int64_t limit_a = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(k) * sizeof(DataT)));
+  int64_t limit   = std::min(limit_out, limit_a);
   return std::max<int64_t>((limit / M_Tile) * M_Tile, M_Tile);
 }
 
@@ -89,7 +99,7 @@ inline int64_t max_m_per_batch(int64_t n)
  * @return int64_t
  */
 template <typename DataT>
-inline int64_t max_n_per_batch(int64_t k, int64_t n_full, bool is_row_major)
+int64_t max_n_per_batch(int64_t k, int64_t n_full, bool is_row_major)
 {
   constexpr int64_t N_Tile = GemmDistanceConfig::N_Tile;
   if (is_row_major) {
@@ -100,22 +110,6 @@ inline int64_t max_n_per_batch(int64_t k, int64_t n_full, bool is_row_major)
   }
 }
 
-inline ck_tile::index_t ck_idx(int64_t v) { return static_cast<ck_tile::index_t>(v); }
-
-template <typename DataT, typename OutT>
-ck_tile::GemmMultiDHostArgs<1> make_gemm_host_args(const DataT* a,
-                                                   const DataT* b,
-                                                   OutT* de,
-                                                   ck_tile::index_t m,
-                                                   ck_tile::index_t n,
-                                                   ck_tile::index_t k,
-                                                   ck_tile::index_t lda,
-                                                   ck_tile::index_t ldb,
-                                                   ck_tile::index_t ld_out)
-{
-  return {a, b, {de}, de, 1, m, n, k, lda, ldb, {ld_out}, ld_out};
-}
-
 template <typename KernelT, typename KArgsT>
 void launch_ck_gemm(const ck_tile::stream_config& s,
                     const KArgsT& kargs,
@@ -124,61 +118,6 @@ void launch_ck_gemm(const ck_tile::stream_config& s,
 {
   ck_tile::launch_kernel(
     s, ck_tile::make_kernel(KernelT{}, KernelT::GridSize(m, n, 1), KernelT::BlockSize(), 0, kargs));
-}
-
-/**
- * @brief Dispatch the batched GEMM operation. The reason for this is to avoid launching the kernel
- * with unsupported arguments.
- *
- * @tparam IdxT: Index type
- * @tparam DataT: Data type
- * @tparam OutT: Output type
- * @tparam FinOpT: Final operation type
- * @tparam APtrFn: Function to get the A pointer
- * @tparam BPtrFn: Function to get the B pointer
- * @tparam LaunchFn: Function to launch the kernel
- * @param params: Parameters
- * @param mb_max: Maximum batch size for M
- * @param nb_max: Maximum batch size for N
- * @param s: Stream configuration
- * @param a_ptr_fn: Function to get the A pointer
- * @param b_ptr_fn: Function to get the B pointer
- * @param launch_fn: Function to launch the kernel
- */
-template <typename IdxT,
-          typename DataT,
-          typename OutT,
-          typename FinOpT,
-          typename APtrFn,
-          typename BPtrFn,
-          typename LaunchFn>
-void dispatch_batched_gemm(const pairwise_matrix_params<IdxT, DataT, OutT, FinOpT>& params,
-                           int64_t mb_max,
-                           int64_t nb_max,
-                           const ck_tile::stream_config& s,
-                           APtrFn&& a_ptr_fn,
-                           BPtrFn&& b_ptr_fn,
-                           LaunchFn&& launch_fn)
-{
-  const auto m = static_cast<int64_t>(params.m);
-  const auto n = static_cast<int64_t>(params.n);
-
-  for (int64_t m_off = 0; m_off < m; m_off += mb_max) {
-    auto mb = ck_idx(std::min(mb_max, m - m_off));
-    for (int64_t n_off = 0; n_off < n; n_off += nb_max) {
-      auto nb   = ck_idx(std::min(nb_max, n - n_off));
-      auto args = make_gemm_host_args(a_ptr_fn(m_off),
-                                      b_ptr_fn(n_off),
-                                      params.out + m_off * params.ld_out + n_off,
-                                      mb,
-                                      nb,
-                                      ck_idx(params.k),
-                                      ck_idx(params.ldx),
-                                      ck_idx(params.ldy),
-                                      ck_idx(params.ld_out));
-      launch_fn(args, mb, nb, s);
-    }
-  }
 }
 
 template <typename FastKernel,
@@ -205,9 +144,9 @@ void dispatch_batched_pairwise_distance_ck_gemm(
   const auto n = static_cast<int64_t>(params.n);
 
   for (int64_t m_off = 0; m_off < m; m_off += mb_max) {
-    auto mb = ck_idx(std::min(mb_max, m - m_off));
+    auto mb = static_cast<ck_tile::index_t>(std::min(mb_max, m - m_off));
     for (int64_t n_off = 0; n_off < n; n_off += nb_max) {
-      auto nb = ck_idx(std::min(nb_max, n - n_off));
+      auto nb = static_cast<ck_tile::index_t>(std::min(nb_max, n - n_off));
       typename FastKernel::KernelArgs kargs{a_ptr_fn(m_off),
                                             b_ptr_fn(n_off),
                                             params.out + m_off * params.ld_out + n_off,
@@ -215,10 +154,10 @@ void dispatch_batched_pairwise_distance_ck_gemm(
                                             norm_y_fn(n_off),
                                             mb,
                                             nb,
-                                            ck_idx(params.k),
-                                            ck_idx(params.ldx),
-                                            ck_idx(params.ldy),
-                                            ck_idx(params.ld_out),
+                                            static_cast<ck_tile::index_t>(params.k),
+                                            static_cast<ck_tile::index_t>(params.ldx),
+                                            static_cast<ck_tile::index_t>(params.ldy),
+                                            static_cast<ck_tile::index_t>(params.ld_out),
                                             1};
 
       if (FastKernel::IsSupportedArgument(kargs)) {
@@ -287,8 +226,15 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
     hipDeviceProp_t prop{};
     RAFT_CUDA_TRY(hipGetDeviceProperties(&prop, device));
     if (std::strncmp(prop.gcnArchName, "gfx9", 4) != 0) {
-      pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
-      return;
+      if constexpr (std::is_same_v<DataT, float>) {
+        pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
+        return;
+      }
+      if (!params.is_row_major) {
+        // CK's WMMA path is not supported for column-major.
+        pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
+        return;
+      }
     }
 
     // The fast kernel requires that the input matrices are aligned to the vector load size.
@@ -314,18 +260,19 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
 
     // Column-major: probe first and fall back to SM60 if CK can't handle the shape.
     if (!ck_params.is_row_major) {
-      PairwiseDistanceCkKernelArgs<CkDataT, OutT> probe{ck_params.x,
-                                                        ck_params.y,
-                                                        ck_params.out,
-                                                        ck_params.x_norm,
-                                                        ck_params.y_norm,
-                                                        ck_idx(ck_params.m),
-                                                        ck_idx(ck_params.n),
-                                                        ck_idx(ck_params.k),
-                                                        ck_idx(ck_params.ldx),
-                                                        ck_idx(ck_params.ldy),
-                                                        ck_idx(ck_params.ld_out),
-                                                        1};
+      PairwiseDistanceCkKernelArgs<CkDataT, OutT> probe{
+        ck_params.x,
+        ck_params.y,
+        ck_params.out,
+        ck_params.x_norm,
+        ck_params.y_norm,
+        static_cast<ck_tile::index_t>(ck_params.m),
+        static_cast<ck_tile::index_t>(ck_params.n),
+        static_cast<ck_tile::index_t>(ck_params.k),
+        static_cast<ck_tile::index_t>(ck_params.ldx),
+        static_cast<ck_tile::index_t>(ck_params.ldy),
+        static_cast<ck_tile::index_t>(ck_params.ld_out),
+        1};
 
       if (!FastKernelCol::IsSupportedArgument(probe)) {
         pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
@@ -337,8 +284,16 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
     const auto n = static_cast<int64_t>(ck_params.n);
     const auto k = static_cast<int64_t>(ck_params.k);
     // We're forced to batch since CK uses uint32_t for the buffer descriptor size.
-    const int64_t mb_max = max_m_per_batch<OutT>(n);
+    const int64_t mb_max = max_m_per_batch<CkDataT, OutT>(n, k);
     const int64_t nb_max = max_n_per_batch<CkDataT>(k, n, ck_params.is_row_major);
+
+    // Output batch mb_max * nb_max must fit in 4GB. When limit_out=0 we still return M_Tile,
+    // but mb_max * nb_max * sizeof(OutT) can exceed 4GB; fall back to SM60 in that case.
+    if (static_cast<uint64_t>(mb_max) * static_cast<uint64_t>(nb_max) * sizeof(OutT) >=
+        kBufferDescriptorMaxBytes) {
+      pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
+      return;
+    }
 
     if (ck_params.is_row_major) {
       dispatch_batched_pairwise_distance_ck_gemm<FastKernel, SafeKernel>(
@@ -359,12 +314,12 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
         ck_params.out,
         ck_params.x_norm,
         ck_params.y_norm,
-        ck_idx(std::min(mb_max, static_cast<int64_t>(ck_params.m))),
-        ck_idx(std::min(nb_max, static_cast<int64_t>(ck_params.n))),
-        ck_idx(ck_params.k),
-        ck_idx(ck_params.ldx),
-        ck_idx(ck_params.ldy),
-        ck_idx(ck_params.ld_out),
+        static_cast<ck_tile::index_t>(std::min(mb_max, static_cast<int64_t>(ck_params.m))),
+        static_cast<ck_tile::index_t>(std::min(nb_max, static_cast<int64_t>(ck_params.n))),
+        static_cast<ck_tile::index_t>(ck_params.k),
+        static_cast<ck_tile::index_t>(ck_params.ldx),
+        static_cast<ck_tile::index_t>(ck_params.ldy),
+        static_cast<ck_tile::index_t>(ck_params.ld_out),
         1};
       if (!FastKernelCol::IsSupportedArgument(first_batch)) {
         pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
@@ -431,7 +386,6 @@ void pairwise_matrix_ck_dispatch(OpT distance_op,
                                        SM_compat_t,
                                        ApplySqrtToDistances>(
     distance_op, params, compat_range, stream);
-  return;
 }
 
 }  // namespace cuvs::distance::detail

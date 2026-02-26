@@ -129,7 +129,7 @@ void pairwise_matrix_dispatch(OpT distance_op,
   namespace arch = raft::util::arch;
 
 #ifdef CUVS_CK_ENABLED
-  if constexpr (ops::has_ck_op<OpT>()) {
+  if constexpr (ops::has_ck_op<OpT>::value) {
     auto any_range = arch::SM_range(arch::SM_min(), arch::SM_future());
     pairwise_matrix_ck_dispatch(distance_op, params, any_range, stream);
   } else {
