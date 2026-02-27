@@ -17,6 +17,42 @@ index b80a5f4c9..c0199fd1a 100644
  endif()
 
  project(faiss
+diff --git a/cmake/thirdparty/fetch_rapids.cmake b/cmake/thirdparty/fetch_rapids.cmake
+index 4133a4460..2a2464bf8 100644
+--- a/cmake/thirdparty/fetch_rapids.cmake
++++ b/cmake/thirdparty/fetch_rapids.cmake
+@@ -18,10 +18,27 @@
+ set(RAPIDS_VERSION "25.08")
+
+ if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
+-    if(NOT rapids-cmake-version)
+-        set(rapids-cmake-version ${RAPIDS_VERSION})
++    if(FAISS_ENABLE_ROCM)
++        if(DEFINED ENV{RAPIDS_CMAKE_SCRIPT_REPO})
++            set(RAPIDS_CMAKE_SCRIPT_REPO "$ENV{RAPIDS_CMAKE_SCRIPT_REPO}")
++        else()
++            set(RAPIDS_CMAKE_SCRIPT_REPO ROCm-DS/ROCmDS-CMake)
++        endif()
++        if(DEFINED ENV{RAPIDS_CMAKE_SCRIPT_BRANCH})
++            set(RAPIDS_CMAKE_SCRIPT_BRANCH "$ENV{RAPIDS_CMAKE_SCRIPT_BRANCH}")
++        else()
++            set(RAPIDS_CMAKE_SCRIPT_BRANCH release/rocmds-25.10)
++        endif()
++        set(URL
++            "https://raw.githubusercontent.com/${RAPIDS_CMAKE_SCRIPT_REPO}/${RAPIDS_CMAKE_SCRIPT_BRANCH}/RAPIDS.cmake"
++        )
++        file(DOWNLOAD ${URL} ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
++    else()
++        if(NOT rapids-cmake-version)
++            set(rapids-cmake-version ${RAPIDS_VERSION})
++        endif()
++        file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION}/RAPIDS.cmake
++                ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
+     endif()
+-    file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-${RAPIDS_VERSION}/RAPIDS.cmake
+-            ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
+ endif()
+ include(${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
 diff --git a/faiss/gpu/CMakeLists.txt b/faiss/gpu/CMakeLists.txt
 index 50740450a..88fe84313 100644
 --- a/faiss/gpu/CMakeLists.txt
