@@ -215,5 +215,9 @@ For the interested reader, many of the accelerated implementations in hipVS are 
 - [Fast K-NN Graph Construction by GPU Based NN-Descent](https://dl.acm.org/doi/abs/10.1145/3459637.3482344?casa_token=O_nan1B1F5cAAAAA:QHWDEhh0wmd6UUTLY9_Gv6c3XI-5DXM9mXVaUXOYeStlpxTPmV3nKvABRfoivZAaQ3n8FWyrkWw>)
 - [cuSLINK: Single-linkage Agglomerative Clustering on the GPU](https://arxiv.org/abs/2306.16354)
 - [GPU Semiring Primitives for Sparse Neighborhood Methods](https://arxiv.org/abs/2104.06357)
-
----
+# <<<<<<< OLD CODE from 3bfb7f089 (4eaee1288) - COMMENTED OUT
+#
+# ---
+# =======
+- [VecFlow: A High-Performance Vector Data Management System for Filtered-Search on GPUs](https://arxiv.org/abs/2506.00812)
+# >>>>>>> END NEW CODE (4eaee1288)
