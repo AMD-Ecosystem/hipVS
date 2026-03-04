@@ -35,11 +35,11 @@ dependencies:
   - --extra-index-url https://pypi.amd.com/rocm-7.0.2/simple/
   - --pre
   - amd-cupy==13.5.1
-  - amd-hipmm==3.0.0
-  - amd-libhipmm==3.0.0
+  - amd-hipmm==4.0.0
+  - amd-libhipmm==4.0.0
   - hip-python~=7.0.0
   - hip-python-as-cuda~=7.0.0
-  - amd-libraft==0.1.0
-  - amd-pylibraft==0.1.0
+  - amd-libraft==1.0.0
+  - amd-pylibraft==1.0.0
 
 name: all_rocm_arch-x86_64
