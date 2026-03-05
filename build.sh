@@ -2,7 +2,7 @@
 
 # Copyright (c) 2020-2025, NVIDIA CORPORATION.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -436,16 +436,22 @@ export RAPIDS_VERSION
 RAPIDS_VERSION_MAJOR_MINOR="$(sed -E -e 's/^([0-9]{2})\.([0-9]{2})\.([0-9]{2}).*$/\1.\2/' "${REPODIR}/VERSION")"
 export RAPIDS_VERSION_MAJOR_MINOR
 
+
 if hasArg docs; then
     set -x
-    cd ${DOXYGEN_BUILD_DIR}
-    doxygen Doxyfile
-    cd "${SPHINX_BUILD_DIR}"
-    make html
-    cd "${REPODIR}"/rust
-    cargo doc -p cuvs --no-deps
-    rsync -av "${RUST_BUILD_DIR}"/doc/ "${SPHINX_BUILD_DIR}"/build/html/_static/rust
+    cd ${SPHINX_BUILD_DIR}
+    mkdir -p _build
+    rm -rf _build/*
+    LC_ALL=C.UTF-8 sphinx-build -E . _build # For this to work, the required dependencies specified in docs_amd/sphinx/requirements.txt must be installed.
+    if [ -x "$(command -v cargo)" ] && [ -n "${UPDATE_RUST_DOCS}" ]; then
+        echo "Building hipVS Rust docs..."
+        pushd ${REPODIR}/rust
+        cargo doc -p hipvs --no-deps
+        rsync -av target/doc/* ${REPODIR}/docs_amd/reference/rust_api/rust_html/
+        popd
+    fi
 fi
+
 
 ################################################################################
 # Initiate build for examples (if needed)

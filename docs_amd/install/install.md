@@ -1,7 +1,7 @@
 <!---
     MIT License
 
-    Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+    Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ You can install hipVS via AMD PyPI as described below. This is recommended for u
 
 ## Requirements
 
-hipVS requires ROCm 7.0.2 running on a [ROCm-supported operating system](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.0.2/reference/system-requirements.html#supported-operating-systems). Using Ubuntu 22.04 or later is recommended.
+hipVS requires ROCm 7.2.1 running on a [ROCm-supported operating system](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.1/reference/system-requirements.html#supported-operating-systems). Using Ubuntu 22.04 or later is recommended.
 For more information, see [ROCm-DS system requirements](https://rocm.docs.amd.com/projects/rocm-ds-internal/en/latest/install/install.html).
 
 The steps in this topic require a Conda installation. A minimal free version of Conda is [Miniforge](https://conda-forge.org/download/).
@@ -42,7 +42,7 @@ The steps in this topic require a Conda installation. A minimal free version of 
 ## Install hipVS via AMD PyPI
 
 Packaged versions of hipVS and its dependencies are distributed via
-[AMD PyPI](https://pypi.amd.com/simple). This section discusses how to install
+[AMD PyPI](https://pypi.amd.com/rocm-7.2.1/simple/). This section discusses how to install
 hipVS via this package index.
 
 Create and activate a Conda environment with Python 3.12 as shown below:
@@ -55,5 +55,5 @@ conda activate hipVS
 hipVS can then be installed into this environment using pip and the AMD PyPI URL:
 
 ```bash
-pip install amd-hipvs==0.1.0 --extra-index-url=https://pypi.amd.com/simple
+pip install amd-hipvs==1.0.0 --extra-index-url=https://pypi.amd.com/rocm-7.2.1/simple/
 ```

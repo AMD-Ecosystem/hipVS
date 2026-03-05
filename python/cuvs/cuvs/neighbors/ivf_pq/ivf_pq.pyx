@@ -15,6 +15,28 @@
 #
 # cython: language_level=3
 
+# MIT License
+#
+# Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import numpy as np
 
 cimport cuvs.common.cydlpack
@@ -469,7 +491,7 @@ def search(SearchParams search_params,
     index : :py:class:`cuvs.neighbors.ivf_pq.Index`
         Trained IvfPq index.
     queries : CUDA array interface compliant matrix shape (n_samples, dim)
-        Supported dtype [float, int8, uint8]
+        Supported dtype [float32, int8, uint8]
     k : int
         The number of neighbors.
     neighbors : Optional CUDA array interface compliant matrix shape
@@ -633,7 +655,7 @@ def extend(Index index, new_vectors, new_indices, resources=None):
     index : ivf_pq.Index
         Trained ivf_pq object.
     new_vectors : array interface compliant matrix shape (n_samples, dim)
-        Supported dtype [float, int8, uint8]
+        Supported dtype [float32, int8, uint8]
     new_indices : array interface compliant vector shape (n_samples)
         Supported dtype [int64]
     {resources_docstring}

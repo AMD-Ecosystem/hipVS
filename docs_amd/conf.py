@@ -1,6 +1,6 @@
 # MIT License
 #
-# Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+# Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-version_number = "0.1.0" # TODO: Parse this from a centralized location.
+version_number = "1.0.0" # TODO: Parse this from a centralized location.
 left_nav_title = f"hipVS {version_number} documentation"
 
 # for PDF output on Read the Docs

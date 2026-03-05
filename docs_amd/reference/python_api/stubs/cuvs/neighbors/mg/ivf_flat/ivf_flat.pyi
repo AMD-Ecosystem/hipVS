@@ -1,0 +1,377 @@
+# MIT License
+#
+# Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+from __future__ import annotations
+import builtins as __builtins__
+from cuvs.common.exceptions import check_cuvs
+from cuvs.common.mg_resources import auto_sync_multi_gpu_resources
+from cuvs.neighbors.common import _check_input_array
+from cuvs.neighbors.common import _check_memory_location
+import cuvs.neighbors.ivf_flat.ivf_flat
+import numpy as np
+from pylibraft.common.cai_wrapper import wrap_array
+from pylibraft.common.interruptible import cuda_interruptible
+from pylibraft.common.outputs import auto_convert_output
+__all__: list[str] = ['Index', 'IndexParams', 'SearchParams', 'auto_convert_output', 'auto_sync_multi_gpu_resources', 'build', 'check_cuvs', 'cuda_interruptible', 'distribute', 'extend', 'load', 'np', 'save', 'search', 'wrap_array']
+class Index:
+    """
+    
+        Multi-GPU IVF-Flat index object. Stores the trained multi-GPU IVF-Flat
+        index state which can be used to perform nearest neighbors searches
+        across multiple GPUs.
+        
+    """
+    @staticmethod
+    def __new__(type, *args, **kwargs):
+        """
+        Create and return a new object.  See help(type) for accurate signature.
+        """
+    @staticmethod
+    def __reduce__(*args, **kwargs):
+        """
+        Index.__reduce_cython__(self)
+        """
+    @staticmethod
+    def __repr__(*args, **kwargs):
+        ...
+    @staticmethod
+    def __setstate__(*args, **kwargs):
+        """
+        Index.__setstate_cython__(self, __pyx_state)
+        """
+class IndexParams(cuvs.neighbors.ivf_flat.ivf_flat.IndexParams):
+    """
+    IndexParams(distribution_mode=u'sharded', *, **kwargs)
+    
+        Parameters to build multi-GPU IVF-Flat index for efficient search.
+        Extends single-GPU IndexParams with multi-GPU specific parameters.
+    
+        Parameters
+        ----------
+        distribution_mode : str, default = "sharded"
+            Distribution mode for multi-GPU setup.
+            Valid values: ["replicated", "sharded"]
+        **kwargs : Additional parameters passed to single-GPU IndexParams
+        
+    """
+    @staticmethod
+    def __new__(type, *args, **kwargs):
+        """
+        Create and return a new object.  See help(type) for accurate signature.
+        """
+    @staticmethod
+    def __reduce__(*args, **kwargs):
+        """
+        IndexParams.__reduce_cython__(self)
+        """
+    @staticmethod
+    def __setstate__(*args, **kwargs):
+        """
+        IndexParams.__setstate_cython__(self, __pyx_state)
+        """
+    def get_handle(self):
+        """
+        IndexParams.get_handle(self)
+        """
+class SearchParams(cuvs.neighbors.ivf_flat.ivf_flat.SearchParams):
+    """
+    SearchParams(n_probes=1, *, search_mode=u'load_balancer', merge_mode=u'merge_on_root_rank', n_rows_per_batch=1000, **kwargs)
+    
+        Parameters to search multi-GPU IVF-Flat index.
+        
+    """
+    @staticmethod
+    def __new__(type, *args, **kwargs):
+        """
+        Create and return a new object.  See help(type) for accurate signature.
+        """
+    @staticmethod
+    def __reduce__(*args, **kwargs):
+        """
+        SearchParams.__reduce_cython__(self)
+        """
+    @staticmethod
+    def __setstate__(*args, **kwargs):
+        """
+        SearchParams.__setstate_cython__(self, __pyx_state)
+        """
+    def get_handle(self):
+        """
+        SearchParams.get_handle(self)
+        """
+def __reduce_cython__(self):
+    """
+    SearchParams.__reduce_cython__(self)
+    """
+def __setstate_cython__(self, __pyx_state):
+    """
+    SearchParams.__setstate_cython__(self, __pyx_state)
+    """
+def build(*args, resources = None, **kwargs):
+    """
+    build(IndexParams index_params, dataset, resources=None)
+    
+        Build the multi-GPU IVF-Flat index from the dataset for efficient search.
+    
+        Parameters
+        ----------
+        index_params : :py:class:`cuvs.neighbors.ivf_flat.IndexParams`
+        dataset : Array interface compliant matrix shape (n_samples, dim)
+            Supported dtype [float32, float16, int8, uint8]
+            **IMPORTANT**: For multi-GPU IVF-Flat, the dataset MUST be in host
+            memory (CPU). If using CuPy/device arrays, transfer to host with
+            array.get() or cp.asnumpy(array).
+        resources : Optional cuVS Multi-GPU Resource handle for reusing CUDA resources.
+            If Multi-GPU Resources aren't supplied, CUDA resources will be
+            allocated inside this function and synchronized before the
+            function exits. If resources are supplied, you will need to
+            explicitly synchronize yourself by calling `resources.sync()`
+            before accessing the output.
+    
+        Returns
+        -------
+        index: py:class:`cuvs.neighbors.ivf_flat.Index`
+    
+        Examples
+        --------
+    
+        >>> import numpy as np
+        >>> from cuvs.neighbors.mg import ivf_flat
+        >>> n_samples = 50000
+        >>> n_features = 50
+        >>> n_queries = 1000
+        >>> k = 10
+        >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays
+        >>> dataset = np.random.random_sample((n_samples, n_features)).astype(
+        ...     np.float32)
+        >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")
+        >>> index = ivf_flat.build(build_params, dataset)
+        >>> distances, neighbors = ivf_flat.search(
+        ...     ivf_flat.SearchParams(),
+        ...     index, dataset, k)
+        >>> # Results are already in host memory (NumPy arrays)
+        
+    """
+def distribute(*args, resources = None, **kwargs):
+    """
+    distribute(filename, resources=None)
+    
+        Distribute a single-GPU IVF-Flat index across multiple GPUs from a file.
+    
+        Parameters
+        ----------
+        filename : str
+            The filename to distribute the index from.
+        resources : Optional cuVS Multi-GPU Resource handle for reusing CUDA resources.
+            If Multi-GPU Resources aren't supplied, CUDA resources will be
+            allocated inside this function and synchronized before the
+            function exits. If resources are supplied, you will need to
+            explicitly synchronize yourself by calling `resources.sync()`
+            before accessing the output.
+    
+        Returns
+        -------
+        index : Index
+            The distributed index.
+    
+        Examples
+        --------
+    
+        >>> from cuvs.neighbors.mg import ivf_flat
+        >>> index = ivf_flat.distribute("single_gpu_index.bin")  # doctest: +SKIP
+        
+    """
+def extend(*args, resources = None, **kwargs):
+    """
+    extend(Index index, new_vectors, new_indices=None, resources=None)
+    
+        Extend the multi-GPU IVF-Flat index with new vectors.
+    
+        Parameters
+        ----------
+        index : :py:class:`cuvs.neighbors.ivf_flat.Index`
+        new_vectors : Array interface compliant matrix shape (n_new_vectors, dim)
+            Supported dtype [float32, float16, int8, uint8]
+            **IMPORTANT**: For multi-GPU IVF-Flat, new_vectors MUST be
+            in host memory (CPU). If using CuPy/device arrays, transfer
+            to host with array.get() or cp.asnumpy(array).
+        new_indices : Array interface compliant matrix shape (n_new_vectors,)
+            , optional
+            If provided, these indices will be used for the new vectors.
+            If not provided, indices will be automatically assigned.
+            **IMPORTANT**: Must be in host memory (CPU) for multi-GPU IVF-Flat.
+        resources : Optional cuVS Multi-GPU Resource handle for reusing CUDA resources.
+            If Multi-GPU Resources aren't supplied, CUDA resources will be
+            allocated inside this function and synchronized before the
+            function exits. If resources are supplied, you will need to
+            explicitly synchronize yourself by calling `resources.sync()`
+            before accessing the output.
+    
+        Examples
+        --------
+    
+        >>> import numpy as np
+        >>> from cuvs.neighbors.mg import ivf_flat
+        >>> n_samples = 50000
+        >>> n_features = 50
+        >>> n_new_vectors = 1000
+        >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays
+        >>> dataset = np.random.random_sample((n_samples, n_features)).astype(
+        ...     np.float32)
+        >>> new_vectors = np.random.random_sample(
+        ...     (n_new_vectors, n_features)).astype(np.float32)
+        >>> new_indices = np.arange(n_samples, n_new_vectors, dtype=np.int64)
+        >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")
+        >>> index = ivf_flat.build(build_params, dataset)
+        >>> ivf_flat.extend(index, new_vectors, new_indices)
+        
+    """
+def load(*args, resources = None, **kwargs):
+    """
+    load(filename, resources=None)
+    
+        Deserialize the multi-GPU IVF-Flat index from a file.
+    
+        Parameters
+        ----------
+        filename : str
+            The filename to deserialize the index from.
+        resources : Optional cuVS Multi-GPU Resource handle for reusing CUDA resources.
+            If Multi-GPU Resources aren't supplied, CUDA resources will be
+            allocated inside this function and synchronized before the
+            function exits. If resources are supplied, you will need to
+            explicitly synchronize yourself by calling `resources.sync()`
+            before accessing the output.
+    
+        Returns
+        -------
+        index : Index
+            The deserialized index.
+    
+        Examples
+        --------
+    
+        >>> from cuvs.neighbors.mg import ivf_flat
+        >>> index = ivf_flat.load("index.bin")  # doctest: +SKIP
+        
+    """
+def save(*args, resources = None, **kwargs):
+    """
+    save(Index index, filename, resources=None)
+    
+        Serialize the multi-GPU IVF-Flat index to a file.
+    
+        Parameters
+        ----------
+        index : :py:class:`cuvs.neighbors.ivf_flat.Index`
+        filename : str
+            The filename to serialize the index to.
+        resources : Optional cuVS Multi-GPU Resource handle for reusing CUDA resources.
+            If Multi-GPU Resources aren't supplied, CUDA resources will be
+            allocated inside this function and synchronized before the
+            function exits. If resources are supplied, you will need to
+            explicitly synchronize yourself by calling `resources.sync()`
+            before accessing the output.
+    
+        Examples
+        --------
+    
+        >>> import numpy as np
+        >>> from cuvs.neighbors.mg import ivf_flat
+        >>> n_samples = 50000
+        >>> n_features = 50
+        >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays
+        >>> dataset = np.random.random_sample((n_samples, n_features)).astype(
+        ...     np.float32)
+        >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")
+        >>> index = ivf_flat.build(build_params, dataset)
+        >>> ivf_flat.save(index, "index.bin")
+        
+    """
+def search(*args, resources = None, **kwargs):
+    """
+    search(SearchParams search_params, Index index, queries, k, neighbors=None, distances=None, resources=None)
+    
+        Search the multi-GPU IVF-Flat index for the k-nearest neighbors
+        of each query.
+    
+        Parameters
+        ----------
+        search_params : :py:class:`cuvs.neighbors.ivf_flat.SearchParams`
+        index : :py:class:`cuvs.neighbors.ivf_flat.Index`
+        queries : Array interface compliant matrix shape (n_queries, dim)
+            Supported dtype [float32, float16, int8, uint8]
+            **IMPORTANT**: For multi-GPU IVF-Flat, queries MUST be
+            in host memory (CPU).
+            If using CuPy/device arrays, transfer to host with array.get()
+            or cp.asnumpy(array).
+        k : int
+            The number of neighbors to search for each query.
+        neighbors : Array interface compliant matrix shape (n_queries, k), optional
+            If provided, this array will be filled with the indices of
+            the k-nearest neighbors.
+            If not provided, a new host array will be allocated.
+            **IMPORTANT**: Must be in host memory (CPU) for multi-GPU IVF-Flat.
+        distances : Array interface compliant matrix shape (n_queries, k), optional
+            If provided, this array will be filled with the distances to
+            the k-nearest neighbors.
+            If not provided, a new host array will be allocated.
+            **IMPORTANT**: Must be in host memory (CPU) for multi-GPU IVF-Flat.
+        resources : Optional cuVS Multi-GPU Resource handle for reusing CUDA resources.
+            If Multi-GPU Resources aren't supplied, CUDA resources will be
+            allocated inside this function and synchronized before the
+            function exits. If resources are supplied, you will need to
+            explicitly synchronize yourself by calling `resources.sync()`
+            before accessing the output.
+    
+        Returns
+        -------
+        distances : numpy.ndarray
+            The distances to the k-nearest neighbors for each query
+            (in host memory).
+        neighbors : numpy.ndarray
+            The indices of the k-nearest neighbors for each query
+            (in host memory).
+    
+        Examples
+        --------
+    
+        >>> import numpy as np
+        >>> from cuvs.neighbors.mg import ivf_flat
+        >>> n_samples = 50000
+        >>> n_features = 50
+        >>> n_queries = 1000
+        >>> k = 10
+        >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays
+        >>> dataset = np.random.random_sample((n_samples, n_features)).astype(
+        ...     np.float32)
+        >>> queries = np.random.random_sample((n_queries, n_features)).astype(
+        ...     np.float32)
+        >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")
+        >>> index = ivf_flat.build(build_params, dataset)
+        >>> distances, neighbors = ivf_flat.search(
+        ...    ivf_flat.SearchParams(),
+        ...    index, queries, k)
+        >>> # Results are already in host memory (NumPy arrays)
+        
+    """
+__test__: dict = {'build (line 140)': '\n    Build the multi-GPU IVF-Flat index from the dataset for efficient search.\n\n    Parameters\n    ----------\n    index_params : :py:class:`cuvs.neighbors.ivf_flat.IndexParams`\n    dataset : Array interface compliant matrix shape (n_samples, dim)\n        Supported dtype [float32, float16, int8, uint8]\n        **IMPORTANT**: For multi-GPU IVF-Flat, the dataset MUST be in host\n        memory (CPU). If using CuPy/device arrays, transfer to host with\n        array.get() or cp.asnumpy(array).\n    {resources_docstring}\n\n    Returns\n    -------\n    index: py:class:`cuvs.neighbors.ivf_flat.Index`\n\n    Examples\n    --------\n\n    >>> import numpy as np\n    >>> from cuvs.neighbors.mg import ivf_flat\n    >>> n_samples = 50000\n    >>> n_features = 50\n    >>> n_queries = 1000\n    >>> k = 10\n    >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays\n    >>> dataset = np.random.random_sample((n_samples, n_features)).astype(\n    ...     np.float32)\n    >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")\n    >>> index = ivf_flat.build(build_params, dataset)\n    >>> distances, neighbors = ivf_flat.search(\n    ...     ivf_flat.SearchParams(),\n    ...     index, dataset, k)\n    >>> # Results are already in host memory (NumPy arrays)\n    ', 'search (line 284)': '\n    Search the multi-GPU IVF-Flat index for the k-nearest neighbors\n    of each query.\n\n    Parameters\n    ----------\n    search_params : :py:class:`cuvs.neighbors.ivf_flat.SearchParams`\n    index : :py:class:`cuvs.neighbors.ivf_flat.Index`\n    queries : Array interface compliant matrix shape (n_queries, dim)\n        Supported dtype [float32, float16, int8, uint8]\n        **IMPORTANT**: For multi-GPU IVF-Flat, queries MUST be\n        in host memory (CPU).\n        If using CuPy/device arrays, transfer to host with array.get()\n        or cp.asnumpy(array).\n    k : int\n        The number of neighbors to search for each query.\n    neighbors : Array interface compliant matrix shape (n_queries, k), optional\n        If provided, this array will be filled with the indices of\n        the k-nearest neighbors.\n        If not provided, a new host array will be allocated.\n        **IMPORTANT**: Must be in host memory (CPU) for multi-GPU IVF-Flat.\n    distances : Array interface compliant matrix shape (n_queries, k), optional\n        If provided, this array will be filled with the distances to\n        the k-nearest neighbors.\n        If not provided, a new host array will be allocated.\n        **IMPORTANT**: Must be in host memory (CPU) for multi-GPU IVF-Flat.\n    {resources_docstring}\n\n    Returns\n    -------\n    distances : numpy.ndarray\n        The distances to the k-nearest neighbors for each query\n        (in host memory).\n    neighbors : numpy.ndarray\n        The indices of the k-nearest neighbors for each query\n        (in host memory).\n\n    Examples\n    --------\n\n    >>> import numpy as np\n    >>> from cuvs.neighbors.mg import ivf_flat\n    >>> n_samples = 50000\n    >>> n_features = 50\n    >>> n_queries = 1000\n    >>> k = 10\n    >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays\n    >>> dataset = np.random.random_sample((n_samples, n_features)).astype(\n    ...     np.float32)\n    >>> queries = np.random.random_sample((n_queries, n_features)).astype(\n    ...     np.float32)\n    >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")\n    >>> index = ivf_flat.build(build_params, dataset)\n    >>> distances, neighbors = ivf_flat.search(\n    ...    ivf_flat.SearchParams(),\n    ...    index, queries, k)\n    >>> # Results are already in host memory (NumPy arrays)\n    ', 'extend (line 397)': '\n    Extend the multi-GPU IVF-Flat index with new vectors.\n\n    Parameters\n    ----------\n    index : :py:class:`cuvs.neighbors.ivf_flat.Index`\n    new_vectors : Array interface compliant matrix shape (n_new_vectors, dim)\n        Supported dtype [float32, float16, int8, uint8]\n        **IMPORTANT**: For multi-GPU IVF-Flat, new_vectors MUST be\n        in host memory (CPU). If using CuPy/device arrays, transfer\n        to host with array.get() or cp.asnumpy(array).\n    new_indices : Array interface compliant matrix shape (n_new_vectors,)\n        , optional\n        If provided, these indices will be used for the new vectors.\n        If not provided, indices will be automatically assigned.\n        **IMPORTANT**: Must be in host memory (CPU) for multi-GPU IVF-Flat.\n    {resources_docstring}\n\n    Examples\n    --------\n\n    >>> import numpy as np\n    >>> from cuvs.neighbors.mg import ivf_flat\n    >>> n_samples = 50000\n    >>> n_features = 50\n    >>> n_new_vectors = 1000\n    >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays\n    >>> dataset = np.random.random_sample((n_samples, n_features)).astype(\n    ...     np.float32)\n    >>> new_vectors = np.random.random_sample(\n    ...     (n_new_vectors, n_features)).astype(np.float32)\n    >>> new_indices = np.arange(n_samples, n_new_vectors, dtype=np.int64)\n    >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")\n    >>> index = ivf_flat.build(build_params, dataset)\n    >>> ivf_flat.extend(index, new_vectors, new_indices)\n    ', 'save (line 469)': '\n    Serialize the multi-GPU IVF-Flat index to a file.\n\n    Parameters\n    ----------\n    index : :py:class:`cuvs.neighbors.ivf_flat.Index`\n    filename : str\n        The filename to serialize the index to.\n    {resources_docstring}\n\n    Examples\n    --------\n\n    >>> import numpy as np\n    >>> from cuvs.neighbors.mg import ivf_flat\n    >>> n_samples = 50000\n    >>> n_features = 50\n    >>> # For multi-GPU IVF-Flat, use host (NumPy) arrays\n    >>> dataset = np.random.random_sample((n_samples, n_features)).astype(\n    ...     np.float32)\n    >>> build_params = ivf_flat.IndexParams(metric="sqeuclidean")\n    >>> index = ivf_flat.build(build_params, dataset)\n    >>> ivf_flat.save(index, "index.bin")\n    ', 'load (line 508)': '\n    Deserialize the multi-GPU IVF-Flat index from a file.\n\n    Parameters\n    ----------\n    filename : str\n        The filename to deserialize the index from.\n    {resources_docstring}\n\n    Returns\n    -------\n    index : Index\n        The deserialized index.\n\n    Examples\n    --------\n\n    >>> from cuvs.neighbors.mg import ivf_flat\n    >>> index = ivf_flat.load("index.bin")  # doctest: +SKIP\n    ', 'distribute (line 543)': '\n    Distribute a single-GPU IVF-Flat index across multiple GPUs from a file.\n\n    Parameters\n    ----------\n    filename : str\n        The filename to distribute the index from.\n    {resources_docstring}\n\n    Returns\n    -------\n    index : Index\n        The distributed index.\n\n    Examples\n    --------\n\n    >>> from cuvs.neighbors.mg import ivf_flat\n    >>> index = ivf_flat.distribute("single_gpu_index.bin")  # doctest: +SKIP\n    '}

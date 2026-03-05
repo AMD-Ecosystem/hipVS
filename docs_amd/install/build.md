@@ -1,7 +1,7 @@
 <!---
     MIT License
 
-    Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+    Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -35,35 +35,37 @@ hipVS currently provides C++, C, Python and Rust APIs. The following instruction
 | MI250X              | CDNA2        | 64             | gfx90a      |
 | MI300A              | CDNA3        | 64             | gfx942      |
 | MI300X              | CDNA3        | 64             | gfx942      |
+| MI350X              | CDNA4        | 64             | gfx950      |
+| MI355X              | CDNA4        | 64             | gfx950      |
 
 ## Dependencies
 
 hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
 
-Install ROCm 7.0.2, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.0.2/).
+Install ROCm 7.2.1, or the minimum version supported by the GPUs listed above, and ensure the `rocminfo` and `hipcc` commands are in your `PATH`. For more information, see [ROCm Installation](https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.1/).
 
 | Name                                                                  | Version / Notes                              |
 | ----------------------------------------------------------            | -------------------------------------------- |
 | [`cmake`](https://cmake.org/)                                         | ≥ 3.31.0                                     |
 | [`ninja`](https://ninja-build.org/)                                   | ≥ 1.11.1                                     |
-| [`hipsolver`](https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hipblas`](https://rocm.docs.amd.com/projects/hipBLAS/en/latest/)    | Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hipblaslt`](https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hiprand`](https://rocm.docs.amd.com/projects/hipRAND/en/latest/)    | Version that comes bundled with ROCm ≥ 7.0.2 |
-| [`hipsparse`](https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/)| Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`hipsolver`](https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/)| Version that comes bundled with ROCm ≥ 7.2.1 |
+| [`hipblas`](https://rocm.docs.amd.com/projects/hipBLAS/en/latest/)    | Version that comes bundled with ROCm ≥ 7.2.1 |
+| [`hipblaslt`](https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/)| Version that comes bundled with ROCm ≥ 7.2.1 |
+| [`hiprand`](https://rocm.docs.amd.com/projects/hipRAND/en/latest/)    | Version that comes bundled with ROCm ≥ 7.2.1 |
+| [`hipsparse`](https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/)| Version that comes bundled with ROCm ≥ 7.2.1 |
 | [`libblas-dev`](https://www.netlib.org/lapack/)                       | Tested with 3.12.0                           |
 | [`liblapack-dev`](https://www.netlib.org/lapack/)                     | Tested with 3.12.0                           |
 | [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)   | Tested with 7.6.1                            |
 | [`libopenblas-dev`](https://github.com/OpenMathLib/OpenBLAS)          | Tested with 0.3.26                           |
 | **Additional Required Dependencies**                                  |                                              |
-| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | 3.0.0                                          |
-| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | 0.3.0                                          |
-| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | 0.1.0                                          |
-| **\***[`hipCUB`](https://github.com/ROCm/hipCUB)                      | Version that comes bundled with ROCm ≥ 7.0.2 |
-| **\***[`rocThrust`](https://github.com/ROCm/rocThrust)                | Version that comes bundled with ROCm ≥ 7.0.2 |
-| **\*\***[`OpenMP`](https://www.openmp.org/)                           | Version that comes bundled with ROCm ≥ 7.0.2 |
+| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                     | 4.0.0                                          |
+| **\***[`hipCollections`](https://github.com/ROCm/hipCollections)      | 0.4.0                                          |
+| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                 | 1.0.0                                          |
+| **\***[`hipCUB`](https://github.com/ROCm/hipCUB)                      | Version that comes bundled with ROCm ≥ 7.2.1 |
+| **\***[`rocThrust`](https://github.com/ROCm/rocThrust)                | Version that comes bundled with ROCm ≥ 7.2.1 |
+| **\*\***[`OpenMP`](https://www.openmp.org/)                           | Version that comes bundled with ROCm ≥ 7.2.1 |
 | **Optional Dependencies**                                             |                                              |
-| [`RCCL`](https://github.com/ROCm/rccl)                                | Version that comes bundled with ROCm ≥ 7.0.2 |
+| [`RCCL`](https://github.com/ROCm/rccl)                                | Version that comes bundled with ROCm ≥ 7.2.1 |
 | [`UCX`](https://github.com/openucx/ucx)                               | ≥ 1.17.0                                     |
 | [`Googletest`](https://github.com/google/googletest)                  | ≥ 1.13.0                                     |
 | [`Googlebench`](https://github.com/google/benchmark)                  | ≥ 1.13.0                                     |
@@ -316,11 +318,11 @@ cd <HIPVS_ROOT>
 
 # Build and install the libcuvs python wheel
 cd <HIPVS_ROOT>/python/libcuvs
-pip install -v --no-build-isolation --disable-pip-version-check .
+pip install -v --no-build-isolation  .
 
 # Build and install the cuvs python wheel
 cd <HIPVS_ROOT>/python/cuvs/
-pip install -v --no-build-isolation --disable-pip-version-check .
+pip install -v --no-build-isolation  .
 # Test installation
 python
 >> import cuvs
@@ -420,3 +422,256 @@ cd <HIPVS_ROOT>
 ```
 
 Navigate to `<HIPVS_ROOT>/docs/_build` and use the tool of your choice, e.g. Firefox, to open and examine the root level html file, `index.html`. From this point you should be able to navigate through the documentation.
+
+
+## Python Benchmark Framework
+
+hipVS ships a Python-based ANN (Approximate Nearest Neighbor) benchmark framework (`hipvs-bench`) that makes it straightforward to compare index build times, search throughput, and search latency across multiple algorithms and datasets. The Python layer drives C++ benchmark binaries and produces CSV result files and plots.
+
+### Building the C++ benchmark binaries
+
+The benchmark executables are built separately from the main library. From within the hipvs conda environment:
+
+```bash
+cd <HIPVS_ROOT>
+./build.sh bench-ann
+```
+
+To build only a specific subset of algorithms, pass a semicolon-separated list of executable names to `--limit-bench-ann`:
+
+```bash
+./build.sh bench-ann -n --limit-bench-ann="CUVS_CAGRA_ANN_BENCH;CUVS_IVF_PQ_ANN_BENCH;HNSWLIB_ANN_BENCH"
+```
+
+Available targets include:
+
+| Target | Algorithm | Supported on ROCm |
+|---|---|---|
+| `CUVS_CAGRA_ANN_BENCH` | hipVS CAGRA | Yes |
+| `CUVS_IVF_FLAT_ANN_BENCH` | hipVS IVF-Flat | Yes |
+| `CUVS_IVF_PQ_ANN_BENCH` | hipVS IVF-PQ | Yes |
+| `CUVS_BRUTE_FORCE_ANN_BENCH` | hipVS Brute-Force | Yes |
+| `CUVS_CAGRA_HNSWLIB_ANN_BENCH` | hipVS CAGRA (HNSWLib search) | Yes |
+| `HNSWLIB_ANN_BENCH` | HNSWLib (CPU) | Yes |
+| `FAISS_GPU_IVF_FLAT_ANN_BENCH` | FAISS GPU IVF-Flat | Yes |
+| `FAISS_GPU_IVF_PQ_ANN_BENCH` | FAISS GPU IVF-PQ | Yes |
+| `FAISS_GPU_FLAT_ANN_BENCH` | FAISS GPU Flat | Yes |
+| `FAISS_CPU_IVF_FLAT_ANN_BENCH` | FAISS CPU IVF-Flat | Yes |
+| `FAISS_CPU_IVF_PQ_ANN_BENCH` | FAISS CPU IVF-PQ | Yes |
+| `FAISS_CPU_FLAT_ANN_BENCH` | FAISS CPU Flat | Yes |
+| `FAISS_CPU_HNSW_FLAT_ANN_BENCH` | FAISS CPU HNSW | Yes |
+| `GGNN_ANN_BENCH` | GGNN | No — requires hipification and upstream build system changes |
+| `DISKANN_MEMORY_ANN_BENCH` | DiskANN (in-memory) | No — not yet ported to ROCm |
+| `DISKANN_SSD_ANN_BENCH` | DiskANN (SSD) | No — not yet ported to ROCm |
+| `CUVS_VAMANA_ANN_BENCH` | hipVS Vamana | No — depends on DiskANN |
+| `CUVS_CAGRA_DISKANN_ANN_BENCH` | hipVS CAGRA + DiskANN search | No — depends on DiskANN |
+
+The compiled binaries are placed under `<HIPVS_ROOT>/cpp/build/bench`.
+
+### Installing the Python benchmark package
+
+After activating the hipvs conda environment and building `libcuvs`, install the `hipvs-bench` Python package:
+
+```bash
+# From within the hipvs environment
+cd <HIPVS_ROOT>/python/cuvs_bench
+pip install -v --no-build-isolation  .
+```
+
+### Downloading datasets
+
+The benchmark framework reads datasets in a binary format (`.fbin`, `.ibin`, etc.). Datasets are stored under the path specified by the `RAPIDS_DATASET_ROOT_DIR` environment variable, or a `datasets/` sub-folder in the current working directory if the variable is not set.
+
+```bash
+export RAPIDS_DATASET_ROOT_DIR=/path/to/datasets
+```
+
+#### Million-scale datasets
+
+Million-scale datasets can be downloaded automatically from [ann-benchmarks.com](http://ann-benchmarks.com) using the `get_dataset` module. The downloaded HDF5 files are converted to the binary format expected by the benchmark binaries.
+
+```bash
+# Example: download and prepare the SIFT-128 Euclidean dataset
+python -m cuvs_bench.get_dataset --dataset sift-128-euclidean
+
+# For angular (cosine) datasets, pass --normalize to convert cosine to inner product
+python -m cuvs_bench.get_dataset --dataset glove-100-angular --normalize
+```
+
+The following million-scale datasets are available:
+
+| Dataset | Vectors | Dimensions | Distance |
+|---|---|---|---|
+| `deep-image-96-angular` | 10M | 96 | Angular |
+| `fashion-mnist-784-euclidean` | 60K | 784 | Euclidean |
+| `glove-50-angular` | 1.1M | 50 | Angular |
+| `glove-100-angular` | 1.1M | 100 | Angular |
+| `mnist-784-euclidean` | 60K | 784 | Euclidean |
+| `nytimes-256-angular` | 290K | 256 | Angular |
+| `sift-128-euclidean` | 1M | 128 | Euclidean |
+
+All datasets above include ground truth for the top-100 nearest neighbors, so `k` must be ≤ 100.
+
+> **Note**
+> Angular datasets are renamed from `*-angular` to `*-inner` after normalization. Use the `-inner` suffix when specifying `--dataset` for `cuvs_bench.run` and `cuvs_bench.plot`.
+
+#### Billion-scale datasets
+
+Billion-scale datasets must be downloaded manually from [big-ann-benchmarks.com](http://big-ann-benchmarks.com/neurips21.html). After downloading, the ground truth file (which interleaves neighbors and distances) must be split into two separate files:
+
+```bash
+mkdir -p datasets/deep-1B
+# Download the "Ground Truth" file for the Yandex DEEP dataset from big-ann-benchmarks.com
+# (file is named deep_new_groundtruth.public.10K.bin)
+python -m cuvs_bench.split_groundtruth --groundtruth datasets/deep-1B/deep_new_groundtruth.public.10K.bin
+# Produces: groundtruth.neighbors.ibin and groundtruth.distances.fbin
+```
+
+#### Converting HDF5 files manually
+
+If you have an HDF5 dataset from ann-benchmarks.com that you want to convert manually:
+
+```bash
+# Without normalization (Euclidean datasets)
+python python/cuvs_bench/cuvs_bench/get_dataset/hdf5_to_fbin.py <input>.hdf5
+
+# With normalization (Angular/cosine datasets)
+python python/cuvs_bench/cuvs_bench/get_dataset/hdf5_to_fbin.py -n <input>.hdf5
+```
+
+This produces four binary files: `<input>.base.fbin`, `<input>.query.fbin`, `<input>.groundtruth.neighbors.ibin`, and `<input>.groundtruth.distances.fbin`.
+
+To convert a dataset from `float32` to `float16` format (for algorithms that benefit from it):
+
+```bash
+python python/cuvs_bench/cuvs_bench/get_dataset/fbin_to_f16bin.py <base>.fbin
+```
+
+#### Generating ground truth for custom datasets
+
+If you have a custom dataset without a ground truth file, you can generate one using the `generate_groundtruth` module:
+
+```bash
+# With an existing query file
+python -m cuvs_bench.generate_groundtruth \
+    --dataset /path/to/base.fbin \
+    --output groundtruth_dir \
+    --queries /path/to/query.fbin
+
+# With randomly generated queries
+python -m cuvs_bench.generate_groundtruth \
+    --dataset /path/to/base.fbin \
+    --output groundtruth_dir \
+    --queries random \
+    --n_queries 10000
+```
+
+### Running benchmarks
+
+The `cuvs_bench.run` module drives the C++ benchmark binaries. By default it runs both the build (index construction) and search phases and exports results to CSV.
+
+#### End-to-end example (smaller scale)
+
+```bash
+# Step 1: Download dataset
+python -m cuvs_bench.get_dataset --dataset sift-128-euclidean
+
+# Step 2: Build index and run search
+python -m cuvs_bench.run \
+    --dataset sift-128-euclidean \
+    --algorithms cuvs_cagra \
+    --batch-size 10000 \
+    -k 10
+
+# Step 3: Export intermediate JSON results to CSV (done automatically, but can be run manually)
+python -m cuvs_bench.run --data-export --dataset sift-128-euclidean
+
+# Step 4: Plot results
+python -m cuvs_bench.plot --dataset sift-128-euclidean
+```
+
+#### Selecting algorithms
+
+Multiple algorithms can be benchmarked simultaneously by providing a comma-separated list. For example, to compare hipVS CAGRA, IVF-PQ, and HNSWLib:
+
+```bash
+python -m cuvs_bench.run \
+    --dataset glove-100-inner \
+    --algorithms cuvs_cagra,cuvs_ivf_pq,hnswlib \
+    --batch-size 10000 \
+    -k 10
+```
+
+Supported algorithm names:
+
+| Name | Description | Supported on ROCm |
+|---|---|---|
+| `cuvs_cagra` | hipVS CAGRA graph-based index | Yes |
+| `cuvs_ivf_flat` | hipVS IVF-Flat | Yes |
+| `cuvs_ivf_pq` | hipVS IVF-PQ | Yes |
+| `cuvs_brute_force` | hipVS brute-force search | Yes |
+| `cuvs_cagra_hnswlib` | CAGRA index searched with HNSWLib | Yes |
+| `hnswlib` | HNSWLib (CPU) | Yes |
+| `faiss_gpu_flat` | FAISS GPU flat | Yes |
+| `faiss_gpu_ivf_flat` | FAISS GPU IVF-Flat | Yes |
+| `faiss_gpu_ivf_pq` | FAISS GPU IVF-PQ | Yes |
+| `faiss_cpu_flat` | FAISS CPU flat | Yes |
+| `faiss_cpu_ivf_flat` | FAISS CPU IVF-Flat | Yes |
+| `faiss_cpu_ivf_pq` | FAISS CPU IVF-PQ | Yes |
+| `faiss_cpu_hnsw_flat` | FAISS CPU HNSW | Yes |
+| `cuvs_vamana` | hipVS Vamana (DiskANN) | No — depends on DiskANN |
+| `diskann_memory` | DiskANN in-memory search | No — not yet ported to ROCm |
+| `diskann_ssd` | DiskANN SSD-based search | No — not yet ported to ROCm |
+| `ggnn` | GGNN | No — requires hipification |
+
+#### Latency vs. throughput mode
+
+By default, benchmarks run in **latency** mode (each batch is timed individually). To measure **throughput** (queries per second with multiple concurrent threads):
+
+```bash
+python -m cuvs_bench.run \
+    --dataset glove-100-inner \
+    --algorithms cuvs_cagra \
+    --search-mode throughput \
+    --search-threads 1:4 \
+    -k 10
+```
+
+`--search-threads` accepts a single value or a `min:max` range. Powers of 2 between `min` and `max` are tested.
+
+#### Running only build or search
+
+```bash
+# Build the index only
+python -m cuvs_bench.run --dataset sift-128-euclidean --algorithms cuvs_cagra --build -k 10
+
+# Run search only (index must already be built)
+python -m cuvs_bench.run --dataset sift-128-euclidean --algorithms cuvs_cagra --search -k 10
+```
+
+#### Dry run
+
+To preview the benchmark commands without executing them:
+
+```bash
+python -m cuvs_bench.run --dataset sift-128-euclidean --algorithms cuvs_cagra --dry-run -k 10
+```
+
+### Plotting results
+
+After running benchmarks, use `cuvs_bench.plot` to generate Recall vs. Latency and Build Time plots:
+
+```bash
+# Plot both search (Recall vs Latency) and build time charts
+python -m cuvs_bench.plot --dataset sift-128-euclidean
+
+# Plot throughput instead of latency
+python -m cuvs_bench.plot --dataset sift-128-euclidean --mode throughput
+
+# Specify output directory for PNG files
+python -m cuvs_bench.plot --dataset sift-128-euclidean --output-filepath /path/to/output
+```
+
+The plot command saves two PNG files per dataset:
+- `search-<dataset>-k<k>-batch_size<bs>.png` — Recall vs. Latency (or QPS) Pareto frontier
+- `build-<dataset>-k<k>-batch_size<bs>.png` — Average build time at different recall thresholds

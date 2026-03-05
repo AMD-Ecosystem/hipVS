@@ -31,7 +31,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-ffi = { package = "hipvs-sys", path = "../hipvs-sys", version = "0.1.0" }
+ffi = { package = "hipvs-sys", path = "../hipvs-sys", version = "1.0.0" }
 ndarray = "0.15"
 
 [dev-dependencies]
