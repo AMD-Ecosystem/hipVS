@@ -32,10 +32,6 @@
 #include "../cuvs/cuvs_ann_bench_utils.h"
 #include <cuvs/neighbors/refine.hpp>
 
-// FAISS classes partially override the overloaded virtual Index::train, triggering
-// NVCC warning 611 which -Werror=all-warnings promotes to an error.
-#pragma nv_diagnostic push
-#pragma nv_diag_suppress 611
 #include <faiss/IndexFlat.h>
 #include <faiss/IndexHNSW.h>
 #include <faiss/IndexIVFFlat.h>
@@ -59,7 +55,6 @@
 #endif
 #include <faiss/impl/ScalarQuantizer.h>
 #include <faiss/index_io.h>
-#pragma nv_diagnostic pop
 #include <omp.h>
 
 #include <raft/core/device_mdarray.hpp>
