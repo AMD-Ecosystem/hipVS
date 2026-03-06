@@ -95,7 +95,18 @@ struct l2_exp_ck_op {
   template <typename E, typename C, typename Nx, typename Ny>
   __device__ void operator()(E& e, const C& c, const Nx& norm_x, const Ny& norm_y) const
   {
-    e = static_cast<E>(norm_x + norm_y - static_cast<C>(2) * c);
+    E outVal = static_cast<E>(norm_x + norm_y - C(2.0) * c);
+
+    /**
+     * Self-neighboring points should have (norm_x == norm_y) == c and the dot product (c)
+     * can sometimes have round-off errors, which will cause (norm_x == norm_y) ~ c instead.
+     * Clamp near-zero self-distances to zero. Use C (accumulator type) for precision threshold.
+     */
+    outVal = outVal * static_cast<E>(
+                        !((outVal * outVal < get_clamp_precision<C, E>()) * (norm_x == norm_y)));
+
+    // Clamp negative values to zero to prevent sqrt(negative) = NaN in the external sqrt step.
+    e = outVal * static_cast<E>(outVal > E(0));
   }
 };
 
