@@ -11,18 +11,18 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc. Permission is hereby granted, free
-# of charge, to any person obtaining a copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following
-# conditions: The above copyright notice and this permission notice shall be included in all copies
-# or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
-# KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc. Permission is hereby granted,
+# free of charge, to any person obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so, subject to the
+# following conditions: The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT
+# WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
 
@@ -37,6 +37,7 @@ include(rapids-find)
 
 option(BUILD_CPU_ONLY "Build CPU only components. Applies to CUVS benchmarks currently" OFF)
 option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
+option(BUILD_CK_BACKEND "Build with Composable Kernel distance backend (AMD only)" ON)
 
 # workaround for rapids_cuda_init_architectures not working for arch detection with
 # enable_language(CUDA)
@@ -150,6 +151,7 @@ message(VERBOSE "cuVS: Enable nvtx markers: ${CUVS_NVTX}")
 message(VERBOSE "cuVS: Statically link the CUDA runtime: ${CUDA_STATIC_RUNTIME}")
 message(VERBOSE "cuVS: Statically link the CUDA math libraries: ${CUDA_STATIC_MATH_LIBRARIES}")
 message(VERBOSE "cuVS: Build and statically link RAPIDS libraries: ${CUVS_STATIC_RAPIDS_LIBRARIES}")
+message(VERBOSE "cuVS: Build with CK distance backend: ${BUILD_CK_BACKEND}")
 
 # Set RMM logging level
 set(RMM_LOGGING_LEVEL
@@ -243,6 +245,8 @@ if(NOT BUILD_CPU_ONLY)
   include(cmake/thirdparty/get_raft.cmake)
   if(CUDA_BACKEND)
     include(cmake/thirdparty/get_cutlass.cmake)
+  elseif(BUILD_CK_BACKEND)
+    include(cmake/thirdparty/get_ck.cmake)
   endif()
 endif()
 
@@ -603,8 +607,9 @@ if(NOT BUILD_CPU_ONLY)
   )
 
   target_compile_definitions(
-    cuvs_objs PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-                      $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+    cuvs_objs
+    PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
+            $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED> $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
   )
 
   target_link_libraries(
@@ -720,7 +725,11 @@ if(NOT BUILD_CPU_ONLY)
         $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
         $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
       PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
-              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> cuvs-cagra-search
+              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
+              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
+              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
+              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+              cuvs-cagra-search
     )
     if(CUDA_BACKEND)
       # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
@@ -785,6 +794,9 @@ SECTIONS
         $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
         $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
       PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
+              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
+              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
+              $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
     )
   endif()
@@ -962,6 +974,7 @@ endif()
 
 if(BUILD_CUVS_BENCH)
   add_subdirectory(bench/ann/)
+  add_subdirectory(bench/distance/)
 endif()
 
 # ##################################################################################################

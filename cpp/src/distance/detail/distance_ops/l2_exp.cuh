@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -87,6 +87,26 @@ struct l2_exp_cutlass_op {
     } else {
       return aData;
     }
+  }
+};
+
+// Epilogue operator for CK Tile based kernel (mirrors l2_exp_cutlass_op formula)
+struct l2_exp_ck_op {
+  template <typename E, typename C, typename Nx, typename Ny>
+  __device__ void operator()(E& e, const C& c, const Nx& norm_x, const Ny& norm_y) const
+  {
+    E outVal = static_cast<E>(norm_x + norm_y - C(2.0) * c);
+
+    /**
+     * Self-neighboring points should have (norm_x == norm_y) == c and the dot product (c)
+     * can sometimes have round-off errors, which will cause (norm_x == norm_y) ~ c instead.
+     * Clamp near-zero self-distances to zero. Use C (accumulator type) for precision threshold.
+     */
+    outVal = outVal * static_cast<E>(
+                        !((outVal * outVal < get_clamp_precision<C, E>()) * (norm_x == norm_y)));
+
+    // Clamp negative values to zero to prevent sqrt(negative) = NaN in the external sqrt step.
+    e = outVal * static_cast<E>(outVal > E(0));
   }
 };
 
@@ -170,6 +190,8 @@ struct l2_exp_distance_op {
   {
     return l2_exp_cutlass_op<DataT, AccT>(sqrt);
   }
+
+  constexpr l2_exp_ck_op get_ck_op() const { return l2_exp_ck_op(); }
 };
 
 }  // namespace cuvs::distance::detail::ops
