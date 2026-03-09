@@ -431,7 +431,12 @@ if(NOT BUILD_CPU_ONLY)
   target_compile_options(
     cuvs-cagra-search
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-            "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
+#             "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# =======
+            "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+            "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
+# >>>>>>> END NEW CODE (4f3afa378)
   )
 
   if(BUILD_MG_ALGOS)
@@ -787,8 +792,15 @@ if(NOT BUILD_CPU_ONLY)
                POSITION_INDEPENDENT_CODE ON
   )
   target_compile_options(
-    cuvs_objs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                      "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
+#     cuvs_objs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
+#                       "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# =======
+    cuvs_objs
+    PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
+            "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+            "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
+# >>>>>>> END NEW CODE (4f3afa378)
   )
 
   target_compile_definitions(
@@ -898,7 +910,12 @@ if(NOT BUILD_CPU_ONLY)
       INTERFACE $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--expt-extended-lambda
                 --expt-relaxed-constexpr>
       PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-              "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
+#               "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# =======
+              "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+              "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
+# >>>>>>> END NEW CODE (4f3afa378)
     )
     target_compile_definitions(
       cuvs

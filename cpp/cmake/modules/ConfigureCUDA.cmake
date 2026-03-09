@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -92,8 +92,13 @@ if(OpenMP_FOUND)
 endif()
 
 # Debug options
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-  message(VERBOSE "cuVS: Building with debugging flags")
-  list(APPEND CUVS_GPU_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
-  list(APPEND CUVS_GPU_FLAGS -Xptxas --suppress-stack-size-warning)
-endif()
+# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
+# if(CMAKE_BUILD_TYPE MATCHES Debug)
+#   message(VERBOSE "cuVS: Building with debugging flags")
+#   list(APPEND CUVS_GPU_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
+#   list(APPEND CUVS_GPU_FLAGS -Xptxas --suppress-stack-size-warning)
+# endif()
+# =======
+list(APPEND CUVS_DEBUG_CUDA_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
+list(APPEND CUVS_DEBUG_CUDA_FLAGS -Xptxas --suppress-stack-size-warning)
+# >>>>>>> END NEW CODE (4f3afa378)
