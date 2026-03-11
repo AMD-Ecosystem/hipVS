@@ -570,7 +570,13 @@ template <int BLOCK_SIZE,
           typename ID_t = InternalID_t<Index_t>,
           typename DistEpilogue_t>
 RAFT_KERNEL
-#ifdef __CUDA_ARCH__
+#ifdef __HIP_PLATFORM_AMD__
+// On AMD CDNA2 (MI210) and CDNA4 (MI350/MI355): LDS usage (~35KB) limits
+// occupancy to 1 block per CU. Setting launch_bounds to (BLOCK_SIZE, 1) allows
+// the compiler to use more registers per thread, reducing spills and improving
+// instruction scheduling.
+__launch_bounds__(BLOCK_SIZE, 1)
+#elif defined(__CUDA_ARCH__)
 // Use minBlocksPerMultiprocessor = 4 on specific arches
 #if (__CUDA_ARCH__) == 700 || (__CUDA_ARCH__) == 800 || (__CUDA_ARCH__) == 900 || \
   (__CUDA_ARCH__) == 1000
