@@ -28,7 +28,11 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "2.0.0"
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# version = "2.0.0"
+# =======
+version = "26.6.0"
+# >>>>>>> END NEW CODE (84b92c31c)
 edition = "2021"
 description = "AMD HIP Vector Search library"
 authors = ["AMD"]

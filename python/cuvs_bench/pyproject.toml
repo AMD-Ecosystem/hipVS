@@ -37,7 +37,11 @@ license = "Apache-2.0 AND MIT"
 requires-python = ">=3.11"
 dependencies = [
     "click",
-    "amd-hipvs",
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     "amd-hipvs",
+# =======
+    "cuvs==26.6.*,>=0.0.0a0",
+# >>>>>>> END NEW CODE (84b92c31c)
     "matplotlib>=3.9",
     "pandas",
     "pyyaml",

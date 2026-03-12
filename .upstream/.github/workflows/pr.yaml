@@ -30,7 +30,11 @@ jobs:
       - devcontainer
       - telemetry-setup
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/pr-builder.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: always()
     with:
       needs: ${{ toJSON(needs) }}
@@ -63,7 +67,11 @@ jobs:
   changed-files:
     needs: telemetry-setup
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/changed-files.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       files_yaml: |
         build_docs:
@@ -312,7 +320,11 @@ jobs:
   checks:
     needs: telemetry-setup
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/checks.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       enable_check_generated_files: false
       ignored_pr_jobs: "telemetry-summarize"
@@ -322,7 +334,11 @@ jobs:
   conda-cpp-build:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       build_type: pull-request
       node_type: cpu16
@@ -330,7 +346,11 @@ jobs:
   conda-cpp-tests:
     needs: [conda-cpp-build, changed-files]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     with:
       build_type: pull-request
@@ -338,14 +358,22 @@ jobs:
   conda-cpp-checks:
     needs: conda-cpp-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       build_type: pull-request
       symbol_exclusions: (void (thrust::|cub::))
   conda-python-build:
     needs: conda-cpp-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       build_type: pull-request
       script: ci/build_python.sh
@@ -354,7 +382,11 @@ jobs:
   conda-python-tests:
     needs: [conda-python-build, changed-files]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_conda
     with:
       build_type: pull-request
@@ -362,7 +394,11 @@ jobs:
   rocky8-clib-standalone-build:
     needs: [checks]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     strategy:
       fail-fast: false
       matrix:
@@ -376,7 +412,7 @@ jobs:
       build_type: pull-request
       arch: "${{matrix.arch}}"
       date: ${{ inputs.date }}_c
-      container_image: "rapidsai/ci-wheel:26.04-cuda${{ matrix.cuda_version }}-rockylinux8-py3.11"
+      container_image: "rapidsai/ci-wheel:26.06-cuda${{ matrix.cuda_version }}-rockylinux8-py3.11"
       node_type: "cpu16"
       requires_license_builder: true
       script: "ci/build_standalone_c.sh --build-tests"
@@ -386,7 +422,11 @@ jobs:
   rocky8-clib-tests:
     needs: [rocky8-clib-standalone-build, changed-files]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     strategy:
       fail-fast: false
@@ -402,13 +442,17 @@ jobs:
       node_type: "gpu-l4-latest-1"
       arch: "${{matrix.arch}}"
       date: ${{ inputs.date }}_c
-      container_image: "rapidsai/ci-wheel:26.04-cuda${{ matrix.cuda_version }}-rockylinux8-py3.11"
+      container_image: "rapidsai/ci-wheel:26.06-cuda${{ matrix.cuda_version }}-rockylinux8-py3.11"
       script: "ci/test_standalone_c.sh libcuvs_c_${{ matrix.cuda_version }}_${{ matrix.arch }}.tar.gz"
       sha: ${{ inputs.sha }}
   conda-java-build-and-tests:
     needs: [conda-cpp-build, changed-files]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_java || fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
     # If these jobs start producing artifacts, the names will have to differentiate between CUDA versions.
@@ -422,14 +466,18 @@ jobs:
       build_type: pull-request
       node_type: "gpu-l4-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.04-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
+      container_image: "rapidsai/ci-conda:26.06-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
       script: "ci/test_java.sh"
       artifact-name: "cuvs-java-cuda${{ matrix.cuda_version }}"
       file_to_upload: "java/cuvs-java/target/"
   rust-build:
     needs: [conda-cpp-build, changed-files]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_rust || fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
     # If these jobs start producing artifacts, the names will have to differentiate between CUDA versions.
@@ -443,12 +491,16 @@ jobs:
       build_type: pull-request
       node_type: "gpu-l4-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.04-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
+      container_image: "rapidsai/ci-conda:26.06-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
       script: "ci/build_rust.sh"
   go-build:
     needs: [conda-cpp-build, changed-files]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_go || fromJSON(needs.changed-files.outputs.changed_file_groups).test_cpp
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
     # If these jobs start producing artifacts, the names will have to differentiate between CUDA versions.
@@ -462,22 +514,30 @@ jobs:
       build_type: pull-request
       node_type: "gpu-l4-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.04-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
+      container_image: "rapidsai/ci-conda:26.06-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
       script: "ci/build_go.sh"
   docs-build:
     needs: conda-python-build
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       build_type: pull-request
       node_type: "gpu-l4-latest-1"
       arch: "amd64"
-      container_image: "rapidsai/ci-conda:26.04-latest"
+      container_image: "rapidsai/ci-conda:26.06-latest"
       script: "ci/build_docs.sh"
   wheel-build-libcuvs:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       build_type: pull-request
       node_type: cpu16
@@ -489,7 +549,11 @@ jobs:
   wheel-build-cuvs:
     needs: wheel-build-libcuvs
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       build_type: pull-request
       node_type: cpu8
@@ -501,7 +565,11 @@ jobs:
   wheel-tests-cuvs:
     needs: [wheel-build-cuvs, changed-files]
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     if: fromJSON(needs.changed-files.outputs.changed_file_groups).test_python_wheels
     with:
       build_type: pull-request
@@ -509,7 +577,11 @@ jobs:
   devcontainer:
     secrets: inherit
     needs: telemetry-setup
-    uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@release/26.04
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+#     uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@release/26.04
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/build-in-devcontainer.yaml@main
+# >>>>>>> END NEW CODE (84b92c31c)
     with:
       arch: '["amd64", "arm64"]'
       cuda: '["13.1"]'

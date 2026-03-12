@@ -31,8 +31,12 @@ dependencies:
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-- libopenblas<=0.3.30
-- librmm==26.4.*
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# - libopenblas<=0.3.30
+# - librmm==26.4.*
+# =======
+- librmm==26.6.*,>=0.0.0a0
+# >>>>>>> END NEW CODE (84b92c31c)
 - make
 - nccl>=2.19
 - ninja
@@ -40,7 +44,11 @@ dependencies:
 - numpydoc
 - openblas
 - pre-commit
-- pylibraft==26.4.*
+# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# - pylibraft==26.4.*
+# =======
+- pylibraft==26.6.*,>=0.0.0a0
+# >>>>>>> END NEW CODE (84b92c31c)
 - pytest
 - pytest-cov
 - rapids-build-backend>=0.4.0,<0.5.0
