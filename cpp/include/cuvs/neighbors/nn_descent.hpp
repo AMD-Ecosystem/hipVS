@@ -241,6 +241,7 @@ struct index : cuvs::neighbors::index {
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  *
  * Usage example:
  * @code{.cpp}
@@ -277,6 +278,7 @@ auto build(raft::resources const& res,
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  *
  * Usage example:
  * @code{.cpp}
@@ -315,6 +317,7 @@ auto build(raft::resources const& res,
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  *
  * Usage example:
  * @code{.cpp}
@@ -351,6 +354,7 @@ auto build(raft::resources const& res,
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  *
  * Usage example:
  * @code{.cpp}
@@ -389,6 +393,7 @@ auto build(raft::resources const& res,
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  * - BitwiseHamming
  *
  * Usage example:
@@ -426,6 +431,7 @@ auto build(raft::resources const& res,
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  * - BitwiseHamming
  *
  * Usage example:
@@ -465,6 +471,7 @@ auto build(raft::resources const& res,
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  * - BitwiseHamming
  *
  * Usage example:
@@ -502,6 +509,7 @@ auto build(raft::resources const& res,
  * - L2SqrtExpanded
  * - CosineExpanded
  * - InnerProduct
+ * - L1
  * - BitwiseHamming
  *
  * Usage example:
