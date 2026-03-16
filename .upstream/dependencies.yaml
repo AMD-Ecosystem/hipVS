@@ -96,6 +96,7 @@ files:
       - cuda_version
       - rapids_build
       - rust
+      - depends_on_cudart
       - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_nccl
@@ -110,6 +111,7 @@ files:
       - cuda_version
       - rapids_build
       - go
+      - depends_on_cudart
       - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_nccl
@@ -366,7 +368,6 @@ dependencies:
       - output_types: [conda]
         packages:
           - cuda-nvtx-dev
-          - cuda-cudart-dev
           - cuda-profiler-api
           - libcublas-dev
           - libcurand-dev
@@ -416,8 +417,17 @@ dependencies:
           # (just as a source of documentation, as this populates pyproject.toml in source control)
           - matrix:
             packages:
-              - *ctk_cu13
-              - *nvjitlink_cu13
+# <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+#               - *ctk_cu13
+#               - *nvjitlink_cu13
+# =======
+              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]>=12,<14
+  depends_on_cudart:
+    common:
+      - output_types: conda
+        packages:
+          - cuda-cudart-dev
+# >>>>>>> END NEW CODE (04f402a00)
   depends_on_cupy:
     common:
       - output_types: conda

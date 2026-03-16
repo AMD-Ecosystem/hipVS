@@ -118,7 +118,11 @@ endif()
 
 ConfigureTest(NAME cuvs_c_headers PATH core/headers.c)
 ConfigureTest(NAME cuvs_c_test PATH core/c_api.c)
-target_link_libraries(cuvs_c_test PRIVATE hip::host)
+# <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# target_link_libraries(cuvs_c_test PRIVATE hip::host)
+# =======
+target_link_libraries(cuvs_c_test PRIVATE CUDA::cudart_static)
+# >>>>>>> END NEW CODE (04f402a00)
 ConfigureTest(NAME cuvs_c_neighbors_test PATH neighbors/c_api.c)
 
 # ##################################################################################################
