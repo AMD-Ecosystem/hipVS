@@ -1,6 +1,6 @@
 # =============================================================================
 # cmake-format: off
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -52,8 +52,12 @@ endif()
 unset(cuvs_FOUND)
 
 # --- CUDA --- #
-set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
-set(CUDA_STATIC_MATH_LIBRARIES OFF) # No static linking with HIP, HIP must be installed
+# <<<<<<< OLD CODE from 01965cb27 (87c96911a) - COMMENTED OUT
+# set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
+# set(CUDA_STATIC_MATH_LIBRARIES OFF) # No static linking with HIP, HIP must be installed
+# =======
+set(CUDA_STATIC_MATH_LIBRARIES OFF)
+# >>>>>>> END NEW CODE (87c96911a)
 
 # --- RAFT ---#
 set(CUVS_STATIC_RAPIDS_LIBRARIES OFF)
