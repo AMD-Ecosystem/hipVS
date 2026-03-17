@@ -52,10 +52,14 @@ endif()
 unset(cuvs_FOUND)
 
 # --- CUDA --- #
-# <<<<<<< OLD CODE from 01965cb27 (87c96911a) - COMMENTED OUT
-# set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
-# set(CUDA_STATIC_MATH_LIBRARIES OFF) # No static linking with HIP, HIP must be installed
+# <<<<<<< OLD CODE from da6788457 (e5a866411) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 01965cb27 (87c96911a) - COMMENTED OUT
+# # set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
+# # set(CUDA_STATIC_MATH_LIBRARIES OFF) # No static linking with HIP, HIP must be installed
+# # =======
 # =======
+set(CUDA_STATIC_RUNTIME ON)
+# >>>>>>> END NEW CODE (e5a866411)
 set(CUDA_STATIC_MATH_LIBRARIES OFF)
 # >>>>>>> END NEW CODE (87c96911a)
 
