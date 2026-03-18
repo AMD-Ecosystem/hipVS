@@ -240,43 +240,57 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
     // The fast kernel requires that the input matrices are aligned to the vector load size.
     // If the input matrices are not aligned, we fall back to the safe kernel.
 
-    using CkOpT         = decltype(ck_op);
-    using EpilogueOp    = OperatorWrapper<CkOpT, FinOpT, ApplySqrtToDistances>;
-    using FastKernel    = PairwiseDistanceCkKernel<CkDataT,
-                                                   OutT,
-                                                   ck_tile::tensor_layout::gemm::RowMajor,
-                                                   false,
-                                                   EpilogueOp>;
-    using SafeKernel    = PairwiseDistanceCkKernel<CkDataT,
-                                                   OutT,
-                                                   ck_tile::tensor_layout::gemm::RowMajor,
-                                                   true,
-                                                   EpilogueOp>;
-    using FastKernelCol = PairwiseDistanceCkKernel<CkDataT,
-                                                   OutT,
-                                                   ck_tile::tensor_layout::gemm::ColumnMajor,
-                                                   false,
-                                                   EpilogueOp>;
+    using CkOpT      = decltype(ck_op);
+    using EpilogueOp = OperatorWrapper<CkOpT, FinOpT, ApplySqrtToDistances>;
+    using FastKernel = PairwiseDistanceCkKernel<CkDataT,
+                                                OutT,
+                                                ck_tile::tensor_layout::gemm::RowMajor,
+                                                false,
+                                                EpilogueOp>;
+    using SafeKernel = PairwiseDistanceCkKernel<CkDataT,
+                                                OutT,
+                                                ck_tile::tensor_layout::gemm::RowMajor,
+                                                true,
+                                                EpilogueOp>;
+    // On gfx950, CK tile's WarpGemmDispatcher lacks float specializations for the
+    // ColumnMajor transpose-read path (requires Double AttrNumAccess which only has
+    // fp16/bf16 specializations). Guard with if constexpr to prevent instantiation.
+    constexpr bool col_major_ck_supported =
+#if defined(__gfx950__)
+      !std::is_same_v<CkDataT, float>;
+#else
+      true;
+#endif
 
     // Column-major: probe first and fall back to SM60 if CK can't handle the shape.
     if (!ck_params.is_row_major) {
-      PairwiseDistanceCkKernelArgs<CkDataT, OutT> probe{
-        ck_params.x,
-        ck_params.y,
-        ck_params.out,
-        ck_params.x_norm,
-        ck_params.y_norm,
-        static_cast<ck_tile::index_t>(ck_params.m),
-        static_cast<ck_tile::index_t>(ck_params.n),
-        static_cast<ck_tile::index_t>(ck_params.k),
-        static_cast<ck_tile::index_t>(ck_params.ldx),
-        static_cast<ck_tile::index_t>(ck_params.ldy),
-        static_cast<ck_tile::index_t>(ck_params.ld_out),
-        1};
-
-      if (!FastKernelCol::IsSupportedArgument(probe)) {
+      if constexpr (!col_major_ck_supported) {
         pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
         return;
+      } else {
+        using FastKernelCol = PairwiseDistanceCkKernel<CkDataT,
+                                                       OutT,
+                                                       ck_tile::tensor_layout::gemm::ColumnMajor,
+                                                       false,
+                                                       EpilogueOp>;
+        PairwiseDistanceCkKernelArgs<CkDataT, OutT> probe{
+          ck_params.x,
+          ck_params.y,
+          ck_params.out,
+          ck_params.x_norm,
+          ck_params.y_norm,
+          static_cast<ck_tile::index_t>(ck_params.m),
+          static_cast<ck_tile::index_t>(ck_params.n),
+          static_cast<ck_tile::index_t>(ck_params.k),
+          static_cast<ck_tile::index_t>(ck_params.ldx),
+          static_cast<ck_tile::index_t>(ck_params.ldy),
+          static_cast<ck_tile::index_t>(ck_params.ld_out),
+          1};
+
+        if (!FastKernelCol::IsSupportedArgument(probe)) {
+          pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
+          return;
+        }
       }
     }
 
@@ -305,9 +319,14 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
         [&](int64_t off) { return ck_params.y + off * ck_params.ldy; },
         [&](int64_t off) { return ck_params.x_norm + off; },
         [&](int64_t off) { return ck_params.y_norm + off; });
-    } else {
+    } else if constexpr (col_major_ck_supported) {
       // Column-major: SafeKernelCol (ScalarVec=true) has CK tile compatibility issues.
       // Use FastKernelCol only; when it fails for a batch, fall back to SM60 for the whole op.
+      using FastKernelCol = PairwiseDistanceCkKernel<CkDataT,
+                                                     OutT,
+                                                     ck_tile::tensor_layout::gemm::ColumnMajor,
+                                                     false,
+                                                     EpilogueOp>;
       PairwiseDistanceCkKernelArgs<CkDataT, OutT> first_batch{
         ck_params.x,
         ck_params.y,
@@ -334,6 +353,9 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
         [&](int64_t off) { return ck_params.y + off; },
         [&](int64_t off) { return ck_params.x_norm + off; },
         [&](int64_t off) { return ck_params.y_norm + off; });
+    } else {
+      pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
+      return;
     }
   }
 }
