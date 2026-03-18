@@ -124,7 +124,7 @@ struct index : cuvs::neighbors::index {
    * The type of the knn-graph is a dense raft::host_matrix and dimensions are
    * (n_rows, n_cols).
    *
-   * @param res raft::resources is an object mangaging resources
+   * @param res raft::resources is an object managing resources
    * @param n_rows number of rows in knn-graph
    * @param n_cols number of cols in knn-graph
    * @param return_distances whether to return distances
@@ -155,7 +155,7 @@ struct index : cuvs::neighbors::index {
    * The type of the knn-graph is a dense raft::host_matrix and dimensions are
    * (n_rows, n_cols).
    *
-   * @param res raft::resources is an object mangaging resources
+   * @param res raft::resources is an object managing resources
    * @param graph_view raft::host_matrix_view<IdxT, int64_t, raft::row_major> for storing knn-graph
    * @param distances_view optional raft::device_matrix_view<float, int64_t, row_major> for storing
    * distances
@@ -255,7 +255,7 @@ struct index : cuvs::neighbors::index {
  *   // dataset
  * @endcode
  *
- * @param[in] res raft::resources is an object mangaging resources
+ * @param[in] res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::device_matrix_view input dataset expected to be located
@@ -294,7 +294,7 @@ auto build(raft::resources const& res,
  *
  * @tparam T data-type of the input dataset
  * @tparam IdxT data-type for the output index
- * @param res raft::resources is an object mangaging resources
+ * @param res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::host_matrix_view input dataset expected to be located
@@ -331,7 +331,7 @@ auto build(raft::resources const& res,
  *   // dataset
  * @endcode
  *
- * @param[in] res raft::resources is an object mangaging resources
+ * @param[in] res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::device_matrix_view input dataset expected to be located
@@ -370,7 +370,7 @@ auto build(raft::resources const& res,
  *
  * @tparam T data-type of the input dataset
  * @tparam IdxT data-type for the output index
- * @param res raft::resources is an object mangaging resources
+ * @param res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::host_matrix_view input dataset expected to be located
@@ -408,7 +408,7 @@ auto build(raft::resources const& res,
  *   // dataset
  * @endcode
  *
- * @param[in] res raft::resources is an object mangaging resources
+ * @param[in] res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::device_matrix_view input dataset expected to be located
@@ -448,7 +448,7 @@ auto build(raft::resources const& res,
  *
  * @tparam T data-type of the input dataset
  * @tparam IdxT data-type for the output index
- * @param res raft::resources is an object mangaging resources
+ * @param res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::host_matrix_view input dataset expected to be located
@@ -486,7 +486,7 @@ auto build(raft::resources const& res,
  *   // dataset
  * @endcode
  *
- * @param[in] res raft::resources is an object mangaging resources
+ * @param[in] res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::device_matrix_view input dataset expected to be located
@@ -526,7 +526,7 @@ auto build(raft::resources const& res,
  *
  * @tparam T data-type of the input dataset
  * @tparam IdxT data-type for the output index
- * @param res raft::resources is an object mangaging resources
+ * @param res raft::resources is an object managing resources
  * @param[in] params an instance of nn_descent::index_params that are parameters
  *               to run the nn-descent algorithm
  * @param[in] dataset raft::host_matrix_view input dataset expected to be located

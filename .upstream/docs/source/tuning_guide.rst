@@ -30,7 +30,11 @@ GPUs are naturally great at performing massively parallel tasks, especially when
 Steps to achieve automated tuning
 =================================
 
-More formally, an automated parameter tuning workflow with monte-carlo cross-validation looks something like this:
+# <<<<<<< OLD CODE from 2b30d0fc5 (99150c62a) - COMMENTED OUT
+# More formally, an automated parameter tuning workflow with monte-carlo cross-validation looks something like this:
+# =======
+More formally, an automated parameter tuning workflow with monte-carlo cross-validation looks likes something like this:
+# >>>>>>> END NEW CODE (99150c62a)
 
 #. Ingest a large dataset into the vector database of your choice
 
