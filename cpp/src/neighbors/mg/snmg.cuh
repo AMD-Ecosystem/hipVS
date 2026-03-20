@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -315,12 +315,11 @@ void sharded_search_with_direct_merge(
     auto h_trans             = std::vector<searchIdxT>(index.num_ranks_);
 
     if (!index.uses_global_indices_) {
-      std::transform_exclusive_scan(index.ann_interfaces_.begin(),
-                                    index.ann_interfaces_.end(),
-                                    h_trans.begin(),
-                                    searchIdxT(0),
-                                    std::plus<searchIdxT>(),
-                                    [](const auto& ann_if) { return ann_if.size(); });
+      searchIdxT running = searchIdxT(0);
+      for (std::size_t i = 0; i < index.ann_interfaces_.size(); ++i) {
+        h_trans[i] = running;
+        running += index.ann_interfaces_[i].size();
+      }
     } else {
       // All zeros - no translation needed for global indices
       std::fill(h_trans.begin(), h_trans.end(), searchIdxT(0));
@@ -399,13 +398,10 @@ void sharded_search_with_tree_merge(
       // When uses_global_indices_ is true, indices are already global and
       // should NOT be translated.
       if (!index.uses_global_indices_) {
-        searchIdxT translation_offset =
-          std::transform_reduce(index.ann_interfaces_.begin(),
-                                index.ann_interfaces_.begin() + rank,
-                                searchIdxT(0),
-
-                                std::plus<searchIdxT>(),
-                                [](const auto& ann_if) -> searchIdxT { return ann_if.size(); });
+        searchIdxT translation_offset = searchIdxT(0);
+        for (std::size_t i = 0; i < static_cast<std::size_t>(rank); ++i) {
+          translation_offset += index.ann_interfaces_[i].size();
+        }
 
         raft::linalg::addScalar(neighbors_view.data_handle(),
                                 neighbors_view.data_handle(),
