@@ -83,6 +83,11 @@ function(ConfigureTest)
       $<$<BOOL:${_CUVS_TEST_C_LIB}>:cuvs::c_api>
       ${_CUVS_TEST_ADDITIONAL_DEP}
   )
+  # Hide std::filesystem symbols statically linked from libstdc++fs.a so they do not interpose the
+  # implementations inside ROCm shared libraries (e.g. libhipblaslt), which may have been compiled
+  # against a newer GCC ABI. Mixing the two ABI layouts for std::filesystem::path causes a segfault
+  # at dynamic-library init time.
+  target_link_options(${TEST_NAME} PRIVATE "-Wl,--exclude-libs,libstdc++fs.a")
   set_target_properties(
     ${TEST_NAME}
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<BUILD_INTERFACE:${CUVS_BINARY_DIR}/gtests>"

@@ -27,6 +27,9 @@ target_link_libraries(
   pairwise_distance_bench PRIVATE cuvs cuvs::cuvs raft::raft benchmark::benchmark Threads::Threads
                                   stdc++fs
 )
+# Hide std::filesystem symbols statically linked from libstdc++fs.a so they do not interpose the
+# implementations inside ROCm shared libraries compiled against a newer GCC ABI.
+target_link_options(pairwise_distance_bench PRIVATE "-Wl,--exclude-libs,libstdc++fs.a")
 
 set_target_properties(
   pairwise_distance_bench
