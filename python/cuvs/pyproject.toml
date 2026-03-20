@@ -51,10 +51,9 @@ authors = [
 license = { text = "Apache-2.0 AND MIT" }
 requires-python = ">=3.10"
 dependencies = [
-    "amd-libhipvs==0.1.*",
-
+    "amd-libhipvs==1.0.*",
     "numpy>=1.23,<3.0a0",
-    "amd_hipmm",
+    "amd_hipmm~=4.0",
     "hip-python",
     "hip-python-as-cuda",
     "amd-libraft==1.0.*",
