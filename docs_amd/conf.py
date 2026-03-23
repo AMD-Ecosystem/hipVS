@@ -32,7 +32,7 @@ left_nav_title = f"hipVS {version_number} documentation"
 # for PDF output on Read the Docs
 project = "hipVS"
 author = "Advanced Micro Devices, Inc."
-copyright = "Copyright (c) 2026 Advanced Micro Devices, Inc. All rights reserved."
+copyright = "Copyright (c) 2025-2026 Advanced Micro Devices, Inc. All rights reserved."
 version = version_number
 release = version_number
 cpp_maximum_signature_line_length = 10
