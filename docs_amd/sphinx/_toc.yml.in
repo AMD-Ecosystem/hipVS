@@ -26,19 +26,19 @@ root: index
 
 subtrees:
 - entries:
-  - file: what-is-hipVS.md
+  - file: what-is-hipVS.rst
     title: What is hipVS?
 
 - caption: Installation
   entries:
-  - file: install/install.md
+  - file: install/install.rst
     title: Installing hipVS
-  - file: install/build.md
+  - file: install/build.rst
     title: Building hipVS
 
 - caption: How to
   entries:
-  - file: how-to/using-hipVS.md
+  - file: how-to/using-hipVS.rst
     title: Use hipVS
 
 - caption: Reference
@@ -54,4 +54,4 @@ subtrees:
 
 - caption: About
   entries:
-  - file: license.md
+  - file: license.rst
