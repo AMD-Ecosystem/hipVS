@@ -32,7 +32,7 @@ left_nav_title = f"hipVS {version_number} documentation"
 # for PDF output on Read the Docs
 project = "hipVS"
 author = "Advanced Micro Devices, Inc."
-copyright = "Copyright (c) 2025 Advanced Micro Devices, Inc. All rights reserved."
+copyright = "Copyright (c) 2026 Advanced Micro Devices, Inc. All rights reserved."
 version = version_number
 release = version_number
 cpp_maximum_signature_line_length = 10
@@ -43,7 +43,7 @@ all_article_info_author = ""
 external_projects_current_project = "hipVS"
 
 html_context = {
-    "docs_header_version": "25.10"
+    "docs_header_version": "26.03"
 }
 html_theme = "rocm_docs_theme"
 html_theme_options = {"flavor": "rocm-ds", "repository_url": "https://github.com/AMD-AIOSS/hipVS/"}
