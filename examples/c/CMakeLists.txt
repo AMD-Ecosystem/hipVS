@@ -58,70 +58,90 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
 add_executable(CAGRA_C_EXAMPLE src/cagra_c_example.c)
 target_include_directories(CAGRA_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-# <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-# # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-# #   CAGRA_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# # #   CAGRA_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # =======
+# #   CAGRA_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # >>>>>>> END NEW CODE (04f402a00)
 # # =======
-#   CAGRA_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
-# # >>>>>>> END NEW CODE (04f402a00)
+#   CAGRA_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+# # >>>>>>> END NEW CODE (7e0daa4a3)
 # =======
-  CAGRA_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
-# >>>>>>> END NEW CODE (7e0daa4a3)
+  CAGRA_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# >>>>>>> END NEW CODE (10b0d1ff4)
 )
 
 add_executable(L2_C_EXAMPLE src/L2_c_example.c)
 target_include_directories(L2_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-# <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-# # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-# #   L2_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# # #   L2_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # =======
+# #   L2_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # >>>>>>> END NEW CODE (04f402a00)
 # # =======
-#   L2_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
-# # >>>>>>> END NEW CODE (04f402a00)
+#   L2_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+# # >>>>>>> END NEW CODE (7e0daa4a3)
 # =======
-  L2_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
-# >>>>>>> END NEW CODE (7e0daa4a3)
+  L2_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# >>>>>>> END NEW CODE (10b0d1ff4)
 )
 
 add_executable(IVF_FLAT_C_EXAMPLE src/ivf_flat_c_example.c)
 target_include_directories(IVF_FLAT_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-# <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-# # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-# #   IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# # #   IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # =======
+# #   IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # >>>>>>> END NEW CODE (04f402a00)
 # # =======
-#   IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
-# # >>>>>>> END NEW CODE (04f402a00)
+#   IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+# # >>>>>>> END NEW CODE (7e0daa4a3)
 # =======
-  IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
-# >>>>>>> END NEW CODE (7e0daa4a3)
+  IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# >>>>>>> END NEW CODE (10b0d1ff4)
 )
 
 add_executable(IVF_PQ_C_EXAMPLE src/ivf_pq_c_example.c)
 target_include_directories(IVF_PQ_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-# <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-# # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-# #   IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# # #   IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # =======
+# #   IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # >>>>>>> END NEW CODE (04f402a00)
 # # =======
-#   IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
-# # >>>>>>> END NEW CODE (04f402a00)
+#   IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+# # >>>>>>> END NEW CODE (7e0daa4a3)
 # =======
-  IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
-# >>>>>>> END NEW CODE (7e0daa4a3)
+  IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# >>>>>>> END NEW CODE (10b0d1ff4)
 )
 
 add_executable(BRUTEFORCE_C_EXAMPLE src/bruteforce_c_example.c)
 target_include_directories(BRUTEFORCE_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-# <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-# # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-# #   BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME}
-# #                                $<TARGET_NAME_IF_EXISTS:conda_env>
+# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# # #   BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME}
+# # #                                $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # =======
+# #   BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# # # >>>>>>> END NEW CODE (04f402a00)
 # # =======
-#   BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
-# # >>>>>>> END NEW CODE (04f402a00)
+#   BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+# # >>>>>>> END NEW CODE (7e0daa4a3)
 # =======
-  BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
-# >>>>>>> END NEW CODE (7e0daa4a3)
+  BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart_static $<TARGET_NAME_IF_EXISTS:conda_env>
+# >>>>>>> END NEW CODE (10b0d1ff4)
 )

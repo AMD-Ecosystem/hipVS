@@ -118,15 +118,19 @@ endif()
 
 ConfigureTest(NAME cuvs_c_headers PATH core/headers.c)
 ConfigureTest(NAME cuvs_c_test PATH core/c_api.c)
-# <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-# # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-# # target_link_libraries(cuvs_c_test PRIVATE hip::host)
+# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# # # target_link_libraries(cuvs_c_test PRIVATE hip::host)
+# # # =======
+# # target_link_libraries(cuvs_c_test PRIVATE CUDA::cudart_static)
+# # # >>>>>>> END NEW CODE (04f402a00)
 # # =======
-# target_link_libraries(cuvs_c_test PRIVATE CUDA::cudart_static)
-# # >>>>>>> END NEW CODE (04f402a00)
+# target_link_libraries(cuvs_c_test PRIVATE CUDA::cudart)
+# # >>>>>>> END NEW CODE (7e0daa4a3)
 # =======
-target_link_libraries(cuvs_c_test PRIVATE CUDA::cudart)
-# >>>>>>> END NEW CODE (7e0daa4a3)
+target_link_libraries(cuvs_c_test PRIVATE CUDA::cudart_static)
+# >>>>>>> END NEW CODE (10b0d1ff4)
 ConfigureTest(NAME cuvs_c_neighbors_test PATH neighbors/c_api.c)
 
 # ##################################################################################################

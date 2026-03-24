@@ -96,6 +96,7 @@ files:
       - cuda_version
       - rapids_build
       - rust
+      - depends_on_cudart
       - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_nccl
@@ -110,6 +111,7 @@ files:
       - cuda_version
       - rapids_build
       - go
+      - depends_on_cudart
       - depends_on_libcuvs
       - depends_on_libraft
       - depends_on_nccl
@@ -366,7 +368,6 @@ dependencies:
       - output_types: [conda]
         packages:
           - cuda-nvtx-dev
-          - cuda-cudart-dev
           - cuda-profiler-api
           - libcublas-dev
           - libcurand-dev
@@ -421,15 +422,23 @@ dependencies:
 #               - *nvjitlink_cu13
 # =======
               - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]>=12,<14
-# <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-#   depends_on_cudart:
-#     common:
-#       - output_types: conda
-#         packages:
-#           - cuda-cudart-dev
-# # >>>>>>> END NEW CODE (04f402a00)
+# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# #   depends_on_cudart:
+# #     common:
+# #       - output_types: conda
+# #         packages:
+# #           - cuda-cudart-dev
+# # # >>>>>>> END NEW CODE (04f402a00)
+# # =======
+# # >>>>>>> END NEW CODE (7e0daa4a3)
 # =======
-# >>>>>>> END NEW CODE (7e0daa4a3)
+  depends_on_cudart:
+    common:
+      - output_types: conda
+        packages:
+          - cuda-cudart-dev
+# >>>>>>> END NEW CODE (10b0d1ff4)
   depends_on_cupy:
     common:
       - output_types: conda
