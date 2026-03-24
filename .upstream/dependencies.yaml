@@ -417,22 +417,27 @@ dependencies:
           # (just as a source of documentation, as this populates pyproject.toml in source control)
           - matrix:
             packages:
-# <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-#               - *ctk_cu13
-#               - *nvjitlink_cu13
-# =======
-              - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]>=12,<14
-# <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
-# # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
-# #   depends_on_cudart:
-# #     common:
-# #       - output_types: conda
-# #         packages:
-# #           - cuda-cudart-dev
-# # # >>>>>>> END NEW CODE (04f402a00)
+# <<<<<<< OLD CODE from 005cb9c80 (0f1ba167e) - COMMENTED OUT
+# # <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
+# #               - *ctk_cu13
+# #               - *nvjitlink_cu13
 # # =======
-# # >>>>>>> END NEW CODE (7e0daa4a3)
+#               - cuda-toolkit[cublas,curand,cusolver,cusparse,nvjitlink]>=12,<14
+# # <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from 3894b6a36 (7e0daa4a3) - COMMENTED OUT
+# # #   depends_on_cudart:
+# # #     common:
+# # #       - output_types: conda
+# # #         packages:
+# # #           - cuda-cudart-dev
+# # # # >>>>>>> END NEW CODE (04f402a00)
+# # # =======
+# # # >>>>>>> END NEW CODE (7e0daa4a3)
+# # =======
 # =======
+              - *ctk_cu13
+              - *nvjitlink_cu13
+# >>>>>>> END NEW CODE (0f1ba167e)
   depends_on_cudart:
     common:
       - output_types: conda
