@@ -1,3 +1,32 @@
+# <<<<<<< OLD CODE from a1f19aab3 (8412cfd65) - COMMENTED OUT
+# PCA
+# ===
+#
+# Principal Component Analysis (PCA) is a linear dimensionality reduction technique that projects data onto orthogonal directions of maximum variance.
+#
+# .. role:: py(code)
+#    :language: c++
+#    :class: highlight
+#
+# ``#include <cuvs/preprocessing/pca.hpp>``
+#
+# namespace *cuvs::preprocessing::pca*
+#
+# Parameters
+# ----------
+#
+# .. doxygenstruct:: cuvs::preprocessing::pca::params
+#     :project: cuvs
+#     :members:
+#
+# PCA
+# ---------
+#
+# .. doxygengroup:: pca
+#     :project: cuvs
+#     :members:
+#     :content-only:
+# =======
 PCA
 ===
 
@@ -11,7 +40,7 @@ Principal Component Analysis (PCA) is a linear dimensionality reduction techniqu
 
 namespace *cuvs::preprocessing::pca*
 
-Parameters
+Params
 ----------
 
 .. doxygenstruct:: cuvs::preprocessing::pca::params
@@ -25,3 +54,4 @@ PCA
     :project: cuvs
     :members:
     :content-only:
+# >>>>>>> END NEW CODE (8412cfd65)
