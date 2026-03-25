@@ -28,8 +28,14 @@ dependencies:
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-- libcuvs==26.2.*,>=0.0.0a0
-- librmm==26.2.*,>=0.0.0a0
+# <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
+# - libcuvs==26.2.*,>=0.0.0a0
+# - librmm==26.2.*,>=0.0.0a0
+# =======
+- libcuvs==26.6.*,>=0.0.0a0
+- libnvjitlink-dev
+- librmm==26.6.*,>=0.0.0a0
+# >>>>>>> END NEW CODE (34192f32e)
 - matplotlib-base>=3.9
 - nccl>=2.19
 - ninja

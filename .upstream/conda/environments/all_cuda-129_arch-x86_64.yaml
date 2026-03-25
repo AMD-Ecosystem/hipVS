@@ -30,9 +30,13 @@ dependencies:
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-# - librmm==26.4.*
+# <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# # - librmm==26.4.*
+# # =======
 # =======
+- libnvjitlink-dev
+# >>>>>>> END NEW CODE (34192f32e)
 - librmm==26.6.*,>=0.0.0a0
 # >>>>>>> END NEW CODE (84b92c31c)
 - make

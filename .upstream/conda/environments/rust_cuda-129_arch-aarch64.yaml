@@ -26,6 +26,7 @@ dependencies:
 # - libraft==26.4.*
 # =======
 - libcuvs==26.6.*,>=0.0.0a0
+- libnvjitlink-dev
 - libraft==26.6.*,>=0.0.0a0
 # >>>>>>> END NEW CODE (84b92c31c)
 - make
