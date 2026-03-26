@@ -129,19 +129,21 @@ This example demonstrates the GPU-optimized implementation of the index computat
 The input dataset is provided as a binary file of vectors. The expected format is:
 1. 4 bytes unsigned int value giving the number of vectors in the dataset, (`N`).
 2. 4 bytes unsigned int value giving the dimension of the vectors, (`dim`).
-3. `N * dim` 32-bit floating point values giving the N vectors.
+3. `N * dim` values in row-major order: 32-bit floats when `datatype` is `float`, or 8-bit signed integers when `datatype` is `int8`.
 The index is built and saved to an output file. This index file can then be used with the open source
 diskANN implementation to search for *kNN* vectors.
 
 The Vamana algorithm can be tuned using command-line arguments as described below:
 
 ```
-Usage: ./VAMANA_EXAMPLE <data filename> <output filename> <graph degree> <visited_size> <max_fraction> <iterations>
-Input file expected to be binary file of fp32 vectors.
+Usage: ./VAMANA_EXAMPLE <data filename> <output filename> <datatype> <graph degree> <visited_size> <max_fraction> <iterations> [<codebook prefix>]
+<datatype> must be float or int8 (must match the payload type after the header above).
 Graph degree sizes supported: 32, 64, 128, 256 (must be greater than or equal to the device warp/wavefront size)
 Visited_size must be > degree and a power of 2.
 max_fraction > 0 and <= 1. Typical values are 0.06 or 0.1.
-Default iterations = 1, increase for better quality graph.
+Default iterations = 1.0, increase for better quality graph.
+Optional <codebook prefix>: path prefix for PQ pivots and rotation matrix files
+(${codebook_prefix}_pq_pivots.bin and ${codebook_prefix}_pq_pivots.bin_rotation_matrix.bin).
 ```
 
 ## C Examples
