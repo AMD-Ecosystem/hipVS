@@ -255,19 +255,36 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
     // On gfx950, CK tile's WarpGemmDispatcher lacks float specializations for the
     // ColumnMajor transpose-read path (requires Double AttrNumAccess which only has
     // fp16/bf16 specializations). Guard with if constexpr to prevent instantiation.
+    // NOTE: The #if defined(__gfx950__) guard only applies to device-code compilation.
+    // For host-side dispatch, we use a runtime check via prop.gcnArchName to match.
     constexpr bool col_major_ck_supported =
 #if defined(__gfx950__)
       !std::is_same_v<CkDataT, float>;
 #else
       true;
 #endif
+    // Runtime fallback for gfx950 + float + column-major: the device code for this
+    // combination is not compiled (guarded by __gfx950__ above), so we must also
+    // guard the host dispatch at runtime to avoid launching a missing kernel.
+    const bool is_gfx950 = (std::strncmp(prop.gcnArchName, "gfx950", 6) == 0);
+    const bool col_major_ck_supported_rt =
+      col_major_ck_supported && !(is_gfx950 && std::is_same_v<CkDataT, float>);
 
     // Column-major: probe first and fall back to SM60 if CK can't handle the shape.
     if (!ck_params.is_row_major) {
+      // if constexpr prevents instantiation of FastKernelCol when col_major_ck_supported=false
+      // (e.g. gfx950 + float device code), which would fail to compile in CK's block gemm.
       if constexpr (!col_major_ck_supported) {
         pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
         return;
       } else {
+        // Runtime check: catch gfx950 + float when compiled for a non-gfx950 offload arch
+        // (multi-arch builds). The kernel type is safe to instantiate here since
+        // col_major_ck_supported=true, but we must not launch it on gfx950 + float.
+        if (!col_major_ck_supported_rt) {
+          pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
+          return;
+        }
         using FastKernelCol = PairwiseDistanceCkKernel<CkDataT,
                                                        OutT,
                                                        ck_tile::tensor_layout::gemm::ColumnMajor,
