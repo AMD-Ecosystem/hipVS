@@ -78,7 +78,7 @@ Dependencies
 
 hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
 
-Install ROCm 7.2.1, or the minimum version supported by the GPUs listed above, and ensure the ``rocminfo`` and ``hipcc`` commands are in your ``PATH``. For more information, see `ROCm Installation <https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.1/>`_.
+Install ROCm 7.2.0 or later (at minimum, a version that supports the GPUs listed above) and verify that the ``rocminfo`` and ``hipcc`` commands are available in your ``PATH``. For installation instructions, see `ROCm Installation <https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.1/>`__.
 
 .. list-table::
    :header-rows: 1
@@ -91,15 +91,15 @@ Install ROCm 7.2.1, or the minimum version supported by the GPUs listed above, a
    * - `ninja <https://ninja-build.org/>`_
      - ≥ 1.11.1
    * - `hipsolver <https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - `hipblas <https://rocm.docs.amd.com/projects/hipBLAS/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - `hipblaslt <https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - `hiprand <https://rocm.docs.amd.com/projects/hipRAND/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - `hipsparse <https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - `libblas-dev <https://www.netlib.org/lapack/>`_
      - Tested with 3.12.0
    * - `liblapack-dev <https://www.netlib.org/lapack/>`_
@@ -117,15 +117,15 @@ Install ROCm 7.2.1, or the minimum version supported by the GPUs listed above, a
    * - **\*** `hipRAFT <https://github.com/ROCm-DS/hipRAFT>`_
      - 1.0.0
    * - **\*** `hipCUB <https://github.com/ROCm/hipCUB>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - **\*** `rocThrust <https://github.com/ROCm/rocThrust>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - **\*\*** `OpenMP <https://www.openmp.org/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - **Optional Dependencies**
      -
    * - `RCCL <https://github.com/ROCm/rccl>`_
-     - Version that comes bundled with ROCm ≥ 7.2.1
+     - Version that comes bundled with ROCm ≥ 7.2.0
    * - `UCX <https://github.com/openucx/ucx>`_
      - ≥ 1.17.0
    * - `Googletest <https://github.com/google/googletest>`_
