@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -184,13 +184,14 @@ void cagra_build_search_variants(raft::device_resources const& res,
       if (i >= kMaxJobs) { futures[i % kMaxJobs].wait(); }
       // submit a new job
       if (i < work_size) {
-        futures[i % kMaxJobs] = std::async(std::launch::async, [&]() {
+        const auto row        = i;
+        futures[i % kMaxJobs] = std::async(std::launch::async, [&, row]() {
           cagra::search(res,
                         ps,
                         index,
-                        slice_matrix(queries, i, 1),
-                        slice_matrix(neighbors, i, 1),
-                        slice_matrix(distances, i, 1));
+                        slice_matrix(queries, row, 1),
+                        slice_matrix(neighbors, row, 1),
+                        slice_matrix(distances, row, 1));
         });
       }
     }
