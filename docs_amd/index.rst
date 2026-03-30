@@ -53,6 +53,7 @@ The hipVS code is open and hosted at `https://github.com/ROCm-DS/hipVS <https://
 
   .. grid-item-card:: Installation
 
+    * :doc:`System requirements <install/system-requirements>`
     * :doc:`Installing hipVS <install/install>`
     * :doc:`Building hipVS <install/build>`
 

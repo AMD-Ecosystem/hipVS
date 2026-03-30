@@ -25,20 +25,17 @@
    :description: hipVS documentation and API reference library
    :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS
 
+****************
 Installing hipVS
-================
+****************
 
 You can install hipVS via AMD PyPI as described below. This is recommended for users of hipVS. For developers interested in modifying or contributing to the Open Source hipVS component, see the :doc:`Build instructions <./build>`.
 
-Requirements
-------------
-
-hipVS requires ROCm 7.2.0 or later on a `supported operating system <https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.1/reference/system-requirements.html#supported-operating-systems>`__ (Ubuntu 24.04 or 22.04 recommended). For additional requirements, see `ROCm-DS system requirements <https://rocm.docs.amd.com/projects/rocm-ds/en/latest/install/install.html#system-requirements>`__.
-
-The steps in this topic require a Conda installation. A minimal free version of Conda is `Miniforge <https://conda-forge.org/download/>`__.
+See :ref:`sys-req` for information regarding supported operating systems, ROCm versions,
+and AMD GPUs before installing hipVS.
 
 Install hipVS via AMD PyPI
----------------------------
+==========================
 
 Packaged versions of hipVS and its dependencies are distributed via
 `AMD PyPI <https://pypi.amd.com/rocm-7.2.1/simple/>`__. This section discusses how to install

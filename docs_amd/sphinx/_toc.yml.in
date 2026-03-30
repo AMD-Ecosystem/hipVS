@@ -31,6 +31,8 @@ subtrees:
 
 - caption: Installation
   entries:
+  - file: install/system-requirements.rst
+    title: System requirements
   - file: install/install.rst
     title: Installing hipVS
   - file: install/build.rst

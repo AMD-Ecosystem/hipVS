@@ -21,64 +21,26 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 
+.. meta::
+   :description: hipVS documentation and API reference library
+   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS
+
 .. _build-hipvs:
 
 **************************
 Building hipVS from source
 **************************
 
-hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the `hipVS repository <https://github.com/ROCm-DS/hipVS>`_.
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the `https://github.com/ROCm-DS/hipVS <https://github.com/ROCm-DS/hipVS>`_ repository. To install hipVS for end users, see :doc:`Installing hipVS <./install>`.
 
-Tested GPUs
-===========
-
-.. list-table::
-   :header-rows: 1
-
-   * - AMD Instinct GPU
-     - Architecture
-     - Wavefront Size
-     - LLVM target
-   * - MI355X
-     - CDNA4
-     - 64
-     - gfx950
-   * - MI350X
-     - CDNA4
-     - 64
-     - gfx950
-   * - MI325X
-     - CDNA3
-     - 64
-     - gfx942
-   * - MI300X
-     - CDNA3
-     - 64
-     - gfx942
-   * - MI300A
-     - CDNA3
-     - 64
-     - gfx942
-   * - MI250X
-     - CDNA2
-     - 64
-     - gfx90a
-   * - MI250
-     - CDNA2
-     - 64
-     - gfx90a
-   * - MI210
-     - CDNA2
-     - 64
-     - gfx90a
-
+See :ref:`sys-req` for information regarding supported operating systems, ROCm versions,
+and AMD GPUs before building and installing hipVS.
 
 Dependencies
 ============
 
+Install ROCm 7.2.0 or 7.2.1 and verify that the ``rocminfo`` and ``hipcc`` commands are available in your ``PATH``.
 hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
-
-Install ROCm 7.2.0 or later (at minimum, a version that supports the GPUs listed above) and verify that the ``rocminfo`` and ``hipcc`` commands are available in your ``PATH``. For installation instructions, see `ROCm Installation <https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.1/>`__.
 
 .. list-table::
    :header-rows: 1
@@ -528,7 +490,7 @@ Prepare the environment to build documentation using the following commands:
    # Activate the hipvs conda environment.
    micromamba activate hipvs
    # Install dependencies and tools required for generating documentation.
-   pip install -r docs_amd/sphinx/requirements.txt
+   pip install -r docs/sphinx/requirements.txt
 
 Use build.sh to generate documentation
 ---------------------------------------
