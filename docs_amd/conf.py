@@ -26,7 +26,10 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-version_number = "1.0.0" # TODO: Parse this from a centralized location.
+import os
+_version_file = os.path.join(os.path.dirname(__file__), "..", "VERSION")
+with open(_version_file) as _f:
+    version_number = ".".join(str(int(p)) for p in _f.read().strip().split("."))
 left_nav_title = f"hipVS {version_number} documentation"
 
 # for PDF output on Read the Docs
@@ -46,7 +49,7 @@ html_context = {
     "docs_header_version": "26.03"
 }
 html_theme = "rocm_docs_theme"
-html_theme_options = {"flavor": "rocm-ds", "repository_url": "https://github.com/AMD-AIOSS/hipVS/"}
+html_theme_options = {"flavor": "rocm-ds", "repository_url": "https://github.com/ROCm-DS/hipVS/"}
 
 extensions = [
     "rocm_docs",
