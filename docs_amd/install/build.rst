@@ -528,7 +528,7 @@ Prepare the environment to build documentation using the following commands:
    # Activate the hipvs conda environment.
    micromamba activate hipvs
    # Install dependencies and tools required for generating documentation.
-   pip install -r docs/sphinx/requirements.txt
+   pip install -r docs_amd/sphinx/requirements.txt
 
 Use build.sh to generate documentation
 ---------------------------------------
