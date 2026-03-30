@@ -13,7 +13,7 @@
 # =============================================================================
 # MIT License
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 # associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -42,7 +42,7 @@ if(NOT (rapids-cmake-branch OR rapids-cmake-version))
     set(rapids-cmake-version $ENV{RAPIDS_CMAKE_VERSION})
   else()
     # Define a default version if the user doesn't set one
-    set(rapids-cmake-version 25.02)
+    set(rapids-cmake-version 3.0.0)
   endif()
 endif()
 
