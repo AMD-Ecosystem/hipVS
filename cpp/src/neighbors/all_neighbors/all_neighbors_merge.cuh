@@ -223,7 +223,7 @@ void merge_subgraphs(raft::resources const& res,
   size_t sharedMemSize = num_elems * (sizeof(float) + sizeof(IdxT) + sizeof(int16_t));
 
   // HIP/AMD: Note the original `#pragma omp critical` was replaced with a `static std::mutex` to
-  // avoid the runtime bug. See: https://github.com/AMD-AIOSS/hipVS/issues/121
+  // avoid a HIP runtime bug with OpenMP critical sections.
   static std::mutex merge_subgraphs_mutex;
   std::scoped_lock lock(merge_subgraphs_mutex);
   {
