@@ -56,7 +56,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/rapidsai/cuvs"
+Homepage = "https://github.com/ROCm-DS/hipVS"
+Documentation = "https://rocm.docs.amd.com/projects/hipVS/en/latest/"
+"Issue Tracker" = "https://github.com/ROCm-DS/hipVS/issues"
 
 [tool.setuptools.packages.find]
 include = ["cuvs_bench*"]
