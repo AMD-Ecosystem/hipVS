@@ -31,10 +31,14 @@ dependencies:
 - libcusolver-dev
 - libcusparse-dev
 - libnvjitlink-dev
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-# - libopenblas<=0.3.30
-# - librmm==26.4.*
+# <<<<<<< OLD CODE from 47f2e14d1 (ad85de0a2) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# # - libopenblas<=0.3.30
+# # - librmm==26.4.*
+# # =======
 # =======
+- libopenblas<=0.3.30
+# >>>>>>> END NEW CODE (ad85de0a2)
 - librmm==26.6.*,>=0.0.0a0
 # >>>>>>> END NEW CODE (84b92c31c)
 - make

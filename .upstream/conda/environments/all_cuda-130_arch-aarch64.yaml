@@ -31,7 +31,13 @@ dependencies:
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-- librmm==26.2.*,>=0.0.0a0
+# <<<<<<< OLD CODE from 47f2e14d1 (ad85de0a2) - COMMENTED OUT
+# - librmm==26.2.*,>=0.0.0a0
+# =======
+- libnvjitlink-dev
+- libopenblas<=0.3.30
+- librmm==26.6.*,>=0.0.0a0
+# >>>>>>> END NEW CODE (ad85de0a2)
 - make
 - nccl>=2.19
 - ninja
