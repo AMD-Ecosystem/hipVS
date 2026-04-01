@@ -11,12 +11,11 @@ GPU-accelerated retrieval via hipVS, and synthesising cited answers.
 ## Table of Contents
 
 1. [Features](#features)
-2. [Architecture Overview](#architecture-overview)
-3. [System Requirements](#system-requirements)
-4. [Installation](#installation)
-5. [Quick Start](#quick-start)
-6. [CLI Reference](#cli-reference)
-7. [Technical Deep Dive](#technical-deep-dive)
+2. [System Requirements](#system-requirements)
+3. [Installation](#installation)
+4. [Quick Start](#quick-start)
+5. [CLI Reference](#cli-reference)
+6. [Technical Deep Dive](#technical-deep-dive)
    - [Document Ingestion Pipeline](#document-ingestion-pipeline)
    - [Text Chunking Strategy](#text-chunking-strategy)
    - [Embedding Model](#embedding-model)
@@ -25,11 +24,11 @@ GPU-accelerated retrieval via hipVS, and synthesising cited answers.
    - [Agentic RAG Engine](#agentic-rag-engine)
    - [LLM Backends](#llm-backends)
    - [Performance Tracking](#performance-tracking)
-8. [hipVS API Usage](#hipvs-api-usage)
-9. [UI Components](#ui-components)
-10. [Network Access](#network-access)
-11. [Configuration Tuning Guide](#configuration-tuning-guide)
-12. [Troubleshooting](#troubleshooting)
+7. [hipVS API Usage](#hipvs-api-usage)
+8. [UI Components](#ui-components)
+9. [Network Access](#network-access)
+10. [Configuration Tuning Guide](#configuration-tuning-guide)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -49,119 +48,58 @@ GPU-accelerated retrieval via hipVS, and synthesising cited answers.
 
 ---
 
-## Architecture Overview
-
-![Architecture Diagram](architecture.png)
-
-<details>
-<summary>Text version of the diagram (click to expand)</summary>
-
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                         Gradio Web UI                              │
-│  ┌──────────────┐  ┌─────────────────┐  ┌───────────────────┐     │
-│  │ Research Chat │  │ Algorithm Arena │  │  Knowledge Base   │     │
-│  └──────┬───────┘  └────────┬────────┘  └────────┬──────────┘     │
-└─────────┼───────────────────┼────────────────────┼────────────────┘
-          │                   │                    │
-          ▼                   ▼                    ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                     ResearchAnalyst Engine                          │
-│                                                                    │
-│  ╔══════════════════ CPU ════════════════════════════════════════╗  │
-│  ║                                                              ║  │
-│  ║  ┌─────────────────┐                 ┌──────────────────┐    ║  │
-│  ║  │ Query Decompose │                 │   Synthesise     │    ║  │
-│  ║  │  (LLM / Heur.)  │                 │ (LLM + citations)│    ║  │
-│  ║  └────────┬────────┘                 └──────────────────┘    ║  │
-│  ║           │                                   ▲              ║  │
-│  ║  ┌────────┴───────┐   ┌────────────────┐     │              ║  │
-│  ║  │ DocumentParser │──▶│  TextChunker   │     │              ║  │
-│  ║  │ (PDF/MD/TXT)   │   │ (overlap=150)  │     │              ║  │
-│  ║  └────────────────┘   └───────┬────────┘     │              ║  │
-│  ║                               │         Dedup + Format      ║  │
-│  ╚═══════════════════════════════╪═══════════════╪══════════════╝  │
-│                                  │               │                 │
-│            numpy ──► cp.asarray  │    cp.asnumpy │ ◄── numpy      │
-│         ·····························CPU / GPU boundary··········   │
-│                                  │               │                 │
-│  ╔══════════════════ AMD GPU (ROCm / HIP) ══════╪══════════════╗  │
-│  ║                               ▼               │              ║  │
-│  ║  ┌──────────────────────────────────────────┐ │              ║  │
-│  ║  │         TextEmbedder (GPU)               │ │              ║  │
-│  ║  │  SentenceTransformer / MiniLM-L6-v2     │ │              ║  │
-│  ║  │  encode_batch() and encode_query()       │ │              ║  │
-│  ║  └─────────────────────┬────────────────────┘ │              ║  │
-│  ║                        │ embeddings (CuPy)    │              ║  │
-│  ║                        ▼                      │              ║  │
-│  ║  ┌──────────────────────────────────────────┐ │              ║  │
-│  ║  │           HipVSIndex (GPU)               │ │              ║  │
-│  ║  │  ┌────────┐ ┌──────────┐ ┌────────┐     │ │              ║  │
-│  ║  │  │ CAGRA  │ │ IVF-Flat │ │ IVF-PQ │     │ │              ║  │
-│  ║  │  └────────┘ └──────────┘ └────────┘     │ │              ║  │
-│  ║  │  ┌──────────────┐                       │ │              ║  │
-│  ║  │  │ Brute-Force  │  build() + search()   ├─┘              ║  │
-│  ║  │  └──────────────┘  on GPU via cuvs API  │                ║  │
-│  ║  └──────────────────────────────────────────┘                ║  │
-│  ║                                                              ║  │
-│  ╚══════════════════════════════════════════════════════════════╝  │
-│                                                                    │
-└────────────────────────────────────────────────────────────────────┘
-```
-
 ### Data Flow (per query)
 
 ```
 User Question
      │
-     ▼                                              CPU / GPU
-[1] Query Decomposition ─── LLM splits into 2-4    ── CPU
-     │                       sub-queries (or
-     │                       heuristic splitting)
+     ▼                                                     CPU / GPU
+[1] Query Decomposition ─── LLM splits into 2-4 sub-      ── CPU
+     │                       queries via Ollama (llama3.2)
+     │                       or heuristic keyword splitting
      ▼
-[2] Embedding ───────────── Sub-query → 384-dim     ── GPU
-     │                       vector via MiniLM-L6-v2
-     │                       (SentenceTransformer)
+[2] Embedding ───────────── Sub-query → 384-dim vector     ── GPU (default)
+     │                       via sentence-transformers
+     │                       (PyTorch 2.9 + ROCm 7.2)
      ▼
-[3] GPU Vector Search ───── cp.asarray → hipVS      ── GPU
+[3] GPU Vector Search ───── amd-cupy cp.asarray → hipVS    ── GPU
      │                       search (CAGRA/IVF/BF)
      │                       inner product, top-K
      ▼
-[4] Transfer to CPU ─────── cp.asnumpy(neighbors)   ── GPU → CPU
-     │                       cp.asnumpy(distances)
+[4] Transfer to CPU ─────── amd-cupy cp.asnumpy            ── GPU → CPU
+     │                       (neighbors + distances)
      ▼
-[5] Deduplication ───────── Merge results across     ── CPU
+[5] Deduplication ───────── Merge results across            ── CPU
      │                       sub-queries by chunk_id
      ▼
-[6] Synthesis ───────────── LLM generates answer     ── CPU (or GPU
-     │                       with [N] citations        via Ollama)
+[6] Synthesis ───────────── LLM generates answer with       ── CPU
+     │                       [N] citations via Ollama
      ▼
-[7] Format Response ─────── Reasoning trace table    ── CPU
+[7] Format Response ─────── Reasoning trace table           ── CPU
                              + answer + sources
 ```
-
-</details>
 
 ---
 
 ## System Requirements
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| **GPU** | Any AMD GPU with ROCm support | AMD Instinct MI250X / MI300X |
-| **ROCm** | 5.7+ | 6.0+ |
-| **VRAM** | 4 GB | 16+ GB |
-| **Python** | 3.9 | 3.10-3.11 |
+| Component | Minimum | Tested on |
+|-----------|---------|-----------|
+| **GPU** | Any AMD GPU with ROCm support | AMD Instinct MI210 |
+| **ROCm** | 7.2+ | 7.2 |
+| **VRAM** | 4 GB | 64 GB |
+| **Python** | 3.10 | 3.10 |
 | **RAM** | 8 GB | 32+ GB |
 
 ### Python Dependencies
 
 | Package | Purpose | Required |
 |---------|---------|----------|
-| `cuvs` (hipVS) | GPU-accelerated vector search | Yes |
-| `cupy` | GPU array management (CuPy for ROCm) | Yes |
-| `numpy` | CPU array operations | Yes |
+| `amd-hipvs` | GPU-accelerated vector search (hipVS) | Yes |
+| `amd-cupy` | GPU array management (CuPy for ROCm) | Yes |
+| `torch` (ROCm) | PyTorch for AMD GPUs | Yes |
 | `sentence-transformers` | Text embedding (MiniLM-L6-v2) | Yes |
+| `numpy` | CPU array operations | Yes |
 | `gradio` | Web UI framework | Yes |
 | `pymupdf` (fitz) | PDF document parsing | Optional |
 | `ollama` (server) | Local LLM inference | Optional |
@@ -174,11 +112,8 @@ User Question
 # Activate your hipVS environment
 micromamba activate hipvs
 
-# Install Python dependencies (if not already present)
-pip install gradio sentence-transformers numpy
-
-# Optional: PDF support
-pip install pymupdf
+# Install all dependencies
+pip install -r requirements.txt
 
 # Optional: Local LLM via Ollama
 curl -fsSL https://ollama.com/install.sh | sh
@@ -243,7 +178,6 @@ Document options:
 Embedding options:
   --embed-model MODEL     sentence-transformers model (default: all-MiniLM-L6-v2)
   --embed-device {cpu,gpu} Device for embedding model (default: gpu)
-  --no-cache              Force re-embedding; ignore cached embeddings
 
 Index options:
   --algorithms ALG [ALG]  Algorithms to build: cagra ivf_flat ivf_pq brute_force
@@ -259,7 +193,6 @@ LLM options:
 
 Server options:
   --port N                Gradio server port (default: 7863)
-  --share                 Create a public Gradio share link
 ```
 
 ---
@@ -356,7 +289,7 @@ Cached artifacts are stored in `./data/cache/<hash16>/`:
 - `chunks.json` — full chunk metadata list
 
 The cache is invalidated automatically if the number of chunks changes
-(detects added/removed documents). Use `--no-cache` to force re-embedding.
+(detects added/removed documents).
 
 ---
 
@@ -666,5 +599,5 @@ python enterprise_research_analyst.py \
 | `--embed-device gpu` hangs | GPU contention from other processes | Check `rocm-smi` for idle GPUs and set `export HIP_VISIBLE_DEVICES=<id>` to pin to a free device |
 | `CAGRA: too few vectors` | Corpus has < 4 chunks | Add more documents or use `--algorithms ivf_flat brute_force` |
 | Slow first query | GPU/model warmup | Expected — subsequent queries are fast. The demo runs automatic warmup at startup. |
-| Embedding cache not loading | Chunk config changed | Cache key includes chunk_size and overlap. Change either → cache miss → re-embeds automatically. Use `--no-cache` to force. |
+| Embedding cache not loading | Chunk config changed | Cache key includes chunk_size and overlap. Change either → cache miss → re-embeds automatically. |
 | LLM synthesis is empty | Running in retrieval-only mode | Use `--llm ollama` or `--llm openai` for full agentic experience |
