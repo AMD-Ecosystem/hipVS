@@ -307,16 +307,26 @@ auto make_strided_dataset(const raft::resources& res, const SrcT& src, uint32_t 
                                 0,
                                 out_array.size() * sizeof(value_type),
                                 raft::resource::get_cuda_stream(res)));
-  if (src.data_handle()) {
-    RAFT_CUDA_TRY(cudaMemcpy2DAsync(out_array.data_handle(),
-                                    sizeof(value_type) * required_stride,
-                                    src.data_handle(),
-                                    sizeof(value_type) * src_stride,
-                                    sizeof(value_type) * src.extent(1),
-                                    src.extent(0),
-                                    cudaMemcpyDefault,
-                                    raft::resource::get_cuda_stream(res)));
-  }
+// <<<<<<< OLD CODE from 05bd5de57 (f5874ca4c) - COMMENTED OUT
+//   if (src.data_handle()) {
+//     RAFT_CUDA_TRY(cudaMemcpy2DAsync(out_array.data_handle(),
+//                                     sizeof(value_type) * required_stride,
+//                                     src.data_handle(),
+//                                     sizeof(value_type) * src_stride,
+//                                     sizeof(value_type) * src.extent(1),
+//                                     src.extent(0),
+//                                     cudaMemcpyDefault,
+//                                     raft::resource::get_cuda_stream(res)));
+//   }
+// =======
+  raft::copy_matrix(out_array.data_handle(),
+                    required_stride,
+                    src.data_handle(),
+                    src_stride,
+                    src.extent(1),
+                    src.extent(0),
+                    raft::resource::get_cuda_stream(res));
+// >>>>>>> END NEW CODE (f5874ca4c)
 
   return std::make_unique<out_owning_type>(std::move(out_array), out_layout);
 }
@@ -380,15 +390,25 @@ auto make_strided_dataset(
                                 0,
                                 out_array.size() * sizeof(value_type),
                                 raft::resource::get_cuda_stream(res)));
-  RAFT_CUDA_TRY(cudaMemcpy2DAsync(out_array.data_handle(),
-                                  sizeof(value_type) * required_stride,
-                                  src.data_handle(),
-                                  sizeof(value_type) * src_stride,
-                                  sizeof(value_type) * src.extent(1),
-                                  src.extent(0),
-                                  cudaMemcpyDefault,
-                                  raft::resource::get_cuda_stream(res)));
-  raft::resource::sync_stream(res);
+// <<<<<<< OLD CODE from 05bd5de57 (f5874ca4c) - COMMENTED OUT
+//   RAFT_CUDA_TRY(cudaMemcpy2DAsync(out_array.data_handle(),
+//                                   sizeof(value_type) * required_stride,
+//                                   src.data_handle(),
+//                                   sizeof(value_type) * src_stride,
+//                                   sizeof(value_type) * src.extent(1),
+//                                   src.extent(0),
+//                                   cudaMemcpyDefault,
+//                                   raft::resource::get_cuda_stream(res)));
+//   raft::resource::sync_stream(res);
+// =======
+  raft::copy_matrix(out_array.data_handle(),
+                    required_stride,
+                    src.data_handle(),
+                    src_stride,
+                    src.extent(1),
+                    src.extent(0),
+                    raft::resource::get_cuda_stream(res));
+// >>>>>>> END NEW CODE (f5874ca4c)
 
   return std::make_unique<out_owning_type>(std::move(out_array), out_layout);
 }

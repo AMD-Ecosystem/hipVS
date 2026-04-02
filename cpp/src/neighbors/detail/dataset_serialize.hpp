@@ -1,35 +1,40 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
-
+// <<<<<<< OLD CODE from 05bd5de57 (f5874ca4c) - COMMENTED OUT
+//  * Copyright (c) 2024, NVIDIA CORPORATION.
+//  *
+//  * Licensed under the Apache License, Version 2.0 (the "License");
+//  * you may not use this file except in compliance with the License.
+//  * You may obtain a copy of the License at
+//  *
+//  *     http://www.apache.org/licenses/LICENSE-2.0
+//  *
+//  * Unless required by applicable law or agreed to in writing, software
+//  * distributed under the License is distributed on an "AS IS" BASIS,
+//  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  * See the License for the specific language governing permissions and
+//  * limitations under the License.
+//  *
+//  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+//  * Permission is hereby granted, free of charge, to any person obtaining a copy
+//  * of this software and associated documentation files (the "Software"), to deal
+//  * in the Software without restriction, including without limitation the rights
+//  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  * copies of the Software, and to permit persons to whom the Software is
+//  * furnished to do so, subject to the following conditions:
+//  * The above copyright notice and this permission notice shall be included in
+//  * all copies or substantial portions of the Software.
+//  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//  * THE SOFTWARE.
+//
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (f5874ca4c)
  */
 #pragma once
 
@@ -38,6 +43,7 @@
 #include <raft/core/host_mdarray.hpp>
 #include <raft/core/resources.hpp>
 #include <raft/core/serialize.hpp>
+#include <raft/util/cudart_utils.hpp>
 
 #include <raft/core/logger.hpp>
 
@@ -78,14 +84,13 @@ void serialize(const raft::resources& res,
   // Remove padding before saving the dataset
   auto src = dataset.view();
   auto dst = raft::make_host_matrix<DataT, IdxT>(n_rows, dim);
-  RAFT_CUDA_TRY(cudaMemcpy2DAsync(dst.data_handle(),
-                                  sizeof(DataT) * dim,
-                                  src.data_handle(),
-                                  sizeof(DataT) * stride,
-                                  sizeof(DataT) * dim,
-                                  n_rows,
-                                  cudaMemcpyDefault,
-                                  raft::resource::get_cuda_stream(res)));
+  raft::copy_matrix(dst.data_handle(),
+                    dim,
+                    src.data_handle(),
+                    stride,
+                    dim,
+                    n_rows,
+                    raft::resource::get_cuda_stream(res));
   raft::resource::sync_stream(res);
   raft::serialize_mdspan(res, os, dst.view());
 }
