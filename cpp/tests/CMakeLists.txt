@@ -340,6 +340,14 @@ if(BUILD_TESTS)
   )
 
   ConfigureTest(
+    NAME FUSED_DISTANCE_NN_TEST
+    PATH distance/fused_distance_nn.cu
+    GPUS 1
+    PERCENT 100
+    ADDITIONAL_DEP cuvs_src_internal
+  )
+
+  ConfigureTest(
     NAME SPARSE_TEST
     PATH sparse/cluster/cluster_solvers.cu sparse/cluster/eigen_solvers.cu
          sparse/cluster/spectral.cu
