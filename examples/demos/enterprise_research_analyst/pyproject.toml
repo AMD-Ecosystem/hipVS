@@ -1,0 +1,34 @@
+[project]
+name = "hipvs-demo"
+version = "1.0.0"
+requires-python = ">=3.10,<=3.13"
+dependencies = [
+    "amd-hipvs>=1.0.0",
+    "amd-cupy>=13.5.1",
+    "amd-libraft>=1.0.0",
+    "amd-pylibraft>=1.0.0",
+    "rocmds-logger==1.0.*",
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
+    "sentence-transformers>=5.0.0",
+    "numpy>=2.0.0",
+    "gradio>=6.0.0",
+    "pymupdf>=1.27.0",
+]
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm7.2"
+
+[[tool.uv.index]]
+name = "amd-pypi"
+url = "https://pypi.amd.com/rocm-7.2.1/simple/"
+
+[tool.uv.sources]
+torch = { index = "pytorch-rocm" }
+torchvision = { index = "pytorch-rocm" }
+amd-hipvs = { index = "amd-pypi" }
+amd-cupy = { index = "amd-pypi" }
+amd-libraft = { index = "amd-pypi" }
+amd-pylibraft = { index = "amd-pypi" }
+rocmds-logger = { index = "amd-pypi" }
