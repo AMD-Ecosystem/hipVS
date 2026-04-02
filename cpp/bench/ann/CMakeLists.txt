@@ -57,7 +57,7 @@ option(CUVS_ANN_BENCH_USE_CUVS_VAMANA "Include cuVS Vamana with DiskANN search i
 option(CUVS_ANN_BENCH_USE_CUVS_CAGRA_DISKANN "Include cuVS CAGRA with DISKANN search in benchmark"
        OFF
 )
-# AMD: Does not support DISKANN AIOSS-2686
+# AMD: Does not support DISKANN
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(ARM|arm|aarch64)" OR NOT CUDA_BACKEND)
   set(CUVS_ANN_BENCH_USE_DISKANN OFF)
   set(CUVS_ANN_BENCH_USE_CUVS_VAMANA OFF)
