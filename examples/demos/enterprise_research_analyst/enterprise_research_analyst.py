@@ -65,280 +65,124 @@ ALL_ALGORITHMS = ("cagra", "ivf_flat", "ivf_pq", "brute_force")
 SUPPORTED_DOC_EXTENSIONS = {".pdf", ".md", ".txt", ".text", ".rst"}
 
 # ---------------------------------------------------------------------------
-# Sample corpus -- built-in articles for quick demos without external data
+# Default blog corpus -- downloaded at runtime for quick demos.
+# No static articles are checked in; instead the script fetches a curated
+# set of ROCm blog posts on first run.
 # ---------------------------------------------------------------------------
 
-SAMPLE_ARTICLES = {
-    "vector_search_fundamentals.md": (
-        "# Vector Search and Similarity\n\n"
-        "Vector search (also called similarity search or nearest-neighbor search) "
-        "is the process of finding data points in a high-dimensional space that "
-        "are closest to a given query vector. It is the backbone of modern "
-        "information-retrieval systems, recommendation engines, and AI "
-        "applications.\n\n"
-        "## Distance Metrics\n\n"
-        "The choice of distance metric determines how closeness is measured. "
-        "Common metrics include L2 (Euclidean) distance, cosine similarity, and "
-        "inner product. For normalised embeddings, cosine similarity and inner "
-        "product are equivalent. Jaccard and Hamming distances are used for "
-        "binary or set-valued features.\n\n"
-        "## Exact vs. Approximate Search\n\n"
-        "Brute-force search computes the distance between the query and every "
-        "vector in the database, guaranteeing perfect recall. However, it scales "
-        "linearly with dataset size. Approximate nearest-neighbor (ANN) "
-        "algorithms trade a small amount of recall for dramatically lower "
-        "latency, making billion-scale search practical. Prominent ANN "
-        "strategies include graph-based methods (HNSW, CAGRA), inverted-file "
-        "indexes (IVF-Flat, IVF-PQ), and tree-based partitioning (Annoy).\n\n"
-        "## GPU Acceleration\n\n"
-        "GPUs excel at vector search because distance computation is inherently "
-        "parallel: each distance can be computed independently. Libraries like "
-        "hipVS exploit thousands of GPU cores to achieve sub-millisecond search "
-        "latency on datasets with millions of vectors.\n"
-    ),
-    "gpu_accelerated_computing.md": (
-        "# GPU-Accelerated Computing\n\n"
-        "Graphics Processing Units (GPUs) were originally designed for rendering "
-        "pixels, but their massively parallel architecture makes them ideal for "
-        "general-purpose computing. A modern data-center GPU contains thousands "
-        "of compute cores, high-bandwidth memory (HBM), and hardware schedulers "
-        "that can execute millions of lightweight threads concurrently.\n\n"
-        "## SIMT Execution Model\n\n"
-        "GPUs use a Single-Instruction, Multiple-Thread (SIMT) model where "
-        "groups of threads (called wavefronts on AMD or warps on NVIDIA) execute "
-        "the same instruction in lockstep. This is perfect for data-parallel "
-        "workloads like matrix multiplication, distance computation, and "
-        "embedding generation.\n\n"
-        "## Memory Hierarchy\n\n"
-        "HBM provides bandwidth exceeding 3 TB/s on the latest AMD MI300X "
-        "accelerators, enabling rapid streaming of large vector datasets. "
-        "On-chip shared memory (LDS on AMD) allows cooperative data reuse within "
-        "a workgroup, which is critical for tiled matrix operations used in "
-        "vector search kernels.\n\n"
-        "## Applications Beyond Graphics\n\n"
-        "Today GPUs power deep-learning training and inference, scientific "
-        "simulation, financial modelling, genomics, and -- increasingly -- "
-        "vector-database workloads where brute-force or ANN search must run at "
-        "interactive latencies over massive datasets.\n"
-    ),
-    "transformer_architecture.md": (
-        "# The Transformer Architecture\n\n"
-        "Introduced in the landmark 2017 paper 'Attention Is All You Need' by "
-        "Vaswani et al., the Transformer replaced recurrence with self-attention "
-        "and quickly became the dominant architecture for natural language "
-        "processing, computer vision, and multimodal AI.\n\n"
-        "## Self-Attention Mechanism\n\n"
-        "Self-attention computes pairwise interactions between all positions in a "
-        "sequence. Given queries Q, keys K, and values V (all derived from the "
-        "input), attention scores are computed as softmax(QK^T / sqrt(d_k)) V. "
-        "This allows the model to capture long-range dependencies without the "
-        "vanishing-gradient problems of RNNs.\n\n"
-        "## Encoder-Decoder Structure\n\n"
-        "The original Transformer uses an encoder stack (for understanding) and "
-        "a decoder stack (for generation). Encoder-only models like BERT excel "
-        "at classification and retrieval; decoder-only models like GPT excel at "
-        "text generation.\n\n"
-        "## Scaling Laws\n\n"
-        "Research by Kaplan et al. (2020) showed that Transformer performance "
-        "improves predictably with more parameters, more data, and more compute. "
-        "This insight drove the development of ever-larger language models and "
-        "established scaling as a key paradigm in AI research.\n\n"
-        "## Relation to Vector Search\n\n"
-        "Transformer-based embedding models convert text into dense vectors that "
-        "capture semantic meaning. These vectors are then indexed and searched "
-        "using ANN algorithms, forming the retrieval backbone of modern RAG "
-        "systems.\n"
-    ),
-    "retrieval_augmented_generation.md": (
-        "# Retrieval-Augmented Generation (RAG)\n\n"
-        "RAG combines a retrieval system with a generative language model. When "
-        "a user asks a question, the system first retrieves relevant passages "
-        "from a knowledge base, then feeds those passages to an LLM that "
-        "synthesises a grounded, cited answer.\n\n"
-        "## Why RAG?\n\n"
-        "Pure LLMs suffer from hallucination, knowledge cut-off, and lack of "
-        "source attribution. RAG addresses all three: the retriever provides "
-        "up-to-date, factual evidence, and the generator can cite its sources. "
-        "This makes RAG the preferred architecture for enterprise knowledge "
-        "assistants.\n\n"
-        "## Agentic RAG\n\n"
-        "Advanced RAG systems decompose complex questions into sub-queries, "
-        "execute multiple retrieval passes, and reason over the combined "
-        "evidence. This agentic approach improves answer quality for "
-        "multi-faceted questions that no single retrieval can fully address.\n\n"
-        "## The Role of Vector Search\n\n"
-        "Vector search is the engine inside every RAG system. The quality of "
-        "retrieval directly determines the quality of the generated answer. "
-        "GPU-accelerated vector search (like hipVS) enables sub-millisecond "
-        "retrieval, which is critical when the agent makes multiple retrieval "
-        "calls per question.\n"
-    ),
-    "amd_instinct_accelerators.md": (
-        "# AMD Instinct Accelerators\n\n"
-        "AMD Instinct is a family of data-center GPUs designed for AI training, "
-        "inference, and high-performance computing. The latest generation, "
-        "MI300X, combines the CDNA 3 compute architecture with 192 GB of HBM3 "
-        "memory and over 5 TB/s of memory bandwidth.\n\n"
-        "## CDNA Architecture\n\n"
-        "Unlike AMD's consumer RDNA GPUs, the CDNA architecture is optimised "
-        "for matrix and vector compute. It features dedicated Matrix Fused "
-        "Multiply-Add (MFMA) units that accelerate GEMM operations central to "
-        "deep learning and distance computation.\n\n"
-        "## ROCm Software Stack\n\n"
-        "ROCm is AMD's open-source GPU-compute platform. It provides HIP (a "
-        "portable C++ runtime), math libraries (rocBLAS, hipBLAS), and "
-        "deep-learning framework support (PyTorch, TensorFlow). hipVS and "
-        "hipRAFT are built on ROCm, bringing GPU-accelerated vector search to "
-        "AMD hardware.\n\n"
-        "## Multi-GPU Scaling\n\n"
-        "AMD Instinct GPUs support high-bandwidth Infinity Fabric links for "
-        "multi-GPU communication. hipVS can distribute vector indexes across "
-        "multiple GPUs (MG-CAGRA, MG-IVF-Flat, MG-IVF-PQ) to handle "
-        "billion-scale datasets that exceed single-GPU memory.\n"
-    ),
-    "cagra_graph_search.md": (
-        "# CAGRA: GPU-Accelerated Graph-Based Search\n\n"
-        "CAGRA (Cuda Anns GRAph-based) is a state-of-the-art graph-based "
-        "approximate nearest-neighbor algorithm designed from the ground up for "
-        "GPU execution. It was introduced by the NVIDIA RAPIDS team and has "
-        "been ported to AMD GPUs via hipVS.\n\n"
-        "## How CAGRA Works\n\n"
-        "CAGRA builds a k-nearest-neighbor graph over the dataset, then prunes "
-        "and optimises the graph for efficient traversal. At search time, the "
-        "algorithm performs a greedy walk through the graph, visiting neighbours "
-        "of neighbours until convergence.\n\n"
-        "## GPU-Friendly Design\n\n"
-        "Unlike CPU-oriented graph algorithms (e.g., HNSW), CAGRA's traversal "
-        "is designed for GPU parallelism. Multiple search queries are batched "
-        "and executed simultaneously, saturating GPU compute and memory "
-        "bandwidth. This yields orders-of-magnitude speedup over CPU baselines.\n\n"
-        "## Build and Search Parameters\n\n"
-        "Key build parameters include graph_degree (edges per node) and "
-        "intermediate_graph_degree (used during construction for higher "
-        "quality). Search parameters like itopk_size control the trade-off "
-        "between recall and latency.\n\n"
-        "## CAGRA + HNSW Hybrid\n\n"
-        "CAGRA indexes can be exported to HNSW format for CPU-based serving, "
-        "enabling a workflow where indexes are built on GPU (fast) and served "
-        "on CPU (cost-effective, no GPU needed at query time).\n"
-    ),
-    "ivf_indexing.md": (
-        "# Inverted File Indexes (IVF)\n\n"
-        "Inverted File (IVF) indexes partition the vector space into clusters "
-        "and restrict search to only the most relevant clusters. This "
-        "dramatically reduces the number of distance computations needed.\n\n"
-        "## IVF-Flat\n\n"
-        "IVF-Flat stores full (uncompressed) vectors in each cluster. At search "
-        "time, the query is compared to cluster centroids, and the n_probes "
-        "closest clusters are exhaustively searched. IVF-Flat offers exact "
-        "distance computation within probed clusters, giving high recall at the "
-        "cost of higher memory usage.\n\n"
-        "## IVF-PQ (Product Quantization)\n\n"
-        "IVF-PQ compresses vectors within each cluster using product "
-        "quantization, which splits each vector into sub-vectors and encodes "
-        "them with a codebook. This reduces memory by 10-50x at the cost of "
-        "some recall. It is ideal for very large datasets that must fit in GPU "
-        "memory.\n\n"
-        "## Tuning IVF Parameters\n\n"
-        "The number of IVF lists (n_lists) controls partition granularity. "
-        "More lists mean smaller clusters and faster search but potentially "
-        "lower recall. n_probes at search time determines how many clusters "
-        "are visited -- higher probes improve recall but increase latency.\n\n"
-        "## When to Choose IVF\n\n"
-        "IVF-Flat is a good default when memory is not constrained and you need "
-        "high recall. IVF-PQ is preferred when the dataset is too large for "
-        "full-precision storage, or when memory-bandwidth is the bottleneck.\n"
-    ),
-    "large_language_models.md": (
-        "# Large Language Models\n\n"
-        "Large Language Models (LLMs) are neural networks with billions of "
-        "parameters trained on vast text corpora. They can generate coherent "
-        "text, answer questions, summarise documents, write code, and perform "
-        "multi-step reasoning.\n\n"
-        "## Training and Inference\n\n"
-        "LLMs are typically pre-trained with a next-token prediction objective "
-        "on trillions of tokens, then fine-tuned (or aligned via RLHF) for "
-        "specific use-cases like chat, instruction-following, or tool use. "
-        "Inference requires significant compute; quantisation and batching are "
-        "used to reduce cost.\n\n"
-        "## Limitations\n\n"
-        "Despite their capabilities, LLMs can hallucinate (produce plausible "
-        "but false claims), lack access to private or recent data, and cannot "
-        "reliably cite sources. These limitations motivate the use of "
-        "retrieval-augmented generation, where an external knowledge base "
-        "provides grounded evidence.\n\n"
-        "## LLMs in RAG Pipelines\n\n"
-        "In a RAG pipeline, the LLM plays two roles: (1) decomposing complex "
-        "queries into focused sub-queries (agentic reasoning), and (2) "
-        "synthesising a final answer from retrieved passages. The retriever "
-        "(powered by vector search) provides the factual foundation.\n"
-    ),
-    "embedding_models.md": (
-        "# Embedding Models for Semantic Search\n\n"
-        "Embedding models convert text, images, or other data into dense "
-        "numerical vectors that capture semantic meaning. Similar items produce "
-        "vectors that are close together in the embedding space.\n\n"
-        "## Bi-Encoder Architecture\n\n"
-        "Most embedding models use a bi-encoder architecture: the query and each "
-        "document are encoded independently, producing fixed-size vectors. "
-        "Similarity is computed via dot product or cosine similarity. This "
-        "enables pre-computation of document embeddings and fast ANN search at "
-        "query time.\n\n"
-        "## Popular Models\n\n"
-        "Sentence-transformers models like all-MiniLM-L6-v2 (384 dimensions) "
-        "and all-mpnet-base-v2 (768 dimensions) offer a good balance of quality "
-        "and speed. Larger models like E5-large or GTE-large provide higher "
-        "accuracy at the cost of slower encoding.\n\n"
-        "## Cross-Modal Embeddings\n\n"
-        "CLIP and SigLIP map both text and images into a shared embedding "
-        "space, enabling cross-modal search (e.g., text-to-image retrieval). "
-        "This is the foundation of multimodal search applications.\n\n"
-        "## Normalisation\n\n"
-        "Most embedding models produce L2-normalised vectors. When vectors are "
-        "normalised, inner product is equivalent to cosine similarity, which "
-        "simplifies the choice of distance metric in the vector index.\n"
-    ),
-    "rocm_ecosystem.md": (
-        "# The ROCm Software Ecosystem\n\n"
-        "ROCm (Radeon Open Compute) is AMD's open-source software platform for "
-        "GPU computing. It provides compilers, runtime libraries, math "
-        "libraries, and framework integrations that enable developers to run "
-        "CUDA-like workloads on AMD GPUs.\n\n"
-        "## HIP: Portable GPU Programming\n\n"
-        "HIP (Heterogeneous-compute Interface for Portability) is a C++ runtime "
-        "API that closely mirrors CUDA. Code written in HIP can target both "
-        "AMD and NVIDIA GPUs, simplifying porting. hipVS uses HIP to bring "
-        "RAPIDS cuVS functionality to AMD hardware.\n\n"
-        "## hipRAFT and hipVS\n\n"
-        "hipRAFT is a port of NVIDIA's RAFT (Reusable Accelerated Functions and "
-        "Tools) library. It provides GPU-accelerated primitives for distance "
-        "computation, clustering, and linear algebra. hipVS builds on hipRAFT "
-        "to deliver high-performance vector search algorithms (CAGRA, IVF-Flat, "
-        "IVF-PQ) on AMD Instinct GPUs.\n\n"
-        "## Framework Support\n\n"
-        "ROCm supports PyTorch, TensorFlow, and JAX, enabling end-to-end AI "
-        "pipelines on AMD hardware. Combined with hipVS for vector search, this "
-        "allows building complete RAG applications entirely on AMD GPUs.\n"
-    ),
-}
+_DEFAULT_BLOG_URLS = [
+    "https://rocm.blogs.amd.com/software-tools-optimization/hipvs/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/mlperf-inference-v6.0/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/rocm-jax-mujoco/README.html",
+    "https://rocm.blogs.amd.com/software-tools-optimization/eaisuite-autoscaling/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/amd_gpu_programming_guide/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/qwen-vl/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/kimi-k2.5-optimize/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/rocm-blogsblogsartificial-in/README.html",
+    "https://rocm.blogs.amd.com/software-tools-optimization/multinode-hunyuanvideo-xdit/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/neuralgcm-inference/README.html",
+    "https://rocm.blogs.amd.com/artificial-intelligence/recsys-training-docker/README.html",
+]
 
 
-def create_sample_corpus(output_dir):
-    """Write sample articles to disk for quick demos."""
+class _BlogContentExtractor(HTMLParser):
+    """Extract readable text from an ROCm blog HTML page.
+
+    Skips <script>, <style>, <nav>, <footer>, <header>, and <noscript>
+    elements so the output is dominated by article prose.
+    """
+
+    _SKIP_TAGS = frozenset({
+        "script", "style", "nav", "footer", "header", "noscript",
+    })
+
+    def __init__(self):
+        super().__init__()
+        self._pieces: list[str] = []
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self._SKIP_TAGS:
+            self._skip_depth += 1
+
+    def handle_endtag(self, tag):
+        if tag in self._SKIP_TAGS and self._skip_depth > 0:
+            self._skip_depth -= 1
+
+    def handle_data(self, data):
+        if self._skip_depth == 0:
+            text = data.strip()
+            if text:
+                self._pieces.append(text)
+
+    def get_text(self):
+        return "\n".join(self._pieces)
+
+
+def _slug_from_url(url):
+    """Derive a filesystem-safe slug from a blog post URL."""
+
+    parts = url.rstrip("/").split("/")
+    for part in reversed(parts):
+        if part and part.lower() not in ("readme.html", "index.html"):
+            return part.replace("%5F", "_").replace("%20", "-")
+    return hashlib.md5(url.encode()).hexdigest()[:12]
+
+
+def _download_blog_post(url, timeout=30):
+    """Fetch *url* and return the extracted article text."""
+
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "hipVS-demo/1.0"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        html = resp.read().decode("utf-8", errors="replace")
+    parser = _BlogContentExtractor()
+    parser.feed(html)
+    return parser.get_text()
+
+
+def download_blog_corpus(output_dir, urls=None):
+    """Download ROCm blog posts to build the demo corpus.
+
+    Skips download if articles already exist in *output_dir*.
+    Returns the output directory path.
+    """
+
     if os.path.isdir(output_dir) and any(
         f.endswith((".md", ".txt")) for f in os.listdir(output_dir)
     ):
         print(f"Sample corpus already exists at {output_dir}")
         return output_dir
 
+    urls = urls or _DEFAULT_BLOG_URLS
     os.makedirs(output_dir, exist_ok=True)
-    for filename, content in SAMPLE_ARTICLES.items():
-        with open(os.path.join(output_dir, filename), "w") as f:
-            f.write(content)
-    print(
-        f"Created sample corpus: {len(SAMPLE_ARTICLES)} articles "
-        f"at {output_dir}"
-    )
+
+    print(f"Downloading {len(urls)} ROCm blog articles ...")
+    downloaded = 0
+    for url in urls:
+        slug = _slug_from_url(url)
+        dest = os.path.join(output_dir, f"{slug}.md")
+        try:
+            text = _download_blog_post(url)
+            if len(text) < 200:
+                print(f"  Warning: {slug} too short, skipping")
+                continue
+            with open(dest, "w") as fout:
+                fout.write(text)
+            downloaded += 1
+            print(f"  [{downloaded}/{len(urls)}] {slug}")
+        except Exception as exc:
+            print(f"  Warning: failed to download {url}: {exc}")
+
+    if downloaded == 0:
+        print(
+            "Error: could not download any blog articles. "
+            "Check your internet connection.",
+        )
+        sys.exit(1)
+
+    print(f"Created sample corpus: {downloaded} articles at {output_dir}")
     return output_dir
 
 
@@ -1569,7 +1413,7 @@ def main():
     if args.docs:
         docs_dir = args.docs
     else:
-        docs_dir = create_sample_corpus("./data/sample_corpus")
+        docs_dir = download_blog_corpus("./data/sample_corpus")
 
     # ---- Parse documents ----
     print(f"Loading documents from {docs_dir} ...", flush=True)

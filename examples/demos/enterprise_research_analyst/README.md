@@ -41,7 +41,7 @@ GPU-accelerated retrieval via hipVS, and synthesising cited answers.
 | **Live Performance Dashboard** | Real-time metrics: last search latency, average latency, total queries, vectors indexed, document count, embedding dimension. |
 | **Source Citations** | Every claim links back to the exact source passage with relevance scores and page numbers. |
 | **Multi-Format Ingestion** | PDF (via PyMuPDF), Markdown, reStructuredText, plain text, and web URLs. Upload additional documents via the UI at runtime. |
-| **Built-in Sample Corpus** | 10 technical articles on vector search, GPU computing, transformers, RAG, AMD hardware, and more — works out of the box with no downloads. |
+| **Auto-Downloaded Corpus** | 11 curated ROCm blog posts (hipVS, MLPerf, robotics, VLMs, diffusion models, etc.) downloaded on first run — no static data checked in. |
 | **Configurable LLM** | Ollama (local GPU inference), OpenAI (API), or retrieval-only mode (no LLM needed). |
 | **Embedding Cache** | SHA-256-keyed cache avoids re-embedding unchanged corpora on restart. |
 | **Heuristic Decomposition** | Even without an LLM, complex queries are split using keyword-based heuristics (comparison detection, clause splitting). |
@@ -130,8 +130,8 @@ ollama pull llama3.2:3b
 python enterprise_research_analyst.py
 ```
 
-Uses built-in sample corpus, returns retrieved passages with scores. No LLM
-needed — query decomposition uses keyword heuristics.
+Downloads 11 ROCm blog articles on first run, returns retrieved passages with
+scores. No LLM needed — query decomposition uses keyword heuristics.
 
 ### Full agentic RAG with Ollama
 
