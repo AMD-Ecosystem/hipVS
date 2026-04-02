@@ -124,6 +124,7 @@ uv sync
 
 # Optional: Local LLM via Ollama
 curl -fsSL https://ollama.com/install.sh | sh
+ollama serve > /dev/null 2>&1 &
 ollama pull llama3.2:3b
 ```
 
@@ -144,7 +145,7 @@ scores. No LLM needed — query decomposition uses keyword heuristics.
 
 ```bash
 # Start Ollama server in the background (if not already running)
-ollama serve &
+ollama serve > /dev/null 2>&1 &
 
 # Pull the default model (first time only)
 ollama pull llama3.2:3b
@@ -602,7 +603,7 @@ uv run python enterprise_research_analyst.py \
 | `ImportError: ROCM_HOME is not set` | ROCm environment not configured | `export ROCM_HOME=/opt/rocm` and `export LD_LIBRARY_PATH=/opt/rocm/lib:$LD_LIBRARY_PATH` |
 | `OSError: Cannot find empty port` | Port already in use | Kill the process: `fuser -k <port>/tcp` or use `--port <other>` |
 | PDF upload fails silently | PyMuPDF not installed | `uv pip install pymupdf` |
-| Ollama connection refused | Ollama server not running | Start with `ollama serve &`, pull the model with `ollama pull llama3.2:3b`, then retry |
+| Ollama connection refused | Ollama server not running | Start with `ollama serve > /dev/null 2>&1 &`, pull the model with `ollama pull llama3.2:3b`, then retry |
 | `--embed-device gpu` hangs | GPU contention from other processes | Check `rocm-smi` for idle GPUs and set `export HIP_VISIBLE_DEVICES=<id>` to pin to a free device |
 | `CAGRA: too few vectors` | Corpus has < 4 chunks | Add more documents or use `--algorithms ivf_flat brute_force` |
 | Slow first query | GPU/model warmup | Expected — subsequent queries are fast. The demo runs automatic warmup at startup. |
