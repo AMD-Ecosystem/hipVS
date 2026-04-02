@@ -108,12 +108,19 @@ User Question
 
 ## Installation
 
-```bash
-# Activate your hipVS environment
-micromamba activate hipvs
+### Install uv
 
-# Install all dependencies
-pip install -r requirements.txt
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+For alternative installation methods (pip, Homebrew, Windows, etc.) see the [uv documentation](https://docs.astral.sh/uv/getting-started/installation/).
+
+### Install dependencies
+
+```bash
+# Create and activate a virtual environment, then install all dependencies
+uv sync
 
 # Optional: Local LLM via Ollama
 curl -fsSL https://ollama.com/install.sh | sh
@@ -127,7 +134,7 @@ ollama pull llama3.2:3b
 ### Retrieval-only mode (no LLM required)
 
 ```bash
-python enterprise_research_analyst.py
+uv run python enterprise_research_analyst.py
 ```
 
 Downloads 11 ROCm blog articles on first run, returns retrieved passages with
@@ -143,7 +150,7 @@ ollama serve &
 ollama pull llama3.2:3b
 
 # Launch demo
-python enterprise_research_analyst.py --llm ollama
+uv run python enterprise_research_analyst.py --llm ollama
 ```
 
 LLM-powered decomposition, parallel GPU retrieval, synthesised answers with
@@ -155,21 +162,21 @@ By default the embedding model runs on the AMD GPU. To fall back to CPU
 (e.g. if no free GPU is available):
 
 ```bash
-python enterprise_research_analyst.py --llm ollama --embed-device cpu
+uv run python enterprise_research_analyst.py --llm ollama --embed-device cpu
 ```
 
 ### With OpenAI
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-python enterprise_research_analyst.py --llm openai --openai-model gpt-4o-mini
+uv run python enterprise_research_analyst.py --llm openai --openai-model gpt-4o-mini
 ```
 ---
 
 ## CLI Reference
 
 ```
-python enterprise_research_analyst.py [OPTIONS]
+uv run python enterprise_research_analyst.py [OPTIONS]
 
 Document options:
   --chunk-size N          Chunk size in characters (default: 800)
@@ -543,7 +550,7 @@ hostname -I
 ### For larger corpora (>10K documents)
 
 ```bash
-python enterprise_research_analyst.py \
+uv run python enterprise_research_analyst.py \
     --chunk-size 512 \
     --chunk-overlap 100 \
     --top-k 10 \
@@ -558,7 +565,7 @@ python enterprise_research_analyst.py \
 ### For maximum accuracy
 
 ```bash
-python enterprise_research_analyst.py \
+uv run python enterprise_research_analyst.py \
     --embed-model all-mpnet-base-v2 \
     --chunk-size 600 \
     --chunk-overlap 200 \
@@ -574,7 +581,7 @@ python enterprise_research_analyst.py \
 ### For lowest latency
 
 ```bash
-python enterprise_research_analyst.py \
+uv run python enterprise_research_analyst.py \
     --chunk-size 1000 \
     --top-k 3 \
     --algorithms cagra \
@@ -594,7 +601,7 @@ python enterprise_research_analyst.py \
 |-------|-------|-----|
 | `ImportError: ROCM_HOME is not set` | ROCm environment not configured | `export ROCM_HOME=/opt/rocm` and `export LD_LIBRARY_PATH=/opt/rocm/lib:$LD_LIBRARY_PATH` |
 | `OSError: Cannot find empty port` | Port already in use | Kill the process: `fuser -k <port>/tcp` or use `--port <other>` |
-| PDF upload fails silently | PyMuPDF not installed | `pip install pymupdf` |
+| PDF upload fails silently | PyMuPDF not installed | `uv pip install pymupdf` |
 | Ollama connection refused | Ollama server not running | Start with `ollama serve &`, pull the model with `ollama pull llama3.2:3b`, then retry |
 | `--embed-device gpu` hangs | GPU contention from other processes | Check `rocm-smi` for idle GPUs and set `export HIP_VISIBLE_DEVICES=<id>` to pin to a free device |
 | `CAGRA: too few vectors` | Corpus has < 4 chunks | Add more documents or use `--algorithms ivf_flat brute_force` |
