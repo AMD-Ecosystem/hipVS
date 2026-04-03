@@ -7,7 +7,7 @@ dependencies = [
     "amd-cupy>=13.5.1",
     "amd-libraft>=1.0.0",
     "amd-pylibraft>=1.0.0",
-    "rocmds-logger==1.0.*",
+    "amd-rocmds-logger==1.0.*",
     "torch>=2.9.0",
     "torchvision>=0.24.0",
     "sentence-transformers>=5.0.0",
@@ -31,4 +31,4 @@ amd-hipvs = { index = "amd-pypi" }
 amd-cupy = { index = "amd-pypi" }
 amd-libraft = { index = "amd-pypi" }
 amd-pylibraft = { index = "amd-pypi" }
-rocmds-logger = { index = "amd-pypi" }
+amd-rocmds-logger = { index = "amd-pypi" }
