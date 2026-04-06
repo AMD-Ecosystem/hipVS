@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -35,7 +35,9 @@
 
 #include "../distance_ops/l2_exp.cuh"     // ops::l2_exp_distance_op
 #include "../pairwise_distance_base.cuh"  // PairwiseDistances
-#ifndef __HIP_PLATFORM_AMD__
+#ifdef CUVS_CK_ENABLED
+#include "ck/dispatch_ck.cuh"
+#elif !defined(__HIP_PLATFORM_AMD__)
 #include "cutlass_base.cuh"
 #endif
 #include "helper_structs.cuh"
@@ -103,7 +105,11 @@ void fusedL2NNImpl(OutT* min,
                                       KVPReduceOpT,
                                       decltype(distance_op),
                                       decltype(fin_op)>;
-#ifdef __HIP_PLATFORM_AMD__
+#ifdef CUVS_CK_ENABLED
+  // Use CK backend for fused L2 NN on AMD GPUs.
+  fusedL2NNCkDispatch<DataT, OutT, IdxT, P, ReduceOpT, KVPReduceOpT>(
+    min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, sqrt, false, stream);
+#elif defined(__HIP_PLATFORM_AMD__)
   // Use non-CUTLASS fp32 SIMT kernel.
   constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));
   dim3 grid                  = launchConfigGenerator<P>(m, n, shmemSize, kernel);
