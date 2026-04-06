@@ -89,7 +89,7 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
    * - `RCCL <https://github.com/ROCm/rccl>`_
      - Version that comes bundled with ROCm ≥ 7.2.0
    * - `UCX <https://github.com/openucx/ucx>`_
-     - ≥ 1.17.0
+     - ≥ 1.18.0
    * - `Googletest <https://github.com/google/googletest>`_
      - ≥ 1.13.0
    * - `Googlebench <https://github.com/google/benchmark>`_
