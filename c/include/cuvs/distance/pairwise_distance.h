@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
@@ -31,12 +31,20 @@ extern "C" {
 #endif
 
 /**
- * @defgroup pairwise_distance_c C API for pairwise distance computation
- *
+// <<<<<<< OLD CODE from 9610676f4 (4a4ba891a) - COMMENTED OUT
+//  * @defgroup pairwise_distance_c C API for pairwise distance computation
+//  *
+//  */
+//
+// /**
+//  * @ingroup pairwise_distance_c
+// =======
+ * @defgroup pairwise_distance_c C pairwise distance
+ * @{
  */
 
 /**
- * @ingroup pairwise_distance_c
+// >>>>>>> END NEW CODE (4a4ba891a)
  * @brief Compute pairwise distances for two matrices
  *
  *
@@ -70,6 +78,9 @@ cuvsError_t cuvsPairwiseDistance(cuvsResources_t res,
                                  DLManagedTensor* dist,
                                  cuvsDistanceType metric,
                                  float metric_arg);
+
+/** @} */
+
 #ifdef __cplusplus
 }
 #endif
