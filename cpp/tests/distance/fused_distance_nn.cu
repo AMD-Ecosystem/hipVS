@@ -60,6 +60,11 @@
 
 #include <gtest/gtest.h>
 
+#ifdef CUVS_CK_ENABLED
+#include <hip/hip_bfloat16.h>
+#include <hip/hip_fp16.h>
+#endif
+
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 
@@ -488,6 +493,135 @@ const std::vector<FusedDistanceNNInputs<double, int>> inputsD = {
 };
 
 INSTANTIATE_TEST_CASE_P(FusedDistanceNNTests, FusedDistanceNNTestD, ::testing::ValuesIn(inputsD));
+
+#ifdef CUVS_CK_ENABLED
+// ======================= CK Skinny-K Optimization Tests =======================
+// These tests focus on the skinny-K optimization boundary (K < 32) to validate
+// both correctness and performance improvements for small feature dimensions
+// commonly seen in k-means clustering workloads.
+
+using FusedDistanceNNCkSkinnyTest = FusedDistanceNNTest<float, int>;
+
+TEST_P(FusedDistanceNNCkSkinnyTest, Result)
+{
+  ASSERT_TRUE(cuvs::devArrMatch(
+    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
+}
+
+const std::vector<FusedDistanceNNInputs<float, int>> inputsCkSkinny = {
+  // Skinny-K optimization boundary tests (K < 32 threshold)
+  {0.01f, 64, 64, 2, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // Very small K
+  {0.01f, 64, 64, 4, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=4 (skinny
+                                                                                 // config)
+  {0.01f, 64, 64, 8, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=8 (optimal for
+                                                                                 // fp32 skinny)
+  {0.01f, 64, 64, 16, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=16 (skinny
+                                                                                  // config)
+  {0.01f, 64, 64, 24, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=24 (still
+                                                                                  // skinny)
+  {0.01f, 64, 64, 31, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=31 (edge
+                                                                                  // case, skinny)
+  {0.01f, 64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=32 (boundary,
+                                                                                  // default config)
+  {0.01f, 64, 64, 33, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=33 (default
+                                                                                  // config)
+
+  // Test both metrics with skinny K
+  {0.01f, 64, 64, 8, false, cuvs::distance::DistanceType::CosineExpanded, 5678ULL},  // Cosine with
+                                                                                     // skinny K
+  {0.01f, 64, 64, 16, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},  // L2 sqrt with
+                                                                                     // skinny K
+
+  // Mixed tile sizes with skinny K (typical k-means scenarios)
+  {0.01f, 32, 128, 8, false, cuvs::distance::DistanceType::L2Expanded, 2468ULL},  // Fewer samples,
+                                                                                  // more centroids
+  {0.01f,
+   128,
+   32,
+   16,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   3579ULL},  // More samples, fewer centroids
+  {0.01f, 256, 64, 12, false, cuvs::distance::DistanceType::L2Expanded, 4680ULL},  // Large batch
+                                                                                   // with skinny K
+
+  // Legacy vector alignment tests - maintained for compatibility
+  {0.01f, 64, 64, 1, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=1 (minimal)
+  {0.01f, 64, 64, 3, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=3
+                                                                                 // (non-aligned)
+  {0.01f, 64, 64, 5, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=5
+                                                                                 // (non-aligned)
+  {0.01f, 64, 64, 7, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=7
+                                                                                 // (non-aligned)
+
+  // Edge cases that stress different code paths
+  {0.01f, 1, 1, 1, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},   // 1x1x1 minimum
+  {0.01f, 1, 64, 4, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},  // Single row with
+                                                                                // skinny K
+  {0.01f, 64, 1, 8, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},  // Single column
+                                                                                // with skinny K
+  {0.01f, 1, 1024, 16, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},  // Very wide with
+                                                                                   // skinny K
+
+  // Mixed scenarios combining skinny K with various tile alignments
+  {0.01f, 33, 65, 6, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},  // Odd M,N with
+                                                                                 // skinny K
+  {0.01f,
+   96,
+   32,
+   12,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   3456ULL},  // Mixed tile alignment with skinny K
+
+  // Large-M stress tests with skinny K (realistic k-means scenarios - scaled for test environment)
+  {0.01f, 100000, 64, 2, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},  // 100K points,
+                                                                                     // 2D features
+  {0.01f, 200000, 32, 4, false, cuvs::distance::DistanceType::L2Expanded, 8901ULL},  // 200K points,
+                                                                                     // 4D features
+  {0.01f,
+   150000,
+   128,
+   8,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   9012ULL},  // 150K points, 8D features
+  {0.01f,
+   80000,
+   256,
+   16,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   1123ULL},  // 80K points, 16D features
+  {0.01f,
+   500000,
+   16,
+   12,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   2234ULL},  // 500K points, 12D features
+
+  // Large-M with cosine distance (scaled for test environment)
+  {0.01f,
+   120000,
+   100,
+   24,
+   false,
+   cuvs::distance::DistanceType::CosineExpanded,
+   3345ULL},  // 120K documents, 24D embeddings
+  {0.01f,
+   250000,
+   50,
+   16,
+   false,
+   cuvs::distance::DistanceType::CosineExpanded,
+   4456ULL}  // 250K documents, 16D embeddings
+};
+
+INSTANTIATE_TEST_CASE_P(FusedDistanceNNTests,
+                        FusedDistanceNNCkSkinnyTest,
+                        ::testing::ValuesIn(inputsCkSkinny));
+#endif  // CUVS_CK_ENABLED
 
 // ======================= Int64 Index Tests =======================
 
@@ -1165,6 +1299,133 @@ const std::vector<FusedDistanceNNInputs<double, int64_t>> inputsLargeD_Int64 = {
 INSTANTIATE_TEST_CASE_P(FusedDistanceNNLargeTests,
                         FusedDistanceNNLargeTestD_Int64,
                         ::testing::ValuesIn(inputsLargeD_Int64));
+
+#ifdef CUVS_CK_ENABLED
+// ======================= CK Large-Scale Skinny-K Tests =======================
+// Large-scale tests (multi-million samples) with skinny-K optimization (K < 32).
+// These tests validate performance and correctness at production scale for workloads
+// like k-means clustering. Only the first and last 1024 rows are checked due to
+// the computational cost of full naive validation.
+
+using FusedDistanceNNCkLargeSkinnyTest = FusedDistanceNNLargeTest<float, int>;
+
+TEST_P(FusedDistanceNNCkLargeSkinnyTest, FirstRows)
+{
+  ASSERT_TRUE(cuvs::devArrMatch(min_ref_first.data(),
+                                min_actual.data(),
+                                kCheckRows,
+                                KVPCompare<float>(params.tolerance),
+                                stream));
+}
+
+TEST_P(FusedDistanceNNCkLargeSkinnyTest, LastRows)
+{
+  int last_offset = params.m - kCheckRows;
+  ASSERT_TRUE(cuvs::devArrMatch(min_ref_last.data(),
+                                min_actual.data() + last_offset,
+                                kCheckRows,
+                                KVPCompare<float>(params.tolerance),
+                                stream));
+}
+
+const std::vector<FusedDistanceNNInputs<float, int>> inputsCkLargeSkinny = {
+  // Large-M stress tests around 5M with skinny K (realistic large-scale k-means scenarios)
+  {0.01f,
+   4800000,
+   64,
+   2,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   5567ULL},  // 4.8M points, 2D features
+  {0.01f, 5000000, 32, 4, false, cuvs::distance::DistanceType::L2Expanded, 6678ULL},  // 5M points,
+                                                                                      // 4D features
+  {0.01f,
+   5200000,
+   128,
+   8,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   7789ULL},  // 5.2M points, 8D features
+  {0.01f,
+   4900000,
+   256,
+   16,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   8890ULL},  // 4.9M points, 16D features
+  {0.01f,
+   5100000,
+   16,
+   12,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   9901ULL},  // 5.1M points, 12D features
+  {0.01f,
+   4700000,
+   48,
+   6,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   1012ULL},  // 4.7M points, 6D features
+  {0.01f,
+   5300000,
+   80,
+   24,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   1123ULL},  // 5.3M points, 24D features
+  {0.01f,
+   4600000,
+   96,
+   10,
+   false,
+   cuvs::distance::DistanceType::L2Expanded,
+   1234ULL},  // 4.6M points, 10D features
+
+  // Large-M around 5M with cosine distance and skinny K (document embedding scenarios)
+  {0.01f,
+   5000000,
+   64,
+   8,
+   false,
+   cuvs::distance::DistanceType::CosineExpanded,
+   1345ULL},  // 5M documents, 8D embeddings
+  {0.01f,
+   4800000,
+   32,
+   16,
+   false,
+   cuvs::distance::DistanceType::CosineExpanded,
+   1456ULL},  // 4.8M documents, 16D embeddings
+  {0.01f,
+   5200000,
+   96,
+   12,
+   false,
+   cuvs::distance::DistanceType::CosineExpanded,
+   1567ULL},  // 5.2M documents, 12D embeddings
+
+  // Large-M around 5M with L2 sqrt and skinny K (special distance metric scenarios)
+  {0.01f,
+   5000000,
+   128,
+   4,
+   true,
+   cuvs::distance::DistanceType::L2SqrtExpanded,
+   1678ULL},  // 5M points, 4D features with sqrt
+  {0.01f,
+   4900000,
+   64,
+   20,
+   true,
+   cuvs::distance::DistanceType::L2SqrtExpanded,
+   1789ULL}  // 4.9M points, 20D features with sqrt
+};
+
+INSTANTIATE_TEST_CASE_P(FusedDistanceNNCkLargeSkinnyTests,
+                        FusedDistanceNNCkLargeSkinnyTest,
+                        ::testing::ValuesIn(inputsCkLargeSkinny));
+#endif  // CUVS_CK_ENABLED
 
 }  // namespace distance
 }  // namespace cuvs

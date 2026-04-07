@@ -9,6 +9,7 @@ __pycache__
 *.dylib
 .cache
 .coverage
+.cursor
 .vscode
 *.swp
 *.pytest_cache

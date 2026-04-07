@@ -21,46 +21,170 @@
 // SOFTWARE.
 
 #pragma once
+#include "raft/core/logger_macros.hpp"
 #ifndef CUVS_CK_ENABLED
 #error "This file requires the CK backend (CUVS_CK_ENABLED)."
 #endif
 
+// =============================================================================
+// FUSED DISTANCE NEAREST NEIGHBOR - CK BACKEND DISPATCH
+// =============================================================================
+//
+// ARCHITECTURE OVERVIEW:
+// ----------------------
+// This module provides GPU kernel dispatch for computing fused distance nearest
+// neighbor (NN) operations. It selects between two backend implementations:
+//
+//   1. CK Backend (Composable Kernel): High-performance AMD GPU implementation
+//      using CK Tile's GEMM pipeline with custom epilogue for distance + reduction.
+//      Supports: fp16, bf16, float on compatible problem sizes.
+//
+//   2. SIMT Fallback: Generic CUDA/HIP implementation using simple thread-level
+//      parallelism. Used when CK doesn't support the data type or problem size.
+//
+// DATA FLOW:
+// ----------
+//   Inputs:  x[m,k], y[n,k] - point matrices
+//            xn[m], yn[n]   - precomputed norms (||x||^2 or ||x|| depending on metric)
+//
+//   Compute: For each row i in x, find j = argmin_j distance(x[i], y[j])
+//            Distance is computed as: epilogue(x[i] @ y[j]^T, xn[i], yn[j])
+//
+//   Output:  min[m] - KeyValuePair<IdxT, DataT> containing (best_j, min_distance)
+//
+// CONTROL FLOW:
+// -------------
+//   fusedL2NNCkDispatch / fusedCosineNNCkDispatch  (public API)
+//                    |
+//                    v
+//   DistanceTraits<Metric>::dispatch(...)   (selects CK op type, handles sqrt)
+//                    |
+//                    v
+//   dispatchWithFallback(...)               (CK vs SIMT selection)
+//          |                    |
+//          v                    v
+//   fusedDistanceNNCkImpl   fusedDistanceNNSimtFallback
+//   (CK GEMM + epilogue)    (generic SIMT kernel)
+//
+// =============================================================================
+
 #include "../../distance_ops/cosine.cuh"
 #include "../../distance_ops/l2_exp.cuh"
+#include "../../pairwise_matrix/ck/element_wise_ops.hpp"
 #include "../helper_structs.cuh"
 #include "../simt_kernel.cuh"
+#include "fused_nn_kernel.hpp"
 
 #include <raft/core/kvp.hpp>
+#include <raft/core/logger.hpp>
 #include <raft/core/operators.hpp>
 #include <raft/util/cuda_utils.cuh>
+
+#include <ck_tile/host/kernel_launch.hpp>
+#include <ck_tile/host/stream_config.hpp>
 
 #include <cstddef>
 #include <limits>
 
+// Buffer descriptor max bytes is 4GB - 1. The AMD GPU buffer resource descriptor (used by CK's
+// raw buffer load/store) has a 32-bit range field.
+constexpr uint64_t kBufferDescriptorMaxBytes = std::numeric_limits<uint32_t>::max();
+
 namespace cuvs::distance::detail {
 
+// =============================================================================
+// CONFIG SELECTION TRAITS
+// =============================================================================
+
 /**
- * @brief Generic CK backend implementation for fused distance NN.
+ * @brief Config selector for skinny vs default GEMM configurations based on data type.
  *
- * TODO: This is a placeholder implementation that currently falls back to the SIMT kernel.
- * The actual CK implementation will use CK Tile's GEMM + custom epilogue for
- * fused distance nearest neighbor computation.
- *
- * The implementation should:
- * 1. Use CK Tile's GEMM pipeline for the matrix multiplication portion
- * 2. Implement a custom epilogue that:
- *    - Computes the distance using the provided distance_op
- *    - Performs row-wise reduction to find the minimum distance and its index
- *    - Updates the output buffer with atomic operations
- *
- * @tparam DataT Data type (float, half, etc.)
- * @tparam OutT Output type (typically KeyValuePair or distance type)
- * @tparam IdxT Index type
- * @tparam Policy Kernel policy
- * @tparam ReduceOpT Reduction operation type
- * @tparam KVPReduceOpT Key-value pair reduction operation type
- * @tparam DistanceOpT Distance operation type (e.g., l2_exp_distance_op, cosine_distance_op)
+ * Selects optimal config for small K dimensions (skinny inputs):
+ * - fp32: Uses K_Tile=8 with MFMA 16x16x4 (K_Warp_Tile=4) for k < 32
+ * - fp16/bf16: Uses K_Tile=16 with MFMA 16x16x16 (K_Warp_Tile=16) for k < 32
  */
+template <typename DataT>
+struct SkinnyConfigSelector {
+  using SkinnyConfig = std::conditional_t<std::is_same_v<DataT, float>,
+                                          FusedDistanceNNGemmConfigSkinnyF32,
+                                          FusedDistanceNNGemmConfigSkinnyF16>;
+  static constexpr ck_tile::index_t skinny_threshold = 32;
+};
+
+// =============================================================================
+// BATCHING UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * @brief Calculate the maximum batch size for M dimension.
+ *
+ * Constrains both output (mb*sizeof(OutT)) and x matrix (mb*k*sizeof(DataT)) to stay under
+ * the 4GB buffer descriptor limit.
+ *
+ * @tparam DataT Input data type
+ * @tparam OutT Output data type
+ * @param n Number of data points (for output size calculation, though output is only m elements)
+ * @param k Feature dimension
+ * @return Maximum M batch size aligned to tile boundaries
+ */
+template <typename DataT, typename OutT>
+inline int64_t max_m_per_batch_fused_nn(int64_t n, int64_t k)
+{
+  constexpr int64_t M_Tile = 64;  // FusedDistanceNNGemmConfig::M_Tile
+  if (k <= 0) return M_Tile;
+
+  // Limit based on x matrix: mb * k * sizeof(DataT) < 4GB
+  int64_t limit_x = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(k) * sizeof(DataT)));
+
+  // Limit based on output: mb * sizeof(OutT) < 4GB (output is min[m], not min[m][n])
+  int64_t limit_out = static_cast<int64_t>(kBufferDescriptorMaxBytes / sizeof(OutT));
+
+  int64_t limit = std::min(limit_x, limit_out);
+  return std::max<int64_t>((limit / M_Tile) * M_Tile, M_Tile);
+}
+
+/**
+ * @brief Calculate the maximum batch size for N dimension.
+ *
+ * Constrains y matrix (nb*k*sizeof(DataT)) to stay under the 4GB buffer descriptor limit.
+ *
+ * @tparam DataT Input data type
+ * @param k Feature dimension
+ * @param n_full Total number of data points
+ * @return Maximum N batch size aligned to tile boundaries
+ */
+template <typename DataT>
+int64_t max_n_per_batch_fused_nn(int64_t k, int64_t n_full)
+{
+  constexpr int64_t N_Tile = 64;  // FusedDistanceNNGemmConfig::N_Tile
+  if (k <= 0) return n_full;
+
+  // Limit based on y matrix: nb * k * sizeof(DataT) < 4GB
+  int64_t limit = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(k) * sizeof(DataT)));
+  return std::max<int64_t>((limit / N_Tile) * N_Tile, N_Tile);
+}
+
+// =============================================================================
+// OUTPUT BUFFER INITIALIZATION
+// =============================================================================
+
+template <typename DataT, typename OutT, typename IdxT, typename ReduceOpT>
+void initializeOutputBuffer(OutT* min, IdxT m, ReduceOpT redOp, cudaStream_t stream)
+{
+  constexpr int kBlockSize = 256;
+  constexpr auto maxVal    = std::numeric_limits<DataT>::max();
+  auto nblks               = raft::ceildiv<int>(m, kBlockSize);
+  initKernel<DataT, OutT, IdxT, ReduceOpT><<<nblks, kBlockSize, 0, stream>>>(min, m, maxVal, redOp);
+  RAFT_CUDA_TRY(cudaGetLastError());
+}
+
+// =============================================================================
+// SIMT FALLBACK IMPLEMENTATION
+// =============================================================================
+//
+// Generic GPU implementation using SIMT (Single Instruction Multiple Thread).
+// Handles any data type but is less optimized than the CK backend.
+
 template <typename DataT,
           typename OutT,
           typename IdxT,
@@ -68,33 +192,26 @@ template <typename DataT,
           typename ReduceOpT,
           typename KVPReduceOpT,
           typename DistanceOpT>
-void fusedDistanceNNCkImpl(OutT* min,
-                           const DataT* x,
-                           const DataT* y,
-                           const DataT* xn,
-                           const DataT* yn,
-                           IdxT m,
-                           IdxT n,
-                           IdxT k,
-                           int* workspace,
-                           ReduceOpT redOp,
-                           KVPReduceOpT pairRedOp,
-                           DistanceOpT distance_op,
-                           bool initOutBuffer,
-                           cudaStream_t stream)
+void fusedDistanceNNSimtFallback(OutT* min,
+                                 DataT const* x,
+                                 DataT const* y,
+                                 DataT const* xn,
+                                 DataT const* yn,
+                                 IdxT m,
+                                 IdxT n,
+                                 IdxT k,
+                                 int* workspace,
+                                 ReduceOpT redOp,
+                                 KVPReduceOpT pairRedOp,
+                                 DistanceOpT distance_op,
+                                 bool initOutBuffer,
+                                 cudaStream_t stream)
 {
-  typedef Policy P;
-  dim3 blk(P::Nthreads);
+  using P               = Policy;
   constexpr auto maxVal = std::numeric_limits<DataT>::max();
-
-  if (initOutBuffer) {
-    auto nblks = raft::ceildiv<int>(m, P::Nthreads);
-    initKernel<DataT, OutT, IdxT, ReduceOpT>
-      <<<nblks, P::Nthreads, 0, stream>>>(min, m, maxVal, redOp);
-    RAFT_CUDA_TRY(cudaGetLastError());
-  }
-
   raft::identity_op fin_op{};
+
+  if (initOutBuffer) { initializeOutputBuffer<DataT>(min, m, redOp, stream); }
 
   auto kernel = fusedDistanceNNkernel<DataT,
                                       OutT,
@@ -107,14 +224,368 @@ void fusedDistanceNNCkImpl(OutT* min,
 
   constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));
   dim3 grid                  = launchConfigGenerator<P>(m, n, shmemSize, kernel);
+  dim3 blk(P::Nthreads);
 
   kernel<<<grid, blk, shmemSize, stream>>>(
     min, x, y, xn, yn, m, n, k, maxVal, workspace, redOp, pairRedOp, distance_op, fin_op);
   RAFT_CUDA_TRY(cudaGetLastError());
 }
 
+// =============================================================================
+// CK BACKEND IMPLEMENTATION
+// =============================================================================
+//
+// High-performance implementation using CK Tile's GEMM pipeline with Fast/Safe pattern.
+// Fast kernel (ScalarVec=false) for aligned K, Safe kernel (ScalarVec=true) for arbitrary K.
+// The kernel computes: C = X @ Y^T, then applies distance epilogue and
+// row-wise reduction to find the minimum distance per row.
+
+template <typename DataT,
+          typename OutT,
+          typename IdxT,
+          typename ReduceOpT,
+          typename KVPReduceOpT,
+          typename CkDistOp,
+          bool ApplySqrt,
+          typename Config>
+void launchCkKernelWithConfig(OutT* min,
+                              DataT const* x,
+                              DataT const* y,
+                              DataT const* xn,
+                              DataT const* yn,
+                              IdxT m,
+                              IdxT n,
+                              IdxT k,
+                              int* workspace,
+                              ReduceOpT redOp,
+                              KVPReduceOpT pairRedOp,
+                              CkDistOp distance_op,
+                              cudaStream_t stream)
+{
+  static_assert(isSupportedFusedNN<DataT>(),
+                "CK kernel only supports fp16, bf16, and float data types");
+
+  using DistT           = DataT;
+  using CkDataT         = CkDataType<DataT>;
+  using Layout          = ck_tile::tensor_layout::gemm::RowMajor;
+  constexpr auto maxVal = std::numeric_limits<DataT>::max();
+
+  using FinOp     = raft::identity_op;
+  using WrappedOp = OperatorWrapper<CkDistOp, FinOp, ApplySqrt>;
+
+  // Use Fast kernel (ScalarVec=false) for all cases - testing shows it works for arbitrary K
+  using KernelType = FusedDistanceNNCkKernel<CkDataT,
+                                             DistT,
+                                             IdxT,
+                                             OutT,
+                                             Layout,
+                                             false,  // ScalarVec=false works for all K
+                                             WrappedOp,
+                                             ReduceOpT,
+                                             KVPReduceOpT,
+                                             Config>;
+
+  ck_tile::stream_config s{stream};
+
+  // Calculate batching limits based on 4GB buffer descriptor constraint
+  const auto m_i64 = static_cast<int64_t>(m);
+  const auto n_i64 = static_cast<int64_t>(n);
+  const auto k_i64 = static_cast<int64_t>(k);
+
+  const int64_t mb_max = max_m_per_batch_fused_nn<CkDataT, OutT>(n_i64, k_i64);
+  const int64_t nb_max = max_n_per_batch_fused_nn<CkDataT>(k_i64, n_i64);
+
+  // Check if total memory exceeds limits (safety check)
+  if (static_cast<uint64_t>(mb_max) * static_cast<uint64_t>(k_i64) * sizeof(CkDataT) >=
+        kBufferDescriptorMaxBytes ||
+      static_cast<uint64_t>(nb_max) * static_cast<uint64_t>(k_i64) * sizeof(CkDataT) >=
+        kBufferDescriptorMaxBytes) {
+    RAFT_LOG_WARN("Matrix dimensions exceed 4GB buffer descriptor limit, may cause kernel failure");
+  }
+
+  // Batch the computation over M and N dimensions
+  for (int64_t m_off = 0; m_off < m_i64; m_off += mb_max) {
+    auto mb = static_cast<ck_tile::index_t>(std::min(mb_max, m_i64 - m_off));
+
+    for (int64_t n_off = 0; n_off < n_i64; n_off += nb_max) {
+      auto nb = static_cast<ck_tile::index_t>(std::min(nb_max, n_i64 - n_off));
+
+      typename KernelType::KernelArgs kargs{
+        reinterpret_cast<CkDataT const*>(x + m_off * k),  // x[m_off:m_off+mb, :]
+        reinterpret_cast<CkDataT const*>(y + n_off * k),  // y[n_off:n_off+nb, :]
+        min + m_off,                                      // min[m_off:m_off+mb]
+        xn + m_off,                                       // xn[m_off:m_off+mb]
+        yn + n_off,                                       // yn[n_off:n_off+nb]
+        workspace + m_off,                                // workspace[m_off:m_off+mb]
+        mb,
+        nb,
+        static_cast<ck_tile::index_t>(k),
+        static_cast<ck_tile::index_t>(k),  // stride_A (row-major)
+        static_cast<ck_tile::index_t>(k),  // stride_B (row-major)
+        maxVal,
+      };
+
+      // Use Fast kernel for all cases - it handles arbitrary K correctly
+      ck_tile::launch_kernel(
+        s,
+        ck_tile::make_kernel(KernelType{WrappedOp{FinOp{}, distance_op}, redOp, pairRedOp},
+                             KernelType::GridSize(mb, nb, 1),
+                             KernelType::BlockSize(),
+                             0,
+                             kargs));
+      RAFT_CUDA_TRY(cudaGetLastError());
+    }
+  }
+  RAFT_CUDA_TRY(cudaGetLastError());
+}
+
 /**
- * @brief CK backend dispatch for fused L2 NN.
+ * @brief Launch CK kernel with automatic config selection based on K dimension.
+ *
+ * Selects between skinny and default configs based on the skinny threshold (K < 32).
+ * This matches the SIMT backend's skinny policy for optimal performance on small-K workloads.
+ */
+template <typename DataT,
+          typename OutT,
+          typename IdxT,
+          typename ReduceOpT,
+          typename KVPReduceOpT,
+          typename CkDistOp,
+          bool ApplySqrt>
+void launchCkKernel(OutT* min,
+                    DataT const* x,
+                    DataT const* y,
+                    DataT const* xn,
+                    DataT const* yn,
+                    IdxT m,
+                    IdxT n,
+                    IdxT k,
+                    int* workspace,
+                    ReduceOpT redOp,
+                    KVPReduceOpT pairRedOp,
+                    CkDistOp distance_op,
+                    cudaStream_t stream)
+{
+  using CkDataT = CkDataType<DataT>;
+
+  // Select config based on K dimension (matches SIMT skinny threshold: k < 32)
+  if (k < SkinnyConfigSelector<CkDataT>::skinny_threshold) {
+    // Use skinny config for small K
+    using SkinnyConfig = typename SkinnyConfigSelector<CkDataT>::SkinnyConfig;
+    launchCkKernelWithConfig<DataT,
+                             OutT,
+                             IdxT,
+                             ReduceOpT,
+                             KVPReduceOpT,
+                             CkDistOp,
+                             ApplySqrt,
+                             SkinnyConfig>(
+      min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, distance_op, stream);
+  } else {
+    // Use default config for large K
+    launchCkKernelWithConfig<DataT,
+                             OutT,
+                             IdxT,
+                             ReduceOpT,
+                             KVPReduceOpT,
+                             CkDistOp,
+                             ApplySqrt,
+                             FusedDistanceNNGemmConfig>(
+      min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, distance_op, stream);
+  }
+}
+
+// =============================================================================
+// UNIFIED DISPATCH WITH AUTOMATIC FALLBACK
+// =============================================================================
+//
+// Attempts CK backend first; falls back to SIMT if unsupported.
+
+template <typename DataT,
+          typename OutT,
+          typename IdxT,
+          typename Policy,
+          typename ReduceOpT,
+          typename KVPReduceOpT,
+          typename CkDistOp,
+          typename SimtDistOp,
+          bool ApplySqrt>
+void dispatchWithFallback(OutT* min,
+                          DataT const* x,
+                          DataT const* y,
+                          DataT const* xn,
+                          DataT const* yn,
+                          IdxT m,
+                          IdxT n,
+                          IdxT k,
+                          int* workspace,
+                          ReduceOpT redOp,
+                          KVPReduceOpT pairRedOp,
+                          CkDistOp ck_op,
+                          SimtDistOp simt_op,
+                          bool initOutBuffer,
+                          cudaStream_t stream)
+{
+  if (initOutBuffer) { initializeOutputBuffer<DataT>(min, m, redOp, stream); }
+
+  if constexpr (isSupportedFusedNN<DataT>()) {
+    // CK's MFMA-based intrinsics is only available on gfx9
+    // (CDNA). On gfx11 (RDNA3) and other non-gfx9 architectures the CK kernel silently
+    // produces wrong results, so gate on gfx9 the same way pairwise_matrix/dispatch_ck.cuh does.
+    // As of the CK shipped with ROCm 7.2 in warp_gemm_dispatcher.hpp, the fp32 WarpGemmDispatcher
+    // specializations for 16×16×4 and 16×16×16 are unconditionally mapped to
+    // WarpGemmMfmaF32F32F32M16N16K4 / WarpGemmMfmaF32F32F32M16N16K16 — there is no #if
+    // defined(__gfx11__) || defined(__gfx12__) branch for float (unlike fp16/bf16 for 16×16×16).
+    int device = 0;
+    RAFT_CUDA_TRY(hipGetDevice(&device));
+    hipDeviceProp_t prop{};
+    RAFT_CUDA_TRY(hipGetDeviceProperties(&prop, device));
+    const bool is_gfx9 = (std::strncmp(prop.gcnArchName, "gfx9", 4) == 0);
+
+    if (is_gfx9) {
+      // Use CK backend directly with Fast/Safe kernel pattern
+      // Fast kernel handles aligned K, Safe kernel handles arbitrary K
+      launchCkKernel<DataT, OutT, IdxT, ReduceOpT, KVPReduceOpT, CkDistOp, ApplySqrt>(
+        min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, ck_op, stream);
+      return;
+    }
+  }
+
+  RAFT_LOG_INFO(
+    "Falling back to \"fusedDistanceNNSimtFallback\" since CK does not support the current input "
+    "configuration");
+
+  fusedDistanceNNSimtFallback<DataT, OutT, IdxT, Policy, ReduceOpT, KVPReduceOpT>(
+    min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, simt_op, false, stream);
+}
+
+// =============================================================================
+// DISTANCE METRIC TRAITS
+// =============================================================================
+//
+// Encapsulates metric-specific types and dispatch logic. This design allows
+// adding new distance metrics without modifying the core dispatch machinery.
+
+template <typename DataT, typename IdxT>
+struct L2DistanceTraits {
+  using CkOp   = ops::l2_exp_ck_op;
+  using AccT   = DataT;
+  using SimtOp = ops::l2_exp_distance_op<DataT, AccT, IdxT>;
+
+  static CkOp makeCkOp(bool /* sqrt */) { return CkOp{}; }
+  static SimtOp makeSimtOp(bool sqrt) { return SimtOp{sqrt}; }
+
+  template <typename OutT,
+            typename Policy,
+            typename ReduceOpT,
+            typename KVPReduceOpT,
+            bool ApplySqrt>
+  static void dispatch(OutT* min,
+                       DataT const* x,
+                       DataT const* y,
+                       DataT const* xn,
+                       DataT const* yn,
+                       IdxT m,
+                       IdxT n,
+                       IdxT k,
+                       int* workspace,
+                       ReduceOpT redOp,
+                       KVPReduceOpT pairRedOp,
+                       bool initOutBuffer,
+                       cudaStream_t stream)
+  {
+    dispatchWithFallback<DataT,
+                         OutT,
+                         IdxT,
+                         Policy,
+                         ReduceOpT,
+                         KVPReduceOpT,
+                         CkOp,
+                         SimtOp,
+                         ApplySqrt>(min,
+                                    x,
+                                    y,
+                                    xn,
+                                    yn,
+                                    m,
+                                    n,
+                                    k,
+                                    workspace,
+                                    redOp,
+                                    pairRedOp,
+                                    makeCkOp(ApplySqrt),
+                                    makeSimtOp(ApplySqrt),
+                                    initOutBuffer,
+                                    stream);
+  }
+};
+
+template <typename DataT, typename IdxT>
+struct CosineDistanceTraits {
+  using CkOp   = ops::cosine_ck_op;
+  using AccT   = DataT;
+  using SimtOp = ops::cosine_distance_op<DataT, AccT, IdxT>;
+
+  static CkOp makeCkOp() { return CkOp{}; }
+  static SimtOp makeSimtOp() { return SimtOp{}; }
+
+  template <typename OutT, typename Policy, typename ReduceOpT, typename KVPReduceOpT>
+  static void dispatch(OutT* min,
+                       DataT const* x,
+                       DataT const* y,
+                       DataT const* xn,
+                       DataT const* yn,
+                       IdxT m,
+                       IdxT n,
+                       IdxT k,
+                       int* workspace,
+                       ReduceOpT redOp,
+                       KVPReduceOpT pairRedOp,
+                       cudaStream_t stream)
+  {
+    dispatchWithFallback<DataT, OutT, IdxT, Policy, ReduceOpT, KVPReduceOpT, CkOp, SimtOp, false>(
+      min,
+      x,
+      y,
+      xn,
+      yn,
+      m,
+      n,
+      k,
+      workspace,
+      redOp,
+      pairRedOp,
+      makeCkOp(),
+      makeSimtOp(),
+      false,
+      stream);
+  }
+};
+
+// =============================================================================
+// PUBLIC API
+// =============================================================================
+
+/**
+ * @brief Dispatch fused L2 nearest neighbor computation.
+ *
+ * For each query point x[i], finds the data point y[j] with minimum L2 distance.
+ * Uses CK backend when supported, falls back to SIMT otherwise.
+ *
+ * @param min         Output: KeyValuePair(best_index, min_distance) for each query
+ * @param x           Query points matrix [m x k], row-major
+ * @param y           Data points matrix [n x k], row-major
+ * @param xn          Precomputed ||x[i]||^2 norms [m]
+ * @param yn          Precomputed ||y[j]||^2 norms [n]
+ * @param m           Number of query points
+ * @param n           Number of data points
+ * @param k           Dimension of points
+ * @param workspace   Mutex workspace for atomic updates [m integers]
+ * @param redOp       Reduction operator for output updates
+ * @param pairRedOp   Key-value pair reduction operator
+ * @param sqrt        If true, return sqrt(L2) instead of L2
+ * @param initOutBuffer  If true, initialize output buffer before computation
+ * @param stream      CUDA stream
  */
 template <typename DataT,
           typename OutT,
@@ -123,10 +594,10 @@ template <typename DataT,
           typename ReduceOpT,
           typename KVPReduceOpT>
 void fusedL2NNCkDispatch(OutT* min,
-                         const DataT* x,
-                         const DataT* y,
-                         const DataT* xn,
-                         const DataT* yn,
+                         DataT const* x,
+                         DataT const* y,
+                         DataT const* xn,
+                         DataT const* yn,
                          IdxT m,
                          IdxT n,
                          IdxT k,
@@ -137,14 +608,35 @@ void fusedL2NNCkDispatch(OutT* min,
                          bool initOutBuffer,
                          cudaStream_t stream)
 {
-  using AccT = DataT;
-  ops::l2_exp_distance_op<DataT, AccT, IdxT> distance_op{sqrt};
-  fusedDistanceNNCkImpl<DataT, OutT, IdxT, Policy, ReduceOpT, KVPReduceOpT>(
-    min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, distance_op, initOutBuffer, stream);
+  using Traits = L2DistanceTraits<DataT, IdxT>;
+
+  if (sqrt) {
+    Traits::template dispatch<OutT, Policy, ReduceOpT, KVPReduceOpT, true>(
+      min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, initOutBuffer, stream);
+  } else {
+    Traits::template dispatch<OutT, Policy, ReduceOpT, KVPReduceOpT, false>(
+      min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, initOutBuffer, stream);
+  }
 }
 
 /**
- * @brief CK backend dispatch for fused Cosine NN.
+ * @brief Dispatch fused Cosine nearest neighbor computation.
+ *
+ * For each query point x[i], finds the data point y[j] with minimum cosine distance.
+ * Cosine distance = 1 - (x·y)/(||x|| ||y||)
+ *
+ * @param min         Output: KeyValuePair(best_index, min_distance) for each query
+ * @param x           Query points matrix [m x k], row-major
+ * @param y           Data points matrix [n x k], row-major
+ * @param xn          Precomputed ||x[i]|| norms [m]
+ * @param yn          Precomputed ||y[j]|| norms [n]
+ * @param m           Number of query points
+ * @param n           Number of data points
+ * @param k           Dimension of points
+ * @param workspace   Mutex workspace for atomic updates [m integers]
+ * @param redOp       Reduction operator for output updates
+ * @param pairRedOp   Key-value pair reduction operator
+ * @param stream      CUDA stream
  */
 template <typename DataT,
           typename OutT,
@@ -153,10 +645,10 @@ template <typename DataT,
           typename ReduceOpT,
           typename KVPReduceOpT>
 void fusedCosineNNCkDispatch(OutT* min,
-                             const DataT* x,
-                             const DataT* y,
-                             const DataT* xn,
-                             const DataT* yn,
+                             DataT const* x,
+                             DataT const* y,
+                             DataT const* xn,
+                             DataT const* yn,
                              IdxT m,
                              IdxT n,
                              IdxT k,
@@ -165,10 +657,9 @@ void fusedCosineNNCkDispatch(OutT* min,
                              KVPReduceOpT pairRedOp,
                              cudaStream_t stream)
 {
-  using AccT = DataT;
-  ops::cosine_distance_op<DataT, AccT, IdxT> distance_op{};
-  fusedDistanceNNCkImpl<DataT, OutT, IdxT, Policy, ReduceOpT, KVPReduceOpT>(
-    min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, distance_op, false, stream);
+  using Traits = CosineDistanceTraits<DataT, IdxT>;
+  Traits::template dispatch<OutT, Policy, ReduceOpT, KVPReduceOpT>(
+    min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, stream);
 }
 
 }  // namespace cuvs::distance::detail
