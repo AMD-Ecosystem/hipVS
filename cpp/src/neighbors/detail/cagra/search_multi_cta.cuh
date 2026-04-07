@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -24,13 +24,13 @@
 #pragma once
 
 #include "bitonic.hpp"
-#include "compute_distance-ext.cuh"
 #include "device_common.hpp"
 #include "hashmap.hpp"
 #include "search_multi_cta_kernel.cuh"
 #include "search_plan.cuh"
 #include "topk_for_cagra/topk.h"  // TODO replace with raft topk if possible
 #include "utils.hpp"
+#include <neighbors/detail/cagra/compute_distance-ext.cuh>
 
 #include <cstddef>
 #include <raft/core/detail/macros.hpp>
