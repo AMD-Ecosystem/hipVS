@@ -122,7 +122,8 @@ RAFT_KERNEL random_pickup_kernel(
   typename DATASET_DESCRIPTOR_T::DISTANCE_T* const result_distances_ptr,  // [num_queries, ldr]
   const std::uint32_t ldr,                                                // (*) ldr >= num_pickup
   typename DATASET_DESCRIPTOR_T::INDEX_T* const visited_hashmap_ptr,  // [num_queries, 1 << bitlen]
-  const std::uint32_t hash_bitlen)
+  const std::uint32_t hash_bitlen,
+  const typename DATASET_DESCRIPTOR_T::INDEX_T graph_size = 0)
 {
   using DATA_T     = typename DATASET_DESCRIPTOR_T::DATA_T;
   using INDEX_T    = typename DATASET_DESCRIPTOR_T::INDEX_T;
@@ -137,7 +138,13 @@ RAFT_KERNEL random_pickup_kernel(
   dataset_desc = dataset_desc->setup_workspace(smem, queries_ptr, query_id);
   __syncthreads();
 
-  INDEX_T best_index_team_local    = utils::get_max_value<INDEX_T>();
+// <<<<<<< OLD CODE from 816b49160 (aa181ca31) - COMMENTED OUT
+//   INDEX_T best_index_team_local    = utils::get_max_value<INDEX_T>();
+// =======
+  const INDEX_T seed_index_limit = graph_size > 0 ? graph_size : dataset_desc->size;
+
+  INDEX_T best_index_team_local;
+// >>>>>>> END NEW CODE (aa181ca31)
   DISTANCE_T best_norm2_team_local = utils::get_max_value<DISTANCE_T>();
   for (unsigned i = 0; i < num_distilation; i++) {
     INDEX_T seed_index;
@@ -146,7 +153,7 @@ RAFT_KERNEL random_pickup_kernel(
     } else {
       // Chose a seed node randomly
       seed_index =
-        device::xorshift64((global_team_index ^ rand_xor_mask) * (i + 1)) % dataset_desc->size;
+        device::xorshift64((global_team_index ^ rand_xor_mask) * (i + 1)) % seed_index_limit;
     }
 
     DISTANCE_T norm2 = dataset_desc->compute_distance(seed_index, true);
@@ -184,7 +191,8 @@ void random_pickup(const dataset_descriptor_host<DataT, IndexT, DistanceT>& data
                    std::size_t ldr,                  // (*) ldr >= num_pickup
                    IndexT* visited_hashmap_ptr,      // [num_queries, 1 << bitlen]
                    std::uint32_t hash_bitlen,
-                   cudaStream_t cuda_stream)
+                   cudaStream_t cuda_stream,
+                   IndexT graph_size = 0)
 {
   const auto block_size                = 256u;
   const auto num_teams_per_threadblock = block_size / dataset_desc.team_size;
@@ -203,7 +211,8 @@ void random_pickup(const dataset_descriptor_host<DataT, IndexT, DistanceT>& data
     result_distances_ptr,
     ldr,
     visited_hashmap_ptr,
-    hash_bitlen);
+    hash_bitlen,
+    graph_size);
 }
 
 template <class INDEX_T>
@@ -855,7 +864,8 @@ struct search
                                             result_buffer_allocation_size,
                                             hashmap.data(),
                                             hash_bitlen,
-                                            stream);
+                                            stream,
+                                            static_cast<IndexT>(this->dataset_size));
 
     unsigned iter = 0;
     while (1) {
