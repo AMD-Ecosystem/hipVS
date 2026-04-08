@@ -53,27 +53,31 @@ requires-python = ">=3.11"
 # >>>>>>> END NEW CODE (386565b98)
 dependencies = [
     "click",
-# <<<<<<< OLD CODE from 50dd37fd1 (f713356e6) - COMMENTED OUT
-# # <<<<<<< OLD CODE from cf47de48f (5e391150e) - COMMENTED OUT
-# # # <<<<<<< OLD CODE from 0c8ca84f7 (208c4715b) - COMMENTED OUT
-# # # # <<<<<<< OLD CODE from f7ed9d0f7 (2beed1f61) - COMMENTED OUT
-# # # # # <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
-# # # # #     "amd-hipvs",
+# <<<<<<< OLD CODE from ff660c53d (6f7364c5a) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 50dd37fd1 (f713356e6) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from cf47de48f (5e391150e) - COMMENTED OUT
+# # # # <<<<<<< OLD CODE from 0c8ca84f7 (208c4715b) - COMMENTED OUT
+# # # # # <<<<<<< OLD CODE from f7ed9d0f7 (2beed1f61) - COMMENTED OUT
+# # # # # # <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
+# # # # # #     "amd-hipvs",
+# # # # # # =======
+# # # # #     "cuvs==25.12.*,>=0.0.0a0",
+# # # # # # >>>>>>> END NEW CODE (57bc73d77)
 # # # # # =======
-# # # #     "cuvs==25.12.*,>=0.0.0a0",
-# # # # # >>>>>>> END NEW CODE (57bc73d77)
+# # # #     "cuvs==26.2.*,>=0.0.0a0",
+# # # # # >>>>>>> END NEW CODE (2beed1f61)
 # # # # =======
-# # #     "cuvs==26.2.*,>=0.0.0a0",
-# # # # >>>>>>> END NEW CODE (2beed1f61)
+# # #     "cuvs==25.12.*,>=0.0.0a0",
+# # # # >>>>>>> END NEW CODE (208c4715b)
 # # # =======
-# #     "cuvs==25.12.*,>=0.0.0a0",
-# # # >>>>>>> END NEW CODE (208c4715b)
+# #     "cuvs==26.2.*,>=0.0.0a0",
+# # # >>>>>>> END NEW CODE (5e391150e)
 # # =======
-#     "cuvs==26.2.*,>=0.0.0a0",
-# # >>>>>>> END NEW CODE (5e391150e)
+#     "cuvs==26.4.*,>=0.0.0a0",
+# # >>>>>>> END NEW CODE (f713356e6)
 # =======
-    "cuvs==26.4.*,>=0.0.0a0",
-# >>>>>>> END NEW CODE (f713356e6)
+    "cuvs==26.4.*",
+# >>>>>>> END NEW CODE (6f7364c5a)
     "matplotlib>=3.9",
     "pandas",
     "pyyaml",
