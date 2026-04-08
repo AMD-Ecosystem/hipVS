@@ -1,88 +1,197 @@
-# <<<<<<< OLD CODE from e8ae5d73f (f37fe98d1) - COMMENTED OUT
-# # <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
-# # # Changelog
-# #
-# # hipVS is AMD's port of NVIDIA's cuVS (CUDA Vector Search) library, enabling approximate nearest neighbor (ANN) search algorithms on AMD GPUs using the HIP platform.
-# #
-# # ## [Version 1.0.0] - 2026-04-01
-# #
-# # ### Features
-# # - Upgraded upstream hipVS baseline from 25.02 to 25.10, incorporating new upstream primitives, performance improvements, and API changes
-# # - Added support for gfx950 AMD GPU architectures
-# # - ROCm 7.2.1 support
-# # - Enabled multi-GPU algorithms and RCCL configurations
-# # - **Composable Kernel (CK) pairwise distance:** CK-accelerated L2, cosine, and inner-product distance kernels on AMD GPUs, supporting both C-order and F-order layouts including gfx950 float column-major paths
-# # - **Benchmark visualization:** Static site generator for interactive benchmark result comparison
-# # - **Large dataset support:** Batch processing for NN-Descent `local_join_kernel` to handle datasets exceeding the HIP runtime's 2^32 thread limit; conservative LDS-aware hash table sizing (`max_bitlen=11`) for AMD's 64 KB shared memory; CAGRA multi-CTA search fix (`itopk_size = 2*top_k`) to ensure sufficient CTAs for 64-wide wavefronts
-# #
-# # ### Bug Fixes
-# #
-# # **Wavefront-width compatibility (wf32 and wf64):**
-# # - IVF-Flat, IVF-PQ, NN-Descent, and Ball Cover: corrected lane-count assumptions for wf32 targets
-# # - Ball Cover: resolved `eps_nn` hang and `eps_max_k` copy-kernel failures on 64-wide wavefronts
-# # - NN-Descent: raised `max_iterations` ceiling and eliminated false early-termination on wf32
-# #
-# # **Algorithm correctness:**
-# # - Vamana: fixed segfault from incorrect edge counts and resolved doctest/pytest failures on HIP
-# # - IVF-Flat: fixed uint8 cosine-distance recall regression; fixed MG `extend()` low recall with explicit indices
-# # - NN Descent: fixed intermittent `ALL_NEIGHBORS_C_TEST` failure
-# # - CK distance: fixed NaN self-distances in `l2_exp_ck_op` for F-order euclidean
-# # - ScaNN: added `sync_stream` after buffer swap in quantization loop and `copy_stream` parameter to `apply_avq` to fix race conditions on HIP
-# # - Spectral clustering: capped eigen_solver `max_iterations` to prevent NaN propagation into LAPACK's `steqr`
-# # - CAGRA graph build: replaced `#pragma omp critical` with `std::mutex` in `merge_subgraphs` to fix OpenMP lock corruption across test iterations
-# # - Restored missing `nnz_t` template parameter in `mutual_reachability_graph`
-# #
-# # ### Build & Infrastructure
-# # - Update dependency branch names in versions.json
-# # - Bump ROCm base version to 7.2.1 in build infrastructure
-# #
-# # ### Limitations
-# # - Multi-Node/ Multi GPU is experimental
-# # - wf32 is experimental
-# #
-# # ---
-# #
-# # ## [Initial Release Version 0.1.0] - 2025-11-04
-# #
-# # ### Platform Support
-# # - Complete hipification of cuVS codebase for AMD GPUs
-# # - ROCm 7.0 support with HIP platform
-# # - AMD-specific optimizations (64-thread wavefront vs NVIDIA's 32)
-# # - Integration with ROCmDS ecosystem
-# # - Build system overhaul for HIP/ROCm with CMake and CPack
-# # - Support for multiple AMD GPU architectures (gfx90a, gfx942)
-# #
-# # ### Algorithms
-# # - **CAGRA:** Single/Multi-CTA search, graph building with IVF-PQ, support for `float`, `half`, `int8`, `uint8`
-# # - **Vamana:** Graph building with robust pruning
-# # - **IVF-Flat/IVF-PQ:** Complete implementation with dynamic batching
-# # - **HNSW:** Full implementation
-# # - **NN Descent:** Full implementation
-# # - **Brute Force:** Complete baseline implementation
-# # - **Distance Metrics:** L2, Inner Product, and others
-# # - **Clustering:** K-means and spectral clustering
-# #
-# # ### Language Bindings
-# # - **C:** Complete C API with test suite
-# # - **C++:** Native templates and headers with examples
-# # - **Python:** `hipvs` package with Cython bindings and examples
-# # - **Rust:** `hipvs` crate (renamed from `cuvs`) with documentation
-# #
-# # ### Key Technical Changes
-# # - Wavefront size adaptations (32→64 threads)
-# # - Fixed uninitialized shared memory and bounds checking issues
-# # - Optimized kernel launch parameters and LDS memory access for AMD GPUs
-# # - Platform-specific intrinsic replacements (CUDA→HIP)
-# # - Relaxed recall thresholds to account for hardware differences
-# #
-# # ### Multi-GPU Support (Experimental)
-# # - Multi-GPU neighbors API with RCCL integration
-# # - NEIGHBORS_MG_TEST suite enabled
-# #
-# # ### Contributors
-# # - Lalith Narasimhan, Sujin Philip, Sukriti Choudhary, Grant Pinkert, Kevin Joseph, Randy Hartgrove, Alex Xu
+# <<<<<<< OLD CODE from adf9badd1 (35c1bcf93) - COMMENTED OUT
+# # <<<<<<< OLD CODE from e8ae5d73f (f37fe98d1) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
+# # # # Changelog
+# # #
+# # # hipVS is AMD's port of NVIDIA's cuVS (CUDA Vector Search) library, enabling approximate nearest neighbor (ANN) search algorithms on AMD GPUs using the HIP platform.
+# # #
+# # # ## [Version 1.0.0] - 2026-04-01
+# # #
+# # # ### Features
+# # # - Upgraded upstream hipVS baseline from 25.02 to 25.10, incorporating new upstream primitives, performance improvements, and API changes
+# # # - Added support for gfx950 AMD GPU architectures
+# # # - ROCm 7.2.1 support
+# # # - Enabled multi-GPU algorithms and RCCL configurations
+# # # - **Composable Kernel (CK) pairwise distance:** CK-accelerated L2, cosine, and inner-product distance kernels on AMD GPUs, supporting both C-order and F-order layouts including gfx950 float column-major paths
+# # # - **Benchmark visualization:** Static site generator for interactive benchmark result comparison
+# # # - **Large dataset support:** Batch processing for NN-Descent `local_join_kernel` to handle datasets exceeding the HIP runtime's 2^32 thread limit; conservative LDS-aware hash table sizing (`max_bitlen=11`) for AMD's 64 KB shared memory; CAGRA multi-CTA search fix (`itopk_size = 2*top_k`) to ensure sufficient CTAs for 64-wide wavefronts
+# # #
+# # # ### Bug Fixes
+# # #
+# # # **Wavefront-width compatibility (wf32 and wf64):**
+# # # - IVF-Flat, IVF-PQ, NN-Descent, and Ball Cover: corrected lane-count assumptions for wf32 targets
+# # # - Ball Cover: resolved `eps_nn` hang and `eps_max_k` copy-kernel failures on 64-wide wavefronts
+# # # - NN-Descent: raised `max_iterations` ceiling and eliminated false early-termination on wf32
+# # #
+# # # **Algorithm correctness:**
+# # # - Vamana: fixed segfault from incorrect edge counts and resolved doctest/pytest failures on HIP
+# # # - IVF-Flat: fixed uint8 cosine-distance recall regression; fixed MG `extend()` low recall with explicit indices
+# # # - NN Descent: fixed intermittent `ALL_NEIGHBORS_C_TEST` failure
+# # # - CK distance: fixed NaN self-distances in `l2_exp_ck_op` for F-order euclidean
+# # # - ScaNN: added `sync_stream` after buffer swap in quantization loop and `copy_stream` parameter to `apply_avq` to fix race conditions on HIP
+# # # - Spectral clustering: capped eigen_solver `max_iterations` to prevent NaN propagation into LAPACK's `steqr`
+# # # - CAGRA graph build: replaced `#pragma omp critical` with `std::mutex` in `merge_subgraphs` to fix OpenMP lock corruption across test iterations
+# # # - Restored missing `nnz_t` template parameter in `mutual_reachability_graph`
+# # #
+# # # ### Build & Infrastructure
+# # # - Update dependency branch names in versions.json
+# # # - Bump ROCm base version to 7.2.1 in build infrastructure
+# # #
+# # # ### Limitations
+# # # - Multi-Node/ Multi GPU is experimental
+# # # - wf32 is experimental
+# # #
+# # # ---
+# # #
+# # # ## [Initial Release Version 0.1.0] - 2025-11-04
+# # #
+# # # ### Platform Support
+# # # - Complete hipification of cuVS codebase for AMD GPUs
+# # # - ROCm 7.0 support with HIP platform
+# # # - AMD-specific optimizations (64-thread wavefront vs NVIDIA's 32)
+# # # - Integration with ROCmDS ecosystem
+# # # - Build system overhaul for HIP/ROCm with CMake and CPack
+# # # - Support for multiple AMD GPU architectures (gfx90a, gfx942)
+# # #
+# # # ### Algorithms
+# # # - **CAGRA:** Single/Multi-CTA search, graph building with IVF-PQ, support for `float`, `half`, `int8`, `uint8`
+# # # - **Vamana:** Graph building with robust pruning
+# # # - **IVF-Flat/IVF-PQ:** Complete implementation with dynamic batching
+# # # - **HNSW:** Full implementation
+# # # - **NN Descent:** Full implementation
+# # # - **Brute Force:** Complete baseline implementation
+# # # - **Distance Metrics:** L2, Inner Product, and others
+# # # - **Clustering:** K-means and spectral clustering
+# # #
+# # # ### Language Bindings
+# # # - **C:** Complete C API with test suite
+# # # - **C++:** Native templates and headers with examples
+# # # - **Python:** `hipvs` package with Cython bindings and examples
+# # # - **Rust:** `hipvs` crate (renamed from `cuvs`) with documentation
+# # #
+# # # ### Key Technical Changes
+# # # - Wavefront size adaptations (32→64 threads)
+# # # - Fixed uninitialized shared memory and bounds checking issues
+# # # - Optimized kernel launch parameters and LDS memory access for AMD GPUs
+# # # - Platform-specific intrinsic replacements (CUDA→HIP)
+# # # - Relaxed recall thresholds to account for hardware differences
+# # #
+# # # ### Multi-GPU Support (Experimental)
+# # # - Multi-GPU neighbors API with RCCL integration
+# # # - NEIGHBORS_MG_TEST suite enabled
+# # #
+# # # ### Contributors
+# # # - Lalith Narasimhan, Sujin Philip, Sukriti Choudhary, Grant Pinkert, Kevin Joseph, Randy Hartgrove, Alex Xu
+# # # =======
 # # =======
 # =======
+# cuvs 26.04.00 (8 Apr 2026)
+
+### 🚨 Breaking Changes
+* Use HNSW GPU Hierarchy by Default by @julianmi in https://github.com/rapidsai/cuvs/pull/1617
+* Backport "Default to static linking of libcudart" by @KyleFromNVIDIA in https://github.com/rapidsai/cuvs/pull/1918
+* enforce a floor on libnvjitlink, build wheels with CUDA 13.0.x, test wheels against mix of CTK versions by @jameslamb in https://github.com/rapidsai/cuvs/pull/1862
+### 🐛 Bug Fixes
+* Add float16 support for CAGRA extend by @lowener in https://github.com/rapidsai/cuvs/pull/1620
+* Fix C examples CUDAToolkit dependency by @tfeher in https://github.com/rapidsai/cuvs/pull/1626
+* clang-tidy: remove AnalyzeTemporaryDtors key by @achirkin in https://github.com/rapidsai/cuvs/pull/1778
+* Fix build.sh: build cuvs_c for examples and fix --gpu-arch parsing by @achirkin in https://github.com/rapidsai/cuvs/pull/1779
+* Better handling of batching of search in MG replicated mode by @viclafargue in https://github.com/rapidsai/cuvs/pull/1718
+* Add nvjitlink to cuda-toolkit pip extras for cusparse compatibility by @bdice in https://github.com/rapidsai/cuvs/pull/1794
+* [REVIEW] Fix: for balanced kmeans use grid.x for adjust_centers to avoid grid.y overflow for >262K centroids by @Nischal1729 in https://github.com/rapidsai/cuvs/pull/1805
+* Fix thrust header by @aamijar in https://github.com/rapidsai/cuvs/pull/1817
+* Fix persistent CAGRA regressions by @achirkin in https://github.com/rapidsai/cuvs/pull/1800
+* Fix thrust header by @aamijar in https://github.com/rapidsai/cuvs/pull/1825
+* Set `cudaFuncAttributeMaxDynamicSharedMemorySize` with thread-safety by @mythrocks in https://github.com/rapidsai/cuvs/pull/1771
+* [REVIEW] Move from `thrust::make_counting_iterator` to `cuda::make_counting_iterator` by @mythrocks in https://github.com/rapidsai/cuvs/pull/1826
+* Fixed cuvs benchmark debug build issue (linker step fail) by @irina-resh-nvda in https://github.com/rapidsai/cuvs/pull/1599
+* Graph degree equals intermediate graph degree bug fix by @irina-resh-nvda in https://github.com/rapidsai/cuvs/pull/1834
+* FAISS patch for `thrust_counting_iterator.h` by @aamijar in https://github.com/rapidsai/cuvs/pull/1844
+* Use 1D grid calculations in `epsilon_neighborhood` by @divyegala in https://github.com/rapidsai/cuvs/pull/1847
+* Fix setting CAGRA graph build algo to iterative search by default by @achirkin in https://github.com/rapidsai/cuvs/pull/1864
+* Faiss suppress warning 611 by @aamijar in https://github.com/rapidsai/cuvs/pull/1879
+* Pin faiss to 1.14.0 by @aamijar in https://github.com/rapidsai/cuvs/pull/1885
+* Make some minor fixes to JIT+LTO functionality by @KyleFromNVIDIA in https://github.com/rapidsai/cuvs/pull/1896
+* Revert "Default to static linking of libcudart" by @KyleFromNVIDIA in https://github.com/rapidsai/cuvs/pull/1925
+* Fix hanging pytests by @aamijar in https://github.com/rapidsai/cuvs/pull/1924
+* Disallow programmatic stream serialization in JIT kernel launches by @divyegala in https://github.com/rapidsai/cuvs/pull/1932
+* IVF-Flat: fix irrelevant assert in the fused kernel mode by @achirkin in https://github.com/rapidsai/cuvs/pull/1941
+* [REVIEW] cuVS bench: Fix cudaFuncSetAttribute not being called when CAGRA search switches kernel variants by @irina-resh-nvda in https://github.com/rapidsai/cuvs/pull/1851
+* Pin openblas for aarch64 by @tarang-jain in https://github.com/rapidsai/cuvs/pull/1965
+* Null JIT kernel launch config by @divyegala in https://github.com/rapidsai/cuvs/pull/1974
+* [BUG] Fix Vamana Serialization by @tarang-jain in https://github.com/rapidsai/cuvs/pull/1966
+### 📖 Documentation
+* remove docs references to cuvs-bench-datasets, install a C compiler in pre-commit env by @jameslamb in https://github.com/rapidsai/cuvs/pull/1736
+* Adding simple tarball install to build and install docs by @cjnolet in https://github.com/rapidsai/cuvs/pull/1868
+* Fixing nccl link in tarball install instructions by @cjnolet in https://github.com/rapidsai/cuvs/pull/1887
+* Add developer and user guides for JIT by @divyegala in https://github.com/rapidsai/cuvs/pull/1876
+* PCA docs by @aamijar in https://github.com/rapidsai/cuvs/pull/1949
+* Fix a few typos and ``.rst`` link syntax by @jrbourbeau in https://github.com/rapidsai/cuvs/pull/1973
+* Update docs footer year by @aamijar in https://github.com/rapidsai/cuvs/pull/1958
+* Doc improvements by @aamijar in https://github.com/rapidsai/cuvs/pull/1978
+### 🚀 New Features
+* JIT compile `interleaved_scan_kernel` for CUDA 13 by @divyegala in https://github.com/rapidsai/cuvs/pull/1405
+* [REVIEW] L1 distance support for iterative search CAGRA build by @yan-zaretskiy in https://github.com/rapidsai/cuvs/pull/1831
+* [FEA] Inertia Computation for Balanced KMeans and Add Option for Weighted Inertia by @tarang-jain in https://github.com/rapidsai/cuvs/pull/1880
+* PCA preprocessor by @aamijar in https://github.com/rapidsai/cuvs/pull/1808
+* [FEA] Add Batching to KMeans by @tarang-jain in https://github.com/rapidsai/cuvs/pull/1886
+### 🛠️ Improvements
+* Automatic Partition Count Derivation for ACE  by @julianmi in https://github.com/rapidsai/cuvs/pull/1603
+* Add filter for cagra::merge by @benfred in https://github.com/rapidsai/cuvs/pull/1496
+* Ivf_flat extends golang APIs by @cpegeric in https://github.com/rapidsai/cuvs/pull/1600
+* Drop Python 3.10 support by @gforsyth in https://github.com/rapidsai/cuvs/pull/1748
+* tighten wheel size limits, expand CI-skipping logic, other small build changes by @jameslamb in https://github.com/rapidsai/cuvs/pull/1751
+* Migrate hash strategy to use the new cuco::static_map by @PointKernel in https://github.com/rapidsai/cuvs/pull/1462
+* Update raft headers by @aamijar in https://github.com/rapidsai/cuvs/pull/1763
+* remove pip.conf migration code in CI scripts, update CI-skipping rules by @jameslamb in https://github.com/rapidsai/cuvs/pull/1760
+* Convert non-type template parameters to runtime parameters in CAGRA search to cut binary size by @seunghwak in https://github.com/rapidsai/cuvs/pull/1498
+* Rename lanczos by @aamijar in https://github.com/rapidsai/cuvs/pull/1759
+* CI: build with CUDA 13.1.1 by @jameslamb in https://github.com/rapidsai/cuvs/pull/1766
+* Fixes for stricter compilers by @maxwbuckley in https://github.com/rapidsai/cuvs/pull/1703
+* fix cpu_search call by including `k` argument by @benfred in https://github.com/rapidsai/cuvs/pull/1785
+* Use GHA id-token for `sccache-dist` auth token by @trxcllnt in https://github.com/rapidsai/cuvs/pull/1790
+* Remove `cagra_optimize.hpp` by @aamijar in https://github.com/rapidsai/cuvs/pull/1791
+* Remove unused use_norms constant from kernel_sm60.cuh by @maxwbuckley in https://github.com/rapidsai/cuvs/pull/1705
+* Remove unused variable read_idx from query loop by @maxwbuckley in https://github.com/rapidsai/cuvs/pull/1706
+* remove gitutils by @jameslamb in https://github.com/rapidsai/cuvs/pull/1797
+* refactor: build wheels and conda packages using Python limited API by @gforsyth in https://github.com/rapidsai/cuvs/pull/1788
+* Add pluggable backend architecture to cuvs-bench by @jnke2016 in https://github.com/rapidsai/cuvs/pull/1536
+* Use Specific CCCL Includes by @divyegala in https://github.com/rapidsai/cuvs/pull/1806
+* Replace `thrust::tuple` with `cuda::std::tuple` by @miscco in https://github.com/rapidsai/cuvs/pull/1811
+* check-nightly-ci: update to new version by @jameslamb in https://github.com/rapidsai/cuvs/pull/1813
+* check-nightly-ci: remove testing config by @jameslamb in https://github.com/rapidsai/cuvs/pull/1824
+* Refactor JIT LTO kernel generation by @KyleFromNVIDIA in https://github.com/rapidsai/cuvs/pull/1812
+* Move `test_compute_matrix_product.py` to `cpp/tests` by @KyleFromNVIDIA in https://github.com/rapidsai/cuvs/pull/1836
+* Drop uses of `thrust/functional.h` by @miscco in https://github.com/rapidsai/cuvs/pull/1835
+* Better `ncv` param spectral embedding edge case by @aamijar in https://github.com/rapidsai/cuvs/pull/1828
+* Modernize the uses of raft in cuVS by @achirkin in https://github.com/rapidsai/cuvs/pull/1837
+* refactor(limited api): add explicit `wheel.py-api` to `pyproject.toml`
+ by @gforsyth in https://github.com/rapidsai/cuvs/pull/1852
+* Update Cython lower bound pin to 3.2.2 by @vyasr in https://github.com/rapidsai/cuvs/pull/1858
+* Add support for Python 3.14 by @gforsyth in https://github.com/rapidsai/cuvs/pull/1845
+* fix(rust): change Index::search to take &self instead of self by @zbennett10 in https://github.com/rapidsai/cuvs/pull/1839
+* Remove pytest upper bound pin by @vyasr in https://github.com/rapidsai/cuvs/pull/1867
+* Readme: vecflow paper in references by @aamijar in https://github.com/rapidsai/cuvs/pull/1874
+* Refactor knn graph build params to remove `graph_build_types.hpp` by @jinsolp in https://github.com/rapidsai/cuvs/pull/1235
+* Remove IndexWrapper by @aamijar in https://github.com/rapidsai/cuvs/pull/1792
+* Use C linkage for JIT LTO kernels by @divyegala in https://github.com/rapidsai/cuvs/pull/1909
+* Prevent nested parallelism in HNSW bench by @julianmi in https://github.com/rapidsai/cuvs/pull/1895
+* Add a script to check for breaking C ABI changes by @benfred in https://github.com/rapidsai/cuvs/pull/1749
+* Improve the IVF-PQ Coarse Batch Size Workspace Estimation by @julianmi in https://github.com/rapidsai/cuvs/pull/1937
+* ScaNN: Fix AVQ prefetch by @rmaschal in https://github.com/rapidsai/cuvs/pull/1899
+
+## New Contributors
+* @cpegeric made their first contribution in https://github.com/rapidsai/cuvs/pull/1600
+* @PointKernel made their first contribution in https://github.com/rapidsai/cuvs/pull/1462
+* @seunghwak made their first contribution in https://github.com/rapidsai/cuvs/pull/1498
+* @Nischal1729 made their first contribution in https://github.com/rapidsai/cuvs/pull/1805
+* @jnke2016 made their first contribution in https://github.com/rapidsai/cuvs/pull/1536
+* @zbennett10 made their first contribution in https://github.com/rapidsai/cuvs/pull/1839
+* @jrbourbeau made their first contribution in https://github.com/rapidsai/cuvs/pull/1973
+
+**Full Changelog**: https://github.com/rapidsai/cuvs/compare/v26.04.00a...release/26.04
+
+# >>>>>>> END NEW CODE (35c1bcf93)
 # cuvs 26.02.00 (4 Feb 2026)
 
 ### 🚨 Breaking Changes
