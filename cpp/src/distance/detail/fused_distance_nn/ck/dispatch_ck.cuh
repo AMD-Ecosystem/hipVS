@@ -37,7 +37,7 @@
 //
 //   1. CK Backend (Composable Kernel): High-performance AMD GPU implementation
 //      using CK Tile's GEMM pipeline with custom epilogue for distance + reduction.
-//      Supports: fp16, bf16, float on compatible problem sizes.
+//      Supports: float on compatible problem sizes. double uses SIMT fallback.
 //
 //   2. SIMT Fallback: Generic CUDA/HIP implementation using simple thread-level
 //      parallelism. Used when CK doesn't support the data type or problem size.
@@ -105,9 +105,7 @@ namespace cuvs::distance::detail {
  */
 template <typename DataT>
 struct SkinnyConfigSelector {
-  using SkinnyConfig = std::conditional_t<std::is_same_v<DataT, float>,
-                                          FusedDistanceNNGemmConfigSkinnyF32,
-                                          FusedDistanceNNGemmConfigSkinnyF16>;
+  using SkinnyConfig = FusedDistanceNNGemmConfigSkinnyF32;  // Only f32 supported
   static constexpr ck_tile::index_t skinny_threshold = 32;
 };
 
@@ -262,11 +260,10 @@ void launchCkKernelWithConfig(OutT* min,
                               CkDistOp distance_op,
                               cudaStream_t stream)
 {
-  static_assert(isSupportedFusedNN<DataT>(),
-                "CK kernel only supports fp16, bf16, and float data types");
+  static_assert(isSupportedFusedNN<DataT>(), "CK kernel only supports float data type");
 
   using DistT           = DataT;
-  using CkDataT         = CkDataType<DataT>;
+  using CkDataT         = DataT;  // Direct mapping for fp32/fp64 only
   using Layout          = ck_tile::tensor_layout::gemm::RowMajor;
   constexpr auto maxVal = std::numeric_limits<DataT>::max();
 
@@ -366,7 +363,7 @@ void launchCkKernel(OutT* min,
                     CkDistOp distance_op,
                     cudaStream_t stream)
 {
-  using CkDataT = CkDataType<DataT>;
+  using CkDataT = DataT;  // Direct mapping for fp32/fp64 only
 
   // Select config based on K dimension (matches SIMT skinny threshold: k < 32)
   if (k < SkinnyConfigSelector<CkDataT>::skinny_threshold) {

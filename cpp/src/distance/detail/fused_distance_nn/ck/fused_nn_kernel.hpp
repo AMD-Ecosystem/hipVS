@@ -67,21 +67,6 @@ struct FusedDistanceNNGemmConfigSkinnyF32 {
   static constexpr auto Scheduler               = ck_tile::GemmPipelineScheduler::Intrawave;
 };
 
-// Optimized configuration for fp16/bf16 with K < 32, uses MFMA 16x16x16 (minimum K_Warp_Tile=16)
-struct FusedDistanceNNGemmConfigSkinnyF16 {
-  static constexpr ck_tile::index_t M_Tile      = 64;
-  static constexpr ck_tile::index_t N_Tile      = 64;
-  static constexpr ck_tile::index_t K_Tile      = 16;  // 2x smaller than default 32
-  static constexpr ck_tile::index_t M_Warp      = 2;
-  static constexpr ck_tile::index_t N_Warp      = 2;
-  static constexpr ck_tile::index_t K_Warp      = 1;
-  static constexpr ck_tile::index_t M_Warp_Tile = 16;
-  static constexpr ck_tile::index_t N_Warp_Tile = 16;
-  static constexpr ck_tile::index_t K_Warp_Tile = 16;  // Minimum for fp16/bf16 MFMA 16x16x16
-  static constexpr bool DoubleSmemBuffer        = false;
-  static constexpr auto Scheduler               = ck_tile::GemmPipelineScheduler::Intrawave;
-};
-
 // Template alias for GEMM shape parameterized by config
 template <typename Config>
 using FusedNNGemmShapeT = ck_tile::TileGemmShape<
@@ -108,12 +93,8 @@ using FusedNNTilePartitioner = FusedNNTilePartitionerT<FusedDistanceNNGemmConfig
 template <typename DataT>
 static constexpr bool isSupportedFusedNN()
 {
-  return std::is_same_v<DataT, ck_tile::fp16_t> || std::is_same_v<DataT, float> ||
-         std::is_same_v<DataT, ck_tile::bf16_t> || std::is_same_v<DataT, half>;
+  return std::is_same_v<DataT, float>;  // Only float supported, double uses SIMT fallback
 }
-
-template <typename DataT>
-using CkDataType = std::conditional_t<std::is_same_v<DataT, half>, ck_tile::fp16_t, DataT>;
 
 template <typename InputLayoutT>
 struct FusedNNInputLayoutTraits;

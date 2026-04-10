@@ -185,7 +185,21 @@ struct FusedDistanceNNCkEpilogue {
   {
   }
 
-  // Main operator: compute distances, reduce per row, atomic update
+  // Main operator: transforms GEMM dot-product accumulator into per-row nearest-neighbor results.
+  //
+  // Pipeline overview:
+  //   1. Distance computation: MFMA layout -> LDS shuffle -> thread-raked layout -> elfunc_
+  //   2. Reduction: intra-thread -> intra-warp shuffle -> cross-warp LDS -> atomic global update
+  //
+  // Parameters:
+  //   min_output  - [M] global output: KeyValuePair per row tracking (nearest_col, min_distance)
+  //   mutex       - [M] per-row spinlock (only used in the fallback path for >8-byte OutT)
+  //   o_acc_tile  - GEMM accumulator tile: C[i][j] = dot(X[i_m+i,:], Y[i_n+j,:]) in MFMA layout
+  //   p_smem      - LDS workspace, reused for tile shuffle (phase 1) and cross-warp reduction
+  //   (phase 2) norm_x_ptr  - [M] pre-computed row norms of X (||x_i||^2 for L2, ||x_i|| for
+  //   cosine) norm_y_ptr  - [N] pre-computed row norms of Y i_m, i_n    - tile origin in the global
+  //   M x N grid M, N        - full matrix dimensions (for bounds checking) maxVal      -
+  //   initialization sentinel for the reduction (e.g., +inf)
   template <typename OutT, typename OAccTile>
   __device__ void operator()(OutT* min_output,
                              int* mutex,
@@ -199,6 +213,14 @@ struct FusedDistanceNNCkEpilogue {
                              ck_tile::index_t N,
                              ODataType maxVal) const
   {
+    // ===========================================================================================
+    // Setup: tile distribution encodings and LDS views
+    // ===========================================================================================
+
+    // Thread-raked distribution for reading back from LDS: each thread gets VectorSizeC
+    // contiguous columns, threads tile across columns first then rows.
+    // E.g., with VectorSizeC=4, threads_per_row=8: Thread 0 -> row 0 cols [0..3],
+    // Thread 1 -> row 0 cols [4..7], ..., Thread 8 -> row 1 cols [0..3], etc.
     using TileEncodingPattern = ck_tile::tile_distribution_encoding_pattern_2d<
       kBlockSize,
       MPerIterationShuffle,
@@ -206,16 +228,24 @@ struct FusedDistanceNNCkEpilogue {
       GetVectorSizeC(),
       ck_tile::tile_distribution_pattern::thread_raked,
       1>;
+
+    // MFMA distribution for writing TO LDS: maps each thread's MFMA register positions to
+    // the corresponding row-major LDS locations, undoing the hardware's scattered layout.
     constexpr auto LdsTileDistr =
       ck_tile::make_static_tile_distribution(MakeLdsDistributionEncode());
+
+    // Thread-raked distribution for reading FROM LDS after the layout transformation.
     constexpr auto dram_tile_distribution = TileEncodingPattern::make_2d_static_tile_distribution();
 
+    // LDS viewed as a row-major 2D tensor: [MPerIterationShuffle x NPerIterationShuffle]
     constexpr auto lds_block_desc = MakeLdsBlockDescriptor();
     auto o_lds_block              = ck_tile::make_tensor_view<ck_tile::address_space_enum::lds>(
       static_cast<ODataType*>(p_smem), lds_block_desc);
 
+    // Register buffer to hold the MFMA sub-tile slice before writing to LDS.
     auto lds_tile = ck_tile::make_static_distributed_tensor<AccDataType>(LdsTileDistr);
 
+    // Write window: stores data from MFMA layout into LDS (uses LdsTileDistr to scatter-write).
     auto in_lds_window =
       ck_tile::make_tile_window(o_lds_block,
                                 ck_tile::make_tuple(ck_tile::number<MPerIterationShuffle>{},
@@ -223,46 +253,87 @@ struct FusedDistanceNNCkEpilogue {
                                 {0, 0},
                                 LdsTileDistr);
 
+    // Read window: loads data from LDS using thread-raked pattern (no distribution attached,
+    // dram_tile_distribution is applied at load_tile time to determine each thread's read offsets).
     auto out_lds_window =
       ck_tile::make_tile_window(o_lds_block,
                                 ck_tile::make_tuple(ck_tile::number<MPerIterationShuffle>{},
                                                     ck_tile::number<NPerIterationShuffle>{}),
                                 {0, 0});
 
-    // 1D norm vectors as (M,N) views with broadcast strides
+    // Broadcast views for the 1D norm vectors:
+    //   norm_x: shape (M, N) with stride (1, 0) -> norm_x[i][j] = norm_x_ptr[i] for all j
+    //   norm_y: shape (M, N) with stride (0, 1) -> norm_y[i][j] = norm_y_ptr[j] for all i
+    // The stride-0 dimension causes the hardware to replicate the value across that axis
+    // without extra memory reads, effectively broadcasting a 1D vector into a 2D tile.
     auto const norm_x_view = ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
       norm_x_ptr, ck_tile::make_tuple(M, N), ck_tile::make_tuple(1, 0));
     auto const norm_y_view = ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
       norm_y_ptr, ck_tile::make_tuple(M, N), ck_tile::make_tuple(0, 1));
 
-    // Per-row min tracking for entire tile
-    // Each thread tracks min for rows it owns
+    // ===========================================================================================
+    // Reduction state: per-row minimum tracking across all sub-tile iterations
+    // ===========================================================================================
+
+    // Each thread maintains a running min KVPair for every row in the block tile.
+    // Most entries stay at maxVal (only rows the thread actually touches get updated).
+    // This array persists across all SFC iterations, accumulating the thread-local
+    // minimum across the full kNPerBlock column range.
     constexpr ck_tile::index_t rows_per_thread = MPerIterationShuffle / kBlockSize + 1;
     KVPair thread_row_min[kMPerBlock];
 
-    // Initialize all row minima to max
     for (ck_tile::index_t r = 0; r < kMPerBlock; ++r) {
       thread_row_min[r] = {0, maxVal};
     }
 
+    // ===========================================================================================
+    // Phase 1: Distance computation + intra-thread reduction
+    //
+    // The space-filling curve (SFC) breaks the full kMPerBlock x kNPerBlock tile into
+    // sub-tiles of size MPerIterationShuffle x NPerIterationShuffle. For each sub-tile:
+    //   a) Shuffle GEMM accumulator from MFMA registers -> LDS -> thread-raked registers
+    //   b) Load broadcast norms and apply element-wise distance op
+    //   c) Each thread reduces its distance elements into thread_row_min[]
+    // ===========================================================================================
+
     constexpr ck_tile::index_t num_access = SFC::get_num_of_access();
 
-    // Process each shuffle iteration
     ck_tile::static_for<0, num_access, 1>{}([&](auto iAccess) {
-      ck_tile::block_sync_lds();
-      slice_acc_tile<iAccess>(o_acc_tile, lds_tile);
-      cast_lds_tile(lds_tile, in_lds_window);
+      // --- Stage 1a: LDS layout shuffle (MFMA -> row-major -> thread-raked) ---
+
+      // Ensure previous iteration's LDS reads are complete before we overwrite.
       ck_tile::block_sync_lds();
 
-      // Load accumulated values from LDS
+      // Extract the sub-tile slice from the full MFMA accumulator into lds_tile's register
+      // buffer. This is a register-to-register copy; no memory movement yet.
+      slice_acc_tile<iAccess>(o_acc_tile, lds_tile);
+
+      // Cast AccDataType -> ODataType and scatter-write to LDS in row-major order.
+      // Each thread writes its MFMA-distributed elements to the LDS positions determined
+      // by MakeLdsDistributionEncode(), transforming the scattered MFMA layout into a
+      // simple row-major 2D array in shared memory.
+      cast_lds_tile(lds_tile, in_lds_window);
+
+      // Wait for all threads to finish writing before reading back in a different layout.
+      ck_tile::block_sync_lds();
+
+      // Read from LDS using the thread-raked distribution: each thread loads VectorSizeC
+      // contiguous columns for its assigned row(s). After this, e_tensor has the same data
+      // as the MFMA accumulator but in a layout where each thread owns contiguous column
+      // elements -- ideal for element-wise ops and per-row reduction.
       auto e_tensor =
         ck_tile::load_tile(ck_tile::make_tile_window(out_lds_window, dram_tile_distribution));
 
+      // --- Stage 1b: Distance computation ---
+
+      // Sub-tile origin within the block tile and within the global matrix.
       constexpr auto idx_y_start          = SFC::get_index(ck_tile::number<iAccess>{});
       ck_tile::index_t const tile_m_start = i_m + idx_y_start.at(ck_tile::number<0>{});
       ck_tile::index_t const tile_n_start = i_n + idx_y_start.at(ck_tile::number<1>{});
 
-      // Load norm tiles
+      // Create tile windows over the broadcast norm views, positioned at the sub-tile's
+      // global coordinates. These use the same thread-raked distribution as e_tensor,
+      // so each thread's norm values correspond 1:1 with its distance elements.
       auto norm_x_tile_window =
         ck_tile::make_tile_window(norm_x_view,
                                   ck_tile::make_tuple(ck_tile::number<MPerIterationShuffle>{},
@@ -279,30 +350,42 @@ struct FusedDistanceNNCkEpilogue {
       auto const norm_x_tile = ck_tile::load_tile(norm_x_tile_window);
       auto const norm_y_tile = ck_tile::load_tile(norm_y_tile_window);
 
-      // Apply distance op: e = f(c, norm_x, norm_y)
+      // Apply the element-wise distance op: elfunc_(e, c, norm_x, norm_y).
+      // elfunc_ is an OperatorWrapper that chains:
+      //   1. Distance op:  e.g. L2: e = clamp(nx + ny - 2c)  or  Cosine: e = 1 - c/(nx*ny)
+      //   2. Optional sqrt: e = sqrt(e)  (compile-time flag)
+      //   3. Final op:     e = fin_op(e)  (identity in the fused NN path)
+      // After this, e_tensor contains actual distance values (not dot products).
       auto const op_args = ck_tile::concat_tuple_of_reference(
         ck_tile::tie(e_tensor, e_tensor), ck_tile::tie(norm_x_tile, norm_y_tile));
       ck_tile::tile_elementwise_inout_unpack(elfunc_, op_args);
 
-      // Now e_tensor contains distances - perform per-thread reduction
-      // Get thread's data and find min per row
+      // --- Stage 1c: Intra-thread reduction (Level 1) ---
+      //
+      // Each thread iterates over its elements in the thread-raked buffer, maps each to
+      // its (global_row, global_col) coordinate, and reduces against thread_row_min[].
+      //
+      // Thread-raked coordinate mapping:
+      //   threads_per_row = NPerIterationShuffle / VectorSizeC
+      //   col = (thread_id % threads_per_row) * VectorSizeC + (elem % VectorSizeC)
+      //   row = (thread_id / threads_per_row) + elem_row * (kBlockSize / threads_per_row)
+      //
+      // Example with defaults (256 threads, VectorSizeC=4, NPerIterationShuffle=32):
+      //   threads_per_row = 8, so Thread 0 -> row 0 cols [0..3], Thread 7 -> row 0 cols [28..31]
+      //   Thread 8 -> row 1 cols [0..3], etc.
+
       auto const& thread_buf                 = e_tensor.get_thread_buffer();
       ck_tile::index_t const thread_buf_size = thread_buf.size();
 
-      // Thread layout info
       ck_tile::index_t const thread_id = threadIdx.x;
 
-      // Compute elements per thread in M and N dimensions
       constexpr ck_tile::index_t elems_per_thread =
         MPerIterationShuffle * NPerIterationShuffle / kBlockSize;
       constexpr ck_tile::index_t threads_per_row = NPerIterationShuffle / GetVectorSizeC();
       constexpr ck_tile::index_t rows_per_iter   = MPerIterationShuffle;
 
-      // Process thread's elements
       for (ck_tile::index_t elem = 0; elem < thread_buf_size; ++elem) {
-        // Compute which row and column this element belongs to
-        // Thread-raked pattern: threads are distributed across columns, each with VectorSizeC
-        // elements
+        // Map this element's position in the thread buffer to its (row, col) in the sub-tile.
         ck_tile::index_t const elem_row = elem / GetVectorSizeC();
         ck_tile::index_t const elem_col_base =
           (thread_id % threads_per_row) * GetVectorSizeC() + (elem % GetVectorSizeC());
@@ -310,11 +393,14 @@ struct FusedDistanceNNCkEpilogue {
           (thread_id / threads_per_row) + elem_row * (kBlockSize / threads_per_row);
 
         if (local_row < MPerIterationShuffle) {
+          // Translate sub-tile-local row to block-tile row and global matrix row.
           ck_tile::index_t const global_row = idx_y_start.at(ck_tile::number<0>{}) + local_row;
           ck_tile::index_t const global_col = tile_n_start + elem_col_base;
           ck_tile::index_t const matrix_row = global_row + i_m;
 
           if (global_row < kMPerBlock && matrix_row < M && global_col < N) {
+            // Construct a (column_index, distance) candidate and keep the minimum per row.
+            // pair_red_op_ returns the KVPair with the smaller .value field.
             ODataType dist_val = thread_buf[elem];
             KVPair candidate   = {static_cast<IdxType>(global_col), dist_val};
             thread_row_min[global_row] =
@@ -323,16 +409,30 @@ struct FusedDistanceNNCkEpilogue {
         }
       }
     });
+    // After this loop, each thread's thread_row_min[r] holds the minimum (col, dist) across
+    // all N-columns that this thread processed for block-tile row r. Most entries are still
+    // maxVal for rows the thread did not own elements for.
 
-    // Warp-level reduction for rows
+    // ===========================================================================================
+    // Phase 2: Hierarchical cross-thread reduction
+    //
+    // Collapse thread_row_min[] from all threads down to a single KVPair per row,
+    // then atomically update the global output.
+    // ===========================================================================================
+
     ck_tile::index_t const lane_id = threadIdx.x % ck_tile::get_warp_size();
     ck_tile::index_t const warp_id = threadIdx.x / ck_tile::get_warp_size();
 
-    // Intra-warp reduction using shuffles
+    // --- Level 2: Intra-warp reduction (butterfly shuffle) ---
+    //
+    // For each row, perform a butterfly reduction across all lanes in the warp using
+    // __shfl_xor. This takes 6 rounds for warp_size=64 (log2(64) = 6), exchanging
+    // key and value separately since __shfl_xor operates on scalar types.
+    // After all rounds, lane 0 holds the warp-minimum for every row.
+    // All lanes participate symmetrically but only lane 0's result is used.
     for (ck_tile::index_t r = 0; r < kMPerBlock; ++r) {
       KVPair my_val = thread_row_min[r];
 
-      // Butterfly reduction within warp
       for (ck_tile::index_t offset = ck_tile::get_warp_size() / 2; offset > 0; offset >>= 1) {
         IdxType other_key   = __shfl_xor(my_val.key, offset, ck_tile::get_warp_size());
         ODataType other_val = __shfl_xor(my_val.value, offset, ck_tile::get_warp_size());
@@ -343,30 +443,47 @@ struct FusedDistanceNNCkEpilogue {
       thread_row_min[r] = my_val;
     }
 
-    // Cross-warp reduction using LDS
+    // --- Level 3: Cross-warp reduction (LDS exchange) ---
+    //
+    // Shuffles can only communicate within a single warp. To reduce across warps
+    // (num_warps = MWave * NWave, e.g. 4), we use LDS as an intermediary:
+    //   1. Lane 0 of each warp writes its per-row minima to LDS
+    //   2. Barrier
+    //   3. Warp 0 reads all warps' results and reduces across them
+    //
+    // LDS layout: [kMPerBlock x num_warps] array of KVPair
+    //   reduce_smem[row * num_warps + warp_id] = warp's minimum for that row
     ck_tile::block_sync_lds();
 
-    // Use LDS for cross-warp communication
+    // Reuse the same LDS that was used for the tile shuffle (the shuffle is done;
+    // this region is now available). The LDS is sized as max(shuffle_size, reduce_size).
     KVPair* reduce_smem = reinterpret_cast<KVPair*>(p_smem);
 
-    // Lane 0 of each warp writes its results to LDS
+    // Lane 0 of each warp writes its per-row results.
+    // Only lane 0 has the correct reduced values (from the butterfly reduction above).
     if (lane_id == 0) {
       for (ck_tile::index_t r = 0; r < kMPerBlock; ++r) {
         reduce_smem[r * NWave * MWave + warp_id] = thread_row_min[r];
       }
     }
 
+    // Ensure all warps have written before warp 0 reads.
     ck_tile::block_sync_lds();
 
-    // First warp performs final reduction across warps
+    // Only warp 0 participates from here: reduce across warps, then update global output.
     constexpr ck_tile::index_t num_warps = MWave * NWave;
     if (warp_id == 0) {
-      // Pre-compute final_min for all rows this lane handles
+      // Distribute rows across warp 0's lanes in a strided pattern:
+      //   lane 0 -> rows {0, 64, 128, ...}
+      //   lane 1 -> rows {1, 65, 129, ...}
+      //   ...
+      // With kMPerBlock=64 and warp_size=64, each lane handles exactly 1 row.
       KVPair lane_final_min[kMPerBlock / ck_tile::get_warp_size() + 1];
       ck_tile::index_t lane_rows[kMPerBlock / ck_tile::get_warp_size() + 1];
       ck_tile::index_t num_lane_rows = 0;
 
       for (ck_tile::index_t r = lane_id; r < kMPerBlock; r += ck_tile::get_warp_size()) {
+        // Sequentially reduce across all warps' entries for this row.
         KVPair final_min = reduce_smem[r * num_warps];
         for (ck_tile::index_t w = 1; w < num_warps; ++w) {
           final_min = pair_red_op_(r + i_m, reduce_smem[r * num_warps + w], final_min);
@@ -375,21 +492,70 @@ struct FusedDistanceNNCkEpilogue {
         lane_rows[num_lane_rows]      = r;
         num_lane_rows++;
       }
+      // At this point, each lane in warp 0 holds the block-level minimum for its
+      // assigned row(s). lane_final_min[idx] is the minimum (col, dist) across ALL
+      // threads and warps in this block for row lane_rows[idx].
 
-      // Serialize mutex acquisition within warp to prevent hangs.
-      // This resolves issues where wavefront lockstep execution causes deadlock
-      // when lanes spin on different mutexes held by other blocks.
-      for (ck_tile::index_t j = 0; j < ck_tile::get_warp_size(); ++j) {
-        if (lane_id == j) {
-          for (ck_tile::index_t idx = 0; idx < num_lane_rows; ++idx) {
-            ck_tile::index_t const global_row = i_m + lane_rows[idx];
-            if (global_row < M) {
-              while (atomicCAS(mutex + global_row, 0, 1) == 1)
-                ;
-              __threadfence();
-              red_op_(global_row, min_output + global_row, lane_final_min[idx]);
-              __threadfence();
-              atomicCAS(mutex + global_row, 1, 0);
+      // --- Level 4: Atomic global update ---
+      //
+      // Multiple blocks process the same rows (each block covers a different column tile).
+      // The global output min_output[row] must accumulate the minimum across all blocks.
+      // Two compile-time paths handle this based on the size of OutT:
+
+      if constexpr (sizeof(OutT) == sizeof(unsigned long long)) {
+        // Path A: Lock-free 64-bit CAS (for 8-byte OutT, e.g. KeyValuePair<int32, float>)
+        //
+        // All lanes work in parallel -- no serialization needed. Each lane:
+        //   1. Reads the current global KVPair as a raw 64-bit word
+        //   2. If our candidate has a smaller distance, pack it and atomicCAS
+        //   3. On CAS failure (another block updated concurrently), re-read and retry
+        //   4. Stop when CAS succeeds or the global value is already smaller
+        //
+        // This is fully lock-free: no mutex, no deadlock risk, both key and value
+        // are written as a single atomic 64-bit word.
+        for (ck_tile::index_t idx = 0; idx < num_lane_rows; ++idx) {
+          ck_tile::index_t const global_row = i_m + lane_rows[idx];
+          if (global_row < M) {
+            KVPair candidate = lane_final_min[idx];
+            unsigned long long* addr =
+              reinterpret_cast<unsigned long long*>(min_output + global_row);
+            unsigned long long old_val = *addr;
+            KVPair current;
+            __builtin_memcpy(&current, &old_val, sizeof(KVPair));
+
+            while (candidate.value < current.value) {
+              unsigned long long new_val;
+              __builtin_memcpy(&new_val, &candidate, sizeof(unsigned long long));
+              unsigned long long prev = atomicCAS(addr, old_val, new_val);
+              if (prev == old_val) break;
+              old_val = prev;
+              __builtin_memcpy(&current, &prev, sizeof(KVPair));
+            }
+          }
+        }
+      } else {
+        // Path B: Mutex-serialized update (for >8-byte OutT, e.g. KeyValuePair<int64, float>)
+        //
+        // The KVPair exceeds 64 bits and cannot be atomically updated with a single CAS.
+        // A per-row spinlock mutex is used instead. Lanes are serialized within the warp
+        // to prevent deadlock from AMD wavefront lockstep execution:
+        //
+        //   Without serialization, lane A could spin on mutex[X] (held by block B)
+        //   while lane B (executing in lockstep) holds mutex[Y] that block B needs,
+        //   creating a circular dependency. By activating only one lane at a time,
+        //   no lane can be stalled while holding a mutex.
+        for (ck_tile::index_t j = 0; j < ck_tile::get_warp_size(); ++j) {
+          if (lane_id == j) {
+            for (ck_tile::index_t idx = 0; idx < num_lane_rows; ++idx) {
+              ck_tile::index_t const global_row = i_m + lane_rows[idx];
+              if (global_row < M) {
+                while (atomicCAS(mutex + global_row, 0, 1) == 1)
+                  ;
+                __threadfence();
+                red_op_(global_row, min_output + global_row, lane_final_min[idx]);
+                __threadfence();
+                atomicCAS(mutex + global_row, 1, 0);
+              }
             }
           }
         }

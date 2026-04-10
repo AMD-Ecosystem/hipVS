@@ -60,11 +60,6 @@
 
 #include <gtest/gtest.h>
 
-#ifdef CUVS_CK_ENABLED
-#include <hip/hip_bfloat16.h>
-#include <hip/hip_fp16.h>
-#endif
-
 #include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 
