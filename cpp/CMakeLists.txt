@@ -973,6 +973,9 @@ endif()
 # * build ann benchmark executable -----------------------------------------------
 
 if(BUILD_CUVS_BENCH)
+  if(NOT BUILD_TESTS)
+    add_subdirectory(internal)
+  endif()
   add_subdirectory(bench/ann/)
   add_subdirectory(bench/distance/)
 endif()
