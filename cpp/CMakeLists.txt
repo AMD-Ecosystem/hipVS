@@ -1000,6 +1000,7 @@ if(NOT BUILD_CPU_ONLY)
     src/detail/jit_lto/AlgorithmPlanner.cpp
     src/detail/jit_lto/FragmentEntry.cpp
     src/detail/jit_lto/nvjitlink_checker.cpp
+    src/detail/jit_lto/NVRTCLTOFragmentCompiler.cpp
     src/distance/detail/kernels/gram_matrix.cu
     src/distance/detail/kernels/kernel_factory.cu
     src/distance/detail/kernels/kernel_matrices.cu
@@ -1231,26 +1232,35 @@ if(NOT BUILD_CPU_ONLY)
 #         $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
 # =======
              $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
-# # <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
-# #       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-# #               $<COMPILE_ONLY:cuco::cuco> $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
-# # # >>>>>>> END NEW CODE (9363fc0a4)
-# #     )
-# #     if(CUVS_USE_ROCPROFSYS)
-# #       find_package(rocprofiler-systems REQUIRED)
-# #       target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
-# #     endif()
+# <<<<<<< OLD CODE from 978aa6704 (fe2648ed8) - COMMENTED OUT
+# # <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # #       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+# # #               $<COMPILE_ONLY:cuco::cuco> $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
+# # # # >>>>>>> END NEW CODE (9363fc0a4)
+# # #     )
+# # #     if(CUVS_USE_ROCPROFSYS)
+# # #       find_package(rocprofiler-systems REQUIRED)
+# # #       target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
+# # #     endif()
+# # # =======
+# #       PRIVATE rmm::rmm
+# #               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# #               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+# #               $<COMPILE_ONLY:cuco::cuco>
+# #               $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
 # # =======
-#       PRIVATE rmm::rmm
-#               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-#               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-#               $<COMPILE_ONLY:cuco::cuco>
-#               $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
+#       PRIVATE rmm::rmm $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+#               $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco> CUDA::nvJitLink
+# # >>>>>>> END NEW CODE (34192f32e)
 # =======
-      PRIVATE rmm::rmm $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-              $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco> CUDA::nvJitLink
-# >>>>>>> END NEW CODE (34192f32e)
+      PRIVATE rmm::rmm
+              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+              $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+              $<COMPILE_ONLY:cuco::cuco>
+              CUDA::nvJitLink
+              CUDA::nvrtc
+# >>>>>>> END NEW CODE (fe2648ed8)
     )
     set_property(TARGET cuvs PROPERTY NO_CUDART_DEP ON)
 
@@ -1322,6 +1332,7 @@ SECTIONS
       PRIVATE rmm::rmm
               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
               CUDA::nvJitLink
+              CUDA::nvrtc
               $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
               $<COMPILE_ONLY:cuco::cuco>

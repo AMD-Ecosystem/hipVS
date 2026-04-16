@@ -1,35 +1,40 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
-
+// <<<<<<< OLD CODE from 978aa6704 (fe2648ed8) - COMMENTED OUT
+//  * Copyright (c) 2025, NVIDIA CORPORATION.
+//  *
+//  * Licensed under the Apache License, Version 2.0 (the "License");
+//  * you may not use this file except in compliance with the License.
+//  * You may obtain a copy of the License at
+//  *
+//  *     http://www.apache.org/licenses/LICENSE-2.0
+//  *
+//  * Unless required by applicable law or agreed to in writing, software
+//  * distributed under the License is distributed on an "AS IS" BASIS,
+//  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  * See the License for the specific language governing permissions and
+//  * limitations under the License.
+//  *
+//  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+//  * Permission is hereby granted, free of charge, to any person obtaining a copy
+//  * of this software and associated documentation files (the "Software"), to deal
+//  * in the Software without restriction, including without limitation the rights
+//  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  * copies of the Software, and to permit persons to whom the Software is
+//  * furnished to do so, subject to the following conditions:
+//  * The above copyright notice and this permission notice shall be included in
+//  * all copies or substantial portions of the Software.
+//  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//  * THE SOFTWARE.
+//
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (fe2648ed8)
  */
 
 #pragma once
@@ -40,10 +45,17 @@
 #include <hip/hip_fp16.h>
 #else
 #include <cuda_fp16.h>
-#endif
+// <<<<<<< OLD CODE from 978aa6704 (fe2648ed8) - COMMENTED OUT
+// #endif
+// =======
+#include <optional>
+#include <string>
+// >>>>>>> END NEW CODE (fe2648ed8)
 
 #include "../detail/ann_utils.cuh"
+#include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/common.hpp>
+#include <cuvs/neighbors/ivf_flat.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resources.hpp>
 #include <raft/util/raft_explicit.hpp>
@@ -55,17 +67,18 @@ void ivfflat_interleaved_scan(const index<T, IdxT>& index,
                               const uint32_t* coarse_query_results,
                               const uint32_t n_queries,
                               const uint32_t queries_offset,
-                              const cuvs::distance::DistanceType metric,
+                              cuvs::distance::DistanceType metric,
                               const uint32_t n_probes,
                               const uint32_t k,
                               const uint32_t max_samples,
                               const uint32_t* chunk_indices,
-                              const bool select_min,
+                              bool select_min,
                               IvfSampleFilterT sample_filter,
                               uint32_t* neighbors,
                               float* distances,
                               uint32_t& grid_dim_x,
-                              rmm::cuda_stream_view stream) RAFT_EXPLICIT;
+                              rmm::cuda_stream_view stream,
+                              const std::optional<std::string>& metric_udf) RAFT_EXPLICIT;
 
 #define CUVS_INST_IVF_FLAT_INTERLEAVED_SCAN(T, IdxT, SampleFilterT)                        \
   extern template void                                                                     \
@@ -77,17 +90,18 @@ void ivfflat_interleaved_scan(const index<T, IdxT>& index,
                                           const uint32_t* coarse_query_results,            \
                                           const uint32_t n_queries,                        \
                                           const uint32_t queries_offset,                   \
-                                          const cuvs::distance::DistanceType metric,       \
+                                          cuvs::distance::DistanceType metric,             \
                                           const uint32_t n_probes,                         \
                                           const uint32_t k,                                \
                                           const uint32_t max_samples,                      \
                                           const uint32_t* chunk_indices,                   \
-                                          const bool select_min,                           \
+                                          bool select_min,                                 \
                                           SampleFilterT sample_filter,                     \
                                           uint32_t* neighbors,                             \
                                           float* distances,                                \
                                           uint32_t& grid_dim_x,                            \
-                                          rmm::cuda_stream_view stream);
+                                          rmm::cuda_stream_view stream,                    \
+                                          const std::optional<std::string>& metric_udf);
 
 CUVS_INST_IVF_FLAT_INTERLEAVED_SCAN(float, int64_t, cuvs::neighbors::filtering::none_sample_filter);
 
