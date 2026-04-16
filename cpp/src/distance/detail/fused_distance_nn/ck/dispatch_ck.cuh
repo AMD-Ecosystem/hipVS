@@ -93,46 +93,26 @@ constexpr uint64_t kBufferDescriptorMaxBytes = std::numeric_limits<uint32_t>::ma
 namespace cuvs::distance::detail {
 
 // =============================================================================
-// CONFIG SELECTION TRAITS
-// =============================================================================
-
-/**
- * @brief Config selector for skinny vs default GEMM configurations based on data type.
- *
- * Selects optimal config for small K dimensions (skinny inputs):
- * - fp32: Uses K_Tile=8 with MFMA 16x16x4 (K_Warp_Tile=4) for k < 32
- * - fp16/bf16: Uses K_Tile=16 with MFMA 16x16x16 (K_Warp_Tile=16) for k < 32
- */
-template <typename DataT>
-struct SkinnyConfigSelector {
-  using SkinnyConfig = FusedDistanceNNGemmConfigSkinnyF32;  // Only f32 supported
-  static constexpr ck_tile::index_t skinny_threshold = 32;
-};
-
-// =============================================================================
 // BATCHING UTILITY FUNCTIONS
 // =============================================================================
+
+// Skinny-K threshold: use FusedDistanceNNGemmConfigSkinnyF32 when K < this value
+constexpr ck_tile::index_t kSkinnyKThreshold = 32;
 
 /**
  * @brief Calculate the maximum batch size for M dimension.
  *
- * Constrains both output (mb*sizeof(OutT)) and x matrix (mb*k*sizeof(DataT)) to stay under
- * the 4GB buffer descriptor limit.
- *
- * @tparam DataT Input data type
- * @tparam OutT Output data type
- * @param n Number of data points (for output size calculation, though output is only m elements)
- * @param k Feature dimension
- * @return Maximum M batch size aligned to tile boundaries
+ * Constrains both output (mb*sizeof(OutT)) and x matrix (mb*k*sizeof(float)) to stay under
+ * the 4GB buffer descriptor limit. Only float data type is supported for CK.
  */
-template <typename DataT, typename OutT>
+template <typename OutT>
 inline int64_t max_m_per_batch_fused_nn(int64_t n, int64_t k)
 {
   constexpr int64_t M_Tile = 64;  // FusedDistanceNNGemmConfig::M_Tile
   if (k <= 0) return M_Tile;
 
-  // Limit based on x matrix: mb * k * sizeof(DataT) < 4GB
-  int64_t limit_x = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(k) * sizeof(DataT)));
+  // Limit based on x matrix: mb * k * sizeof(float) < 4GB
+  int64_t limit_x = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(k) * sizeof(float)));
 
   // Limit based on output: mb * sizeof(OutT) < 4GB (output is min[m], not min[m][n])
   int64_t limit_out = static_cast<int64_t>(kBufferDescriptorMaxBytes / sizeof(OutT));
@@ -144,21 +124,16 @@ inline int64_t max_m_per_batch_fused_nn(int64_t n, int64_t k)
 /**
  * @brief Calculate the maximum batch size for N dimension.
  *
- * Constrains y matrix (nb*k*sizeof(DataT)) to stay under the 4GB buffer descriptor limit.
- *
- * @tparam DataT Input data type
- * @param k Feature dimension
- * @param n_full Total number of data points
- * @return Maximum N batch size aligned to tile boundaries
+ * Constrains y matrix (nb*k*sizeof(float)) to stay under the 4GB buffer descriptor limit.
+ * Only float data type is supported for CK.
  */
-template <typename DataT>
-int64_t max_n_per_batch_fused_nn(int64_t k, int64_t n_full)
+inline int64_t max_n_per_batch_fused_nn(int64_t k, int64_t n_full)
 {
   constexpr int64_t N_Tile = 64;  // FusedDistanceNNGemmConfig::N_Tile
   if (k <= 0) return n_full;
 
-  // Limit based on y matrix: nb * k * sizeof(DataT) < 4GB
-  int64_t limit = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(k) * sizeof(DataT)));
+  // Limit based on y matrix: nb * k * sizeof(float) < 4GB
+  int64_t limit = static_cast<int64_t>(kBufferDescriptorMaxBytes / (uint64_t(k) * sizeof(float)));
   return std::max<int64_t>((limit / N_Tile) * N_Tile, N_Tile);
 }
 
@@ -233,13 +208,12 @@ void fusedDistanceNNSimtFallback(OutT* min,
 // CK BACKEND IMPLEMENTATION
 // =============================================================================
 //
-// High-performance implementation using CK Tile's GEMM pipeline with Fast/Safe pattern.
-// Fast kernel (ScalarVec=false) for aligned K, Safe kernel (ScalarVec=true) for arbitrary K.
-// The kernel computes: C = X @ Y^T, then applies distance epilogue and
-// row-wise reduction to find the minimum distance per row.
+// High-performance implementation using CK Tile's GEMM pipeline.
+// Only float data type is supported. The kernel computes: C = X @ Y^T,
+// then applies distance epilogue and row-wise reduction to find the
+// minimum distance per row.
 
-template <typename DataT,
-          typename OutT,
+template <typename OutT,
           typename IdxT,
           typename ReduceOpT,
           typename KVPReduceOpT,
@@ -247,10 +221,10 @@ template <typename DataT,
           bool ApplySqrt,
           typename Config>
 void launchCkKernelWithConfig(OutT* min,
-                              DataT const* x,
-                              DataT const* y,
-                              DataT const* xn,
-                              DataT const* yn,
+                              float const* x,
+                              float const* y,
+                              float const* xn,
+                              float const* yn,
                               IdxT m,
                               IdxT n,
                               IdxT k,
@@ -260,27 +234,12 @@ void launchCkKernelWithConfig(OutT* min,
                               CkDistOp distance_op,
                               cudaStream_t stream)
 {
-  static_assert(isSupportedFusedNN<DataT>(), "CK kernel only supports float data type");
+  constexpr auto maxVal = std::numeric_limits<float>::max();
 
-  using DistT           = DataT;
-  using CkDataT         = DataT;  // Direct mapping for fp32/fp64 only
-  using Layout          = ck_tile::tensor_layout::gemm::RowMajor;
-  constexpr auto maxVal = std::numeric_limits<DataT>::max();
+  using WrappedOp = OperatorWrapper<CkDistOp, raft::identity_op, ApplySqrt>;
 
-  using FinOp     = raft::identity_op;
-  using WrappedOp = OperatorWrapper<CkDistOp, FinOp, ApplySqrt>;
-
-  // Use Fast kernel (ScalarVec=false) for all cases - testing shows it works for arbitrary K
-  using KernelType = FusedDistanceNNCkKernel<CkDataT,
-                                             DistT,
-                                             IdxT,
-                                             OutT,
-                                             Layout,
-                                             false,  // ScalarVec=false works for all K
-                                             WrappedOp,
-                                             ReduceOpT,
-                                             KVPReduceOpT,
-                                             Config>;
+  using KernelType =
+    FusedDistanceNNCkKernel<IdxT, OutT, WrappedOp, ReduceOpT, KVPReduceOpT, Config>;
 
   ck_tile::stream_config s{stream};
 
@@ -289,13 +248,13 @@ void launchCkKernelWithConfig(OutT* min,
   const auto n_i64 = static_cast<int64_t>(n);
   const auto k_i64 = static_cast<int64_t>(k);
 
-  const int64_t mb_max = max_m_per_batch_fused_nn<CkDataT, OutT>(n_i64, k_i64);
-  const int64_t nb_max = max_n_per_batch_fused_nn<CkDataT>(k_i64, n_i64);
+  const int64_t mb_max = max_m_per_batch_fused_nn<OutT>(n_i64, k_i64);
+  const int64_t nb_max = max_n_per_batch_fused_nn(k_i64, n_i64);
 
   // Check if total memory exceeds limits (safety check)
-  if (static_cast<uint64_t>(mb_max) * static_cast<uint64_t>(k_i64) * sizeof(CkDataT) >=
+  if (static_cast<uint64_t>(mb_max) * static_cast<uint64_t>(k_i64) * sizeof(float) >=
         kBufferDescriptorMaxBytes ||
-      static_cast<uint64_t>(nb_max) * static_cast<uint64_t>(k_i64) * sizeof(CkDataT) >=
+      static_cast<uint64_t>(nb_max) * static_cast<uint64_t>(k_i64) * sizeof(float) >=
         kBufferDescriptorMaxBytes) {
     RAFT_LOG_WARN("Matrix dimensions exceed 4GB buffer descriptor limit, may cause kernel failure");
   }
@@ -308,12 +267,12 @@ void launchCkKernelWithConfig(OutT* min,
       auto nb = static_cast<ck_tile::index_t>(std::min(nb_max, n_i64 - n_off));
 
       typename KernelType::KernelArgs kargs{
-        reinterpret_cast<CkDataT const*>(x + m_off * k),  // x[m_off:m_off+mb, :]
-        reinterpret_cast<CkDataT const*>(y + n_off * k),  // y[n_off:n_off+nb, :]
-        min + m_off,                                      // min[m_off:m_off+mb]
-        xn + m_off,                                       // xn[m_off:m_off+mb]
-        yn + n_off,                                       // yn[n_off:n_off+nb]
-        workspace + m_off,                                // workspace[m_off:m_off+mb]
+        x + m_off * k,      // x[m_off:m_off+mb, :]
+        y + n_off * k,      // y[n_off:n_off+nb, :]
+        min + m_off,        // min[m_off:m_off+mb]
+        xn + m_off,         // xn[m_off:m_off+mb]
+        yn + n_off,         // yn[n_off:n_off+nb]
+        workspace + m_off,  // workspace[m_off:m_off+mb]
         mb,
         nb,
         static_cast<ck_tile::index_t>(k),
@@ -322,14 +281,14 @@ void launchCkKernelWithConfig(OutT* min,
         maxVal,
       };
 
-      // Use Fast kernel for all cases - it handles arbitrary K correctly
       ck_tile::launch_kernel(
         s,
-        ck_tile::make_kernel(KernelType{WrappedOp{FinOp{}, distance_op}, redOp, pairRedOp},
-                             KernelType::GridSize(mb, nb, 1),
-                             KernelType::BlockSize(),
-                             0,
-                             kargs));
+        ck_tile::make_kernel(
+          KernelType{WrappedOp{raft::identity_op{}, distance_op}, redOp, pairRedOp},
+          KernelType::GridSize(mb, nb, 1),
+          KernelType::BlockSize(),
+          0,
+          kargs));
       RAFT_CUDA_TRY(cudaGetLastError());
     }
   }
@@ -339,21 +298,19 @@ void launchCkKernelWithConfig(OutT* min,
 /**
  * @brief Launch CK kernel with automatic config selection based on K dimension.
  *
- * Selects between skinny and default configs based on the skinny threshold (K < 32).
- * This matches the SIMT backend's skinny policy for optimal performance on small-K workloads.
+ * Selects between skinny (K < 32) and default configs.
  */
-template <typename DataT,
-          typename OutT,
+template <typename OutT,
           typename IdxT,
           typename ReduceOpT,
           typename KVPReduceOpT,
           typename CkDistOp,
           bool ApplySqrt>
 void launchCkKernel(OutT* min,
-                    DataT const* x,
-                    DataT const* y,
-                    DataT const* xn,
-                    DataT const* yn,
+                    float const* x,
+                    float const* y,
+                    float const* xn,
+                    float const* yn,
                     IdxT m,
                     IdxT n,
                     IdxT k,
@@ -363,25 +320,17 @@ void launchCkKernel(OutT* min,
                     CkDistOp distance_op,
                     cudaStream_t stream)
 {
-  using CkDataT = DataT;  // Direct mapping for fp32/fp64 only
-
-  // Select config based on K dimension (matches SIMT skinny threshold: k < 32)
-  if (k < SkinnyConfigSelector<CkDataT>::skinny_threshold) {
-    // Use skinny config for small K
-    using SkinnyConfig = typename SkinnyConfigSelector<CkDataT>::SkinnyConfig;
-    launchCkKernelWithConfig<DataT,
-                             OutT,
+  if (k < kSkinnyKThreshold) {
+    launchCkKernelWithConfig<OutT,
                              IdxT,
                              ReduceOpT,
                              KVPReduceOpT,
                              CkDistOp,
                              ApplySqrt,
-                             SkinnyConfig>(
+                             FusedDistanceNNGemmConfigSkinnyF32>(
       min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, distance_op, stream);
   } else {
-    // Use default config for large K
-    launchCkKernelWithConfig<DataT,
-                             OutT,
+    launchCkKernelWithConfig<OutT,
                              IdxT,
                              ReduceOpT,
                              KVPReduceOpT,
@@ -440,9 +389,7 @@ void dispatchWithFallback(OutT* min,
     const bool is_gfx9 = (std::strncmp(prop.gcnArchName, "gfx9", 4) == 0);
 
     if (is_gfx9) {
-      // Use CK backend directly with Fast/Safe kernel pattern
-      // Fast kernel handles aligned K, Safe kernel handles arbitrary K
-      launchCkKernel<DataT, OutT, IdxT, ReduceOpT, KVPReduceOpT, CkDistOp, ApplySqrt>(
+      launchCkKernel<OutT, IdxT, ReduceOpT, KVPReduceOpT, CkDistOp, ApplySqrt>(
         min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, ck_op, stream);
       return;
     }

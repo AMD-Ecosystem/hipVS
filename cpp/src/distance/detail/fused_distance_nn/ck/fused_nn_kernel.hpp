@@ -32,7 +32,6 @@
 #include <ck_tile/host/kernel_launch.hpp>
 #include <ck_tile/ops/gemm.hpp>
 
-#include <limits>
 #include <tuple>
 
 namespace cuvs::distance::detail {
@@ -74,9 +73,6 @@ using FusedNNGemmShapeT = ck_tile::TileGemmShape<
   ck_tile::sequence<Config::M_Warp, Config::N_Warp, Config::K_Warp>,
   ck_tile::sequence<Config::M_Warp_Tile, Config::N_Warp_Tile, Config::K_Warp_Tile>>;
 
-// Backward-compatible alias using default config
-using FusedNNGemmShape = FusedNNGemmShapeT<FusedDistanceNNGemmConfig>;
-
 static constexpr ck_tile::index_t FusedNNTilePartitionerGroupNum = 8;
 static constexpr ck_tile::index_t FusedNNTilePartitionerM01      = 4;
 
@@ -87,93 +83,48 @@ using FusedNNTilePartitionerT =
                                              FusedNNTilePartitionerGroupNum,
                                              FusedNNTilePartitionerM01>;
 
-// Backward-compatible alias using default config
-using FusedNNTilePartitioner = FusedNNTilePartitionerT<FusedDistanceNNGemmConfig>;
-
 template <typename DataT>
 static constexpr bool isSupportedFusedNN()
 {
   return std::is_same_v<DataT, float>;  // Only float supported, double uses SIMT fallback
 }
 
-template <typename InputLayoutT>
-struct FusedNNInputLayoutTraits;
-
-template <>
-struct FusedNNInputLayoutTraits<ck_tile::tensor_layout::gemm::RowMajor> {
-  using A_Layout = ck_tile::tensor_layout::gemm::RowMajor;
-  using B_Layout = ck_tile::tensor_layout::gemm::ColumnMajor;
-};
-
-template <>
-struct FusedNNInputLayoutTraits<ck_tile::tensor_layout::gemm::ColumnMajor> {
-  using A_Layout = ck_tile::tensor_layout::gemm::ColumnMajor;
-  using B_Layout = ck_tile::tensor_layout::gemm::RowMajor;
-};
-
-template <typename DataT,
-          typename InputLayout = ck_tile::tensor_layout::gemm::RowMajor,
-          typename Config      = FusedDistanceNNGemmConfig>
+template <typename Config = FusedDistanceNNGemmConfig>
 using FusedNNGemmUniversalTraitsT =
   ck_tile::TileGemmUniversalTraits<true,
                                    true,
                                    true,
                                    Config::DoubleSmemBuffer,
-                                   typename FusedNNInputLayoutTraits<InputLayout>::A_Layout,
-                                   typename FusedNNInputLayoutTraits<InputLayout>::B_Layout,
+                                   ck_tile::tensor_layout::gemm::RowMajor,
+                                   ck_tile::tensor_layout::gemm::ColumnMajor,
                                    ck_tile::tensor_layout::gemm::RowMajor>;
 
-// Backward-compatible alias using default config
-template <typename DataT, typename InputLayout = ck_tile::tensor_layout::gemm::RowMajor>
-using FusedNNGemmUniversalTraits =
-  FusedNNGemmUniversalTraitsT<DataT, InputLayout, FusedDistanceNNGemmConfig>;
-
-template <typename DataT,
-          typename DistT,
-          typename InputLayout = ck_tile::tensor_layout::gemm::RowMajor,
-          bool ScalarVec       = false,
-          typename Config      = FusedDistanceNNGemmConfig>
+// Only float is supported (guarded by isSupportedFusedNN), ScalarVec is always false.
+template <typename Config = FusedDistanceNNGemmConfig>
 using FusedNNUniversalGemmProblemT =
-  ck_tile::UniversalGemmPipelineProblem<DataT,
-                                        DataT,
-                                        DistT,
+  ck_tile::UniversalGemmPipelineProblem<float,
+                                        float,
+                                        float,
                                         FusedNNGemmShapeT<Config>,
-                                        FusedNNGemmUniversalTraitsT<DataT, InputLayout, Config>,
+                                        FusedNNGemmUniversalTraitsT<Config>,
                                         Config::Scheduler,
                                         true,
                                         ck_tile::TailNumber::Full,
                                         ck_tile::element_wise::PassThrough,
                                         ck_tile::element_wise::PassThrough,
-                                        DataT,
-                                        ScalarVec,
+                                        float,
+                                        false,
                                         1,
                                         1>;
 
-// Backward-compatible alias using default config
-template <typename DataT,
-          typename DistT,
-          typename InputLayout = ck_tile::tensor_layout::gemm::RowMajor,
-          bool ScalarVec       = false>
-using FusedNNUniversalGemmProblem =
-  FusedNNUniversalGemmProblemT<DataT, DistT, InputLayout, ScalarVec, FusedDistanceNNGemmConfig>;
+template <typename Config = FusedDistanceNNGemmConfig>
+using FusedNNGemmPipelineT =
+  ck_tile::GemmPipelineAgBgCrCompV3<FusedNNUniversalGemmProblemT<Config>>;
 
-template <typename DataT,
-          typename DistT,
-          typename InputLayout,
-          bool ScalarVec  = false,
-          typename Config = FusedDistanceNNGemmConfig>
-using FusedNNGemmPipelineT = ck_tile::GemmPipelineAgBgCrCompV3<
-  FusedNNUniversalGemmProblemT<DataT, DistT, InputLayout, ScalarVec, Config>>;
-
-// Backward-compatible alias using default config
-template <typename DataT, typename DistT, typename InputLayout, bool ScalarVec = false>
-using FusedNNGemmPipeline =
-  FusedNNGemmPipelineT<DataT, DistT, InputLayout, ScalarVec, FusedDistanceNNGemmConfig>;
-
-// Dummy epilogue for CK's tensor view creation (we don't output to D tensors)
-template <typename DataT, typename DistT, bool ScalarVec>
+// Dummy epilogue for CK's tensor view creation (we don't output to D tensors).
+// Only float is supported, ScalarVec is always false.
 struct FusedDistanceNNCkDummyEpilogue {
-  using ODataType  = DistT;
+  using ODataType  = float;
   using DsDataType = ck_tile::tuple<>;
   using DsLayout   = ck_tile::tuple<>;
   static constexpr ck_tile::memory_operation_enum MemoryOperation =
@@ -181,7 +132,7 @@ struct FusedDistanceNNCkDummyEpilogue {
 
   __host__ __device__ static constexpr ck_tile::index_t GetVectorSizeC()
   {
-    return ScalarVec ? 1 : std::min(4, static_cast<int>(16 / sizeof(ODataType)));
+    return std::min(4, static_cast<int>(16 / sizeof(ODataType)));
   }
   template <ck_tile::index_t I>
   __host__ __device__ static constexpr ck_tile::index_t GetVectorSizeD(ck_tile::number<I>)
@@ -191,28 +142,28 @@ struct FusedDistanceNNCkDummyEpilogue {
   __host__ __device__ static constexpr ck_tile::index_t GetSmemSize() { return 0; }
 };
 
-// Kernel arguments for fused distance NN
-template <typename DataT, typename DistT, typename IdxT, typename OutT>
+// Kernel arguments for fused distance NN. DataT/DistT are always float.
+template <typename IdxT, typename OutT>
 struct FusedDistanceNNCkKernelArgs {
-  DataT const* a_ptr;
-  DataT const* b_ptr;
+  float const* a_ptr;
+  float const* b_ptr;
   OutT* min_ptr;
-  DistT const* norm_x_ptr;
-  DistT const* norm_y_ptr;
+  float const* norm_x_ptr;
+  float const* norm_y_ptr;
   int* mutex_ptr;
   ck_tile::index_t M;
   ck_tile::index_t N;
   ck_tile::index_t K;
   ck_tile::index_t stride_A;
   ck_tile::index_t stride_B;
-  DistT maxVal;
+  float maxVal;
 };
 
-// Template epilogue problem type alias parameterized by config
-template <typename DataT, typename DistT, typename IdxT, bool ScalarVec, typename Config>
+// Template epilogue problem type alias parameterized by config.
+// Only float data type is supported; AccDataType is hardcoded to float in the problem.
+template <typename IdxT, typename Config>
 using FusedNNEpilogueProblemForT =
   FusedDistanceNNCkEpilogueProblem<float,
-                                   DistT,
                                    IdxT,
                                    FusedNNGemmShapeT<Config>::kM,
                                    FusedNNGemmShapeT<Config>::kN,
@@ -220,50 +171,38 @@ using FusedNNEpilogueProblemForT =
                                    FusedNNGemmShapeT<Config>::BlockWarps::at(ck_tile::number<1>{}),
                                    FusedNNGemmShapeT<Config>::WarpTile::at(ck_tile::number<0>{}),
                                    FusedNNGemmShapeT<Config>::WarpTile::at(ck_tile::number<1>{}),
-                                   FusedNNGemmShapeT<Config>::WarpTile::at(ck_tile::number<2>{}),
-                                   ScalarVec,
-                                   1,
-                                   1>;
+                                   FusedNNGemmShapeT<Config>::WarpTile::at(ck_tile::number<2>{})>;
 
-// Backward-compatible alias using default config
-template <typename DataT, typename DistT, typename IdxT, bool ScalarVec>
-using FusedNNEpilogueProblemFor =
-  FusedNNEpilogueProblemForT<DataT, DistT, IdxT, ScalarVec, FusedDistanceNNGemmConfig>;
-
-// Main fused distance NN kernel
-template <typename DataT,
-          typename DistT,
-          typename IdxT,
+// Main fused distance NN kernel.
+// Only float data type is supported; ScalarVec is always false.
+template <typename IdxT,
           typename OutT,
-          typename Layout,
-          bool ScalarVec,
           typename ElementWiseOp,
           typename ReduceOpT,
           typename KVPReduceOpT,
-          typename Config = FusedDistanceNNGemmConfig>  // Default config for compatibility
+          typename Config = FusedDistanceNNGemmConfig>
 struct FusedDistanceNNCkKernel {
-  using GemmPipeline  = FusedNNGemmPipelineT<DataT, DistT, Layout, ScalarVec, Config>;
-  using DummyEpilogue = FusedDistanceNNCkDummyEpilogue<DataT, DistT, ScalarVec>;
+  using GemmPipeline  = FusedNNGemmPipelineT<Config>;
+  using DummyEpilogue = FusedDistanceNNCkDummyEpilogue;
   using HelperKernel =
     ck_tile::UniversalGemmKernel<FusedNNTilePartitionerT<Config>, GemmPipeline, DummyEpilogue>;
 
-  using ADataType  = DataT;
-  using BDataType  = DataT;
-  using EDataType  = DistT;
-  using KernelArgs = FusedDistanceNNCkKernelArgs<DataT, DistT, IdxT, OutT>;
+  using ADataType  = float;
+  using BDataType  = float;
+  using EDataType  = float;
+  using KernelArgs = FusedDistanceNNCkKernelArgs<IdxT, OutT>;
 
-  using ALayout = typename FusedNNInputLayoutTraits<Layout>::A_Layout;
-  using BLayout = typename FusedNNInputLayoutTraits<Layout>::B_Layout;
+  using ALayout = ck_tile::tensor_layout::gemm::RowMajor;
+  using BLayout = ck_tile::tensor_layout::gemm::ColumnMajor;
 
   static constexpr ck_tile::index_t MPerBlock = FusedNNTilePartitionerT<Config>::MPerBlock;
   static constexpr ck_tile::index_t NPerBlock = FusedNNTilePartitionerT<Config>::NPerBlock;
   static constexpr ck_tile::index_t KPerBlock = FusedNNTilePartitionerT<Config>::KPerBlock;
 
-  using EpilogueType =
-    FusedDistanceNNCkEpilogue<FusedNNEpilogueProblemForT<DataT, DistT, IdxT, ScalarVec, Config>,
-                              ElementWiseOp,
-                              ReduceOpT,
-                              KVPReduceOpT>;
+  using EpilogueType = FusedDistanceNNCkEpilogue<FusedNNEpilogueProblemForT<IdxT, Config>,
+                                                 ElementWiseOp,
+                                                 ReduceOpT,
+                                                 KVPReduceOpT>;
 
   static constexpr ck_tile::index_t kBlockSize = HelperKernel::kBlockSize;
 
@@ -292,8 +231,8 @@ struct FusedDistanceNNCkKernel {
     KernelArgs const& k)
   {
     return ck_tile::UniversalGemmKernelArgs<1, 1, 0>{
-      {reinterpret_cast<DataT const*>(k.a_ptr)},
-      {reinterpret_cast<DataT const*>(k.b_ptr)},
+      {k.a_ptr},
+      {k.b_ptr},
       {},
       nullptr,  // No output tensor E for fused NN
       k.M,
@@ -378,118 +317,72 @@ struct FusedDistanceNNCkKernel {
     return {i_m, i_n};
   }
 
-  // Create A tensor view with scalar loads (vector size 1) for arbitrary K support
+  // Create A tensor view: A is RowMajor, dims=(M,K), strides=(stride_A,1)
   __device__ static auto make_a_tensor_view(ADataType const* a_ptr,
                                             ck_tile::index_t M,
                                             ck_tile::index_t K,
                                             ck_tile::index_t stride_A)
   {
-    if constexpr (std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::RowMajor>) {
-      return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
-        a_ptr,
-        ck_tile::make_tuple(M, K),
-        ck_tile::make_tuple(stride_A, 1),
-        ck_tile::number<1>{},  // Vector size 1 for scalar loads
-        ck_tile::number<1>{});
-    } else {
-      return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
-        a_ptr,
-        ck_tile::make_tuple(K, M),
-        ck_tile::make_tuple(stride_A, 1),
-        ck_tile::number<1>{},
-        ck_tile::number<1>{});
-    }
+    return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
+      a_ptr,
+      ck_tile::make_tuple(M, K),
+      ck_tile::make_tuple(stride_A, 1),
+      ck_tile::number<1>{},  // Vector size 1 for scalar loads
+      ck_tile::number<1>{});
   }
 
-  // Create B tensor view with scalar loads (vector size 1) for arbitrary K support
+  // Create B tensor view: B is ColumnMajor, dims=(N,K), strides=(stride_B,1)
   __device__ static auto make_b_tensor_view(BDataType const* b_ptr,
                                             ck_tile::index_t N,
                                             ck_tile::index_t K,
                                             ck_tile::index_t stride_B)
   {
-    if constexpr (std::is_same_v<BLayout, ck_tile::tensor_layout::gemm::ColumnMajor>) {
-      return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
-        b_ptr,
-        ck_tile::make_tuple(N, K),
-        ck_tile::make_tuple(stride_B, 1),
-        ck_tile::number<1>{},
-        ck_tile::number<1>{});
-    } else {
-      return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
-        b_ptr,
-        ck_tile::make_tuple(K, N),
-        ck_tile::make_tuple(stride_B, 1),
-        ck_tile::number<1>{},
-        ck_tile::number<1>{});
-    }
+    return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
+      b_ptr,
+      ck_tile::make_tuple(N, K),
+      ck_tile::make_tuple(stride_B, 1),
+      ck_tile::number<1>{},
+      ck_tile::number<1>{});
   }
 
-  // Pad A tensor view to handle out-of-bounds K accesses
+  // Pad A tensor view to handle out-of-bounds accesses
   template <typename TensorView>
   __device__ static auto make_a_pad_view(TensorView const& a_view)
   {
-    if constexpr (std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::RowMajor>) {
-      return ck_tile::pad_tensor_view(
-        a_view,
-        ck_tile::make_tuple(ck_tile::number<MPerBlock>{}, ck_tile::number<KPerBlock>{}),
-        ck_tile::sequence<true, true>{});  // Pad both M and K
-    } else {
-      return ck_tile::pad_tensor_view(
-        a_view,
-        ck_tile::make_tuple(ck_tile::number<KPerBlock>{}, ck_tile::number<MPerBlock>{}),
-        ck_tile::sequence<true, true>{});
-    }
+    return ck_tile::pad_tensor_view(
+      a_view,
+      ck_tile::make_tuple(ck_tile::number<MPerBlock>{}, ck_tile::number<KPerBlock>{}),
+      ck_tile::sequence<true, true>{});
   }
 
-  // Pad B tensor view to handle out-of-bounds K accesses
+  // Pad B tensor view to handle out-of-bounds accesses
   template <typename TensorView>
   __device__ static auto make_b_pad_view(TensorView const& b_view)
   {
-    if constexpr (std::is_same_v<BLayout, ck_tile::tensor_layout::gemm::ColumnMajor>) {
-      return ck_tile::pad_tensor_view(
-        b_view,
-        ck_tile::make_tuple(ck_tile::number<NPerBlock>{}, ck_tile::number<KPerBlock>{}),
-        ck_tile::sequence<true, true>{});
-    } else {
-      return ck_tile::pad_tensor_view(
-        b_view,
-        ck_tile::make_tuple(ck_tile::number<KPerBlock>{}, ck_tile::number<NPerBlock>{}),
-        ck_tile::sequence<true, true>{});
-    }
+    return ck_tile::pad_tensor_view(
+      b_view,
+      ck_tile::make_tuple(ck_tile::number<NPerBlock>{}, ck_tile::number<KPerBlock>{}),
+      ck_tile::sequence<true, true>{});
   }
 
-  // Create A block window
+  // Create A block window: RowMajor order (M,K)@(i_m,0)
   template <typename PadView>
   __device__ static auto make_a_block_window(PadView const& a_pad_view, ck_tile::index_t i_m)
   {
-    if constexpr (std::is_same_v<ALayout, ck_tile::tensor_layout::gemm::RowMajor>) {
-      return ck_tile::make_tile_window(
-        a_pad_view,
-        ck_tile::make_tuple(ck_tile::number<MPerBlock>{}, ck_tile::number<KPerBlock>{}),
-        {i_m, 0});
-    } else {
-      return ck_tile::make_tile_window(
-        a_pad_view,
-        ck_tile::make_tuple(ck_tile::number<KPerBlock>{}, ck_tile::number<MPerBlock>{}),
-        {0, i_m});
-    }
+    return ck_tile::make_tile_window(
+      a_pad_view,
+      ck_tile::make_tuple(ck_tile::number<MPerBlock>{}, ck_tile::number<KPerBlock>{}),
+      {i_m, 0});
   }
 
-  // Create B block window
+  // Create B block window: ColumnMajor order (N,K)@(i_n,0)
   template <typename PadView>
   __device__ static auto make_b_block_window(PadView const& b_pad_view, ck_tile::index_t i_n)
   {
-    if constexpr (std::is_same_v<BLayout, ck_tile::tensor_layout::gemm::ColumnMajor>) {
-      return ck_tile::make_tile_window(
-        b_pad_view,
-        ck_tile::make_tuple(ck_tile::number<NPerBlock>{}, ck_tile::number<KPerBlock>{}),
-        {i_n, 0});
-    } else {
-      return ck_tile::make_tile_window(
-        b_pad_view,
-        ck_tile::make_tuple(ck_tile::number<KPerBlock>{}, ck_tile::number<NPerBlock>{}),
-        {0, i_n});
-    }
+    return ck_tile::make_tile_window(
+      b_pad_view,
+      ck_tile::make_tuple(ck_tile::number<NPerBlock>{}, ck_tile::number<KPerBlock>{}),
+      {i_n, 0});
   }
 };
 

@@ -42,9 +42,9 @@
 
 namespace cuvs::distance::detail {
 
-// Problem config matching the pairwise epilogue structure
-template <typename AccDataType_,
-          typename ODataType_,
+// Problem config matching the pairwise epilogue structure.
+// AccDataType is always float (fp32 MFMA accumulator).
+template <typename ODataType_,
           typename IdxType_,
           ck_tile::index_t kM_,
           ck_tile::index_t kN_,
@@ -52,26 +52,20 @@ template <typename AccDataType_,
           ck_tile::index_t NWave_,
           ck_tile::index_t MPerXdl_,
           ck_tile::index_t NPerXdl_,
-          ck_tile::index_t KPerXdl_,
-          bool FixedVectorSize_                 = false,
-          ck_tile::index_t VectorSizeC_         = 1,
-          ck_tile::index_t BlockedXDLN_PerWarp_ = 1>
+          ck_tile::index_t KPerXdl_>
 struct FusedDistanceNNCkEpilogueProblem {
-  using AccDataType = ck_tile::remove_cvref_t<AccDataType_>;
+  using AccDataType = float;
   using ODataType   = ck_tile::remove_cvref_t<ODataType_>;
   using IdxType     = ck_tile::remove_cvref_t<IdxType_>;
 
-  static constexpr ck_tile::index_t kBlockSize  = MWave_ * NWave_ * ck_tile::get_warp_size();
-  static constexpr ck_tile::index_t kMPerBlock  = kM_;
-  static constexpr ck_tile::index_t kNPerBlock  = kN_;
-  static constexpr ck_tile::index_t MWave       = MWave_;
-  static constexpr ck_tile::index_t NWave       = NWave_;
-  static constexpr ck_tile::index_t MPerXdl     = MPerXdl_;
-  static constexpr ck_tile::index_t NPerXdl     = NPerXdl_;
-  static constexpr ck_tile::index_t KPerXdl     = KPerXdl_;
-  static constexpr bool FixedVectorSize         = FixedVectorSize_;
-  static constexpr ck_tile::index_t VectorSizeC = VectorSizeC_;
-  static constexpr ck_tile::index_t BlockedXDLN_PerWarp = BlockedXDLN_PerWarp_;
+  static constexpr ck_tile::index_t kBlockSize = MWave_ * NWave_ * ck_tile::get_warp_size();
+  static constexpr ck_tile::index_t kMPerBlock = kM_;
+  static constexpr ck_tile::index_t kNPerBlock = kN_;
+  static constexpr ck_tile::index_t MWave      = MWave_;
+  static constexpr ck_tile::index_t NWave      = NWave_;
+  static constexpr ck_tile::index_t MPerXdl    = MPerXdl_;
+  static constexpr ck_tile::index_t NPerXdl    = NPerXdl_;
+  static constexpr ck_tile::index_t KPerXdl    = KPerXdl_;
 
   static constexpr ck_tile::index_t MPerIteration = MPerXdl * MWave;
   static constexpr ck_tile::index_t NPerIteration = NPerXdl * NWave;
