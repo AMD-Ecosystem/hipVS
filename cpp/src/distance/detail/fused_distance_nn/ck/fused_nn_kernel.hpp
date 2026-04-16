@@ -121,27 +121,6 @@ template <typename Config = FusedDistanceNNGemmConfig>
 using FusedNNGemmPipelineT =
   ck_tile::GemmPipelineAgBgCrCompV3<FusedNNUniversalGemmProblemT<Config>>;
 
-// Dummy epilogue for CK's tensor view creation (we don't output to D tensors).
-// Only float is supported, ScalarVec is always false.
-struct FusedDistanceNNCkDummyEpilogue {
-  using ODataType  = float;
-  using DsDataType = ck_tile::tuple<>;
-  using DsLayout   = ck_tile::tuple<>;
-  static constexpr ck_tile::memory_operation_enum MemoryOperation =
-    ck_tile::memory_operation_enum::set;
-
-  __host__ __device__ static constexpr ck_tile::index_t GetVectorSizeC()
-  {
-    return std::min(4, static_cast<int>(16 / sizeof(ODataType)));
-  }
-  template <ck_tile::index_t I>
-  __host__ __device__ static constexpr ck_tile::index_t GetVectorSizeD(ck_tile::number<I>)
-  {
-    return 1;
-  }
-  __host__ __device__ static constexpr ck_tile::index_t GetSmemSize() { return 0; }
-};
-
 // Kernel arguments for fused distance NN. DataT/DistT are always float.
 template <typename IdxT, typename OutT>
 struct FusedDistanceNNCkKernelArgs {
@@ -182,18 +161,8 @@ template <typename IdxT,
           typename KVPReduceOpT,
           typename Config = FusedDistanceNNGemmConfig>
 struct FusedDistanceNNCkKernel {
-  using GemmPipeline  = FusedNNGemmPipelineT<Config>;
-  using DummyEpilogue = FusedDistanceNNCkDummyEpilogue;
-  using HelperKernel =
-    ck_tile::UniversalGemmKernel<FusedNNTilePartitionerT<Config>, GemmPipeline, DummyEpilogue>;
-
-  using ADataType  = float;
-  using BDataType  = float;
-  using EDataType  = float;
-  using KernelArgs = FusedDistanceNNCkKernelArgs<IdxT, OutT>;
-
-  using ALayout = ck_tile::tensor_layout::gemm::RowMajor;
-  using BLayout = ck_tile::tensor_layout::gemm::ColumnMajor;
+  using GemmPipeline = FusedNNGemmPipelineT<Config>;
+  using KernelArgs   = FusedDistanceNNCkKernelArgs<IdxT, OutT>;
 
   static constexpr ck_tile::index_t MPerBlock = FusedNNTilePartitionerT<Config>::MPerBlock;
   static constexpr ck_tile::index_t NPerBlock = FusedNNTilePartitionerT<Config>::NPerBlock;
@@ -204,49 +173,31 @@ struct FusedDistanceNNCkKernel {
                                                  ReduceOpT,
                                                  KVPReduceOpT>;
 
-  static constexpr ck_tile::index_t kBlockSize = HelperKernel::kBlockSize;
+  // Derived from UniversalGemmKernel::kBlockSize, which reads GemmPipeline::BlockSize,
+  // which is Problem::kBlockSize = NumWarps * get_warp_size().
+  static constexpr ck_tile::index_t kBlockSize = GemmPipeline::BlockSize;
 
+  // Derived from UniversalGemmKernel::GridSize, which delegates to
+  // TilePartitioner::GridSize(M, N) for the x-dimension and uses KBatch for z.
   __host__ static constexpr auto GridSize(ck_tile::index_t M,
                                           ck_tile::index_t N,
                                           ck_tile::index_t KBatch) -> dim3
   {
-    return HelperKernel::GridSize(M, N, KBatch);
+    return dim3(FusedNNTilePartitionerT<Config>::GridSize(M, N), 1, KBatch);
   }
 
-  __host__ static constexpr auto BlockSize() -> dim3 { return HelperKernel::BlockSize(); }
+  // Derived from UniversalGemmKernel::BlockSize, which halves thread count on
+  // wave32 (RDNA) architectures since each warp is 32 threads instead of 64.
+  __host__ static auto BlockSize() -> dim3
+  {
+    return dim3(ck_tile::is_wave32() ? kBlockSize / 2 : kBlockSize);
+  }
 
   __host__ static constexpr ck_tile::index_t GetSmemSize()
   {
     return ck_tile::max(GemmPipeline::GetSmemSize(), EpilogueType::GetSmemSize());
   }
 
-  __host__ static auto IsSupportedArgument(KernelArgs const& kargs) -> bool
-  {
-    auto const universal_args = to_universal_args(kargs);
-    return HelperKernel::IsSupportedArgument(universal_args);
-  }
-
- private:
-  __host__ __device__ static constexpr ck_tile::UniversalGemmKernelArgs<1, 1, 0> to_universal_args(
-    KernelArgs const& k)
-  {
-    return ck_tile::UniversalGemmKernelArgs<1, 1, 0>{
-      {k.a_ptr},
-      {k.b_ptr},
-      {},
-      nullptr,  // No output tensor E for fused NN
-      k.M,
-      k.N,
-      k.K,
-      {k.stride_A},
-      {k.stride_B},
-      {},
-      0,  // stride_E unused
-      1,  // k_batch
-    };
-  }
-
- public:
   ElementWiseOp elfunc_;
   ReduceOpT red_op_;
   KVPReduceOpT pair_red_op_;
@@ -264,17 +215,40 @@ struct FusedDistanceNNCkKernel {
 
     __shared__ char smem_ptr_0[GetSmemSize()];
 
-    // Create tensor views with scalar loads (vector size 1) to support arbitrary K
-    auto const a_tensor_view = make_a_tensor_view(kargs.a_ptr, kargs.M, kargs.K, kargs.stride_A);
-    auto const b_tensor_view = make_b_tensor_view(kargs.b_ptr, kargs.N, kargs.K, kargs.stride_B);
+    // Helpers to build CK tensor view → pad view → tile window
+    auto make_tensor_view = [&](auto const* ptr, auto rows, auto cols, auto stride) {
+      return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
+        ptr,
+        ck_tile::make_tuple(rows, cols),
+        ck_tile::make_tuple(stride, 1),
+        ck_tile::number<1>{},
+        ck_tile::number<1>{});
+    };
 
-    // Pad tensor views to handle out-of-bounds K accesses
-    auto const a_pad_view = make_a_pad_view(a_tensor_view);
-    auto const b_pad_view = make_b_pad_view(b_tensor_view);
+    auto make_pad_view = [](auto const& view, auto row_tile, auto col_tile) {
+      return ck_tile::pad_tensor_view(
+        view, ck_tile::make_tuple(row_tile, col_tile), ck_tile::sequence<true, true>{});
+    };
 
-    // Create tile windows
-    auto const a_block_window = make_a_block_window(a_pad_view, i_m);
-    auto const b_block_window = make_b_block_window(b_pad_view, i_n);
+    auto make_block_window = [](auto const& pad_view, auto row_tile, auto col_tile, auto offset) {
+      return ck_tile::make_tile_window(pad_view, ck_tile::make_tuple(row_tile, col_tile), offset);
+    };
+
+    auto const a_block_window = make_block_window(
+      make_pad_view(make_tensor_view(kargs.a_ptr, kargs.M, kargs.K, kargs.stride_A),
+                    ck_tile::number<MPerBlock>{},
+                    ck_tile::number<KPerBlock>{}),
+      ck_tile::number<MPerBlock>{},
+      ck_tile::number<KPerBlock>{},
+      ck_tile::multi_index<2>{i_m, 0});
+
+    auto const b_block_window = make_block_window(
+      make_pad_view(make_tensor_view(kargs.b_ptr, kargs.N, kargs.K, kargs.stride_B),
+                    ck_tile::number<NPerBlock>{},
+                    ck_tile::number<KPerBlock>{}),
+      ck_tile::number<NPerBlock>{},
+      ck_tile::number<KPerBlock>{},
+      ck_tile::multi_index<2>{i_n, 0});
 
     ck_tile::index_t const num_loop =
       ck_tile::amd_wave_read_first_lane(FusedNNTilePartitionerT<Config>::GetLoopNum(kargs.K));
@@ -315,74 +289,6 @@ struct FusedDistanceNNCkKernel {
     ck_tile::index_t const i_n =
       ck_tile::amd_wave_read_first_lane(iN * FusedNNTilePartitionerT<Config>::NPerBlock);
     return {i_m, i_n};
-  }
-
-  // Create A tensor view: A is RowMajor, dims=(M,K), strides=(stride_A,1)
-  __device__ static auto make_a_tensor_view(ADataType const* a_ptr,
-                                            ck_tile::index_t M,
-                                            ck_tile::index_t K,
-                                            ck_tile::index_t stride_A)
-  {
-    return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
-      a_ptr,
-      ck_tile::make_tuple(M, K),
-      ck_tile::make_tuple(stride_A, 1),
-      ck_tile::number<1>{},  // Vector size 1 for scalar loads
-      ck_tile::number<1>{});
-  }
-
-  // Create B tensor view: B is ColumnMajor, dims=(N,K), strides=(stride_B,1)
-  __device__ static auto make_b_tensor_view(BDataType const* b_ptr,
-                                            ck_tile::index_t N,
-                                            ck_tile::index_t K,
-                                            ck_tile::index_t stride_B)
-  {
-    return ck_tile::make_naive_tensor_view<ck_tile::address_space_enum::global>(
-      b_ptr,
-      ck_tile::make_tuple(N, K),
-      ck_tile::make_tuple(stride_B, 1),
-      ck_tile::number<1>{},
-      ck_tile::number<1>{});
-  }
-
-  // Pad A tensor view to handle out-of-bounds accesses
-  template <typename TensorView>
-  __device__ static auto make_a_pad_view(TensorView const& a_view)
-  {
-    return ck_tile::pad_tensor_view(
-      a_view,
-      ck_tile::make_tuple(ck_tile::number<MPerBlock>{}, ck_tile::number<KPerBlock>{}),
-      ck_tile::sequence<true, true>{});
-  }
-
-  // Pad B tensor view to handle out-of-bounds accesses
-  template <typename TensorView>
-  __device__ static auto make_b_pad_view(TensorView const& b_view)
-  {
-    return ck_tile::pad_tensor_view(
-      b_view,
-      ck_tile::make_tuple(ck_tile::number<NPerBlock>{}, ck_tile::number<KPerBlock>{}),
-      ck_tile::sequence<true, true>{});
-  }
-
-  // Create A block window: RowMajor order (M,K)@(i_m,0)
-  template <typename PadView>
-  __device__ static auto make_a_block_window(PadView const& a_pad_view, ck_tile::index_t i_m)
-  {
-    return ck_tile::make_tile_window(
-      a_pad_view,
-      ck_tile::make_tuple(ck_tile::number<MPerBlock>{}, ck_tile::number<KPerBlock>{}),
-      {i_m, 0});
-  }
-
-  // Create B block window: ColumnMajor order (N,K)@(i_n,0)
-  template <typename PadView>
-  __device__ static auto make_b_block_window(PadView const& b_pad_view, ck_tile::index_t i_n)
-  {
-    return ck_tile::make_tile_window(
-      b_pad_view,
-      ck_tile::make_tuple(ck_tile::number<NPerBlock>{}, ck_tile::number<KPerBlock>{}),
-      {i_n, 0});
   }
 };
 
