@@ -30,7 +30,8 @@
 #include <raft/core/resource/cuda_stream.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device_memory_resource.hpp>
+#include <rmm/mr/per_device_resource.hpp>
+#include <rmm/resource_ref.hpp>
 
 namespace cuvs::neighbors {
 
@@ -120,7 +121,7 @@ void naive_knn(raft::resources const& handle,
                uint32_t k,
                cuvs::distance::DistanceType type)
 {
-  rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource();
+  rmm::device_async_resource_ref mr = rmm::mr::get_current_device_resource_ref();
 
   auto stream = raft::resource::get_cuda_stream(handle);
   dim3 block_dim(16, raft::host_warp_size(stream), 1);
@@ -148,8 +149,7 @@ void naive_knn(raft::resources const& handle,
                                                 static_cast<int>(k),
                                                 dist_topk + offset * k,
                                                 indices_topk + offset * k,
-                                                cuvs::distance::is_min_close(type),
-                                                mr);
+                                                cuvs::distance::is_min_close(type));
   }
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
 }
