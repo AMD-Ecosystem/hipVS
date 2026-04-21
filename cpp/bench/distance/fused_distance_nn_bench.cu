@@ -209,6 +209,72 @@ void register_fused_nn_large_benchmark(const std::string& name,
     ->Unit(benchmark::kMillisecond);
 }
 
+// IVF benchmark-realistic sizes: (m, n, k) matching actual fusedDistanceNN calls
+// during IVF_FLAT and IVF_PQ index builds via kmeans_balanced.
+//
+// In the IVF build path the call is always <float, KVP<int64_t, float>, int64_t>.
+//
+// Datasets and their typical parameters:
+//   sift-128-euclidean:       1M rows,   dim=128, nlist=1024-8192,  L2
+//   glove-100-angular:        1.1M rows, dim=100, nlist=1024-8192,  Cosine
+//   deep-image-96-angular:    10M rows,  dim=96,  nlist=1024-64000, Cosine
+//   gist-960-euclidean:       1M rows,   dim=960, nlist=1024-8192,  L2
+//   wiki_all-768:             1-10M rows, dim=768, nlist=1024-65536, L2
+//   fashion/mnist-784:        60K rows,  dim=784, nlist=1024,       L2
+//
+// m = training subset size (n_rows / trainset_ratio), typically 250K - 10M
+// n = nlist (number of centroids), 1024 - 65536
+// k = dataset dimensionality
+//
+// Each benchmark entry is {m, n, k}. We pick representative combos rather than
+// a full product to keep runtime manageable.
+// clang-format off
+const auto kIvfBenchArgs = std::vector<std::array<int64_t, 3>>{
+  // sift-128-euclidean: 1M rows, ratio 1-4 -> m=250K-1M, nlist=1024-8192
+  {1000000, 1024, 128},
+  {1000000, 4096, 128},
+  {1000000, 8192, 128},
+  { 250000, 1024, 128},
+  { 250000, 4096, 128},
+  // glove-100-angular: 1.1M rows, nlist=1024-4096
+  {1000000, 1024, 100},
+  {1000000, 4096, 100},
+  { 275000, 4096, 100},
+  // deep-image-96: 10M rows, ratio 1-4 -> m=2.5M-10M, nlist up to 64000
+  {2500000, 4096,  96},
+  {2500000, 16384, 96},
+  {2500000, 64000, 96},
+  // gist-960-euclidean: 1M rows, nlist=1024-4096
+  {1000000, 1024, 960},
+  {1000000, 4096, 960},
+  { 250000, 1024, 960},
+  // wiki_all-768: 1-10M rows, nlist=1024-65536
+  {1000000, 1024, 768},
+  {1000000, 8192, 768},
+  {2500000, 8192, 768},
+  // fashion/mnist-784-euclidean: 60K rows, nlist=1024
+  {  60000, 1024, 784},
+};
+// clang-format on
+
+template <typename DataT, typename IdxT>
+void register_fused_nn_ivf_benchmark(const std::string& name,
+                                     cuvs::distance::DistanceType metric,
+                                     bool sqrt)
+{
+  auto type_name = std::string(typeid(DataT).name()) + "_" + typeid(IdxT).name();
+  for (size_t i = 0; i < kIvfBenchArgs.size(); ++i) {
+    auto m          = kIvfBenchArgs[i][0];
+    auto n          = kIvfBenchArgs[i][1];
+    auto k          = kIvfBenchArgs[i][2];
+    auto bench_name = "fusedDistanceNN_ivf/" + name + "_" + type_name + "/" + std::to_string(m) +
+                      "/" + std::to_string(n) + "/" + std::to_string(k);
+    benchmark::RegisterBenchmark(bench_name, [metric, sqrt, m, n, k](benchmark::State& state) {
+      run_fused_distance_nn_bench<DataT, IdxT>(state, metric, m, n, k, sqrt);
+    })->Unit(benchmark::kMillisecond);
+  }
+}
+
 void register_all_benchmarks()
 {
   // Standard KVP output benchmarks (float, int index)
@@ -235,6 +301,15 @@ void register_all_benchmarks()
   register_fused_nn_large_benchmark<float, int>(
     "L2SqrtExpanded", cuvs::distance::DistanceType::L2SqrtExpanded, true);
   register_fused_nn_large_benchmark<float, int>(
+    "CosineExpanded", cuvs::distance::DistanceType::CosineExpanded, false);
+
+  // IVF-realistic benchmarks: <float, int64_t> matching the actual IVF_FLAT/IVF_PQ
+  // build path (kmeans_balanced always uses float data and int64_t indices)
+  register_fused_nn_ivf_benchmark<float, int64_t>(
+    "L2Expanded", cuvs::distance::DistanceType::L2Expanded, false);
+  register_fused_nn_ivf_benchmark<float, int64_t>(
+    "L2SqrtExpanded", cuvs::distance::DistanceType::L2SqrtExpanded, true);
+  register_fused_nn_ivf_benchmark<float, int64_t>(
     "CosineExpanded", cuvs::distance::DistanceType::CosineExpanded, false);
 }
 
