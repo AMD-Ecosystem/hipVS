@@ -30,8 +30,8 @@
 //
 // Key components:
 // - Fused distance + intra-thread reduction: sweep accumulator, compute distance, argmin
-// - Intra-warp XOR reduction: shuffle across N-lanes sharing the same row
-// - Cross-warp LDS reduction: collect per-warp row minima
+// - Intra-wavefront XOR reduction: shuffle across N-lanes sharing the same row
+// - Cross-wavefront LDS reduction: collect per-wavefront row minima
 // - Atomic update: mutex-protected or CAS update to global output
 
 #pragma once
@@ -99,7 +99,7 @@ struct FusedDistanceNNCkEpilogue {
   static constexpr ck_tile::index_t MRepeat       = Problem::MRepeat;
   static constexpr ck_tile::index_t NRepeat       = Problem::NRepeat;
 
-  // Cross-warp reduction LDS: only NWave entries per row (warps sharing same rows)
+  // Cross-wavefront reduction LDS: only NWave entries per row (warps sharing same rows)
   __host__ __device__ static constexpr ck_tile::index_t GetSmemSize()
   {
     constexpr ck_tile::index_t reduce_size = kMPerBlock * NWave * sizeof(KVPair);
@@ -121,8 +121,8 @@ struct FusedDistanceNNCkEpilogue {
   //
   // Optimized pipeline (no LDS shuffle):
   //   Phase 1+2: Fused distance computation + intra-thread argmin (direct from MFMA registers)
-  //   Phase 3:   Intra-warp XOR reduction across N-lanes
-  //   Phase 4:   Cross-warp LDS reduction
+  //   Phase 3:   Intra-wavefront XOR reduction across N-lanes
+  //   Phase 4:   Cross-wavefront LDS reduction
   //   Phase 5:   Final atomic global update
   template <typename OutT, typename OAccTile>
   __device__ void operator()(OutT* min_output,
@@ -164,25 +164,40 @@ struct FusedDistanceNNCkEpilogue {
     //   - Load norms from global memory (L1-cached scalar loads)
     //   - Compute distance via elfunc_
     //   - Reduce into compact thread_row_min[kRowsPerThread] array
+    //
+    // norm_x depends only on the row (outer span) — it is loaded once per row
+    // and reused across all N-column iterations, avoiding redundant VMEM loads.
     // ===========================================================================================
 
     constexpr auto acc_spans = ck_tile::remove_cvref_t<OAccTile>::get_distributed_spans();
     ck_tile::index_t row_idx = 0;
 
     ck_tile::sweep_tile_span(acc_spans[ck_tile::number<0>{}], [&](auto idx0) {
+      // norm_x is constant across the inner (column) sweep — load once per row.
+      ODataType nx{};
+      ck_tile::index_t global_row = M;  // default out-of-bounds
+      bool row_loaded             = false;
+
       ck_tile::sweep_tile_span(acc_spans[ck_tile::number<1>{}], [&](auto idx1) {
         constexpr auto dstr_idx = ck_tile::make_tuple(idx0, idx1);
         const auto tile_coord   = ck_tile::get_x_indices_from_distributed_indices(
           o_acc_tile.get_tile_distribution(), dstr_idx);
-        auto block_row = tile_coord.at(ck_tile::number<0>{});
         auto block_col = tile_coord.at(ck_tile::number<1>{});
 
-        ck_tile::index_t global_row = i_m + block_row;
+        // On the first column iteration, extract row info and load norm_x.
+        // block_row is constant across the inner (column) sweep for MFMA layout.
+        if (!row_loaded) {
+          auto block_row             = tile_coord.at(ck_tile::number<0>{});
+          global_row                 = i_m + block_row;
+          thread_block_rows[row_idx] = block_row;
+          if (global_row < M) { nx = norm_x_ptr[global_row]; }
+          row_loaded = true;
+        }
+
         ck_tile::index_t global_col = i_n + block_col;
 
         if (global_row < M && global_col < N) {
           AccDataType dot = o_acc_tile[dstr_idx];
-          ODataType nx    = norm_x_ptr[global_row];
           ODataType ny    = norm_y_ptr[global_col];
           ODataType dist;
           elfunc_(dist, static_cast<ODataType>(dot), nx, ny);
@@ -190,17 +205,14 @@ struct FusedDistanceNNCkEpilogue {
           KVPair candidate        = {static_cast<IdxType>(global_col), dist};
           thread_row_min[row_idx] = pair_red_op_(global_row, candidate, thread_row_min[row_idx]);
         }
-
-        // Track the block_row for this row_idx (used in Phase 4 for LDS addressing)
-        thread_block_rows[row_idx] = block_row;
       });
       row_idx++;
     });
 
     // ===========================================================================================
-    // Phase 3: Intra-warp XOR reduction
+    // Phase 3: Intra-wavefront XOR reduction
     //
-    // Reduce across the N-lanes (threads sharing the same row within a warp).
+    // Reduce across the N-lanes (threads sharing the same row within a wavefront).
     // For MFMA 16x16, lane_id = m_lane*16 + n_lane, so XOR offsets {1,2,4,8}
     // stay within the 16-lane N-group.
     // ===========================================================================================
@@ -223,7 +235,7 @@ struct FusedDistanceNNCkEpilogue {
     }
 
     // ===========================================================================================
-    // Phase 4: Cross-warp LDS reduction
+    // Phase 4: Cross-wavefront LDS reduction
     //
     // Only warps along the N dimension share rows. Index LDS by n_warp (not warp_id)
     // so that exactly NWave entries exist per row, all of which are written.
@@ -252,7 +264,7 @@ struct FusedDistanceNNCkEpilogue {
     // ===========================================================================================
     // Phase 5: Final reduction + atomic global update
     //
-    // Warp 0 reduces across NWave entries per row and atomically updates global output.
+    // wavefront 0 reduces across NWave entries per row and atomically updates global output.
     // ===========================================================================================
 
     if (warp_id == 0) {
@@ -285,7 +297,7 @@ struct FusedDistanceNNCkEpilogue {
             __builtin_memcpy(&current, &prev, sizeof(KVPair));
           }
         } else {
-          // Mutex path: lanes must be serialized within the warp to prevent
+          // Mutex path: lanes must be serialized within the wavefront to prevent
           // deadlock from AMD wavefront lockstep execution. Without serialization,
           // a lane that already acquired its mutex would be forced to re-execute
           // the CAS (due to another lane spinning), see value 1 (that it set),
