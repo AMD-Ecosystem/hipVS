@@ -13,7 +13,7 @@ dependencies = [
     "sentence-transformers>=5.0.0",
     "numpy>=2.0.0",
     "gradio>=6.0.0",
-    "pymupdf>=1.27.0",
+    "pypdf>=4.0.0",
 ]
 
 [[tool.uv.index]]

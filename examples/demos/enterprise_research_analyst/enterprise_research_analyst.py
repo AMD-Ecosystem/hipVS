@@ -56,10 +56,10 @@ from cuvs.neighbors import brute_force, cagra, ivf_flat, ivf_pq
 from sentence_transformers import SentenceTransformer
 
 try:
-    import fitz  # PyMuPDF
-    HAS_PYMUPDF = True
+    from pypdf import PdfReader
+    HAS_PDF = True
 except ImportError:
-    HAS_PYMUPDF = False
+    HAS_PDF = False
 
 ALL_ALGORITHMS = ("cagra", "ivf_flat", "ivf_pq", "brute_force")
 SUPPORTED_DOC_EXTENSIONS = {".pdf", ".md", ".txt", ".text", ".rst"}
@@ -223,23 +223,22 @@ class DocumentParser:
 
     @staticmethod
     def _parse_pdf(path):
-        if not HAS_PYMUPDF:
+        if not HAS_PDF:
             print(
-                f"  Skipping PDF '{path}': PyMuPDF not installed "
-                f"(pip install pymupdf)"
+                f"  Skipping PDF '{path}': pypdf not installed "
+                f"(pip install pypdf)"
             )
             return []
         segments = []
-        doc = fitz.open(path)
-        for page_num, page in enumerate(doc, 1):
-            text = page.get_text().strip()
+        reader = PdfReader(path)
+        for page_num, page in enumerate(reader.pages, 1):
+            text = (page.extract_text() or "").strip()
             if text:
                 segments.append({
                     "text": text,
                     "source": Path(path).name,
                     "page": page_num,
                 })
-        doc.close()
         return segments
 
     @staticmethod
@@ -1285,10 +1284,10 @@ def create_ui(analyst):
                 return "No files selected.", _corpus_overview_html(analyst)
 
             pdf_files = [f for f in files if f.lower().endswith(".pdf")]
-            if pdf_files and not HAS_PYMUPDF:
+            if pdf_files and not HAS_PDF:
                 return (
-                    "**Error**: PDF support requires PyMuPDF. "
-                    "Install it with `pip install pymupdf` and restart.",
+                    "**Error**: PDF support requires pypdf. "
+                    "Install it with `pip install pypdf` and restart.",
                     _corpus_overview_html(analyst),
                 )
 
