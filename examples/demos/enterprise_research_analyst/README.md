@@ -40,7 +40,7 @@ GPU-accelerated retrieval via hipVS, and synthesising cited answers.
 | **Algorithm Arena** | Compare CAGRA, IVF-Flat, IVF-PQ, and Brute-Force side-by-side on the same query — see latency, results, and relevance differences live. |
 | **Live Performance Dashboard** | Real-time metrics: last search latency, average latency, total queries, vectors indexed, document count, embedding dimension. |
 | **Source Citations** | Every claim links back to the exact source passage with relevance scores and page numbers. |
-| **Multi-Format Ingestion** | PDF (via PyMuPDF), Markdown, reStructuredText, plain text, and web URLs. Upload additional documents via the UI at runtime. |
+| **Multi-Format Ingestion** | PDF (via pypdf), Markdown, reStructuredText, plain text, and web URLs. Upload additional documents via the UI at runtime. |
 | **Auto-Downloaded Corpus** | 11 curated ROCm blog posts (hipVS, MLPerf, robotics, VLMs, diffusion models, etc.) downloaded on first run — no static data checked in. |
 | **Configurable LLM** | Ollama (local GPU inference), OpenAI (API), or retrieval-only mode (no LLM needed). |
 | **Embedding Cache** | SHA-256-keyed cache avoids re-embedding unchanged corpora on restart. |
@@ -101,7 +101,7 @@ User Question
 | `sentence-transformers` | Text embedding (MiniLM-L6-v2) | Yes |
 | `numpy` | CPU array operations | Yes |
 | `gradio` | Web UI framework | Yes |
-| `pymupdf` (fitz) | PDF document parsing | Optional |
+| `pypdf` | PDF document parsing | Optional |
 | `ollama` (server) | Local LLM inference | Optional |
 
 ---
@@ -215,7 +215,7 @@ Handles multi-format parsing with per-page metadata preservation:
 
 | Format | Parser | Output |
 |--------|--------|--------|
-| `.pdf` | PyMuPDF (`fitz`) | One segment per page, with page numbers |
+| `.pdf` | `pypdf` (`PdfReader`) | One segment per page, with page numbers |
 | `.md`, `.rst` | Plain text read | Single segment per file |
 | `.txt`, `.text` | Plain text read | Single segment per file |
 | Web URLs | `urllib` + HTML stripping | Single segment per URL |
@@ -602,7 +602,7 @@ uv run python enterprise_research_analyst.py \
 |-------|-------|-----|
 | `ImportError: ROCM_HOME is not set` | ROCm environment not configured | `export ROCM_HOME=/opt/rocm` and `export LD_LIBRARY_PATH=/opt/rocm/lib:$LD_LIBRARY_PATH` |
 | `OSError: Cannot find empty port` | Port already in use | Kill the process: `fuser -k <port>/tcp` or use `--port <other>` |
-| PDF upload fails silently | PyMuPDF not installed | `uv pip install pymupdf` |
+| PDF upload fails silently | pypdf not installed | `uv pip install pypdf` |
 | Ollama connection refused | Ollama server not running | Start with `ollama serve > /dev/null 2>&1 &`, pull the model with `ollama pull llama3.2:3b`, then retry |
 | `--embed-device gpu` hangs | GPU contention from other processes | Check `rocm-smi` for idle GPUs and set `export HIP_VISIBLE_DEVICES=<id>` to pin to a free device |
 | `CAGRA: too few vectors` | Corpus has < 4 chunks | Add more documents or use `--algorithms ivf_flat brute_force` |
