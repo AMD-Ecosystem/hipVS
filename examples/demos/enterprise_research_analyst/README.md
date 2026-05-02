@@ -128,6 +128,13 @@ ollama serve > /dev/null 2>&1 &
 ollama pull llama3.2:3b
 ```
 
+> **Note:** `llama3.2:3b` is governed by Meta's
+> [Llama 3.2 Community License](https://www.llama.com/llama3_2/license/),
+> which includes acceptable-use restrictions and a 700M-MAU clause. By
+> running `ollama pull llama3.2:3b` you accept those terms. Substitute a
+> different model (e.g. `qwen2.5:3b`, Apache-2.0) via `--ollama-model` if
+> these terms do not work for your deployment.
+
 ---
 
 ## Quick Start
@@ -544,6 +551,16 @@ hostname -I
 # http://<hostname>:<port>
 ```
 
+> **Security note:** The demo has no authentication. Binding to `0.0.0.0`
+> exposes the UI -- including the **Knowledge Base upload tab** -- to
+> every host on the LAN. Anyone who can reach the port can upload
+> documents that are then embedded and indexed. Passing `--share` goes
+> further and creates a **public Gradio relay tunnel** routed through
+> `gradio.live`, exposing the same surface to the public internet. Only
+> use `0.0.0.0` on trusted networks and only use `--share` for short-lived
+> demos with non-sensitive data; bind to `127.0.0.1` (edit
+> `server_name` in `app.launch(...)`) for single-user development.
+
 ---
 
 ## Configuration Tuning Guide
@@ -609,3 +626,41 @@ uv run python enterprise_research_analyst.py \
 | Slow first query | GPU/model warmup | Expected — subsequent queries are fast. The demo runs automatic warmup at startup. |
 | Embedding cache not loading | Chunk config changed | Cache key includes chunk_size and overlap. Change either → cache miss → re-embeds automatically. |
 | LLM synthesis is empty | Running in retrieval-only mode | Use `--llm ollama` or `--llm openai` for full agentic experience |
+
+---
+
+## License & Attribution
+
+This demo is released under the **MIT License** (see `LICENSE` in this
+directory). It is part of the [hipVS](https://github.com/ROCm/hipVS)
+project, which itself is licensed under the **Apache License 2.0**
+(see the top-level `LICENSE` and `NOTICE.txt` of the hipVS repository).
+
+### Third-party components
+
+| Component | Used for | License | Notes |
+|-----------|----------|---------|-------|
+| [sentence-transformers](https://www.sbert.net/) | Text embedding | Apache-2.0 | |
+| [`sentence-transformers/all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | Default embedding model | Apache-2.0 | Auto-downloaded from Hugging Face Hub on first run. |
+| [Gradio](https://www.gradio.app/) | Web UI | Apache-2.0 | |
+| [pypdf](https://github.com/py-pdf/pypdf) | PDF parsing (optional) | BSD-3-Clause | |
+| [NumPy](https://numpy.org/) | CPU array ops | BSD-3-Clause | |
+| [Ollama](https://ollama.com/) (server, optional) | Local LLM inference | MIT | Server itself is MIT; model weights have their own licenses. |
+| [`llama3.2:3b`](https://www.llama.com/llama3_2/license/) (default Ollama model) | Synthesis LLM | **Llama 3.2 Community License (Meta)** | Includes acceptable-use restrictions and a 700M-MAU clause. Pulling the model is opt-in. Substitute with `--ollama-model qwen2.5:3b` (Apache-2.0) if these terms do not work for your deployment. |
+| [OpenAI API](https://platform.openai.com/) (optional) | Synthesis LLM | Subject to [OpenAI Terms of Use](https://openai.com/policies/terms-of-use) | API key supplied by the user. |
+
+### Sample corpus
+
+When `--docs` is not provided, the demo downloads 11 articles from
+[`rocm.blogs.amd.com`](https://rocm.blogs.amd.com/) into
+`./data/sample_corpus/`. That content is **© Advanced Micro Devices,
+Inc.** and is fetched at runtime; no blog text is checked into this
+repository. If you redistribute the cached corpus, retain the source
+URLs and the AMD copyright notice.
+
+### Network calls
+
+Running the demo will (by default) make outbound HTTPS requests to:
+`rocm.blogs.amd.com` (sample corpus), `huggingface.co` (embedding model
+weights), `download.pytorch.org` and `pypi.amd.com` (`uv sync`), and
+optionally `api.openai.com` or your local Ollama server.
