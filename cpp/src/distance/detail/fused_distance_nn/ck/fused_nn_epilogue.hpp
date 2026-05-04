@@ -241,8 +241,6 @@ struct FusedDistanceNNCkEpilogue {
     // so that exactly NWave entries exist per row, all of which are written.
     // ===========================================================================================
 
-    ck_tile::block_sync_lds();
-
     KVPair* reduce_smem = reinterpret_cast<KVPair*>(p_smem);
 
     ck_tile::index_t const lane_id = threadIdx.x % ck_tile::get_warp_size();
