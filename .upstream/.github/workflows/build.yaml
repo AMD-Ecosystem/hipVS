@@ -119,7 +119,7 @@ jobs:
       matrix_name: conda-cpp-build
       matrix_filter: map(select(.ARCH == "amd64"))
   go-build:
-    needs: cpp-build
+    needs: go-build-matrix
     secrets: inherit
 # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
 #     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
@@ -149,7 +149,7 @@ jobs:
       matrix_name: conda-cpp-build
       matrix_filter: map(select(.ARCH == "amd64"))
   java-build:
-    needs: cpp-build
+    needs: java-build-matrix
     secrets: inherit
 # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
 #     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
