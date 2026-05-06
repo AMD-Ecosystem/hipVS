@@ -55,7 +55,18 @@ std::ostream& operator<<(std::ostream& os, const KeyValuePair<IdxT, DataT>& kvp)
 namespace cuvs {
 namespace distance {
 
-template <typename DataT, typename IdxT = int>
+// ======================= Type-erased shape config =======================
+
+struct ShapeConfig {
+  int64_t m;
+  int64_t n;
+  int64_t k;
+  bool sqrt;
+  cuvs::distance::DistanceType metric;
+  unsigned long long seed;
+};
+
+template <typename DataT, typename IdxT>
 struct FusedDistanceNNInputs {
   DataT tolerance;
   IdxT m;
@@ -75,7 +86,44 @@ template <typename DataT, typename IdxT>
 }
 
 template <typename DataT, typename IdxT>
-RAFT_KERNEL naiveFusedL2NNKernel(raft::KeyValuePair<IdxT, DataT>* min,
+std::vector<FusedDistanceNNInputs<DataT, IdxT>> makeInputs(DataT tolerance,
+                                                           const std::vector<ShapeConfig>& shapes)
+{
+  std::vector<FusedDistanceNNInputs<DataT, IdxT>> out;
+  out.reserve(shapes.size());
+  for (auto& s : shapes) {
+    out.push_back({tolerance,
+                   static_cast<IdxT>(s.m),
+                   static_cast<IdxT>(s.n),
+                   static_cast<IdxT>(s.k),
+                   s.sqrt,
+                   s.metric,
+                   s.seed});
+  }
+  return out;
+}
+
+// ======================= Naive reference kernels =======================
+
+// Helpers to write the NN result — either key+value or value-only.
+template <typename DataT, typename IdxT>
+__device__ void writeNNResult(raft::KeyValuePair<IdxT, DataT>* out,
+                              IdxT idx,
+                              IdxT min_idx,
+                              DataT min_dist)
+{
+  out[idx].key   = min_idx;
+  out[idx].value = min_dist;
+}
+
+template <typename DataT, typename IdxT>
+__device__ void writeNNResult(DataT* out, IdxT idx, IdxT /*min_idx*/, DataT min_dist)
+{
+  out[idx] = min_dist;
+}
+
+template <typename OutT, typename DataT, typename IdxT>
+RAFT_KERNEL naiveFusedL2NNKernel(OutT* min,
                                  const DataT* x,
                                  const DataT* y,
                                  const DataT* xn,
@@ -93,11 +141,13 @@ RAFT_KERNEL naiveFusedL2NNKernel(raft::KeyValuePair<IdxT, DataT>* min,
   DataT x_norm_sq = xn[midx];
 
   for (IdxT nidx = 0; nidx < n; ++nidx) {
-    DataT acc = DataT(0);
+    // L2 expanded formula: ||x - y||² = ||x||² + ||y||² - 2 * <x, y>
+    DataT dot_product = DataT(0);
     for (IdxT i = 0; i < k; ++i) {
-      DataT diff = x[midx * k + i] - y[nidx * k + i];
-      acc += diff * diff;
+      dot_product += x[midx * k + i] * y[nidx * k + i];
     }
+
+    DataT acc = x_norm_sq + yn[nidx] - DataT(2) * dot_product;
 
     if (sqrt) { acc = raft::sqrt(acc); }
 
@@ -107,12 +157,11 @@ RAFT_KERNEL naiveFusedL2NNKernel(raft::KeyValuePair<IdxT, DataT>* min,
     }
   }
 
-  min[midx].key   = min_idx;
-  min[midx].value = min_dist;
+  writeNNResult(min, midx, min_idx, min_dist);
 }
 
-template <typename DataT, typename IdxT>
-RAFT_KERNEL naiveFusedCosineNNKernel(raft::KeyValuePair<IdxT, DataT>* min,
+template <typename OutT, typename DataT, typename IdxT>
+RAFT_KERNEL naiveFusedCosineNNKernel(OutT* min,
                                      const DataT* x,
                                      const DataT* y,
                                      const DataT* xn,
@@ -144,12 +193,11 @@ RAFT_KERNEL naiveFusedCosineNNKernel(raft::KeyValuePair<IdxT, DataT>* min,
     }
   }
 
-  min[midx].key   = min_idx;
-  min[midx].value = min_dist;
+  writeNNResult(min, midx, min_idx, min_dist);
 }
 
-template <typename DataT, typename IdxT>
-void naiveFusedDistanceNN(raft::KeyValuePair<IdxT, DataT>* min,
+template <typename OutT, typename DataT, typename IdxT>
+void naiveFusedDistanceNN(OutT* min,
                           const DataT* x,
                           const DataT* y,
                           const DataT* xn,
@@ -167,11 +215,11 @@ void naiveFusedDistanceNN(raft::KeyValuePair<IdxT, DataT>* min,
   switch (metric) {
     case cuvs::distance::DistanceType::L2Expanded:
     case cuvs::distance::DistanceType::L2SqrtExpanded:
-      naiveFusedL2NNKernel<DataT, IdxT>
+      naiveFusedL2NNKernel<OutT, DataT, IdxT>
         <<<nblks, TPB, 0, stream>>>(min, x, y, xn, yn, m, n, k, sqrt);
       break;
     case cuvs::distance::DistanceType::CosineExpanded:
-      naiveFusedCosineNNKernel<DataT, IdxT>
+      naiveFusedCosineNNKernel<OutT, DataT, IdxT>
         <<<nblks, TPB, 0, stream>>>(min, x, y, xn, yn, m, n, k, sqrt);
       break;
     default: FAIL() << "Unsupported metric for naiveFusedDistanceNN";
@@ -179,67 +227,43 @@ void naiveFusedDistanceNN(raft::KeyValuePair<IdxT, DataT>* min,
   RAFT_CUDA_TRY(cudaGetLastError());
 }
 
-template <typename DataT, typename IdxT = int>
-class FusedDistanceNNTest : public ::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>> {
- public:
-  FusedDistanceNNTest()
-    : params(::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>>::GetParam()),
+template <typename T>
+struct KVPCompare {
+  cuvs::CompareApprox<T> compare;
+  KVPCompare(T tolerance) : compare{tolerance} {}
+
+  template <typename IdxT>
+  bool operator()(const raft::KeyValuePair<IdxT, T>& a, const raft::KeyValuePair<IdxT, T>& b) const
+  {
+    if (a.key != b.key) { return false; }
+    return compare(a.value, b.value);
+  }
+};
+
+// ======================= Common base for all fixtures =======================
+
+template <typename DataT, typename IdxT>
+using TestWithParam = ::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>>;
+
+template <typename DataT, typename IdxT>
+class FusedDistanceNNTestBase : public TestWithParam<DataT, IdxT> {
+ protected:
+  FusedDistanceNNTestBase()
+    : params(TestWithParam<DataT, IdxT>::GetParam()),
       stream(raft::resource::get_cuda_stream(handle)),
       x(params.m * params.k, stream),
       y(params.n * params.k, stream),
       xn(params.m, stream),
       yn(params.n, stream),
-      min_ref(params.m, stream),
-      min_actual(params.m, stream),
       workspace(params.m, stream)
   {
   }
 
-  void SetUp() override
+  void generateData()
   {
-    auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
-    raft::common::nvtx::range fun_scope(
-      "test::%s/%s", testInfo->test_suite_name(), testInfo->name());
-
     raft::random::RngState rng(params.seed);
-    IdxT m = params.m;
-    IdxT n = params.n;
-    IdxT k = params.k;
-
-    uniform(handle, rng, x.data(), m * k, DataT(-1.0), DataT(1.0));
-    uniform(handle, rng, y.data(), n * k, DataT(-1.0), DataT(1.0));
-
-    computeNorms();
-
-    naiveFusedDistanceNN(min_ref.data(),
-                         x.data(),
-                         y.data(),
-                         xn.data(),
-                         yn.data(),
-                         m,
-                         n,
-                         k,
-                         params.sqrt,
-                         params.metric,
-                         stream);
-
-    fusedDistanceNNMinReduce<DataT, raft::KeyValuePair<IdxT, DataT>, IdxT>(min_actual.data(),
-                                                                           x.data(),
-                                                                           y.data(),
-                                                                           xn.data(),
-                                                                           yn.data(),
-                                                                           m,
-                                                                           n,
-                                                                           k,
-                                                                           workspace.data(),
-                                                                           params.sqrt,
-                                                                           true,
-                                                                           true,
-                                                                           params.metric,
-                                                                           0.0f,
-                                                                           stream);
-
-    raft::resource::sync_stream(handle, stream);
+    raft::random::uniform(handle, rng, x.data(), params.m * params.k, DataT(-1.0), DataT(1.0));
+    raft::random::uniform(handle, rng, y.data(), params.n * params.k, DataT(-1.0), DataT(1.0));
   }
 
   void computeNorms()
@@ -259,93 +283,23 @@ class FusedDistanceNNTest : public ::testing::TestWithParam<FusedDistanceNNInput
     }
   }
 
- protected:
   raft::resources handle;
   cudaStream_t stream;
 
   FusedDistanceNNInputs<DataT, IdxT> params;
   rmm::device_uvector<DataT> x, y, xn, yn;
-  rmm::device_uvector<raft::KeyValuePair<IdxT, DataT>> min_ref, min_actual;
   rmm::device_uvector<int> workspace;
 };
 
-template <typename T>
-struct KVPCompare {
-  cuvs::CompareApprox<T> compare;
-  KVPCompare(T tolerance) : compare{tolerance} {}
-
-  template <typename IdxT>
-  bool operator()(const raft::KeyValuePair<IdxT, T>& a, const raft::KeyValuePair<IdxT, T>& b) const
-  {
-    if (a.key != b.key) { return false; }
-    return compare(a.value, b.value);
-  }
-};
+// ======================= FusedDistanceNNTest =======================
 
 template <typename DataT, typename IdxT>
-RAFT_KERNEL naiveFusedL2NNKernelMinOnly(DataT* min,
-                                        const DataT* x,
-                                        const DataT* y,
-                                        const DataT* xn,
-                                        const DataT* yn,
-                                        IdxT m,
-                                        IdxT n,
-                                        IdxT k,
-                                        bool sqrt)
-{
-  IdxT midx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (midx >= m) return;
-
-  DataT min_dist = std::numeric_limits<DataT>::max();
-
-  for (IdxT nidx = 0; nidx < n; ++nidx) {
-    DataT acc = DataT(0);
-    for (IdxT i = 0; i < k; ++i) {
-      DataT diff = x[midx * k + i] - y[nidx * k + i];
-      acc += diff * diff;
-    }
-
-    if (sqrt) { acc = raft::sqrt(acc); }
-
-    if (acc < min_dist) { min_dist = acc; }
-  }
-
-  min[midx] = min_dist;
-}
-
-template <typename DataT, typename IdxT>
-void naiveFusedDistanceNNMinOnly(DataT* min,
-                                 const DataT* x,
-                                 const DataT* y,
-                                 const DataT* xn,
-                                 const DataT* yn,
-                                 IdxT m,
-                                 IdxT n,
-                                 IdxT k,
-                                 bool sqrt,
-                                 cudaStream_t stream)
-{
-  static const int TPB = 256;
-  int nblks            = raft::ceildiv(m, (IdxT)TPB);
-  naiveFusedL2NNKernelMinOnly<DataT, IdxT>
-    <<<nblks, TPB, 0, stream>>>(min, x, y, xn, yn, m, n, k, sqrt);
-  RAFT_CUDA_TRY(cudaGetLastError());
-}
-
-template <typename DataT, typename IdxT = int>
-class FusedDistanceNNMinOnlyTest
-  : public ::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>> {
+class FusedDistanceNNTest : public FusedDistanceNNTestBase<DataT, IdxT> {
  public:
-  FusedDistanceNNMinOnlyTest()
-    : params(::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>>::GetParam()),
-      stream(raft::resource::get_cuda_stream(handle)),
-      x(params.m * params.k, stream),
-      y(params.n * params.k, stream),
-      xn(params.m, stream),
-      yn(params.n, stream),
-      min_ref(params.m, stream),
-      min_actual(params.m, stream),
-      workspace(params.m, stream)
+  FusedDistanceNNTest()
+    : FusedDistanceNNTestBase<DataT, IdxT>(),
+      min_ref(this->params.m, this->stream),
+      min_actual(this->params.m, this->stream)
   {
   }
 
@@ -355,697 +309,96 @@ class FusedDistanceNNMinOnlyTest
     raft::common::nvtx::range fun_scope(
       "test::%s/%s", testInfo->test_suite_name(), testInfo->name());
 
-    raft::random::RngState rng(params.seed);
-    IdxT m = params.m;
-    IdxT n = params.n;
-    IdxT k = params.k;
+    this->generateData();
+    this->computeNorms();
+    computeReference();
+    runActual(true);
+    raft::resource::sync_stream(this->handle, this->stream);
+  }
 
-    uniform(handle, rng, x.data(), m * k, DataT(-1.0), DataT(1.0));
-    uniform(handle, rng, y.data(), n * k, DataT(-1.0), DataT(1.0));
-
-    raft::linalg::rowNorm<raft::linalg::L2Norm, true>(xn.data(), x.data(), k, m, stream);
-    raft::linalg::rowNorm<raft::linalg::L2Norm, true>(yn.data(), y.data(), k, n, stream);
-
-    naiveFusedDistanceNNMinOnly(
-      min_ref.data(), x.data(), y.data(), xn.data(), yn.data(), m, n, k, params.sqrt, stream);
-
-    fusedDistanceNNMinReduce<DataT, DataT, IdxT>(min_actual.data(),
-                                                 x.data(),
-                                                 y.data(),
-                                                 xn.data(),
-                                                 yn.data(),
-                                                 m,
-                                                 n,
-                                                 k,
-                                                 workspace.data(),
-                                                 params.sqrt,
-                                                 true,
-                                                 true,
-                                                 params.metric,
-                                                 0.0f,
-                                                 stream);
-
-    raft::resource::sync_stream(handle, stream);
+  void verify()
+  {
+    ASSERT_TRUE(cuvs::devArrMatch(min_ref.data(),
+                                  min_actual.data(),
+                                  this->params.m,
+                                  KVPCompare<DataT>(this->params.tolerance),
+                                  this->stream));
   }
 
  protected:
-  raft::resources handle;
-  cudaStream_t stream;
-
-  FusedDistanceNNInputs<DataT, IdxT> params;
-  rmm::device_uvector<DataT> x, y, xn, yn;
-  rmm::device_uvector<DataT> min_ref, min_actual;
-  rmm::device_uvector<int> workspace;
-};
-
-// ======================= Float Tests =======================
-
-using FusedDistanceNNTestF = FusedDistanceNNTest<float, int>;
-
-TEST_P(FusedDistanceNNTestF, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int>> inputsF = {
-  // Basic L2 tests
-  {0.01f, 32, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 64, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 128, 128, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 256, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-
-  // L2 sqrt tests
-  {0.01f, 64, 64, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
-  {0.01f, 128, 128, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
-
-  // Skinny matrices (k < 32)
-  {0.01f, 64, 64, 8, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
-  {0.01f, 128, 128, 16, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
-  {0.01f, 256, 256, 24, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
-
-  // Asymmetric dimensions
-  {0.01f, 128, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
-  {0.01f, 64, 128, 32, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
-  {0.01f, 256, 64, 48, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
-
-  // Larger tests
-  {0.01f, 512, 512, 64, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
-  {0.01f, 1024, 1024, 32, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
-  {0.01f, 1024, 512, 64, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
-
-  // Cosine distance tests
-  {0.01f, 64, 64, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
-  {0.01f, 128, 128, 64, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
-  {0.01f, 256, 256, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
-
-  // Alignment edge cases
-  {0.01f, 33, 33, 33, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
-  {0.01f, 65, 65, 17, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
-  {0.01f, 129, 127, 63, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNTests, FusedDistanceNNTestF, ::testing::ValuesIn(inputsF));
-
-// ======================= Double Tests =======================
-
-using FusedDistanceNNTestD = FusedDistanceNNTest<double, int>;
-
-TEST_P(FusedDistanceNNTestD, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<double>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int>> inputsD = {
-  {0.001, 64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 128, 128, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 64, 64, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
-  {0.001, 128, 128, 16, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
-  {0.001, 64, 64, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNTests, FusedDistanceNNTestD, ::testing::ValuesIn(inputsD));
-
-#ifdef CUVS_CK_ENABLED
-// ======================= CK Skinny-K Optimization Tests =======================
-// These tests focus on the skinny-K optimization boundary (K < 32) to validate
-// both correctness and performance improvements for small feature dimensions
-// commonly seen in k-means clustering workloads.
-
-using FusedDistanceNNCkSkinnyTest = FusedDistanceNNTest<float, int>;
-
-TEST_P(FusedDistanceNNCkSkinnyTest, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int>> inputsCkSkinny = {
-  // Skinny-K optimization boundary tests (K < 32 threshold)
-  {0.01f, 64, 64, 2, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // Very small K
-  {0.01f, 64, 64, 4, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=4 (skinny
-                                                                                 // config)
-  {0.01f, 64, 64, 8, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=8 (optimal for
-                                                                                 // fp32 skinny)
-  {0.01f, 64, 64, 16, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=16 (skinny
-                                                                                  // config)
-  {0.01f, 64, 64, 24, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=24 (still
-                                                                                  // skinny)
-  {0.01f, 64, 64, 31, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=31 (edge
-                                                                                  // case, skinny)
-  {0.01f, 64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=32 (boundary,
-                                                                                  // default config)
-  {0.01f, 64, 64, 33, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},  // K=33 (default
-                                                                                  // config)
-
-  // Test both metrics with skinny K
-  {0.01f, 64, 64, 8, false, cuvs::distance::DistanceType::CosineExpanded, 5678ULL},  // Cosine with
-                                                                                     // skinny K
-  {0.01f, 64, 64, 16, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},  // L2 sqrt with
-                                                                                     // skinny K
-
-  // Mixed tile sizes with skinny K (typical k-means scenarios)
-  {0.01f, 32, 128, 8, false, cuvs::distance::DistanceType::L2Expanded, 2468ULL},  // Fewer samples,
-                                                                                  // more centroids
-  {0.01f,
-   128,
-   32,
-   16,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   3579ULL},  // More samples, fewer centroids
-  {0.01f, 256, 64, 12, false, cuvs::distance::DistanceType::L2Expanded, 4680ULL},  // Large batch
-                                                                                   // with skinny K
-
-  // Legacy vector alignment tests - maintained for compatibility
-  {0.01f, 64, 64, 1, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=1 (minimal)
-  {0.01f, 64, 64, 3, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=3
-                                                                                 // (non-aligned)
-  {0.01f, 64, 64, 5, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=5
-                                                                                 // (non-aligned)
-  {0.01f, 64, 64, 7, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},  // K=7
-                                                                                 // (non-aligned)
-
-  // Edge cases that stress different code paths
-  {0.01f, 1, 1, 1, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},   // 1x1x1 minimum
-  {0.01f, 1, 64, 4, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},  // Single row with
-                                                                                // skinny K
-  {0.01f, 64, 1, 8, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},  // Single column
-                                                                                // with skinny K
-  {0.01f, 1, 1024, 16, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},  // Very wide with
-                                                                                   // skinny K
-
-  // Mixed scenarios combining skinny K with various tile alignments
-  {0.01f, 33, 65, 6, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},  // Odd M,N with
-                                                                                 // skinny K
-  {0.01f,
-   96,
-   32,
-   12,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   3456ULL},  // Mixed tile alignment with skinny K
-
-  // Large-M stress tests with skinny K (realistic k-means scenarios - scaled for test environment)
-  {0.01f, 100000, 64, 2, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},  // 100K points,
-                                                                                     // 2D features
-  {0.01f, 200000, 32, 4, false, cuvs::distance::DistanceType::L2Expanded, 8901ULL},  // 200K points,
-                                                                                     // 4D features
-  {0.01f,
-   150000,
-   128,
-   8,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   9012ULL},  // 150K points, 8D features
-  {0.01f,
-   80000,
-   256,
-   16,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   1123ULL},  // 80K points, 16D features
-  {0.01f,
-   500000,
-   16,
-   12,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   2234ULL},  // 500K points, 12D features
-
-  // Large-M with cosine distance (scaled for test environment)
-  {0.01f,
-   120000,
-   100,
-   24,
-   false,
-   cuvs::distance::DistanceType::CosineExpanded,
-   3345ULL},  // 120K documents, 24D embeddings
-  {0.01f,
-   250000,
-   50,
-   16,
-   false,
-   cuvs::distance::DistanceType::CosineExpanded,
-   4456ULL}  // 250K documents, 16D embeddings
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNTests,
-                        FusedDistanceNNCkSkinnyTest,
-                        ::testing::ValuesIn(inputsCkSkinny));
-#endif  // CUVS_CK_ENABLED
-
-// ======================= Int64 Index Tests =======================
-
-using FusedDistanceNNTestF_Int64 = FusedDistanceNNTest<float, int64_t>;
-
-TEST_P(FusedDistanceNNTestF_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int64_t>> inputsF_Int64 = {
-  {0.01f, 64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 128, 128, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 256, 256, 32, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNTests,
-                        FusedDistanceNNTestF_Int64,
-                        ::testing::ValuesIn(inputsF_Int64));
-
-// ======================= Double + Int64 Index Tests =======================
-
-using FusedDistanceNNTestD_Int64 = FusedDistanceNNTest<double, int64_t>;
-
-TEST_P(FusedDistanceNNTestD_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<double>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int64_t>> inputsD_Int64 = {
-  {0.001, 64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 128, 128, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 64, 64, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
-  {0.001, 64, 64, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNTests,
-                        FusedDistanceNNTestD_Int64,
-                        ::testing::ValuesIn(inputsD_Int64));
-
-// ======================= Min-Only Output Tests (for inertia computation) =======================
-
-using FusedDistanceNNMinOnlyTestF = FusedDistanceNNMinOnlyTest<float, int>;
-
-TEST_P(FusedDistanceNNMinOnlyTestF, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref.data(),
-                                min_actual.data(),
-                                params.m,
-                                cuvs::CompareApprox<float>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int>> inputsMinOnlyF = {
-  // Basic tests
-  {0.01f, 64, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 128, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 256, 128, 32, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
-  // L2 sqrt
-  {0.01f, 128, 64, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  // Kmeans-like dimensions
-  {0.01f, 1000, 32, 128, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
-  {0.01f, 2000, 64, 256, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNMinOnlyTests,
-                        FusedDistanceNNMinOnlyTestF,
-                        ::testing::ValuesIn(inputsMinOnlyF));
-
-// ======================= Min-Only Double Tests =======================
-
-using FusedDistanceNNMinOnlyTestD = FusedDistanceNNMinOnlyTest<double, int>;
-
-TEST_P(FusedDistanceNNMinOnlyTestD, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref.data(),
-                                min_actual.data(),
-                                params.m,
-                                cuvs::CompareApprox<double>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int>> inputsMinOnlyD = {
-  {0.001, 64, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 128, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 128, 64, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNMinOnlyTests,
-                        FusedDistanceNNMinOnlyTestD,
-                        ::testing::ValuesIn(inputsMinOnlyD));
-
-// ======================= Min-Only Float Int64 Tests =======================
-
-using FusedDistanceNNMinOnlyTestF_Int64 = FusedDistanceNNMinOnlyTest<float, int64_t>;
-
-TEST_P(FusedDistanceNNMinOnlyTestF_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref.data(),
-                                min_actual.data(),
-                                params.m,
-                                cuvs::CompareApprox<float>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int64_t>> inputsMinOnlyF_Int64 = {
-  {0.01f, 64, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 128, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 128, 64, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNMinOnlyTests,
-                        FusedDistanceNNMinOnlyTestF_Int64,
-                        ::testing::ValuesIn(inputsMinOnlyF_Int64));
-
-// ======================= Min-Only Double Int64 Tests =======================
-
-using FusedDistanceNNMinOnlyTestD_Int64 = FusedDistanceNNMinOnlyTest<double, int64_t>;
-
-TEST_P(FusedDistanceNNMinOnlyTestD_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref.data(),
-                                min_actual.data(),
-                                params.m,
-                                cuvs::CompareApprox<double>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int64_t>> inputsMinOnlyD_Int64 = {
-  {0.001, 64, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 128, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 128, 64, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNMinOnlyTests,
-                        FusedDistanceNNMinOnlyTestD_Int64,
-                        ::testing::ValuesIn(inputsMinOnlyD_Int64));
-
-// ======================= Realistic Kmeans-style Tests =======================
-// These test dimensions commonly seen in kmeans clustering:
-// - m (samples): batch sizes like 1000, 2000, 4096
-// - n (clusters): 8, 16, 32, 64, 128, 256, 512
-// - k (features): embedding dimensions like 32, 64, 128, 256, 512
-
-using FusedDistanceNNKmeansTestF = FusedDistanceNNTest<float, int>;
-
-TEST_P(FusedDistanceNNKmeansTestF, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int>> inputsKmeansF = {
-  // Small cluster counts (typical early iterations or small datasets)
-  // m=samples, n=clusters, k=features
-  {0.01f, 1000, 8, 64, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
-  {0.01f, 1000, 16, 64, false, cuvs::distance::DistanceType::L2Expanded, 2222ULL},
-  {0.01f, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 3333ULL},
-
-  // Medium cluster counts
-  {0.01f, 2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 4444ULL},
-  {0.01f, 2000, 128, 128, false, cuvs::distance::DistanceType::L2Expanded, 5555ULL},
-  {0.01f, 4096, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 6666ULL},
-
-  // Large cluster counts (hierarchical kmeans scenarios)
-  {0.01f, 4096, 512, 32, false, cuvs::distance::DistanceType::L2Expanded, 7777ULL},
-  {0.01f, 8192, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 8888ULL},
-
-  // High-dimensional embeddings
-  {0.01f, 1000, 32, 256, false, cuvs::distance::DistanceType::L2Expanded, 9999ULL},
-  {0.01f, 1000, 32, 512, false, cuvs::distance::DistanceType::L2Expanded, 1010ULL},
-  {0.01f, 2000, 64, 384, false, cuvs::distance::DistanceType::L2Expanded, 1212ULL},
-
-  // L2 sqrt (used when metric != L2Expanded)
-  {0.01f, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1313ULL},
-  {0.01f, 2000, 64, 256, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1414ULL},
-
-  // Cosine distance (used in some kmeans variants)
-  {0.01f, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 1515ULL},
-  {0.01f, 2000, 64, 256, false, cuvs::distance::DistanceType::CosineExpanded, 1616ULL},
-
-  // Skinny matrices (k < 32, triggers different policy)
-  {0.01f, 1000, 64, 16, false, cuvs::distance::DistanceType::L2Expanded, 1717ULL},
-  {0.01f, 2000, 128, 24, false, cuvs::distance::DistanceType::L2Expanded, 1818ULL},
-
-  // Edge cases: very few clusters
-  {0.01f, 5000, 2, 128, false, cuvs::distance::DistanceType::L2Expanded, 1919ULL},
-  {0.01f, 5000, 4, 128, false, cuvs::distance::DistanceType::L2Expanded, 2020ULL},
-
-  // Edge cases: many clusters relative to samples
-  {0.01f, 512, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 2121ULL},
-  {0.01f, 1024, 512, 64, false, cuvs::distance::DistanceType::L2Expanded, 2323ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNKmeansTests,
-                        FusedDistanceNNKmeansTestF,
-                        ::testing::ValuesIn(inputsKmeansF));
-
-// ======================= Realistic Kmeans-style Double Tests =======================
-
-using FusedDistanceNNKmeansTestD = FusedDistanceNNTest<double, int>;
-
-TEST_P(FusedDistanceNNKmeansTestD, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<double>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int>> inputsKmeansD = {
-  {0.001, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
-  {0.001, 2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 4444ULL},
-  {0.001, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1313ULL},
-  {0.001, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 1515ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNKmeansTests,
-                        FusedDistanceNNKmeansTestD,
-                        ::testing::ValuesIn(inputsKmeansD));
-
-// ======================= Realistic Kmeans-style Float Int64 Tests =======================
-
-using FusedDistanceNNKmeansTestF_Int64 = FusedDistanceNNTest<float, int64_t>;
-
-TEST_P(FusedDistanceNNKmeansTestF_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int64_t>> inputsKmeansF_Int64 = {
-  {0.01f, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
-  {0.01f, 2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 4444ULL},
-  {0.01f, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1313ULL},
-  {0.01f, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 1515ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNKmeansTests,
-                        FusedDistanceNNKmeansTestF_Int64,
-                        ::testing::ValuesIn(inputsKmeansF_Int64));
-
-// ======================= Realistic Kmeans-style Double Int64 Tests =======================
-
-using FusedDistanceNNKmeansTestD_Int64 = FusedDistanceNNTest<double, int64_t>;
-
-TEST_P(FusedDistanceNNKmeansTestD_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<double>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int64_t>> inputsKmeansD_Int64 = {
-  {0.001, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
-  {0.001, 2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 4444ULL},
-  {0.001, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1313ULL},
-  {0.001, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 1515ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNKmeansTests,
-                        FusedDistanceNNKmeansTestD_Int64,
-                        ::testing::ValuesIn(inputsKmeansD_Int64));
-
-// ======================= Pre-initialized Buffer Tests =======================
-// Tests with initOutBuffer=false, simulating the real kmeans usage where
-// the output buffer is pre-filled with max values
-
-template <typename DataT, typename IdxT = int>
-class FusedDistanceNNPreInitTest
-  : public ::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>> {
- public:
-  FusedDistanceNNPreInitTest()
-    : params(::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>>::GetParam()),
-      stream(raft::resource::get_cuda_stream(handle)),
-      x(params.m * params.k, stream),
-      y(params.n * params.k, stream),
-      xn(params.m, stream),
-      yn(params.n, stream),
-      min_ref(params.m, stream),
-      min_actual(params.m, stream),
-      workspace(params.m, stream)
+  void computeReference()
   {
-  }
-
-  void SetUp() override
-  {
-    auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
-    raft::common::nvtx::range fun_scope(
-      "test::%s/%s", testInfo->test_suite_name(), testInfo->name());
-
-    raft::random::RngState rng(params.seed);
-    IdxT m = params.m;
-    IdxT n = params.n;
-    IdxT k = params.k;
-
-    raft::random::uniform(handle, rng, x.data(), m * k, DataT(-1.0), DataT(1.0));
-    raft::random::uniform(handle, rng, y.data(), n * k, DataT(-1.0), DataT(1.0));
-
-    raft::linalg::rowNorm<raft::linalg::L2Norm, true>(xn.data(), x.data(), k, m, stream);
-    raft::linalg::rowNorm<raft::linalg::L2Norm, true>(yn.data(), y.data(), k, n, stream);
-
     naiveFusedDistanceNN(min_ref.data(),
-                         x.data(),
-                         y.data(),
-                         xn.data(),
-                         yn.data(),
-                         m,
-                         n,
-                         k,
-                         params.sqrt,
-                         params.metric,
-                         stream);
+                         this->x.data(),
+                         this->y.data(),
+                         this->xn.data(),
+                         this->yn.data(),
+                         this->params.m,
+                         this->params.n,
+                         this->params.k,
+                         this->params.sqrt,
+                         this->params.metric,
+                         this->stream);
+  }
+
+  void runActual(bool initOutBuffer)
+  {
+    fusedDistanceNNMinReduce<DataT, raft::KeyValuePair<IdxT, DataT>, IdxT>(min_actual.data(),
+                                                                           this->x.data(),
+                                                                           this->y.data(),
+                                                                           this->xn.data(),
+                                                                           this->yn.data(),
+                                                                           this->params.m,
+                                                                           this->params.n,
+                                                                           this->params.k,
+                                                                           this->workspace.data(),
+                                                                           this->params.sqrt,
+                                                                           initOutBuffer,
+                                                                           true,
+                                                                           this->params.metric,
+                                                                           0.0f,
+                                                                           this->stream);
+  }
+
+  rmm::device_uvector<raft::KeyValuePair<IdxT, DataT>> min_ref, min_actual;
+};
+
+// ======================= FusedDistanceNNPreInitTest =======================
+
+template <typename DataT, typename IdxT>
+class FusedDistanceNNPreInitTest : public FusedDistanceNNTest<DataT, IdxT> {
+ public:
+  void SetUp() override
+  {
+    auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    raft::common::nvtx::range fun_scope(
+      "test::%s/%s", testInfo->test_suite_name(), testInfo->name());
+
+    this->generateData();
+    this->computeNorms();
+    this->computeReference();
 
     // Pre-initialize the output buffer with max values (like kmeans does)
     raft::KeyValuePair<IdxT, DataT> initial_value(0, std::numeric_limits<DataT>::max());
-    thrust::fill(thrust::device, min_actual.data(), min_actual.data() + m, initial_value);
+    thrust::fill(thrust::device,
+                 this->min_actual.data(),
+                 this->min_actual.data() + this->params.m,
+                 initial_value);
 
-    // Call with initOutBuffer=false
-    fusedDistanceNNMinReduce<DataT, raft::KeyValuePair<IdxT, DataT>, IdxT>(
-      min_actual.data(),
-      x.data(),
-      y.data(),
-      xn.data(),
-      yn.data(),
-      m,
-      n,
-      k,
-      workspace.data(),
-      params.sqrt,
-      false,  // initOutBuffer=false
-      true,
-      params.metric,
-      0.0f,
-      stream);
-
-    raft::resource::sync_stream(handle, stream);
+    this->runActual(false);
+    raft::resource::sync_stream(this->handle, this->stream);
   }
-
- protected:
-  raft::resources handle;
-  cudaStream_t stream;
-
-  FusedDistanceNNInputs<DataT, IdxT> params;
-  rmm::device_uvector<DataT> x, y, xn, yn;
-  rmm::device_uvector<raft::KeyValuePair<IdxT, DataT>> min_ref, min_actual;
-  rmm::device_uvector<int> workspace;
 };
 
-using FusedDistanceNNPreInitTestF = FusedDistanceNNPreInitTest<float, int>;
+// ======================= FusedDistanceNNMinOnlyTest =======================
 
-TEST_P(FusedDistanceNNPreInitTestF, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int>> inputsPreInitF = {
-  {0.01f, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
-  {0.01f, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.01f, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNPreInitTests,
-                        FusedDistanceNNPreInitTestF,
-                        ::testing::ValuesIn(inputsPreInitF));
-
-// ======================= Pre-init Double Tests =======================
-
-using FusedDistanceNNPreInitTestD = FusedDistanceNNPreInitTest<double, int>;
-
-TEST_P(FusedDistanceNNPreInitTestD, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<double>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int>> inputsPreInitD = {
-  {0.001, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.001, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNPreInitTests,
-                        FusedDistanceNNPreInitTestD,
-                        ::testing::ValuesIn(inputsPreInitD));
-
-// ======================= Pre-init Float Int64 Tests =======================
-
-using FusedDistanceNNPreInitTestF_Int64 = FusedDistanceNNPreInitTest<float, int64_t>;
-
-TEST_P(FusedDistanceNNPreInitTestF_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<float>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int64_t>> inputsPreInitF_Int64 = {
-  {0.01f, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.01f, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNPreInitTests,
-                        FusedDistanceNNPreInitTestF_Int64,
-                        ::testing::ValuesIn(inputsPreInitF_Int64));
-
-// ======================= Pre-init Double Int64 Tests =======================
-
-using FusedDistanceNNPreInitTestD_Int64 = FusedDistanceNNPreInitTest<double, int64_t>;
-
-TEST_P(FusedDistanceNNPreInitTestD_Int64, Result)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(
-    min_ref.data(), min_actual.data(), params.m, KVPCompare<double>(params.tolerance), stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int64_t>> inputsPreInitD_Int64 = {
-  {0.001, 1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.001, 1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNPreInitTests,
-                        FusedDistanceNNPreInitTestD_Int64,
-                        ::testing::ValuesIn(inputsPreInitD_Int64));
-
-// ======================= Large-Scale Tests =======================
-// Tests with m in the millions to validate the kernel at production scale.
-// Full naive comparison is infeasible at this size, so correctness is checked
-// on the first and last 1024 rows only; the rest of the buffer exercises
-// memory addressing and kernel launch logic.
-
-static constexpr int kCheckRows = 1024;
-
-template <typename DataT, typename IdxT = int>
-class FusedDistanceNNLargeTest
-  : public ::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>> {
+template <typename DataT, typename IdxT>
+class FusedDistanceNNMinOnlyTest : public FusedDistanceNNTestBase<DataT, IdxT> {
  public:
-  FusedDistanceNNLargeTest()
-    : params(::testing::TestWithParam<FusedDistanceNNInputs<DataT, IdxT>>::GetParam()),
-      stream(raft::resource::get_cuda_stream(handle)),
-      x(params.m * params.k, stream),
-      y(params.n * params.k, stream),
-      xn(params.m, stream),
-      yn(params.n, stream),
-      min_actual(params.m, stream),
-      workspace(params.m, stream),
-      // Reference buffers: first kCheckRows and last kCheckRows rows only
-      min_ref_first(kCheckRows, stream),
-      min_ref_last(kCheckRows, stream)
+  FusedDistanceNNMinOnlyTest()
+    : FusedDistanceNNTestBase<DataT, IdxT>(),
+      min_ref(this->params.m, this->stream),
+      min_actual(this->params.m, this->stream)
   {
   }
 
@@ -1055,349 +408,534 @@ class FusedDistanceNNLargeTest
     raft::common::nvtx::range fun_scope(
       "test::%s/%s", testInfo->test_suite_name(), testInfo->name());
 
-    raft::random::RngState rng(params.seed);
-    IdxT m = params.m;
-    IdxT n = params.n;
-    IdxT k = params.k;
+    this->generateData();
+    this->computeNorms();
 
-    uniform(handle, rng, x.data(), m * k, DataT(-1.0), DataT(1.0));
-    uniform(handle, rng, y.data(), n * k, DataT(-1.0), DataT(1.0));
+    IdxT m = this->params.m;
+    IdxT n = this->params.n;
+    IdxT k = this->params.k;
 
-    // Compute norms for the full dataset
-    if (params.metric == cuvs::distance::DistanceType::CosineExpanded) {
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-        xn.data(), x.data(), k, m, stream, raft::sqrt_op{});
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-        yn.data(), y.data(), k, n, stream, raft::sqrt_op{});
-    } else {
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(xn.data(), x.data(), k, m, stream);
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(yn.data(), y.data(), k, n, stream);
-    }
-
-    // Run the full large kernel
-    fusedDistanceNNMinReduce<DataT, raft::KeyValuePair<IdxT, DataT>, IdxT>(min_actual.data(),
-                                                                           x.data(),
-                                                                           y.data(),
-                                                                           xn.data(),
-                                                                           yn.data(),
-                                                                           m,
-                                                                           n,
-                                                                           k,
-                                                                           workspace.data(),
-                                                                           params.sqrt,
-                                                                           true,
-                                                                           true,
-                                                                           params.metric,
-                                                                           0.0f,
-                                                                           stream);
-
-    // Naive reference on the first kCheckRows rows
-    naiveFusedDistanceNN(min_ref_first.data(),
-                         x.data(),
-                         y.data(),
-                         xn.data(),
-                         yn.data(),
-                         (IdxT)kCheckRows,
+    naiveFusedDistanceNN(min_ref.data(),
+                         this->x.data(),
+                         this->y.data(),
+                         this->xn.data(),
+                         this->yn.data(),
+                         m,
                          n,
                          k,
-                         params.sqrt,
-                         params.metric,
-                         stream);
+                         this->params.sqrt,
+                         this->params.metric,
+                         this->stream);
 
-    // Naive reference on the last kCheckRows rows
-    // Offset x and xn by (m - kCheckRows) rows; y and yn are shared
-    IdxT last_offset = m - (IdxT)kCheckRows;
-    naiveFusedDistanceNN(min_ref_last.data(),
-                         x.data() + last_offset * k,
-                         y.data(),
-                         xn.data() + last_offset,
-                         yn.data(),
-                         (IdxT)kCheckRows,
-                         n,
-                         k,
-                         params.sqrt,
-                         params.metric,
-                         stream);
+    fusedDistanceNNMinReduce<DataT, DataT, IdxT>(min_actual.data(),
+                                                 this->x.data(),
+                                                 this->y.data(),
+                                                 this->xn.data(),
+                                                 this->yn.data(),
+                                                 m,
+                                                 n,
+                                                 k,
+                                                 this->workspace.data(),
+                                                 this->params.sqrt,
+                                                 true,
+                                                 true,
+                                                 this->params.metric,
+                                                 0.0f,
+                                                 this->stream);
 
-    raft::resource::sync_stream(handle, stream);
+    raft::resource::sync_stream(this->handle, this->stream);
+  }
+
+  void verify()
+  {
+    ASSERT_TRUE(cuvs::devArrMatch(min_ref.data(),
+                                  min_actual.data(),
+                                  this->params.m,
+                                  cuvs::CompareApprox<DataT>(this->params.tolerance),
+                                  this->stream));
   }
 
  protected:
-  raft::resources handle;
-  cudaStream_t stream;
+  rmm::device_uvector<DataT> min_ref, min_actual;
+};
 
-  FusedDistanceNNInputs<DataT, IdxT> params;
-  rmm::device_uvector<DataT> x, y, xn, yn;
+// ======================= FusedDistanceNNLargeTest =======================
+
+static constexpr int kCheckRows = 1024;
+
+template <typename DataT, typename IdxT>
+class FusedDistanceNNLargeTest : public FusedDistanceNNTestBase<DataT, IdxT> {
+ public:
+  FusedDistanceNNLargeTest()
+    : FusedDistanceNNTestBase<DataT, IdxT>(),
+      min_actual(this->params.m, this->stream),
+      min_ref_first(kCheckRows, this->stream),
+      min_ref_last(kCheckRows, this->stream)
+  {
+  }
+
+  void SetUp() override
+  {
+    auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
+    raft::common::nvtx::range fun_scope(
+      "test::%s/%s", testInfo->test_suite_name(), testInfo->name());
+
+    IdxT m = this->params.m;
+    IdxT n = this->params.n;
+    IdxT k = this->params.k;
+
+    this->generateData();
+    this->computeNorms();
+
+    fusedDistanceNNMinReduce<DataT, raft::KeyValuePair<IdxT, DataT>, IdxT>(min_actual.data(),
+                                                                           this->x.data(),
+                                                                           this->y.data(),
+                                                                           this->xn.data(),
+                                                                           this->yn.data(),
+                                                                           m,
+                                                                           n,
+                                                                           k,
+                                                                           this->workspace.data(),
+                                                                           this->params.sqrt,
+                                                                           true,
+                                                                           true,
+                                                                           this->params.metric,
+                                                                           0.0f,
+                                                                           this->stream);
+
+    naiveFusedDistanceNN(min_ref_first.data(),
+                         this->x.data(),
+                         this->y.data(),
+                         this->xn.data(),
+                         this->yn.data(),
+                         (IdxT)kCheckRows,
+                         n,
+                         k,
+                         this->params.sqrt,
+                         this->params.metric,
+                         this->stream);
+
+    IdxT last_offset = m - (IdxT)kCheckRows;
+    naiveFusedDistanceNN(min_ref_last.data(),
+                         this->x.data() + last_offset * k,
+                         this->y.data(),
+                         this->xn.data() + last_offset,
+                         this->yn.data(),
+                         (IdxT)kCheckRows,
+                         n,
+                         k,
+                         this->params.sqrt,
+                         this->params.metric,
+                         this->stream);
+
+    raft::resource::sync_stream(this->handle, this->stream);
+  }
+
+  void verifyFirstRows()
+  {
+    ASSERT_TRUE(cuvs::devArrMatch(min_ref_first.data(),
+                                  min_actual.data(),
+                                  kCheckRows,
+                                  KVPCompare<DataT>(this->params.tolerance),
+                                  this->stream));
+  }
+
+  void verifyLastRows()
+  {
+    IdxT last_offset = this->params.m - kCheckRows;
+    ASSERT_TRUE(cuvs::devArrMatch(min_ref_last.data(),
+                                  min_actual.data() + last_offset,
+                                  kCheckRows,
+                                  KVPCompare<DataT>(this->params.tolerance),
+                                  this->stream));
+  }
+
+ protected:
   rmm::device_uvector<raft::KeyValuePair<IdxT, DataT>> min_actual;
-  rmm::device_uvector<int> workspace;
   rmm::device_uvector<raft::KeyValuePair<IdxT, DataT>> min_ref_first, min_ref_last;
 };
 
-using FusedDistanceNNLargeTestF = FusedDistanceNNLargeTest<float, int>;
+// ======================= Test registration macros =======================
 
-TEST_P(FusedDistanceNNLargeTestF, FirstRows)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_first.data(),
-                                min_actual.data(),
-                                kCheckRows,
-                                KVPCompare<float>(params.tolerance),
-                                stream));
-}
+// clang-format off
+#define FUSED_NN_TEST(SuiteName, TestAlias, FixtureClass, DataT, IdxT, InputsVar) \
+  using TestAlias = FixtureClass<DataT, IdxT>;                                    \
+  TEST_P(TestAlias, Result) { this->verify(); }                                   \
+  INSTANTIATE_TEST_CASE_P(SuiteName, TestAlias, ::testing::ValuesIn(InputsVar))
 
-TEST_P(FusedDistanceNNLargeTestF, LastRows)
-{
-  int last_offset = params.m - kCheckRows;
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_last.data(),
-                                min_actual.data() + last_offset,
-                                kCheckRows,
-                                KVPCompare<float>(params.tolerance),
-                                stream));
-}
+#define FUSED_NN_LARGE_TEST(SuiteName, TestAlias, DataT, IdxT, InputsVar)         \
+  using TestAlias = FusedDistanceNNLargeTest<DataT, IdxT>;                        \
+  TEST_P(TestAlias, FirstRows) { this->verifyFirstRows(); }                       \
+  TEST_P(TestAlias, LastRows)  { this->verifyLastRows(); }                        \
+  INSTANTIATE_TEST_CASE_P(SuiteName, TestAlias, ::testing::ValuesIn(InputsVar))
+// clang-format on
 
-// m=samples, n=clusters, k=features
-// Memory footprint (float): x = m*k*4 bytes, e.g. 10M*64*4 = 2.56 GB
-const std::vector<FusedDistanceNNInputs<float, int>> inputsLargeF = {
+// ======================= Shape tables =======================
+
+// --- Basic shapes (float gets all, compact subset for double / int64) ---
+const std::vector<ShapeConfig> basicShapes = {
+  // Basic L2 tests
+  {32, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {128, 128, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {256, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  // L2 sqrt tests
+  {64, 64, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
+  {128, 128, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
+  // Skinny matrices (k < 32)
+  {64, 64, 8, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {128, 128, 16, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {256, 256, 24, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  // Asymmetric dimensions
+  {128, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
+  {64, 128, 32, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
+  {256, 64, 48, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
+  // Larger tests
+  {512, 512, 64, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
+  {1024, 1024, 32, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
+  {1024, 512, 64, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
+  // Cosine distance tests
+  {64, 64, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
+  {128, 128, 64, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
+  {256, 256, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
+  // Alignment edge cases
+  {33, 33, 33, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+  {65, 65, 17, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+  {129, 127, 63, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+};
+
+const std::vector<ShapeConfig> basicShapesCompact = {
+  {64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {128, 128, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
+  {128, 128, 16, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {64, 64, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
+};
+
+const std::vector<ShapeConfig> basicShapesInt64 = {
+  {64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {128, 128, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {256, 256, 32, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
+};
+
+const std::vector<ShapeConfig> basicShapesCompactInt64 = {
+  {64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {128, 128, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 5678ULL},
+  {64, 64, 32, false, cuvs::distance::DistanceType::CosineExpanded, 2468ULL},
+};
+
+// --- Kmeans shapes ---
+const std::vector<ShapeConfig> kmeansShapes = {
+  // Small cluster counts
+  {1000, 8, 64, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
+  {1000, 16, 64, false, cuvs::distance::DistanceType::L2Expanded, 2222ULL},
+  {1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 3333ULL},
+  // Medium cluster counts
+  {2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 4444ULL},
+  {2000, 128, 128, false, cuvs::distance::DistanceType::L2Expanded, 5555ULL},
+  {4096, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 6666ULL},
+  // Large cluster counts
+  {4096, 512, 32, false, cuvs::distance::DistanceType::L2Expanded, 7777ULL},
+  {8192, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 8888ULL},
+  // High-dimensional embeddings
+  {1000, 32, 256, false, cuvs::distance::DistanceType::L2Expanded, 9999ULL},
+  {1000, 32, 512, false, cuvs::distance::DistanceType::L2Expanded, 1010ULL},
+  {2000, 64, 384, false, cuvs::distance::DistanceType::L2Expanded, 1212ULL},
+  // L2 sqrt
+  {1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1313ULL},
+  {2000, 64, 256, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1414ULL},
+  // Cosine distance
+  {1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 1515ULL},
+  {2000, 64, 256, false, cuvs::distance::DistanceType::CosineExpanded, 1616ULL},
+  // Skinny matrices (k < 32)
+  {1000, 64, 16, false, cuvs::distance::DistanceType::L2Expanded, 1717ULL},
+  {2000, 128, 24, false, cuvs::distance::DistanceType::L2Expanded, 1818ULL},
+  // Edge cases: very few clusters
+  {5000, 2, 128, false, cuvs::distance::DistanceType::L2Expanded, 1919ULL},
+  {5000, 4, 128, false, cuvs::distance::DistanceType::L2Expanded, 2020ULL},
+  // Edge cases: many clusters relative to samples
+  {512, 256, 64, false, cuvs::distance::DistanceType::L2Expanded, 2121ULL},
+  {1024, 512, 64, false, cuvs::distance::DistanceType::L2Expanded, 2323ULL},
+};
+
+const std::vector<ShapeConfig> kmeansShapesCompact = {
+  {1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
+  {2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 4444ULL},
+  {1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1313ULL},
+  {1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 1515ULL},
+};
+
+// --- Min-only shapes ---
+const std::vector<ShapeConfig> minOnlyShapes = {
+  {64, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {128, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {256, 128, 32, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
+  {128, 64, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
+  {1000, 32, 128, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
+  {2000, 64, 256, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
+};
+
+const std::vector<ShapeConfig> minOnlyShapesCompact = {
+  {64, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {128, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {128, 64, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
+};
+
+// --- Pre-init shapes ---
+const std::vector<ShapeConfig> preInitShapes = {
+  {1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {2000, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
+  {1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
+  {1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
+};
+
+const std::vector<ShapeConfig> preInitShapesCompact = {
+  {1000, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {1000, 32, 128, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
+  {1000, 32, 128, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
+};
+
+// --- Large shapes ---
+const std::vector<ShapeConfig> largeShapes = {
   // 1M samples
-  {0.01f, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 1 << 20, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
-  {0.01f, 1 << 20, 32, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.01f, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
-
-  // 10M samples — exercises large-m addressing; k kept small to limit VRAM
-  {0.01f, 10000000, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
-  {0.01f, 10000000, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 2222ULL},
-  {0.01f, 10000000, 32, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 3333ULL},
-  {0.01f, 10000000, 32, 32, false, cuvs::distance::DistanceType::CosineExpanded, 4444ULL},
+  {1 << 20, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {1 << 20, 64, 128, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
+  {1 << 20, 32, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
+  {1 << 20, 32, 64, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
+  // 10M samples
+  {10000000, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1111ULL},
+  {10000000, 64, 64, false, cuvs::distance::DistanceType::L2Expanded, 2222ULL},
+  {10000000, 32, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 3333ULL},
+  {10000000, 32, 32, false, cuvs::distance::DistanceType::CosineExpanded, 4444ULL},
 };
 
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNLargeTests,
-                        FusedDistanceNNLargeTestF,
-                        ::testing::ValuesIn(inputsLargeF));
-
-// ======================= Large-Scale Double Tests =======================
-
-using FusedDistanceNNLargeTestD = FusedDistanceNNLargeTest<double, int>;
-
-TEST_P(FusedDistanceNNLargeTestD, FirstRows)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_first.data(),
-                                min_actual.data(),
-                                kCheckRows,
-                                KVPCompare<double>(params.tolerance),
-                                stream));
-}
-
-TEST_P(FusedDistanceNNLargeTestD, LastRows)
-{
-  int last_offset = params.m - kCheckRows;
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_last.data(),
-                                min_actual.data() + last_offset,
-                                kCheckRows,
-                                KVPCompare<double>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int>> inputsLargeD = {
-  {0.001, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 1 << 20, 32, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.001, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
+const std::vector<ShapeConfig> largeShapesCompact = {
+  {1 << 20, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {1 << 20, 32, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
+  {1 << 20, 32, 64, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
 };
 
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNLargeTests,
-                        FusedDistanceNNLargeTestD,
-                        ::testing::ValuesIn(inputsLargeD));
-
-// ======================= Large-Scale Float Int64 Tests =======================
-
-using FusedDistanceNNLargeTestF_Int64 = FusedDistanceNNLargeTest<float, int64_t>;
-
-TEST_P(FusedDistanceNNLargeTestF_Int64, FirstRows)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_first.data(),
-                                min_actual.data(),
-                                kCheckRows,
-                                KVPCompare<float>(params.tolerance),
-                                stream));
-}
-
-TEST_P(FusedDistanceNNLargeTestF_Int64, LastRows)
-{
-  int64_t last_offset = params.m - kCheckRows;
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_last.data(),
-                                min_actual.data() + last_offset,
-                                kCheckRows,
-                                KVPCompare<float>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int64_t>> inputsLargeF_Int64 = {
-  {0.01f, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.01f, 1 << 20, 32, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.01f, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNLargeTests,
-                        FusedDistanceNNLargeTestF_Int64,
-                        ::testing::ValuesIn(inputsLargeF_Int64));
-
-// ======================= Large-Scale Double Int64 Tests =======================
-
-using FusedDistanceNNLargeTestD_Int64 = FusedDistanceNNLargeTest<double, int64_t>;
-
-TEST_P(FusedDistanceNNLargeTestD_Int64, FirstRows)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_first.data(),
-                                min_actual.data(),
-                                kCheckRows,
-                                KVPCompare<double>(params.tolerance),
-                                stream));
-}
-
-TEST_P(FusedDistanceNNLargeTestD_Int64, LastRows)
-{
-  int64_t last_offset = params.m - kCheckRows;
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_last.data(),
-                                min_actual.data() + last_offset,
-                                kCheckRows,
-                                KVPCompare<double>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<double, int64_t>> inputsLargeD_Int64 = {
-  {0.001, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
-  {0.001, 1 << 20, 32, 64, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
-  {0.001, 1 << 20, 32, 64, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
-};
-
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNLargeTests,
-                        FusedDistanceNNLargeTestD_Int64,
-                        ::testing::ValuesIn(inputsLargeD_Int64));
-
+// --- CK skinny shapes ---
 #ifdef CUVS_CK_ENABLED
-// ======================= CK Large-Scale Skinny-K Tests =======================
-// Large-scale tests (multi-million samples) with skinny-K optimization (K < 32).
-// These tests validate performance and correctness at production scale for workloads
-// like k-means clustering. Only the first and last 1024 rows are checked due to
-// the computational cost of full naive validation.
-
-using FusedDistanceNNCkLargeSkinnyTest = FusedDistanceNNLargeTest<float, int>;
-
-TEST_P(FusedDistanceNNCkLargeSkinnyTest, FirstRows)
-{
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_first.data(),
-                                min_actual.data(),
-                                kCheckRows,
-                                KVPCompare<float>(params.tolerance),
-                                stream));
-}
-
-TEST_P(FusedDistanceNNCkLargeSkinnyTest, LastRows)
-{
-  int last_offset = params.m - kCheckRows;
-  ASSERT_TRUE(cuvs::devArrMatch(min_ref_last.data(),
-                                min_actual.data() + last_offset,
-                                kCheckRows,
-                                KVPCompare<float>(params.tolerance),
-                                stream));
-}
-
-const std::vector<FusedDistanceNNInputs<float, int>> inputsCkLargeSkinny = {
-  // Large-M stress tests around 5M with skinny K (realistic large-scale k-means scenarios)
-  {0.01f,
-   4800000,
-   64,
-   2,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   5567ULL},  // 4.8M points, 2D features
-  {0.01f, 5000000, 32, 4, false, cuvs::distance::DistanceType::L2Expanded, 6678ULL},  // 5M points,
-                                                                                      // 4D features
-  {0.01f,
-   5200000,
-   128,
-   8,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   7789ULL},  // 5.2M points, 8D features
-  {0.01f,
-   4900000,
-   256,
-   16,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   8890ULL},  // 4.9M points, 16D features
-  {0.01f,
-   5100000,
-   16,
-   12,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   9901ULL},  // 5.1M points, 12D features
-  {0.01f,
-   4700000,
-   48,
-   6,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   1012ULL},  // 4.7M points, 6D features
-  {0.01f,
-   5300000,
-   80,
-   24,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   1123ULL},  // 5.3M points, 24D features
-  {0.01f,
-   4600000,
-   96,
-   10,
-   false,
-   cuvs::distance::DistanceType::L2Expanded,
-   1234ULL},  // 4.6M points, 10D features
-
-  // Large-M around 5M with cosine distance and skinny K (document embedding scenarios)
-  {0.01f,
-   5000000,
-   64,
-   8,
-   false,
-   cuvs::distance::DistanceType::CosineExpanded,
-   1345ULL},  // 5M documents, 8D embeddings
-  {0.01f,
-   4800000,
-   32,
-   16,
-   false,
-   cuvs::distance::DistanceType::CosineExpanded,
-   1456ULL},  // 4.8M documents, 16D embeddings
-  {0.01f,
-   5200000,
-   96,
-   12,
-   false,
-   cuvs::distance::DistanceType::CosineExpanded,
-   1567ULL},  // 5.2M documents, 12D embeddings
-
-  // Large-M around 5M with L2 sqrt and skinny K (special distance metric scenarios)
-  {0.01f,
-   5000000,
-   128,
-   4,
-   true,
-   cuvs::distance::DistanceType::L2SqrtExpanded,
-   1678ULL},  // 5M points, 4D features with sqrt
-  {0.01f,
-   4900000,
-   64,
-   20,
-   true,
-   cuvs::distance::DistanceType::L2SqrtExpanded,
-   1789ULL}  // 4.9M points, 20D features with sqrt
+const std::vector<ShapeConfig> ckSkinnyShapes = {
+  // Skinny-K optimization boundary tests (K < 32 threshold)
+  {64, 64, 2, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 4, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 8, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 16, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 24, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 31, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 33, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  // Both metrics with skinny K
+  {64, 64, 8, false, cuvs::distance::DistanceType::CosineExpanded, 5678ULL},
+  {64, 64, 16, true, cuvs::distance::DistanceType::L2SqrtExpanded, 9012ULL},
+  // Mixed tile sizes with skinny K (typical k-means scenarios)
+  {32, 128, 8, false, cuvs::distance::DistanceType::L2Expanded, 2468ULL},
+  {128, 32, 16, false, cuvs::distance::DistanceType::L2Expanded, 3579ULL},
+  {256, 64, 12, false, cuvs::distance::DistanceType::L2Expanded, 4680ULL},
+  // Legacy vector alignment tests
+  {64, 64, 1, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+  {64, 64, 3, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+  {64, 64, 5, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+  {64, 64, 7, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+  // Edge cases
+  {1, 1, 1, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {1, 64, 4, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {64, 1, 8, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {1, 1024, 16, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  // Mixed scenarios
+  {33, 65, 6, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
+  {96, 32, 12, false, cuvs::distance::DistanceType::L2Expanded, 3456ULL},
+  // Large-M stress tests with skinny K
+  {100000, 64, 2, false, cuvs::distance::DistanceType::L2Expanded, 7890ULL},
+  {200000, 32, 4, false, cuvs::distance::DistanceType::L2Expanded, 8901ULL},
+  {150000, 128, 8, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {80000, 256, 16, false, cuvs::distance::DistanceType::L2Expanded, 1123ULL},
+  {500000, 16, 12, false, cuvs::distance::DistanceType::L2Expanded, 2234ULL},
+  // Large-M with cosine distance
+  {120000, 100, 24, false, cuvs::distance::DistanceType::CosineExpanded, 3345ULL},
+  {250000, 50, 16, false, cuvs::distance::DistanceType::CosineExpanded, 4456ULL},
 };
 
-INSTANTIATE_TEST_CASE_P(FusedDistanceNNCkLargeSkinnyTests,
-                        FusedDistanceNNCkLargeSkinnyTest,
-                        ::testing::ValuesIn(inputsCkLargeSkinny));
+const std::vector<ShapeConfig> ckLargeSkinnyShapes = {
+  // Large-M stress tests around 5M with skinny K
+  {4800000, 64, 2, false, cuvs::distance::DistanceType::L2Expanded, 5567ULL},
+  {5000000, 32, 4, false, cuvs::distance::DistanceType::L2Expanded, 6678ULL},
+  {5200000, 128, 8, false, cuvs::distance::DistanceType::L2Expanded, 7789ULL},
+  {4900000, 256, 16, false, cuvs::distance::DistanceType::L2Expanded, 8890ULL},
+  {5100000, 16, 12, false, cuvs::distance::DistanceType::L2Expanded, 9901ULL},
+  {4700000, 48, 6, false, cuvs::distance::DistanceType::L2Expanded, 1012ULL},
+  {5300000, 80, 24, false, cuvs::distance::DistanceType::L2Expanded, 1123ULL},
+  {4600000, 96, 10, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  // Large-M around 5M with cosine distance
+  {5000000, 64, 8, false, cuvs::distance::DistanceType::CosineExpanded, 1345ULL},
+  {4800000, 32, 16, false, cuvs::distance::DistanceType::CosineExpanded, 1456ULL},
+  {5200000, 96, 12, false, cuvs::distance::DistanceType::CosineExpanded, 1567ULL},
+  // Large-M around 5M with L2 sqrt
+  {5000000, 128, 4, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1678ULL},
+  {4900000, 64, 20, true, cuvs::distance::DistanceType::L2SqrtExpanded, 1789ULL},
+};
+#endif  // CUVS_CK_ENABLED
+
+// ======================= Generate typed inputs =======================
+
+// --- Basic ---
+const auto inputsF       = makeInputs<float, int>(0.01f, basicShapes);
+const auto inputsD       = makeInputs<double, int>(0.001, basicShapesCompact);
+const auto inputsF_Int64 = makeInputs<float, int64_t>(0.01f, basicShapesInt64);
+const auto inputsD_Int64 = makeInputs<double, int64_t>(0.001, basicShapesCompactInt64);
+
+// --- Kmeans ---
+const auto inputsKmeansF       = makeInputs<float, int>(0.01f, kmeansShapes);
+const auto inputsKmeansD       = makeInputs<double, int>(0.001, kmeansShapesCompact);
+const auto inputsKmeansF_Int64 = makeInputs<float, int64_t>(0.01f, kmeansShapesCompact);
+const auto inputsKmeansD_Int64 = makeInputs<double, int64_t>(0.001, kmeansShapesCompact);
+
+// --- Min-only ---
+const auto inputsMinOnlyF       = makeInputs<float, int>(0.01f, minOnlyShapes);
+const auto inputsMinOnlyD       = makeInputs<double, int>(0.001, minOnlyShapesCompact);
+const auto inputsMinOnlyF_Int64 = makeInputs<float, int64_t>(0.01f, minOnlyShapesCompact);
+const auto inputsMinOnlyD_Int64 = makeInputs<double, int64_t>(0.001, minOnlyShapesCompact);
+
+// --- Pre-init ---
+const auto inputsPreInitF       = makeInputs<float, int>(0.01f, preInitShapes);
+const auto inputsPreInitD       = makeInputs<double, int>(0.001, preInitShapesCompact);
+const auto inputsPreInitF_Int64 = makeInputs<float, int64_t>(0.01f, preInitShapesCompact);
+const auto inputsPreInitD_Int64 = makeInputs<double, int64_t>(0.001, preInitShapesCompact);
+
+// --- Large ---
+const auto inputsLargeF       = makeInputs<float, int>(0.01f, largeShapes);
+const auto inputsLargeD       = makeInputs<double, int>(0.001, largeShapesCompact);
+const auto inputsLargeF_Int64 = makeInputs<float, int64_t>(0.01f, largeShapesCompact);
+const auto inputsLargeD_Int64 = makeInputs<double, int64_t>(0.001, largeShapesCompact);
+
+// --- CK ---
+#ifdef CUVS_CK_ENABLED
+const auto inputsCkSkinny      = makeInputs<float, int>(0.01f, ckSkinnyShapes);
+const auto inputsCkLargeSkinny = makeInputs<float, int>(0.01f, ckLargeSkinnyShapes);
+#endif
+
+// ======================= Test registrations =======================
+
+// --- Basic ---
+FUSED_NN_TEST(FusedDistanceNNTests, FusedDistanceNNTestF, FusedDistanceNNTest, float, int, inputsF);
+FUSED_NN_TEST(
+  FusedDistanceNNTests, FusedDistanceNNTestD, FusedDistanceNNTest, double, int, inputsD);
+FUSED_NN_TEST(FusedDistanceNNTests,
+              FusedDistanceNNTestF_Int64,
+              FusedDistanceNNTest,
+              float,
+              int64_t,
+              inputsF_Int64);
+FUSED_NN_TEST(FusedDistanceNNTests,
+              FusedDistanceNNTestD_Int64,
+              FusedDistanceNNTest,
+              double,
+              int64_t,
+              inputsD_Int64);
+
+// --- Kmeans ---
+FUSED_NN_TEST(FusedDistanceNNKmeansTests,
+              FusedDistanceNNKmeansTestF,
+              FusedDistanceNNTest,
+              float,
+              int,
+              inputsKmeansF);
+FUSED_NN_TEST(FusedDistanceNNKmeansTests,
+              FusedDistanceNNKmeansTestD,
+              FusedDistanceNNTest,
+              double,
+              int,
+              inputsKmeansD);
+FUSED_NN_TEST(FusedDistanceNNKmeansTests,
+              FusedDistanceNNKmeansTestF_Int64,
+              FusedDistanceNNTest,
+              float,
+              int64_t,
+              inputsKmeansF_Int64);
+FUSED_NN_TEST(FusedDistanceNNKmeansTests,
+              FusedDistanceNNKmeansTestD_Int64,
+              FusedDistanceNNTest,
+              double,
+              int64_t,
+              inputsKmeansD_Int64);
+
+// --- Min-only ---
+FUSED_NN_TEST(FusedDistanceNNMinOnlyTests,
+              FusedDistanceNNMinOnlyTestF,
+              FusedDistanceNNMinOnlyTest,
+              float,
+              int,
+              inputsMinOnlyF);
+FUSED_NN_TEST(FusedDistanceNNMinOnlyTests,
+              FusedDistanceNNMinOnlyTestD,
+              FusedDistanceNNMinOnlyTest,
+              double,
+              int,
+              inputsMinOnlyD);
+FUSED_NN_TEST(FusedDistanceNNMinOnlyTests,
+              FusedDistanceNNMinOnlyTestF_Int64,
+              FusedDistanceNNMinOnlyTest,
+              float,
+              int64_t,
+              inputsMinOnlyF_Int64);
+FUSED_NN_TEST(FusedDistanceNNMinOnlyTests,
+              FusedDistanceNNMinOnlyTestD_Int64,
+              FusedDistanceNNMinOnlyTest,
+              double,
+              int64_t,
+              inputsMinOnlyD_Int64);
+
+// --- Pre-init ---
+FUSED_NN_TEST(FusedDistanceNNPreInitTests,
+              FusedDistanceNNPreInitTestF,
+              FusedDistanceNNPreInitTest,
+              float,
+              int,
+              inputsPreInitF);
+FUSED_NN_TEST(FusedDistanceNNPreInitTests,
+              FusedDistanceNNPreInitTestD,
+              FusedDistanceNNPreInitTest,
+              double,
+              int,
+              inputsPreInitD);
+FUSED_NN_TEST(FusedDistanceNNPreInitTests,
+              FusedDistanceNNPreInitTestF_Int64,
+              FusedDistanceNNPreInitTest,
+              float,
+              int64_t,
+              inputsPreInitF_Int64);
+FUSED_NN_TEST(FusedDistanceNNPreInitTests,
+              FusedDistanceNNPreInitTestD_Int64,
+              FusedDistanceNNPreInitTest,
+              double,
+              int64_t,
+              inputsPreInitD_Int64);
+
+// --- Large ---
+FUSED_NN_LARGE_TEST(FusedDistanceNNLargeTests, FusedDistanceNNLargeTestF, float, int, inputsLargeF);
+FUSED_NN_LARGE_TEST(
+  FusedDistanceNNLargeTests, FusedDistanceNNLargeTestD, double, int, inputsLargeD);
+FUSED_NN_LARGE_TEST(
+  FusedDistanceNNLargeTests, FusedDistanceNNLargeTestF_Int64, float, int64_t, inputsLargeF_Int64);
+FUSED_NN_LARGE_TEST(
+  FusedDistanceNNLargeTests, FusedDistanceNNLargeTestD_Int64, double, int64_t, inputsLargeD_Int64);
+
+// --- CK ---
+#ifdef CUVS_CK_ENABLED
+FUSED_NN_TEST(FusedDistanceNNTests,
+              FusedDistanceNNCkSkinnyTest,
+              FusedDistanceNNTest,
+              float,
+              int,
+              inputsCkSkinny);
+FUSED_NN_LARGE_TEST(FusedDistanceNNCkLargeSkinnyTests,
+                    FusedDistanceNNCkLargeSkinnyTest,
+                    float,
+                    int,
+                    inputsCkLargeSkinny);
 #endif  // CUVS_CK_ENABLED
 
 }  // namespace distance
