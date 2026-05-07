@@ -1212,8 +1212,8 @@ if(NOT BUILD_CPU_ONLY)
 
     target_link_libraries(
       cuvs
-      INTERFACE $<COMPILE_ONLY:rmm::rmm>
-      PUBLIC raft::raft
+      PUBLIC rmm::rmm
+             raft::raft
              cuvs::cuvs_cpp_headers
              ${CUVS_CTK_MATH_DEPENDENCIES}
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:roc::rccl>>
@@ -1232,37 +1232,41 @@ if(NOT BUILD_CPU_ONLY)
 #         $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
 # =======
              $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# <<<<<<< OLD CODE from 978aa6704 (fe2648ed8) - COMMENTED OUT
-# # <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
-# # # <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
-# # #       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-# # #               $<COMPILE_ONLY:cuco::cuco> $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
-# # # # >>>>>>> END NEW CODE (9363fc0a4)
-# # #     )
-# # #     if(CUVS_USE_ROCPROFSYS)
-# # #       find_package(rocprofiler-systems REQUIRED)
-# # #       target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
-# # #     endif()
+# <<<<<<< OLD CODE from e562e5f57 (83506f067) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 978aa6704 (fe2648ed8) - COMMENTED OUT
+# # # <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
+# # # # <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
+# # # #       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+# # # #               $<COMPILE_ONLY:cuco::cuco> $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
+# # # # # >>>>>>> END NEW CODE (9363fc0a4)
+# # # #     )
+# # # #     if(CUVS_USE_ROCPROFSYS)
+# # # #       find_package(rocprofiler-systems REQUIRED)
+# # # #       target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
+# # # #     endif()
+# # # # =======
+# # #       PRIVATE rmm::rmm
+# # #               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# # #               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+# # #               $<COMPILE_ONLY:cuco::cuco>
+# # #               $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
 # # # =======
-# #       PRIVATE rmm::rmm
-# #               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# #               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-# #               $<COMPILE_ONLY:cuco::cuco>
-# #               $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
+# #       PRIVATE rmm::rmm $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+# #               $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco> CUDA::nvJitLink
+# # # >>>>>>> END NEW CODE (34192f32e)
 # # =======
-#       PRIVATE rmm::rmm $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-#               $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco> CUDA::nvJitLink
-# # >>>>>>> END NEW CODE (34192f32e)
+#       PRIVATE rmm::rmm
+#               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+#               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+#               $<COMPILE_ONLY:cuco::cuco>
+#               CUDA::nvJitLink
+#               CUDA::nvrtc
+# # >>>>>>> END NEW CODE (fe2648ed8)
 # =======
-      PRIVATE rmm::rmm
-              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-              $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-              $<COMPILE_ONLY:cuco::cuco>
-              CUDA::nvJitLink
-              CUDA::nvrtc
-# >>>>>>> END NEW CODE (fe2648ed8)
+      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+              $<COMPILE_ONLY:cuco::cuco> CUDA::nvJitLink CUDA::nvrtc
+# >>>>>>> END NEW CODE (83506f067)
     )
-    set_property(TARGET cuvs PROPERTY NO_CUDART_DEP ON)
 
     # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
     file(
@@ -1308,8 +1312,8 @@ SECTIONS
 
     target_link_libraries(
       cuvs_static
-      INTERFACE $<COMPILE_ONLY:rmm::rmm>
-      PUBLIC raft::raft
+      PUBLIC rmm::rmm
+             raft::raft
              cuvs::cuvs_cpp_headers
              ${CUVS_CTK_MATH_DEPENDENCIES}
 # <<<<<<< OLD CODE from 57a8bc7bb (9363fc0a4) - COMMENTED OUT
@@ -1329,8 +1333,7 @@ SECTIONS
 # =======
              $<TARGET_NAME_IF_EXISTS:NCCL::NCCL> # needs to be public for DT_NEEDED
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>> # header only
-      PRIVATE rmm::rmm
-              $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
               CUDA::nvJitLink
               CUDA::nvrtc
               $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
@@ -1338,7 +1341,6 @@ SECTIONS
               $<COMPILE_ONLY:cuco::cuco>
 # >>>>>>> END NEW CODE (9363fc0a4)
     )
-    set_property(TARGET cuvs_static PROPERTY NO_CUDART_DEP ON)
   endif()
 
   # ################################################################################################
