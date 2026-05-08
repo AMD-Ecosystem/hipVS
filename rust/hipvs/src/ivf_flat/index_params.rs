@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
@@ -22,9 +22,9 @@
  */
 
 use crate::distance_type::DistanceType;
-use crate::error::{check_cuvs, Result};
+use crate::error::{Result, check_cuvs};
 use std::fmt;
-use std::io::{stderr, Write};
+use std::io::{Write, stderr};
 
 pub struct IndexParams(pub ffi::cuvsIvfFlatIndexParams_t);
 
@@ -102,12 +102,8 @@ impl fmt::Debug for IndexParams {
 impl Drop for IndexParams {
     fn drop(&mut self) {
         if let Err(e) = check_cuvs(unsafe { ffi::cuvsIvfFlatIndexParamsDestroy(self.0) }) {
-            write!(
-                stderr(),
-                "failed to call cuvsIvfFlatIndexParamsDestroy {:?}",
-                e
-            )
-            .expect("failed to write to stderr");
+            write!(stderr(), "failed to call cuvsIvfFlatIndexParamsDestroy {:?}", e)
+                .expect("failed to write to stderr");
         }
     }
 }
@@ -118,10 +114,7 @@ mod tests {
 
     #[test]
     fn test_index_params() {
-        let params = IndexParams::new()
-            .unwrap()
-            .set_n_lists(128)
-            .set_add_data_on_build(false);
+        let params = IndexParams::new().unwrap().set_n_lists(128).set_add_data_on_build(false);
 
         unsafe {
             assert_eq!((*params.0).n_lists, 128);

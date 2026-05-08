@@ -44,10 +44,10 @@
 // SOFTWARE.
 
 use std::ffi::CString;
-use std::io::{stderr, Write};
+use std::io::{Write, stderr};
 
 use crate::dlpack::ManagedTensor;
-use crate::error::{check_cuvs, Result};
+use crate::error::{Result, check_cuvs};
 use crate::resources::Resources;
 use crate::vamana::IndexParams;
 
@@ -78,12 +78,7 @@ impl Index {
         let dataset: ManagedTensor = dataset.into();
         let index = Index::new()?;
         unsafe {
-            check_cuvs(ffi::cuvsVamanaBuild(
-                res.0,
-                params.0,
-                dataset.as_ptr(),
-                index.0,
-            ))?;
+            check_cuvs(ffi::cuvsVamanaBuild(res.0, params.0, dataset.as_ptr(), index.0))?;
         }
         Ok(index)
     }
@@ -134,8 +129,8 @@ impl Drop for Index {
 mod tests {
     use super::*;
 
-    use ndarray_rand::rand_distr::Uniform;
     use ndarray_rand::RandomExt;
+    use ndarray_rand::rand_distr::Uniform;
 
     #[test]
     fn test_vamana() {

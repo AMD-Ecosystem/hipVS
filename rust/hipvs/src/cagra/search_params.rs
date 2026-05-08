@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
@@ -21,9 +21,9 @@
  * THE SOFTWARE.
  */
 
-use crate::error::{check_cuvs, Result};
+use crate::error::{Result, check_cuvs};
 use std::fmt;
-use std::io::{stderr, Write};
+use std::io::{Write, stderr};
 
 pub type SearchAlgo = ffi::cuvsCagraSearchAlgo;
 pub type HashMode = ffi::cuvsCagraHashMode;
@@ -151,12 +151,8 @@ impl fmt::Debug for SearchParams {
 impl Drop for SearchParams {
     fn drop(&mut self) {
         if let Err(e) = check_cuvs(unsafe { ffi::cuvsCagraSearchParamsDestroy(self.0) }) {
-            write!(
-                stderr(),
-                "failed to call cuvsCagraSearchParamsDestroy {:?}",
-                e
-            )
-            .expect("failed to write to stderr");
+            write!(stderr(), "failed to call cuvsCagraSearchParamsDestroy {:?}", e)
+                .expect("failed to write to stderr");
         }
     }
 }

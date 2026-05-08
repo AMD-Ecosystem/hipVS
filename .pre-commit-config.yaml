@@ -156,11 +156,16 @@ repos:
                 exclude: |
                   (?x)
                     ^CHANGELOG[.]md$|
-# <<<<<<< OLD CODE from 513ee4e94 (420e1f4ed) - COMMENTED OUT
-#                     ^cpp/cmake/patches/cutlass/build-export[.]patch$|
-#                     ^docs_amd/reference/rust_api/rust_html/.
+# <<<<<<< OLD CODE from 2bea0aebe (71d4844a8) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 513ee4e94 (420e1f4ed) - COMMENTED OUT
+# #                     ^cpp/cmake/patches/cutlass/build-export[.]patch$|
+# #                     ^docs_amd/reference/rust_api/rust_html/.
+# # =======
+#                     ^cpp/cmake/patches/cutlass/build-export[.]patch$
 # =======
-                    ^cpp/cmake/patches/cutlass/build-export[.]patch$
+                    ^cpp/cmake/patches/cutlass/build-export[.]patch$|
+                    ^rust/cuvs-sys/src/bindings[.]rs$
+# >>>>>>> END NEW CODE (71d4844a8)
       - repo: https://github.com/rapidsai/pre-commit-hooks
         rev: v1.3.3
         hooks:
@@ -194,7 +199,8 @@ repos:
                 cpp/src/distance/detail/fused_distance_nn/persistent_gemm[.]h$|
                 cpp/src/distance/detail/fused_distance_nn/epilogue_elementwise[.]cuh$|
                 cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_reduced_vec[.]h$|
-                cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$
+                cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$|
+                rust/cuvs-sys/src/bindings[.]rs$
               )
           - id: verify-copyright
             name: verify-copyright-scikit-learn
