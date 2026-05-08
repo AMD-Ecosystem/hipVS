@@ -108,7 +108,7 @@ void fusedL2NNImpl(OutT* min,
 #ifdef CUVS_CK_ENABLED
   // Use CK backend for fused L2 NN on AMD GPUs.
   fusedL2NNCkDispatch<DataT, OutT, IdxT, P, ReduceOpT, KVPReduceOpT>(
-    min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, sqrt, false, stream);
+    min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, sqrt, stream);
 #elif defined(__HIP_PLATFORM_AMD__)
   // Use non-CUTLASS fp32 SIMT kernel.
   constexpr size_t shmemSize = P::SmemSize + ((P::Mblk + P::Nblk) * sizeof(DataT));

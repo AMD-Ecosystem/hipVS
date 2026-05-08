@@ -43,9 +43,7 @@
 namespace cuvs::distance::detail {
 
 // Problem config matching the pairwise epilogue structure.
-// AccDataType is always float (fp32 MFMA accumulator).
-template <typename ODataType_,
-          typename IdxType_,
+template <typename IdxType_,
           ck_tile::index_t kM_,
           ck_tile::index_t kN_,
           ck_tile::index_t MWave_,
@@ -55,7 +53,7 @@ template <typename ODataType_,
           ck_tile::index_t KPerXdl_>
 struct FusedDistanceNNCkEpilogueProblem {
   using AccDataType = float;
-  using ODataType   = ck_tile::remove_cvref_t<ODataType_>;
+  using ODataType   = float;
   using IdxType     = ck_tile::remove_cvref_t<IdxType_>;
 
   static constexpr ck_tile::index_t kBlockSize = MWave_ * NWave_ * ck_tile::get_warp_size();
@@ -78,13 +76,13 @@ struct FusedDistanceNNCkEpilogueProblem {
 // Fused Distance NN Epilogue: distances + row-wise reduction + atomic update
 template <typename Problem_, typename ElementWiseOp_, typename ReduceOpT_, typename KVPReduceOpT_>
 struct FusedDistanceNNCkEpilogue {
-  using Problem       = ck_tile::remove_cvref_t<Problem_>;
-  using ElementWiseOp = ck_tile::remove_cvref_t<ElementWiseOp_>;
-  using ReduceOpT     = ck_tile::remove_cvref_t<ReduceOpT_>;
-  using KVPReduceOpT  = ck_tile::remove_cvref_t<KVPReduceOpT_>;
-  using AccDataType   = ck_tile::remove_cvref_t<typename Problem::AccDataType>;
-  using ODataType     = ck_tile::remove_cvref_t<typename Problem::ODataType>;
-  using IdxType       = ck_tile::remove_cvref_t<typename Problem::IdxType>;
+  using Problem       = Problem_;
+  using ElementWiseOp = ElementWiseOp_;
+  using ReduceOpT     = ReduceOpT_;
+  using KVPReduceOpT  = KVPReduceOpT_;
+  using AccDataType   = typename Problem::AccDataType;
+  using ODataType     = typename Problem::ODataType;
+  using IdxType       = typename Problem::IdxType;
   using KVPair        = raft::KeyValuePair<IdxType, ODataType>;
 
   static constexpr ck_tile::index_t kBlockSize    = Problem::kBlockSize;

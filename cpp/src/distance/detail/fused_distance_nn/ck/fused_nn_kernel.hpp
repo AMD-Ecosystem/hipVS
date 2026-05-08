@@ -36,34 +36,50 @@
 
 namespace cuvs::distance::detail {
 
-// Tile configuration for fused distance NN GEMM (default for K >= 32)
-struct FusedDistanceNNGemmConfig {
-  static constexpr ck_tile::index_t M_Tile      = 64;
-  static constexpr ck_tile::index_t N_Tile      = 64;
-  static constexpr ck_tile::index_t K_Tile      = 32;
-  static constexpr ck_tile::index_t M_Warp      = 2;
-  static constexpr ck_tile::index_t N_Warp      = 2;
-  static constexpr ck_tile::index_t K_Warp      = 1;
-  static constexpr ck_tile::index_t M_Warp_Tile = 16;
-  static constexpr ck_tile::index_t N_Warp_Tile = 16;
-  static constexpr ck_tile::index_t K_Warp_Tile = 16;
-  static constexpr bool DoubleSmemBuffer        = false;
-  static constexpr auto Scheduler               = ck_tile::GemmPipelineScheduler::Intrawave;
+// MFMA hardware instruction tags (pure compile-time descriptors of CDNA MFMA shapes).
+// Used to make the GemmConfig declare which hardware instruction it intends to use.
+namespace mfma {
+// clang-format off
+struct f32_f32_f32_16x16x16 { static constexpr ck_tile::index_t M = 16, N = 16, K = 16; };
+struct f32_f32_f32_16x16x4  { static constexpr ck_tile::index_t M = 16, N = 16, K = 4;  };
+// clang-format on
+}  // namespace mfma
+
+struct FusedDistanceNNGemmBaseConfig {
+  static constexpr ck_tile::index_t M_Tile = 64;
+  static constexpr ck_tile::index_t N_Tile = 64;
+  static constexpr ck_tile::index_t M_Warp = 2;
+  static constexpr ck_tile::index_t N_Warp = 2;
+  static constexpr ck_tile::index_t K_Warp = 1;
+  static constexpr bool DoubleSmemBuffer   = false;
+  static constexpr auto Scheduler          = ck_tile::GemmPipelineScheduler::Intrawave;
 };
 
-// Optimized configuration for fp32 with K < 32, uses MFMA 16x16x4 (minimum K_Warp_Tile=4)
-struct FusedDistanceNNGemmConfigSkinnyF32 {
-  static constexpr ck_tile::index_t M_Tile      = 64;
-  static constexpr ck_tile::index_t N_Tile      = 64;
-  static constexpr ck_tile::index_t K_Tile      = 8;  // 4x smaller than default 32
-  static constexpr ck_tile::index_t M_Warp      = 2;
-  static constexpr ck_tile::index_t N_Warp      = 2;
-  static constexpr ck_tile::index_t K_Warp      = 1;
-  static constexpr ck_tile::index_t M_Warp_Tile = 16;
-  static constexpr ck_tile::index_t N_Warp_Tile = 16;
-  static constexpr ck_tile::index_t K_Warp_Tile = 4;  // Minimum for fp32 MFMA 16x16x4
-  static constexpr bool DoubleSmemBuffer        = false;
-  static constexpr auto Scheduler               = ck_tile::GemmPipelineScheduler::Intrawave;
+// Tile configuration for fused distance NN GEMM (default for K >= 32)
+struct FusedDistanceNNGemmConfig : public FusedDistanceNNGemmBaseConfig {
+  static constexpr ck_tile::index_t K_Tile      = 32;
+  using Mfma                                    = mfma::f32_f32_f32_16x16x16;
+  static constexpr ck_tile::index_t M_Warp_Tile = Mfma::M;
+  static constexpr ck_tile::index_t N_Warp_Tile = Mfma::N;
+  static constexpr ck_tile::index_t K_Warp_Tile = Mfma::K;
+};
+
+// Optimized configuration for fp32 with 8 < K < 32, uses MFMA 16x16x4 (minimum K_Warp_Tile=4)
+struct FusedDistanceNNGemmConfigSkinnyF32 : public FusedDistanceNNGemmBaseConfig {
+  using Mfma                                    = mfma::f32_f32_f32_16x16x4;
+  static constexpr ck_tile::index_t K_Tile      = 2 * Mfma::K;  // 8
+  static constexpr ck_tile::index_t M_Warp_Tile = Mfma::M;
+  static constexpr ck_tile::index_t N_Warp_Tile = Mfma::N;
+  static constexpr ck_tile::index_t K_Warp_Tile = Mfma::K;
+};
+
+// Smallest-tile configuration for fp32 with K <= 8, minimizes wasted work
+struct FusedDistanceNNGemmConfigVerySkinnyF32 : public FusedDistanceNNGemmBaseConfig {
+  using Mfma                                    = mfma::f32_f32_f32_16x16x4;
+  static constexpr ck_tile::index_t K_Tile      = Mfma::K;  // 4
+  static constexpr ck_tile::index_t M_Warp_Tile = Mfma::M;
+  static constexpr ck_tile::index_t N_Warp_Tile = Mfma::N;
+  static constexpr ck_tile::index_t K_Warp_Tile = Mfma::K;
 };
 
 // Template alias for GEMM shape parameterized by config
@@ -73,6 +89,8 @@ using FusedNNGemmShapeT = ck_tile::TileGemmShape<
   ck_tile::sequence<Config::M_Warp, Config::N_Warp, Config::K_Warp>,
   ck_tile::sequence<Config::M_Warp_Tile, Config::N_Warp_Tile, Config::K_Warp_Tile>>;
 
+// These values are the defaults used in CK, specifically tuned for the MI300X.
+// TODO: Revisit, might be worth having this be architecture specific.
 static constexpr ck_tile::index_t FusedNNTilePartitionerGroupNum = 8;
 static constexpr ck_tile::index_t FusedNNTilePartitionerM01      = 4;
 
@@ -142,8 +160,7 @@ struct FusedDistanceNNCkKernelArgs {
 // Only float data type is supported; AccDataType is hardcoded to float in the problem.
 template <typename IdxT, typename Config>
 using FusedNNEpilogueProblemForT =
-  FusedDistanceNNCkEpilogueProblem<float,
-                                   IdxT,
+  FusedDistanceNNCkEpilogueProblem<IdxT,
                                    FusedNNGemmShapeT<Config>::kM,
                                    FusedNNGemmShapeT<Config>::kN,
                                    FusedNNGemmShapeT<Config>::BlockWarps::at(ck_tile::number<0>{}),
@@ -160,60 +177,24 @@ template <typename IdxT,
           typename ReduceOpT,
           typename KVPReduceOpT,
           typename Config = FusedDistanceNNGemmConfig>
-struct FusedDistanceNNCkKernel {
+class FusedDistanceNNComposableKernel {
+ public:
   using GemmPipeline = FusedNNGemmPipelineT<Config>;
   using KernelArgs   = FusedDistanceNNCkKernelArgs<IdxT, OutT>;
 
-  static constexpr ck_tile::index_t MPerBlock = FusedNNTilePartitionerT<Config>::MPerBlock;
-  static constexpr ck_tile::index_t NPerBlock = FusedNNTilePartitionerT<Config>::NPerBlock;
-  static constexpr ck_tile::index_t KPerBlock = FusedNNTilePartitionerT<Config>::KPerBlock;
+  static constexpr auto kBlockSize = GemmPipeline::BlockSize;
 
-  using EpilogueType = FusedDistanceNNCkEpilogue<FusedNNEpilogueProblemForT<IdxT, Config>,
-                                                 ElementWiseOp,
-                                                 ReduceOpT,
-                                                 KVPReduceOpT>;
-
-  // Derived from UniversalGemmKernel::kBlockSize, which reads GemmPipeline::BlockSize,
-  // which is Problem::kBlockSize = NumWarps * get_warp_size().
-  static constexpr ck_tile::index_t kBlockSize = GemmPipeline::BlockSize;
-
-  // Derived from UniversalGemmKernel::GridSize, which delegates to
-  // TilePartitioner::GridSize(M, N) for the x-dimension and uses KBatch for z.
-  __host__ static constexpr auto GridSize(ck_tile::index_t M,
-                                          ck_tile::index_t N,
-                                          ck_tile::index_t KBatch) -> dim3
-  {
-    return dim3(FusedNNTilePartitionerT<Config>::GridSize(M, N), 1, KBatch);
-  }
-
-  // Derived from UniversalGemmKernel::BlockSize, which halves thread count on
-  // wave32 (RDNA) architectures since each warp is 32 threads instead of 64.
-  __host__ static auto BlockSize() -> dim3
-  {
-    return dim3(ck_tile::is_wave32() ? kBlockSize / 2 : kBlockSize);
-  }
-
-  __host__ static constexpr ck_tile::index_t GetSmemSize()
-  {
-    return ck_tile::max(GemmPipeline::GetSmemSize(), EpilogueType::GetSmemSize());
-  }
-
-  ElementWiseOp elfunc_;
-  ReduceOpT red_op_;
-  KVPReduceOpT pair_red_op_;
-
-  __host__ __device__ FusedDistanceNNCkKernel(ElementWiseOp elfunc     = {},
-                                              ReduceOpT red_op         = {},
-                                              KVPReduceOpT pair_red_op = {})
+  __host__ __device__ FusedDistanceNNComposableKernel(ElementWiseOp elfunc     = {},
+                                                      ReduceOpT red_op         = {},
+                                                      KVPReduceOpT pair_red_op = {})
     : elfunc_(elfunc), red_op_(red_op), pair_red_op_(pair_red_op)
   {
   }
-
   __device__ void operator()(KernelArgs kargs) const
   {
     auto const [i_m, i_n] = get_tile_indices(kargs);
 
-    __shared__ char smem_ptr_0[GetSmemSize()];
+    __shared__ hip::std::byte smem_ptr_0[GetSmemSize()];
 
     // Helpers to build CK tensor view → pad view → tile window
     auto make_tensor_view = [&](auto const* ptr, auto rows, auto cols, auto stride) {
@@ -236,18 +217,18 @@ struct FusedDistanceNNCkKernel {
 
     auto const a_block_window = make_block_window(
       make_pad_view(make_tensor_view(kargs.a_ptr, kargs.M, kargs.K, kargs.stride_A),
-                    ck_tile::number<MPerBlock>{},
-                    ck_tile::number<KPerBlock>{}),
-      ck_tile::number<MPerBlock>{},
-      ck_tile::number<KPerBlock>{},
+                    ck_tile::number<GemmPipeline::MPerBlock>{},
+                    ck_tile::number<GemmPipeline::KPerBlock>{}),
+      ck_tile::number<GemmPipeline::MPerBlock>{},
+      ck_tile::number<GemmPipeline::KPerBlock>{},
       ck_tile::multi_index<2>{i_m, 0});
 
     auto const b_block_window = make_block_window(
       make_pad_view(make_tensor_view(kargs.b_ptr, kargs.N, kargs.K, kargs.stride_B),
-                    ck_tile::number<NPerBlock>{},
-                    ck_tile::number<KPerBlock>{}),
-      ck_tile::number<NPerBlock>{},
-      ck_tile::number<KPerBlock>{},
+                    ck_tile::number<GemmPipeline::NPerBlock>{},
+                    ck_tile::number<GemmPipeline::KPerBlock>{}),
+      ck_tile::number<GemmPipeline::NPerBlock>{},
+      ck_tile::number<GemmPipeline::KPerBlock>{},
       ck_tile::multi_index<2>{i_n, 0});
 
     ck_tile::index_t const num_loop =
@@ -277,7 +258,32 @@ struct FusedDistanceNNCkKernel {
              kargs.maxVal);
   }
 
+  // Derived from UniversalGemmKernel::GridSize, which delegates to
+  __host__ static constexpr auto GridSize(ck_tile::index_t M, ck_tile::index_t N) -> dim3
+  {
+    // Each workgroup processes the entire K dimension for its output tile. No inter-workgroup
+    // coordination needed.
+    return dim3(FusedNNTilePartitionerT<Config>::GridSize(M, N), 1, 1);
+  }
+
+  // Derived from UniversalGemmKernel::BlockSize, which halves thread count on
+  // wave32 (RDNA) architectures since each warp is 32 threads instead of 64.
+  __host__ static auto BlockSize() -> dim3
+  {
+    return dim3(ck_tile::is_wave32() ? kBlockSize / 2 : kBlockSize);
+  }
+
  private:
+  using EpilogueType = FusedDistanceNNCkEpilogue<FusedNNEpilogueProblemForT<IdxT, Config>,
+                                                 ElementWiseOp,
+                                                 ReduceOpT,
+                                                 KVPReduceOpT>;
+
+  __host__ static constexpr ck_tile::index_t GetSmemSize()
+  {
+    return ck_tile::max(GemmPipeline::GetSmemSize(), EpilogueType::GetSmemSize());
+  }
+
   __device__ static std::tuple<ck_tile::index_t, ck_tile::index_t> get_tile_indices(
     KernelArgs const& kargs)
   {
@@ -290,6 +296,10 @@ struct FusedDistanceNNCkKernel {
       ck_tile::amd_wave_read_first_lane(iN * FusedNNTilePartitionerT<Config>::NPerBlock);
     return {i_m, i_n};
   }
+
+  ElementWiseOp elfunc_;
+  ReduceOpT red_op_;
+  KVPReduceOpT pair_red_op_;
 };
 
 }  // namespace cuvs::distance::detail
