@@ -22,12 +22,23 @@ on:
         type: string
         default: nightly
 
+permissions: {}
+
 jobs:
   conda-cpp-checks:
-    secrets: inherit
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@release/26.04
+# <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
+#     secrets: inherit
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@release/26.04
+# # =======
 # =======
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+# >>>>>>> END NEW CODE (2c9a86e77)
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-post-build-checks.yaml@main
 # >>>>>>> END NEW CODE (84b92c31c)
     with:
@@ -37,10 +48,20 @@ jobs:
       sha: ${{ inputs.sha }}
       symbol_exclusions: (void (thrust::|cub::))
   conda-cpp-tests:
-    secrets: inherit
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@release/26.04
+# <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
+#     secrets: inherit
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@release/26.04
+# # =======
 # =======
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+# >>>>>>> END NEW CODE (2c9a86e77)
     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-tests.yaml@main
 # >>>>>>> END NEW CODE (84b92c31c)
     with:
@@ -50,10 +71,20 @@ jobs:
       script: ci/test_cpp.sh
       sha: ${{ inputs.sha }}
   conda-python-tests:
-    secrets: inherit
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@release/26.04
+# <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
+#     secrets: inherit
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@release/26.04
+# # =======
 # =======
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+# >>>>>>> END NEW CODE (2c9a86e77)
     uses: rapidsai/shared-workflows/.github/workflows/conda-python-tests.yaml@main
 # >>>>>>> END NEW CODE (84b92c31c)
     with:
@@ -63,10 +94,20 @@ jobs:
       script: ci/test_python.sh
       sha: ${{ inputs.sha }}
   conda-java-tests:
-    secrets: inherit
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
+#     secrets: inherit
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# # =======
 # =======
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+# >>>>>>> END NEW CODE (2c9a86e77)
     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
 # >>>>>>> END NEW CODE (84b92c31c)
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
@@ -87,10 +128,20 @@ jobs:
       container_image: "rapidsai/ci-conda:26.06-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
       script: "ci/test_java.sh"
   wheel-tests-cuvs:
-    secrets: inherit
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@release/26.04
+# <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
+#     secrets: inherit
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@release/26.04
+# # =======
 # =======
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+# >>>>>>> END NEW CODE (2c9a86e77)
     uses: rapidsai/shared-workflows/.github/workflows/wheels-test.yaml@main
 # >>>>>>> END NEW CODE (84b92c31c)
     with:

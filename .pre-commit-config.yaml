@@ -241,6 +241,15 @@ repos:
       - repo: https://github.com/shellcheck-py/shellcheck-py
         rev: v0.10.0.1
         hooks:
-              - id: shellcheck
+# <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
+#               - id: shellcheck
+# =======
+          - id: shellcheck
+      - repo: https://github.com/zizmorcore/zizmor-pre-commit
+        rev: v1.24.1
+        hooks:
+          - id: zizmor
+
+# >>>>>>> END NEW CODE (2c9a86e77)
 default_language_version:
       python: python3
