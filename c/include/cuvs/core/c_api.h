@@ -1,35 +1,40 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
-
+// <<<<<<< OLD CODE from 051c53129 (60df22060) - COMMENTED OUT
+//  * Copyright (c) 2024-2025, NVIDIA CORPORATION.
+//  *
+//  * Licensed under the Apache License, Version 2.0 (the "License");
+//  * you may not use this file except in compliance with the License.
+//  * You may obtain a copy of the License at
+//  *
+//  *     http://www.apache.org/licenses/LICENSE-2.0
+//  *
+//  * Unless required by applicable law or agreed to in writing, software
+//  * distributed under the License is distributed on an "AS IS" BASIS,
+//  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  * See the License for the specific language governing permissions and
+//  * limitations under the License.
+//  *
+//  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+//  * Permission is hereby granted, free of charge, to any person obtaining a copy
+//  * of this software and associated documentation files (the "Software"), to deal
+//  * in the Software without restriction, including without limitation the rights
+//  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  * copies of the Software, and to permit persons to whom the Software is
+//  * furnished to do so, subject to the following conditions:
+//  * The above copyright notice and this permission notice shall be included in
+//  * all copies or substantial portions of the Software.
+//  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//  * THE SOFTWARE.
+//
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (60df22060)
  */
 
 #pragma once
@@ -42,6 +47,8 @@
 #include <dlpack/dlpack.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#include <cuvs/core/export.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,7 +67,7 @@ typedef enum { CUVS_ERROR = 0, CUVS_SUCCESS = 1 } cuvsError_t;
 /** @brief Returns a string describing the last seen error on this thread, or
  *         NULL if the last function succeeded.
  */
-const char* cuvsGetLastErrorText();
+CUVS_EXPORT const char* cuvsGetLastErrorText();
 
 /**
  * @brief Logs the last seen error on this thread to the standard error stream
@@ -71,7 +78,7 @@ void cuvsLogLastErrorText();
  * @brief Sets a string describing an error seen on the thread. Passing NULL
  *        clears any previously seen error message.
  */
-void cuvsSetLastErrorText(const char* error);
+CUVS_EXPORT void cuvsSetLastErrorText(const char* error);
 
 /** @} */
 
@@ -96,11 +103,11 @@ typedef enum {
 
 /** @brief Returns the current log level
  */
-cuvsLogLevel_t cuvsGetLogLevel();
+CUVS_EXPORT cuvsLogLevel_t cuvsGetLogLevel();
 
 /** @brief Sets the log level
  */
-void cuvsSetLogLevel(cuvsLogLevel_t);
+CUVS_EXPORT void cuvsSetLogLevel(cuvsLogLevel_t);
 
 /** @} */
 
@@ -121,7 +128,7 @@ typedef uintptr_t cuvsResources_t;
  * @param[in] res cuvsResources_t opaque C handle
  * @return cuvsError_t
  */
-cuvsError_t cuvsResourcesCreate(cuvsResources_t* res);
+CUVS_EXPORT cuvsError_t cuvsResourcesCreate(cuvsResources_t* res);
 
 /**
  * @brief Destroy and de-allocate opaque C handle for C++ type `raft::resources`
@@ -129,7 +136,7 @@ cuvsError_t cuvsResourcesCreate(cuvsResources_t* res);
  * @param[in] res cuvsResources_t opaque C handle
  * @return cuvsError_t
  */
-cuvsError_t cuvsResourcesDestroy(cuvsResources_t res);
+CUVS_EXPORT cuvsError_t cuvsResourcesDestroy(cuvsResources_t res);
 
 /**
  * @brief Set cudaStream_t on cuvsResources_t to queue CUDA kernels on APIs
@@ -139,7 +146,7 @@ cuvsError_t cuvsResourcesDestroy(cuvsResources_t res);
  * @param[in] stream cudaStream_t stream to queue CUDA kernels
  * @return cuvsError_t
  */
-cuvsError_t cuvsStreamSet(cuvsResources_t res, cudaStream_t stream);
+CUVS_EXPORT cuvsError_t cuvsStreamSet(cuvsResources_t res, cudaStream_t stream);
 
 /**
  * @brief Get the cudaStream_t from a cuvsResources_t
@@ -148,7 +155,7 @@ cuvsError_t cuvsStreamSet(cuvsResources_t res, cudaStream_t stream);
  * @param[out] stream cudaStream_t stream to queue CUDA kernels
  * @return cuvsError_t
  */
-cuvsError_t cuvsStreamGet(cuvsResources_t res, cudaStream_t* stream);
+CUVS_EXPORT cuvsError_t cuvsStreamGet(cuvsResources_t res, cudaStream_t* stream);
 
 /**
  * @brief Syncs the current CUDA stream on the resources object
@@ -156,7 +163,7 @@ cuvsError_t cuvsStreamGet(cuvsResources_t res, cudaStream_t* stream);
  * @param[in] res cuvsResources_t opaque C handle
  * @return cuvsError_t
  */
-cuvsError_t cuvsStreamSync(cuvsResources_t res);
+CUVS_EXPORT cuvsError_t cuvsStreamSync(cuvsResources_t res);
 
 /**
  * @brief Get the id of the device associated with this cuvsResources_t
@@ -165,7 +172,7 @@ cuvsError_t cuvsStreamSync(cuvsResources_t res);
  * @param[out] device_id int the id of the device associated with res
  * @return cuvsError_t
  */
-cuvsError_t cuvsDeviceIdGet(cuvsResources_t res, int* device_id);
+CUVS_EXPORT cuvsError_t cuvsDeviceIdGet(cuvsResources_t res, int* device_id);
 
 /**
  * @brief Create an Initialized opaque C handle for C++ type `raft::device_resources_snmg`
@@ -174,7 +181,7 @@ cuvsError_t cuvsDeviceIdGet(cuvsResources_t res, int* device_id);
  * @param[in] res cuvsResources_t opaque C handle
  * @return cuvsError_t
  */
-cuvsError_t cuvsMultiGpuResourcesCreate(cuvsResources_t* res);
+CUVS_EXPORT cuvsError_t cuvsMultiGpuResourcesCreate(cuvsResources_t* res);
 
 /**
  * @brief Create an Initialized opaque C handle for C++ type `raft::device_resources_snmg`
@@ -184,7 +191,7 @@ cuvsError_t cuvsMultiGpuResourcesCreate(cuvsResources_t* res);
  * @param[in] device_ids DLManagedTensor* containing device IDs to use
  * @return cuvsError_t
  */
-cuvsError_t cuvsMultiGpuResourcesCreateWithDeviceIds(cuvsResources_t* res,
+CUVS_EXPORT cuvsError_t cuvsMultiGpuResourcesCreateWithDeviceIds(cuvsResources_t* res,
                                                      DLManagedTensor* device_ids);
 
 /**
@@ -193,7 +200,7 @@ cuvsError_t cuvsMultiGpuResourcesCreateWithDeviceIds(cuvsResources_t* res,
  * @param[in] res cuvsResources_t opaque C handle
  * @return cuvsError_t
  */
-cuvsError_t cuvsMultiGpuResourcesDestroy(cuvsResources_t res);
+CUVS_EXPORT cuvsError_t cuvsMultiGpuResourcesDestroy(cuvsResources_t res);
 
 /**
  * @brief Set a memory pool on all devices managed by the multi-GPU resources
@@ -202,7 +209,7 @@ cuvsError_t cuvsMultiGpuResourcesDestroy(cuvsResources_t res);
  * @param[in] percent_of_free_memory Percent of free memory to allocate for the pool
  * @return cuvsError_t
  */
-cuvsError_t cuvsMultiGpuResourcesSetMemoryPool(cuvsResources_t res, int percent_of_free_memory);
+CUVS_EXPORT cuvsError_t cuvsMultiGpuResourcesSetMemoryPool(cuvsResources_t res, int percent_of_free_memory);
 /** @} */
 
 /**
@@ -219,7 +226,7 @@ cuvsError_t cuvsMultiGpuResourcesSetMemoryPool(cuvsResources_t res, int percent_
  * @param[in] bytes Size in bytes to allocate
  * @return cuvsError_t
  */
-cuvsError_t cuvsRMMAlloc(cuvsResources_t res, void** ptr, size_t bytes);
+CUVS_EXPORT cuvsError_t cuvsRMMAlloc(cuvsResources_t res, void** ptr, size_t bytes);
 
 /**
  * @brief Deallocates device memory using RMM
@@ -229,7 +236,7 @@ cuvsError_t cuvsRMMAlloc(cuvsResources_t res, void** ptr, size_t bytes);
  * @param[in] bytes Size in bytes to allocate
  * @return cuvsError_t
  */
-cuvsError_t cuvsRMMFree(cuvsResources_t res, void* ptr, size_t bytes);
+CUVS_EXPORT cuvsError_t cuvsRMMFree(cuvsResources_t res, void* ptr, size_t bytes);
 
 /**
  * @brief Switches the working memory resource to use the RMM pool memory resource, which will
@@ -245,14 +252,14 @@ cuvsError_t cuvsRMMFree(cuvsResources_t res, void* ptr, size_t bytes);
  * @param[in] managed Whether to use a managed memory resource as upstream resource or not
  * @return cuvsError_t
  */
-cuvsError_t cuvsRMMPoolMemoryResourceEnable(int initial_pool_size_percent,
+CUVS_EXPORT cuvsError_t cuvsRMMPoolMemoryResourceEnable(int initial_pool_size_percent,
                                             int max_pool_size_percent,
                                             bool managed);
 /**
  * @brief Resets the memory resource to use the default memory resource (cuda_memory_resource)
  * @return cuvsError_t
  */
-cuvsError_t cuvsRMMMemoryResourceReset();
+CUVS_EXPORT cuvsError_t cuvsRMMMemoryResourceReset();
 
 /**
  * @brief Allocates pinned memory on the host using RMM
@@ -260,7 +267,7 @@ cuvsError_t cuvsRMMMemoryResourceReset();
  * @param[in] bytes Size in bytes to allocate
  * @return cuvsError_t
  */
-cuvsError_t cuvsRMMHostAlloc(void** ptr, size_t bytes);
+CUVS_EXPORT cuvsError_t cuvsRMMHostAlloc(void** ptr, size_t bytes);
 
 /**
  * @brief Deallocates pinned memory on the host using RMM
@@ -268,7 +275,7 @@ cuvsError_t cuvsRMMHostAlloc(void** ptr, size_t bytes);
  * @param[in] bytes Size in bytes to deallocate
  * @return cuvsError_t
  */
-cuvsError_t cuvsRMMHostFree(void* ptr, size_t bytes);
+CUVS_EXPORT cuvsError_t cuvsRMMHostFree(void* ptr, size_t bytes);
 
 /**
  * @brief Get the version of the cuVS library
@@ -277,7 +284,7 @@ cuvsError_t cuvsRMMHostFree(void* ptr, size_t bytes);
  * @param[out] patch Patch version
  * @return cuvsError_t
  */
-cuvsError_t cuvsVersionGet(uint16_t* major, uint16_t* minor, uint16_t* patch);
+CUVS_EXPORT cuvsError_t cuvsVersionGet(uint16_t* major, uint16_t* minor, uint16_t* patch);
 
 /**
  * @brief Copy a matrix
@@ -294,7 +301,7 @@ cuvsError_t cuvsVersionGet(uint16_t* major, uint16_t* minor, uint16_t* patch);
  * @param[in] src Pointer to DLManagedTensor to copy
  * @param[out] dst Pointer to DLManagedTensor to receive copy of data
  */
-cuvsError_t cuvsMatrixCopy(cuvsResources_t res, DLManagedTensor* src, DLManagedTensor* dst);
+CUVS_EXPORT cuvsError_t cuvsMatrixCopy(cuvsResources_t res, DLManagedTensor* src, DLManagedTensor* dst);
 
 /**
  * @brief Slices rows from a matrix
@@ -305,7 +312,7 @@ cuvsError_t cuvsMatrixCopy(cuvsResources_t res, DLManagedTensor* src, DLManagedT
  * @param[in] end Last row index to include in the output
  * @param[out] dst Pointer to DLManagedTensor to receive slice from matrix
  */
-cuvsError_t cuvsMatrixSliceRows(
+CUVS_EXPORT cuvsError_t cuvsMatrixSliceRows(
   cuvsResources_t res, DLManagedTensor* src, int64_t start, int64_t end, DLManagedTensor* dst);
 /** @} */
 

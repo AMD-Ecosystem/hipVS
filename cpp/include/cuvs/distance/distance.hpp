@@ -43,12 +43,17 @@
 #include <hip/hip_fp16.h>
 #else
 #include <cuda_fp16.h>
-#endif
+// <<<<<<< OLD CODE from 051c53129 (60df22060) - COMMENTED OUT
+// #endif
+// =======
+#include <cuvs/core/export.hpp>
+// >>>>>>> END NEW CODE (60df22060)
 #include <raft/core/device_csr_matrix.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/resources.hpp>
 
-namespace cuvs::distance {
+namespace CUVS_EXPORT cuvs {
+namespace distance {
 
 /** enum to tell how to compute distance */
 enum class DistanceType : int {
@@ -502,4 +507,5 @@ void pairwise_distance(raft::resources const& handle,
 
 /** @} */  // end group pairwise_distance_runtime
 
-};  // namespace cuvs::distance
+}  // namespace distance
+}  // namespace CUVS_EXPORT cuvs

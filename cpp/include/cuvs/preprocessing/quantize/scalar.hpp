@@ -34,9 +34,16 @@
 #include <hip/hip_fp16.h>
 #else
 #include <cuda_fp16.h>
-#endif
+// <<<<<<< OLD CODE from 051c53129 (60df22060) - COMMENTED OUT
+// #endif
+// =======
+#include <cuvs/core/export.hpp>
+// >>>>>>> END NEW CODE (60df22060)
 
-namespace cuvs::preprocessing::quantize::scalar {
+namespace CUVS_EXPORT cuvs {
+namespace preprocessing {
+namespace quantize {
+namespace scalar {
 
 /**
  * @defgroup scalar Scalar quantizer utilities
@@ -494,4 +501,7 @@ void inverse_transform(raft::resources const& res,
 
 /** @} */  // end of group scalar
 
-}  // namespace cuvs::preprocessing::quantize::scalar
+}  // namespace scalar
+}  // namespace quantize
+}  // namespace preprocessing
+}  // namespace CUVS_EXPORT cuvs

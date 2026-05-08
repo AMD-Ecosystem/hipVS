@@ -40,9 +40,12 @@
 #include <raft/random/rng_state.hpp>
 #include <rapids_logger/logger.hpp>
 
+#include <cuvs/core/export.hpp>
 #include <optional>
 
-namespace cuvs::cluster::kmeans {
+namespace CUVS_EXPORT cuvs {
+namespace cluster {
+namespace kmeans {
 
 /** Base structure for parameters that are common to all k-means algorithms */
 struct base_params {
@@ -1668,4 +1671,6 @@ void find_k(raft::resources const& handle,
  */
 }  // namespace helpers
 
-}  // namespace  cuvs::cluster::kmeans
+}  // namespace kmeans
+}  // namespace cluster
+}  // namespace CUVS_EXPORT cuvs

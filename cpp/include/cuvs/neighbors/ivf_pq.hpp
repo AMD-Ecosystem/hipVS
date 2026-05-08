@@ -35,12 +35,15 @@
 #include <raft/core/resources.hpp>
 #include <raft/util/integer_utils.hpp>
 
+#include <cuvs/core/export.hpp>
 #include <optional>
 #include <tuple>
 #include <variant>
 #include <vector>
 
-namespace cuvs::neighbors::ivf_pq {
+namespace CUVS_EXPORT cuvs {
+namespace neighbors {
+namespace ivf_pq {
 
 /**
  * @defgroup ivf_pq_cpp_index_params IVF-PQ index build parameters
@@ -3377,9 +3380,13 @@ void resize_list(raft::resources const& res,
  */
 }  // namespace helpers
 
-}  // namespace cuvs::neighbors::ivf_pq
+}  // namespace ivf_pq
+}  // namespace neighbors
+}  // namespace CUVS_EXPORT cuvs
 
-namespace cuvs::neighbors::graph_build_params {
+namespace CUVS_EXPORT cuvs {
+namespace neighbors {
+namespace graph_build_params {
 /** Specialized parameters utilizing IVF-PQ to build knn graph */
 struct ivf_pq_params {
   cuvs::neighbors::ivf_pq::index_params build_params;
@@ -3446,4 +3453,6 @@ struct ivf_pq_params {
     refinement_rate = 1;
   }
 };
-}  // namespace cuvs::neighbors::graph_build_params
+}  // namespace graph_build_params
+}  // namespace neighbors
+}  // namespace CUVS_EXPORT cuvs
