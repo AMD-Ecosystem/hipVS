@@ -1,7 +1,13 @@
 [project]
 name = "hipvs-demo"
 version = "1.0.0"
+description = "Enterprise Research Analyst -- Agentic Multi-Document RAG powered by hipVS on AMD Instinct GPUs"
+readme = "README.md"
 requires-python = ">=3.10,<=3.13"
+license = { text = "MIT" }
+authors = [
+    { name = "Advanced Micro Devices, Inc." },
+]
 dependencies = [
     "amd-hipvs>=1.0.0",
     "amd-cupy>=13.5.1",
