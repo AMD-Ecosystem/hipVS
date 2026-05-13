@@ -1363,7 +1363,6 @@ if(NOT BUILD_CPU_ONLY)
                  CXX_STANDARD_REQUIRED ON
                  CUDA_STANDARD 20
                  CUDA_STANDARD_REQUIRED ON
-                 CUDA_RESOLVE_DEVICE_SYMBOLS ON
                  INTERFACE_POSITION_INDEPENDENT_CODE ON
                  POSITION_INDEPENDENT_CODE ON
     )
@@ -1473,7 +1472,6 @@ SECTIONS
                  CXX_STANDARD_REQUIRED ON
                  CUDA_STANDARD 20
                  CUDA_STANDARD_REQUIRED ON
-                 CUDA_RESOLVE_DEVICE_SYMBOLS ON
                  POSITION_INDEPENDENT_CODE ON
                  INTERFACE_POSITION_INDEPENDENT_CODE ON
                  EXPORT_NAME cuvs_static
