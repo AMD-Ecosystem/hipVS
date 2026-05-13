@@ -49,9 +49,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/conda-cpp-build.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -63,7 +67,7 @@ jobs:
   rocky8-clib-standalone-build-matrix:
     permissions:
       contents: read
-    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@cuda-13.2.0
     with:
       build_type: pull-request
       matrix_name: conda-cpp-build
@@ -82,9 +86,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.rocky8-clib-standalone-build-matrix.outputs.matrix) }}
@@ -112,8 +120,12 @@ jobs:
 # =======
     permissions:
       contents: read
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     with:
       build_type: pull-request
       matrix_name: conda-cpp-build
@@ -131,9 +143,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
     # If these jobs start producing artifacts, the names will have to differentiate between CUDA versions.
     strategy:
@@ -152,7 +168,7 @@ jobs:
     needs: cpp-build
     permissions:
       contents: read
-    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@cuda-13.2.0
     with:
       build_type: pull-request
       matrix_name: conda-cpp-build
@@ -172,9 +188,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
     # If these jobs start producing artifacts, the names will have to differentiate between CUDA versions.
     strategy:
@@ -193,7 +213,7 @@ jobs:
     needs: cpp-build
     permissions:
       contents: read
-    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/compute-matrix.yaml@cuda-13.2.0
     with:
       build_type: pull-request
       matrix_name: conda-cpp-build
@@ -213,9 +233,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
     # If these jobs start producing artifacts, the names will have to differentiate between CUDA versions.
     strategy:
@@ -246,9 +270,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/conda-python-build.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -273,7 +301,7 @@ jobs:
       id-token: write
       packages: read
       pull-requests: read
-    uses: rapidsai/shared-workflows/.github/workflows/conda-upload-packages.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/conda-upload-packages.yaml@cuda-13.2.0
     secrets:
       CONDA_RAPIDSAI_NIGHTLY_TOKEN: ${{ secrets.CONDA_RAPIDSAI_NIGHTLY_TOKEN }}
       CONDA_RAPIDSAI_TOKEN: ${{ secrets.CONDA_RAPIDSAI_TOKEN }}
@@ -307,9 +335,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     with:
       arch: "amd64"
       branch: ${{ inputs.branch }}
@@ -333,9 +365,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -363,7 +399,7 @@ jobs:
       id-token: write
       packages: read
       pull-requests: read
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-13.2.0
     secrets:
       CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN: ${{ secrets.CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN }}
       RAPIDSAI_PYPI_TOKEN: ${{ secrets.RAPIDSAI_PYPI_TOKEN }}
@@ -390,9 +426,13 @@ jobs:
       packages: read
       pull-requests: read
     secrets: inherit # zizmor: ignore[secrets-inherit]
-# >>>>>>> END NEW CODE (2c9a86e77)
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from c23c701c6 (79393d8cf) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (2c9a86e77)
+#     uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@main
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-build.yaml@cuda-13.2.0
+# >>>>>>> END NEW CODE (79393d8cf)
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
@@ -420,7 +460,7 @@ jobs:
       id-token: write
       packages: read
       pull-requests: read
-    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/wheels-publish.yaml@cuda-13.2.0
     secrets:
       CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN: ${{ secrets.CONDA_RAPIDSAI_WHEELS_NIGHTLY_TOKEN }}
       RAPIDSAI_PYPI_TOKEN: ${{ secrets.RAPIDSAI_PYPI_TOKEN }}
