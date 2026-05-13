@@ -38,10 +38,15 @@
 #include <raft/core/detail/macros.hpp>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/host_mdarray.hpp>
+#include <raft/core/resource/cuda_stream.hpp>
+#include <raft/core/resource/cuda_stream_pool.hpp>
+#include <raft/core/resource/device_id.hpp>
+#include <raft/core/resource/device_memory_resource.hpp>
+#include <raft/core/resources.hpp>
 #include <raft/matrix/init.cuh>
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
-
+#include <rmm/cuda_stream_pool.hpp>
 #include <rmm/resource_ref.hpp>
 
 #ifdef __HIP_PLATFORM_AMD__
@@ -55,6 +60,7 @@
 
 #include <cfloat>
 #include <cstdint>
+#include <iostream>
 #include <type_traits>
 
 namespace cuvs::neighbors::cagra::detail {
@@ -329,4 +335,5 @@ void copy_with_padding(
                       raft::resource::get_cuda_stream(res));
   }
 }
+
 }  // namespace cuvs::neighbors::cagra::detail
