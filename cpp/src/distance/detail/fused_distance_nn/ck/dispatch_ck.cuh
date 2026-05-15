@@ -85,6 +85,7 @@
 #include <ck_tile/host/kernel_launch.hpp>
 #include <ck_tile/host/stream_config.hpp>
 
+#include <atomic>
 #include <cstddef>
 #include <limits>
 
@@ -93,6 +94,35 @@
 constexpr uint64_t kBufferDescriptorMaxBytes = std::numeric_limits<uint32_t>::max();
 
 namespace cuvs::distance::detail {
+
+// =============================================================================
+// ARCHITECTURE QUERY (cached)
+// =============================================================================
+
+// Returns true if the current HIP device supports the CK fused NN kernel.
+// Result is cached per device to avoid repeated hipGetDeviceProperties calls
+// in hot loops (e.g. kmeans iterations).
+inline bool isCkFusedNNSupported()
+{
+  // 0 = unknown, 1 = supported, 2 = not supported
+  constexpr int kMaxDevices                      = 64;
+  static std::atomic<uint8_t> cache[kMaxDevices] = {};
+
+  int device = 0;
+  RAFT_CUDA_TRY(hipGetDevice(&device));
+  if (device < 0 || device >= kMaxDevices) return false;
+
+  auto cached = cache[device].load(std::memory_order_relaxed);
+  if (cached != 0) return cached == 1;
+
+  hipDeviceProp_t prop{};
+  RAFT_CUDA_TRY(hipGetDeviceProperties(&prop, device));
+  const bool supported = std::strncmp(prop.gcnArchName, "gfx90a", 6) == 0 ||
+                         std::strncmp(prop.gcnArchName, "gfx942", 6) == 0 ||
+                         std::strncmp(prop.gcnArchName, "gfx950", 6) == 0;
+  cache[device].store(supported ? 1 : 2, std::memory_order_relaxed);
+  return supported;
+}
 
 // =============================================================================
 // BATCHING UTILITY FUNCTIONS
@@ -278,6 +308,15 @@ void launchCkKernel(OutT* min,
 // =============================================================================
 //
 // Attempts CK backend first; falls back to SIMT if unsupported.
+//
+// NOTE: When OutT is a KVPair that fits in 64 bits, the CK epilogue uses a
+// lock-free atomicCAS path that hardcodes value-only argmin semantics
+// (keeps the pair with the smaller .value). It does NOT call redOp in
+// that path. This is correct for MinAndDistanceReduceOp and any reducer
+// with equivalent "keep smaller value" semantics. Custom reducers that
+// need tie-breaking, key comparison, or non-min logic will silently get
+// the wrong answer on the CAS path; such reducers will be handled
+// correctly only via the mutex path (OutT != KVPair or sizeof > 8).
 
 template <typename DataT,
           typename OutT,
@@ -304,27 +343,17 @@ void dispatchWithFallback(OutT* min,
                           cudaStream_t stream)
 {
   if constexpr (isSupportedFusedNN<DataT>()) {
-    // CK's MFMA-based intrinsics is only available on gfx9
-    // (CDNA). On gfx11 (RDNA3) and other non-gfx9 architectures the CK kernel silently
-    // produces wrong results, so gate on gfx9 the same way pairwise_matrix/dispatch_ck.cuh does.
-    // As of the CK shipped with ROCm 7.2 in warp_gemm_dispatcher.hpp, the fp32 WarpGemmDispatcher
-    // specializations for 16×16×4 and 16×16×16 are unconditionally mapped to
-    // WarpGemmMfmaF32F32F32M16N16K4 / WarpGemmMfmaF32F32F32M16N16K16 — there is no #if
-    // defined(__gfx11__) || defined(__gfx12__) branch for float (unlike fp16/bf16 for 16×16×16).
-    int device = 0;
-    RAFT_CUDA_TRY(hipGetDevice(&device));
-    hipDeviceProp_t prop{};
-    RAFT_CUDA_TRY(hipGetDeviceProperties(&prop, device));
-    const bool is_gfx9 = (std::strncmp(prop.gcnArchName, "gfx9", 4) == 0);
-
-    if (is_gfx9) {
+    // CK's fp32 WarpGemmDispatcher unconditionally maps to MFMA instructions
+    // (WarpGemmMfmaF32F32F32M16N16K{4,16}). Only the CDNA architectures listed
+    // in isCkFusedNNSupported() are tested and supported.
+    if (isCkFusedNNSupported()) {
       launchCkKernel<OutT, IdxT, ReduceOpT, KVPReduceOpT, CkDistOp, ApplySqrt>(
         min, x, y, xn, yn, m, n, k, workspace, redOp, pairRedOp, ck_op, stream);
       return;
     }
   }
 
-  RAFT_LOG_INFO(
+  RAFT_LOG_DEBUG(
     "Falling back to SIMT kernel since CK does not support the current input configuration");
 
   constexpr auto maxVal = std::numeric_limits<DataT>::max();

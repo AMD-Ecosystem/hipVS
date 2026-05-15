@@ -40,6 +40,9 @@
 #include <ck_tile/ops/common/tensor_layout.hpp>
 #include <raft/core/kvp.hpp>
 
+#include <cstddef>
+#include <type_traits>
+
 namespace cuvs::distance::detail {
 
 // Problem config matching the pairwise epilogue structure.
@@ -84,6 +87,13 @@ struct FusedDistanceNNCkEpilogue {
   using ODataType     = typename Problem::ODataType;
   using IdxType       = typename Problem::IdxType;
   using KVPair        = raft::KeyValuePair<IdxType, ODataType>;
+
+  // Guard against silent truncation of the KVPair key: the global column
+  // index is computed in ck_tile::index_t (i32), and a narrower IdxType
+  // would wrap negative without warning.
+  static_assert(sizeof(IdxType) >= sizeof(ck_tile::index_t),
+                "IdxType must be >= ck_tile::index_t; otherwise the KVPair key "
+                "silently narrows when storing the global column index.");
 
   static constexpr ck_tile::index_t kBlockSize    = Problem::kBlockSize;
   static constexpr ck_tile::index_t kMPerBlock    = Problem::kMPerBlock;
@@ -280,7 +290,19 @@ struct FusedDistanceNNCkEpilogue {
         // Skip rows that were never touched (still at maxVal)
         if (final_min.value >= maxVal) continue;
 
-        if constexpr (sizeof(OutT) == sizeof(unsigned long long)) {
+        // Gate the lock-free CAS path by KVPair shape (not just size) so that
+        // OutT=double or other 8-byte types that aren't a KVPair fall through to
+        // the mutex path. The CAS path hardcodes value-only argmin semantics and
+        // does NOT call red_op_; it is only correct when red_op_ performs a simple
+        // "keep the smaller .value" reduction.
+        constexpr bool kCanUseLockFreeCas = std::is_same_v<OutT, KVPair> &&
+                                            sizeof(KVPair) == sizeof(unsigned long long) &&
+                                            alignof(KVPair) >= alignof(unsigned long long);
+
+        static_assert(!kCanUseLockFreeCas || offsetof(KVPair, value) == sizeof(IdxType),
+                      "CAS path assumes KVPair = {key, value} layout; update if changed.");
+
+        if constexpr (kCanUseLockFreeCas) {
           // Lock-free 64-bit CAS path: all lanes work in parallel
           unsigned long long* addr = reinterpret_cast<unsigned long long*>(min_output + global_row);
           unsigned long long old_val = *addr;
