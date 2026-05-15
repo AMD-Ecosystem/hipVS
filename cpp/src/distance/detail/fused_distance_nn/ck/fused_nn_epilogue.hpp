@@ -133,7 +133,8 @@ struct FusedDistanceNNCkEpilogue {
                              ck_tile::index_t i_n,
                              ck_tile::index_t M,
                              ck_tile::index_t N,
-                             ODataType maxVal) const
+                             ODataType maxVal,
+                             ck_tile::index_t n_offset = 0) const
   {
     // ===========================================================================================
     // Compute kRowsPerThread: the number of unique rows each thread owns in the MFMA accumulator.
@@ -202,7 +203,7 @@ struct FusedDistanceNNCkEpilogue {
           ODataType dist;
           elfunc_(dist, static_cast<ODataType>(dot), nx, ny);
 
-          KVPair candidate        = {static_cast<IdxType>(global_col), dist};
+          KVPair candidate        = {static_cast<IdxType>(global_col + n_offset), dist};
           thread_row_min[row_idx] = pair_red_op_(global_row, candidate, thread_row_min[row_idx]);
         }
       });

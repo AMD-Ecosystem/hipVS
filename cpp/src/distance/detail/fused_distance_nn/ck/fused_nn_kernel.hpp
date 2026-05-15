@@ -154,6 +154,7 @@ struct FusedDistanceNNCkKernelArgs {
   ck_tile::index_t stride_A;
   ck_tile::index_t stride_B;
   float maxVal;
+  ck_tile::index_t n_offset;  // Global column offset for N-batching
 };
 
 // Template epilogue problem type alias parameterized by config.
@@ -255,7 +256,8 @@ class FusedDistanceNNComposableKernel {
              i_n,
              kargs.M,
              kargs.N,
-             kargs.maxVal);
+             kargs.maxVal,
+             kargs.n_offset);
   }
 
   // Derived from UniversalGemmKernel::GridSize, which delegates to

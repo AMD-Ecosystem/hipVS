@@ -716,6 +716,161 @@ const std::vector<ShapeConfig> largeShapesCompact = {
   {1 << 20, 32, 64, false, cuvs::distance::DistanceType::CosineExpanded, 3456ULL},
 };
 
+// clang-format: off
+// ======================= FusedDistanceNNBatchTest =======================
+// Tests N-batching correctness: when N exceeds the 4 GB buffer descriptor
+// limit the kernel batches over N.  For each query row we plant an identical
+// copy of x[row,:] at a strategic position in y, guaranteeing row's NN is at
+// a known global column with distance ≈ 0.
+//
+// Why planting instead of the naive reference kernel:
+//   The naive kernel (naiveFusedL2NNKernel) assigns one GPU thread per query
+//   row, and each thread loops over all n*k elements serially.  At the scales
+//   needed to trigger N-batching (n ≈ 1M, k = 1024) that is ~1 billion FMAs
+//   per thread — far too slow to be practical in a test.
+//
+//   Planting sidesteps this entirely: we copy x[row,:] into y[col,:] so the
+//   answer for that row is known a priori (key = col, distance ≈ 0).  Because
+//   random 1024-dimensional vectors are nearly orthogonal, the planted exact
+//   copy always wins by a wide margin (expected random L2 ≈ 1365 vs ≈ 0),
+//   making the test deterministic without a reference kernel.
+//
+// Plant positions are chosen relative to the N-batch boundary (nb_max) to
+// cover: first/last columns, batch-0/batch-1 boundaries, and batch interiors.
+// Positions are deduplicated so the 1-column-remainder case (n-1 == nb_max)
+// doesn't double-plant.
+// clang-format: on
+#ifdef CUVS_CK_ENABLED
+template <typename DataT, typename IdxT>
+class FusedDistanceNNBatchTest : public FusedDistanceNNTestBase<DataT, IdxT> {
+ public:
+  FusedDistanceNNBatchTest()
+    : FusedDistanceNNTestBase<DataT, IdxT>(), min_actual(this->params.m, this->stream)
+  {
+  }
+
+  void SetUp() override
+  {
+    auto testInfo = testing::UnitTest::GetInstance()->current_test_info();
+
+    this->generateData();
+
+    IdxT k = this->params.k;
+    IdxT n = this->params.n;
+    IdxT m = this->params.m;
+
+    // Compute nb_max to identify batch boundaries.
+    // Mirrors max_per_batch_fused_nn() in dispatch_ck.cuh:
+    //   limit  = (4GB - 1) / (k * sizeof(float))
+    //   nb_max = roundDown(limit, NPerBlock)     [NPerBlock = 64 for all configs]
+    constexpr int64_t NPerBlock = 64;
+    int64_t limit =
+      static_cast<int64_t>(static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()) /
+                           (static_cast<uint64_t>(k) * sizeof(DataT)));
+    int64_t nb_max_raw = std::max<int64_t>((limit / NPerBlock) * NPerBlock, NPerBlock);
+    IdxT nb_max        = static_cast<IdxT>(std::min<int64_t>(nb_max_raw, n));
+
+    bool has_second_batch = (nb_max < n);
+    IdxT nb_rem           = has_second_batch ? static_cast<IdxT>(n - nb_max) : IdxT(0);
+
+    // Build plant list: for each (row, col), copy x[row,:] → y[col,:].
+    // This guarantees row's NN is at global column col with distance ≈ 0.
+    // Positions are deduplicated (matters when n-1 == nb_max, i.e. 1-col remainder).
+    plants_.clear();
+    IdxT row = 0;
+
+    auto is_used = [&](IdxT col) {
+      for (auto& [r, c] : plants_) {
+        if (c == col) return true;
+      }
+      return false;
+    };
+
+    auto try_plant = [&](IdxT col) {
+      if (row < m && !is_used(col)) { plants_.push_back({row++, col}); }
+    };
+
+    try_plant(IdxT(0));  // first column (batch 0)
+    try_plant(n - 1);    // last column (batch 1 if batching occurs)
+
+    if (has_second_batch) {
+      try_plant(static_cast<IdxT>(nb_max - 1));  // last column of batch 0 (boundary)
+      try_plant(static_cast<IdxT>(nb_max));      // first column of batch 1 (boundary)
+      // middle of batch 1 (only if remainder has > 2 columns)
+      if (nb_rem > 2) try_plant(static_cast<IdxT>(nb_max + nb_rem / 2));
+    }
+
+    try_plant(static_cast<IdxT>(nb_max / 2));  // middle of batch 0
+
+    // Execute plants: copy x[row,:] → y[col,:]
+    for (auto& [r, c] : plants_) {
+      RAFT_CUDA_TRY(cudaMemcpyAsync(this->y.data() + static_cast<int64_t>(c) * k,
+                                    this->x.data() + static_cast<int64_t>(r) * k,
+                                    k * sizeof(DataT),
+                                    cudaMemcpyDeviceToDevice,
+                                    this->stream));
+    }
+
+    this->computeNorms();
+
+    fusedDistanceNNMinReduce<DataT, raft::KeyValuePair<IdxT, DataT>, IdxT>(min_actual.data(),
+                                                                           this->x.data(),
+                                                                           this->y.data(),
+                                                                           this->xn.data(),
+                                                                           this->yn.data(),
+                                                                           m,
+                                                                           n,
+                                                                           k,
+                                                                           this->workspace.data(),
+                                                                           this->params.sqrt,
+                                                                           true,
+                                                                           true,
+                                                                           this->params.metric,
+                                                                           0.0f,
+                                                                           this->stream);
+
+    raft::resource::sync_stream(this->handle, this->stream);
+  }
+
+  void verify()
+  {
+    IdxT m = this->params.m;
+    IdxT n = this->params.n;
+
+    std::vector<raft::KeyValuePair<IdxT, DataT>> h_actual(m);
+    RAFT_CUDA_TRY(cudaMemcpy(h_actual.data(),
+                             min_actual.data(),
+                             m * sizeof(raft::KeyValuePair<IdxT, DataT>),
+                             cudaMemcpyDeviceToHost));
+
+    // Verify each planted row: key must be the planted global column index,
+    // and distance must be ≈ 0 (identical vectors).
+    for (auto& [row, expected_col] : plants_) {
+      ASSERT_EQ(h_actual[row].key, expected_col)
+        << "Row " << row << ": expected global column " << expected_col << " but got "
+        << h_actual[row].key;
+      // Tolerance is generous because the GEMM dot-product (MFMA) and the
+      // separately-computed norms (rowNorm) use different accumulation orders,
+      // so ||x||^2 + ||y||^2 - 2*(x·y) doesn't cancel to exactly 0.
+      ASSERT_NEAR(h_actual[row].value, DataT(0), DataT(0.1))
+        << "Row " << row << ": distance to planted copy should be ~0";
+    }
+
+    // All rows: keys must be valid global column indices in [0, n).
+    for (IdxT i = 0; i < m; ++i) {
+      ASSERT_GE(h_actual[i].key, IdxT(0)) << "Row " << i << ": negative key";
+      ASSERT_LT(h_actual[i].key, n) << "Row " << i << ": key " << h_actual[i].key << " >= n";
+    }
+  }
+
+ protected:
+  std::vector<std::pair<IdxT, IdxT>> plants_;  // (row, expected_col)
+  rmm::device_uvector<raft::KeyValuePair<IdxT, DataT>> min_actual;
+};
+#endif  // CUVS_CK_ENABLED
+
+// ======================= Shape tables =======================
+
 // --- CK skinny shapes ---
 #ifdef CUVS_CK_ENABLED
 const std::vector<ShapeConfig> ckSkinnyShapes = {
@@ -757,6 +912,25 @@ const std::vector<ShapeConfig> ckSkinnyShapes = {
   // Large-M with cosine distance
   {120000, 100, 24, false, cuvs::distance::DistanceType::CosineExpanded, 3345ULL},
   {250000, 50, 16, false, cuvs::distance::DistanceType::CosineExpanded, 4456ULL},
+};
+
+// N-batching shapes: n * k * sizeof(float) > 4 GB triggers N-batching.
+// For k=1024, nb_max = 1,048,512, so any n > nb_max creates 2+ N-batches.
+//
+// Corner cases tested:
+//   - 64-column remainder:  m=6 plants at first/last cols, both batch boundaries, batch interiors
+//   - 1-column remainder:   extreme edge case, single-column second batch (entire tile is padding)
+//   - Cosine distance:      verifies n_offset works with cosine epilogue (distance = 1 - cos = 0)
+//   - L2 sqrt distance:     verifies n_offset works with sqrt epilogue (sqrt(0) = 0)
+const std::vector<ShapeConfig> ckNBatchShapes = {
+  // 2 N-batches, 64-column remainder (m=6 for comprehensive boundary planting)
+  {6, 1048576, 1024, false, cuvs::distance::DistanceType::L2Expanded, 4242ULL},
+  // 2 N-batches, 1-column remainder (smallest possible second batch)
+  {4, 1048513, 1024, false, cuvs::distance::DistanceType::L2Expanded, 4243ULL},
+  // 2 N-batches with cosine distance
+  {4, 1048576, 1024, false, cuvs::distance::DistanceType::CosineExpanded, 4244ULL},
+  // 2 N-batches with L2 sqrt
+  {4, 1048576, 1024, true, cuvs::distance::DistanceType::L2SqrtExpanded, 4245ULL},
 };
 
 const std::vector<ShapeConfig> ckLargeSkinnyShapes = {
@@ -815,6 +989,7 @@ const auto inputsLargeD_Int64 = makeInputs<double, int64_t>(0.001, largeShapesCo
 #ifdef CUVS_CK_ENABLED
 const auto inputsCkSkinny      = makeInputs<float, int>(0.01f, ckSkinnyShapes);
 const auto inputsCkLargeSkinny = makeInputs<float, int>(0.01f, ckLargeSkinnyShapes);
+const auto inputsCkNBatch      = makeInputs<float, int>(0.01f, ckNBatchShapes);
 #endif
 
 // ======================= Test registrations =======================
@@ -936,6 +1111,12 @@ FUSED_NN_LARGE_TEST(FusedDistanceNNCkLargeSkinnyTests,
                     float,
                     int,
                     inputsCkLargeSkinny);
+FUSED_NN_TEST(FusedDistanceNNNBatchTests,
+              FusedDistanceNNNBatchTestF,
+              FusedDistanceNNBatchTest,
+              float,
+              int,
+              inputsCkNBatch);
 #endif  // CUVS_CK_ENABLED
 
 }  // namespace distance

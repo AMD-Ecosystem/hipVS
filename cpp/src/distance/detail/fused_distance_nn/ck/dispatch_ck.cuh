@@ -202,6 +202,7 @@ void launchCkKernelWithConfig(OutT* min,
         static_cast<ck_tile::index_t>(k),  // stride_A (row-major)
         static_cast<ck_tile::index_t>(k),  // stride_B (row-major)
         maxVal,
+        static_cast<ck_tile::index_t>(n_off),  // global column offset for N-batching
       };
 
       ck_tile::launch_kernel(
