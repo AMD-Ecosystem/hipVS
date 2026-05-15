@@ -167,16 +167,18 @@ struct FusedDistanceNNCkEpilogue {
     // and reused across all N-column iterations, avoiding redundant VMEM loads.
     // ===========================================================================================
 
-    constexpr auto acc_spans = ck_tile::remove_cvref_t<OAccTile>::get_distributed_spans();
+    constexpr auto acc_spans = OAccTile::get_distributed_spans();
     ck_tile::index_t row_idx = 0;
 
-    ck_tile::sweep_tile_span(acc_spans[ck_tile::number<0>{}], [&](auto idx0) {
+    using Dim0 = ck_tile::number<0>;
+    using Dim1 = ck_tile::number<1>;
+    ck_tile::sweep_tile_span(acc_spans[Dim0{}], [&](auto idx0) {
       // norm_x is constant across the inner (column) sweep — load once per row.
       ODataType nx{};
       ck_tile::index_t global_row = M;  // default out-of-bounds
       bool row_loaded             = false;
 
-      ck_tile::sweep_tile_span(acc_spans[ck_tile::number<1>{}], [&](auto idx1) {
+      ck_tile::sweep_tile_span(acc_spans[Dim1{}], [&](auto idx1) {
         constexpr auto dstr_idx = ck_tile::make_tuple(idx0, idx1);
         const auto tile_coord   = ck_tile::get_x_indices_from_distributed_indices(
           o_acc_tile.get_tile_distribution(), dstr_idx);
@@ -239,7 +241,7 @@ struct FusedDistanceNNCkEpilogue {
     // so that exactly NWave entries exist per row, all of which are written.
     // ===========================================================================================
 
-    KVPair* reduce_smem = reinterpret_cast<KVPair*>(p_smem);
+    auto reduce_smem = reinterpret_cast<KVPair*>(p_smem);
 
     ck_tile::index_t const lane_id = threadIdx.x % ck_tile::get_warp_size();
     ck_tile::index_t const warp_id = threadIdx.x / ck_tile::get_warp_size();
