@@ -96,6 +96,10 @@ option(DISABLE_DEPRECATION_WARNINGS "Disable deprecaction warnings " ON)
 option(DISABLE_OPENMP "Disable OpenMP" OFF)
 option(CUVS_COMPILE_DYNAMIC_ONLY "Only build the shared library and skip the static library." OFF)
 option(CUVS_NVTX "Enable nvtx markers" OFF)
+option(CUVS_USE_ROCPROFSYS "Enable rocprofiler-systems user API instrumentation" OFF)
+if(CUVS_USE_ROCPROFSYS AND CUDA_BACKEND)
+  message(FATAL_ERROR "CUVS_USE_ROCPROFSYS requires the ROCm backend (CUDA_BACKEND must be OFF)")
+endif()
 option(CUVS_RAFT_CLONE_ON_PIN "Explicitly clone RAFT branch when pinned to non-feature branch" ON)
 
 option(ENABLE_CODE_COVERAGE "turn on flags for code coverage" OFF)
@@ -706,8 +710,10 @@ if(NOT BUILD_CPU_ONLY)
               "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
     )
     target_compile_definitions(
-      cuvs PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-                  $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+      cuvs
+      PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
+             $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+             $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
     )
 
     target_include_directories(
@@ -731,6 +737,10 @@ if(NOT BUILD_CPU_ONLY)
               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
               cuvs-cagra-search
     )
+    if(CUVS_USE_ROCPROFSYS)
+      find_package(rocprofiler-systems REQUIRED)
+      target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
+    endif()
     if(CUDA_BACKEND)
       # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
       file(

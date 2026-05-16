@@ -32,6 +32,13 @@
 
 #include <benchmark/benchmark.h>
 
+#ifdef CUVS_BENCH_USE_ROCPROFSYS
+#include <rocprofiler-systems/user.h>
+#define BENCH_TRACE(expr) expr
+#else
+#define BENCH_TRACE(expr) (void)0
+#endif
+
 #include <cstdint>
 #include <string>
 
@@ -129,9 +136,13 @@ void run_ivf_flat_build(benchmark::State& state,
   cuda_event_pair events;
   double gpu_time_total_ms = 0.0;
   for (auto _ : state) {
+    BENCH_TRACE(rocprofsys_user_start_trace());
+    BENCH_TRACE(rocprofsys_user_push_region("ivf_flat_build"));
     gpu_time_total_ms += events.record(stream, [&] {
       auto idx = cuvs::neighbors::ivf_flat::build(handle, index_params, dataset_view);
     });
+    BENCH_TRACE(rocprofsys_user_pop_region("ivf_flat_build"));
+    BENCH_TRACE(rocprofsys_user_stop_trace());
   }
 
   state.counters["GPU time (ms)"] =
@@ -178,9 +189,13 @@ void run_ivf_pq_build(benchmark::State& state,
   cuda_event_pair events;
   double gpu_time_total_ms = 0.0;
   for (auto _ : state) {
+    BENCH_TRACE(rocprofsys_user_start_trace());
+    BENCH_TRACE(rocprofsys_user_push_region("ivf_pq_build"));
     gpu_time_total_ms += events.record(stream, [&] {
       auto idx = cuvs::neighbors::ivf_pq::build(handle, index_params, dataset_view);
     });
+    BENCH_TRACE(rocprofsys_user_pop_region("ivf_pq_build"));
+    BENCH_TRACE(rocprofsys_user_stop_trace());
   }
 
   state.counters["GPU time (ms)"] =
@@ -302,6 +317,10 @@ rmm::device_uvector<float> generate_dataset()
 int main(int argc, char** argv)
 {
   using namespace cuvs::neighbors::ivf_build_bench;
+
+  // Stop tracing before dataset generation so only the timed build iterations
+  // (which call start_trace/stop_trace) appear in the profile.
+  BENCH_TRACE(rocprofsys_user_stop_trace());
 
   // Dataset is generated once and shared read-only across all benchmark cases.
   auto database = generate_dataset();
