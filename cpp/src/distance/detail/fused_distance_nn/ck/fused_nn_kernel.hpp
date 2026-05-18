@@ -153,7 +153,6 @@ struct FusedDistanceNNCkKernelArgs {
   ck_tile::index_t K;
   ck_tile::index_t stride_A;
   ck_tile::index_t stride_B;
-  float maxVal;
   ck_tile::index_t n_offset;  // Global column offset for N-batching
 };
 
@@ -256,7 +255,6 @@ class FusedDistanceNNComposableKernel {
              i_n,
              kargs.M,
              kargs.N,
-             kargs.maxVal,
              kargs.n_offset);
   }
 

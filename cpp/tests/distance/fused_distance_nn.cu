@@ -985,6 +985,19 @@ const auto inputsLargeD       = makeInputs<double, int>(0.001, largeShapesCompac
 const auto inputsLargeF_Int64 = makeInputs<float, int64_t>(0.01f, largeShapesCompact);
 const auto inputsLargeD_Int64 = makeInputs<double, int64_t>(0.001, largeShapesCompact);
 
+// --- Narrow / wide index types ---
+// int16_t: dimensions must fit in [-32768, 32767]
+const std::vector<ShapeConfig> narrowIdxShapes = {
+  {32, 32, 32, false, cuvs::distance::DistanceType::L2Expanded, 1234ULL},
+  {64, 64, 16, false, cuvs::distance::DistanceType::L2Expanded, 5678ULL},
+  {128, 128, 8, false, cuvs::distance::DistanceType::L2Expanded, 9012ULL},
+  {64, 64, 32, true, cuvs::distance::DistanceType::L2SqrtExpanded, 3456ULL},
+  {64, 64, 16, false, cuvs::distance::DistanceType::CosineExpanded, 7890ULL},
+  {33, 65, 7, false, cuvs::distance::DistanceType::L2Expanded, 1357ULL},
+};
+const auto inputsF_Int16  = makeInputs<float, int16_t>(0.01f, narrowIdxShapes);
+const auto inputsF_Uint64 = makeInputs<float, uint64_t>(0.01f, basicShapesCompact);
+
 // --- CK ---
 #ifdef CUVS_CK_ENABLED
 const auto inputsCkSkinny      = makeInputs<float, int>(0.01f, ckSkinnyShapes);
@@ -1097,6 +1110,110 @@ FUSED_NN_LARGE_TEST(
   FusedDistanceNNLargeTests, FusedDistanceNNLargeTestF_Int64, float, int64_t, inputsLargeF_Int64);
 FUSED_NN_LARGE_TEST(
   FusedDistanceNNLargeTests, FusedDistanceNNLargeTestD_Int64, double, int64_t, inputsLargeD_Int64);
+
+// --- Narrow index (int16_t) ---
+FUSED_NN_TEST(FusedDistanceNNTests,
+              FusedDistanceNNTestF_Int16,
+              FusedDistanceNNTest,
+              float,
+              int16_t,
+              inputsF_Int16);
+
+// --- Wide unsigned index (uint64_t) ---
+FUSED_NN_TEST(FusedDistanceNNTests,
+              FusedDistanceNNTestF_Uint64,
+              FusedDistanceNNTest,
+              float,
+              uint64_t,
+              inputsF_Uint64);
+
+// --- Negative dimension tests (signed index types should throw) ---
+TEST(FusedDistanceNNNegativeDims, NegativeM)
+{
+  raft::resources handle;
+  auto stream = raft::resource::get_cuda_stream(handle);
+  int m = -1, n = 32, k = 32;
+
+  rmm::device_uvector<float> x(0, stream), y(n * k, stream), xn(0, stream), yn(n, stream);
+  rmm::device_uvector<int> workspace(0, stream);
+  rmm::device_uvector<raft::KeyValuePair<int, float>> min_out(0, stream);
+
+  EXPECT_THROW(fusedDistanceNNMinReduce<float, raft::KeyValuePair<int, float>, int>(
+                 min_out.data(),
+                 x.data(),
+                 y.data(),
+                 xn.data(),
+                 yn.data(),
+                 m,
+                 n,
+                 k,
+                 workspace.data(),
+                 false,
+                 true,
+                 true,
+                 cuvs::distance::DistanceType::L2Expanded,
+                 0.0f,
+                 stream),
+               raft::exception);
+}
+
+TEST(FusedDistanceNNNegativeDims, NegativeN)
+{
+  raft::resources handle;
+  auto stream = raft::resource::get_cuda_stream(handle);
+  int m = 32, n = -1, k = 32;
+
+  rmm::device_uvector<float> x(m * k, stream), y(0, stream), xn(m, stream), yn(0, stream);
+  rmm::device_uvector<int> workspace(m, stream);
+  rmm::device_uvector<raft::KeyValuePair<int, float>> min_out(m, stream);
+
+  EXPECT_THROW(fusedDistanceNNMinReduce<float, raft::KeyValuePair<int, float>, int>(
+                 min_out.data(),
+                 x.data(),
+                 y.data(),
+                 xn.data(),
+                 yn.data(),
+                 m,
+                 n,
+                 k,
+                 workspace.data(),
+                 false,
+                 true,
+                 true,
+                 cuvs::distance::DistanceType::L2Expanded,
+                 0.0f,
+                 stream),
+               raft::exception);
+}
+
+TEST(FusedDistanceNNNegativeDims, NegativeK)
+{
+  raft::resources handle;
+  auto stream = raft::resource::get_cuda_stream(handle);
+  int m = 32, n = 32, k = -1;
+
+  rmm::device_uvector<float> x(0, stream), y(0, stream), xn(m, stream), yn(n, stream);
+  rmm::device_uvector<int> workspace(m, stream);
+  rmm::device_uvector<raft::KeyValuePair<int, float>> min_out(m, stream);
+
+  EXPECT_THROW(fusedDistanceNNMinReduce<float, raft::KeyValuePair<int, float>, int>(
+                 min_out.data(),
+                 x.data(),
+                 y.data(),
+                 xn.data(),
+                 yn.data(),
+                 m,
+                 n,
+                 k,
+                 workspace.data(),
+                 false,
+                 true,
+                 true,
+                 cuvs::distance::DistanceType::L2Expanded,
+                 0.0f,
+                 stream),
+               raft::exception);
+}
 
 // --- CK ---
 #ifdef CUVS_CK_ENABLED

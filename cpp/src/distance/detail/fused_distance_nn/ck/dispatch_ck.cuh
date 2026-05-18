@@ -23,6 +23,7 @@
 #pragma once
 #include <cstdint>
 #include <raft/core/logger_macros.hpp>
+#include <type_traits>
 #ifndef CUVS_CK_ENABLED
 #error "This file requires the CK backend (CUVS_CK_ENABLED)."
 #endif
@@ -101,26 +102,21 @@ namespace cuvs::distance::detail {
 
 // Returns true if the current HIP device supports the CK fused NN kernel.
 // Result is cached per device to avoid repeated hipGetDeviceProperties calls
-// in hot loops (e.g. kmeans iterations).
+// in hot loops (e.g. kmeans iterations). Assume that on multi-GPU systems all of the GPU are
+// the same architecture.
 inline bool isCkFusedNNSupported()
 {
   // 0 = unknown, 1 = supported, 2 = not supported
-  constexpr int kMaxDevices                      = 64;
-  static std::atomic<uint8_t> cache[kMaxDevices] = {};
-
-  int device = 0;
-  RAFT_CUDA_TRY(hipGetDevice(&device));
-  if (device < 0 || device >= kMaxDevices) return false;
-
-  auto cached = cache[device].load(std::memory_order_relaxed);
+  static std::atomic<uint8_t> cache = {};
+  int const device                  = 0;
+  auto cached                       = cache.load(std::memory_order_relaxed);
   if (cached != 0) return cached == 1;
-
   hipDeviceProp_t prop{};
   RAFT_CUDA_TRY(hipGetDeviceProperties(&prop, device));
   const bool supported = std::strncmp(prop.gcnArchName, "gfx90a", 6) == 0 ||
                          std::strncmp(prop.gcnArchName, "gfx942", 6) == 0 ||
                          std::strncmp(prop.gcnArchName, "gfx950", 6) == 0;
-  cache[device].store(supported ? 1 : 2, std::memory_order_relaxed);
+  cache.store(supported ? 1 : 2, std::memory_order_relaxed);
   return supported;
 }
 
@@ -190,14 +186,16 @@ void launchCkKernelWithConfig(OutT* min,
                               CkDistOp distance_op,
                               cudaStream_t stream)
 {
-  constexpr auto maxVal = std::numeric_limits<float>::max();
-
   using WrappedOp = OperatorWrapper<CkDistOp, raft::identity_op, ApplySqrt>;
 
   using KernelType =
     FusedDistanceNNComposableKernel<IdxT, OutT, WrappedOp, ReduceOpT, KVPReduceOpT, Config>;
 
   ck_tile::stream_config s{stream};
+
+  if constexpr (std::is_signed_v<IdxT>) {
+    RAFT_EXPECTS(m >= 0 && n >= 0 && k >= 0, "Invalid input dimensions");
+  }
 
   // Calculate batching limits based on 4GB buffer descriptor constraint
   const int64_t mb_max =
@@ -229,9 +227,8 @@ void launchCkKernelWithConfig(OutT* min,
         mb,
         nb,
         static_cast<ck_tile::index_t>(k),
-        static_cast<ck_tile::index_t>(k),  // stride_A (row-major)
-        static_cast<ck_tile::index_t>(k),  // stride_B (row-major)
-        maxVal,
+        static_cast<ck_tile::index_t>(k),      // stride_A (row-major)
+        static_cast<ck_tile::index_t>(k),      // stride_B (row-major)
         static_cast<ck_tile::index_t>(n_off),  // global column offset for N-batching
       };
 
@@ -356,7 +353,6 @@ void dispatchWithFallback(OutT* min,
   RAFT_LOG_DEBUG(
     "Falling back to SIMT kernel since CK does not support the current input configuration");
 
-  constexpr auto maxVal = std::numeric_limits<DataT>::max();
   raft::identity_op fin_op{};
 
   auto kernel = fusedDistanceNNkernel<DataT,
@@ -372,8 +368,20 @@ void dispatchWithFallback(OutT* min,
   dim3 grid                  = launchConfigGenerator<Policy>(m, n, shmemSize, kernel);
   dim3 blk(Policy::Nthreads);
 
-  kernel<<<grid, blk, shmemSize, stream>>>(
-    min, x, y, xn, yn, m, n, k, maxVal, workspace, redOp, pairRedOp, simt_op, fin_op);
+  kernel<<<grid, blk, shmemSize, stream>>>(min,
+                                           x,
+                                           y,
+                                           xn,
+                                           yn,
+                                           m,
+                                           n,
+                                           k,
+                                           std::numeric_limits<DataT>::max(),
+                                           workspace,
+                                           redOp,
+                                           pairRedOp,
+                                           simt_op,
+                                           fin_op);
   RAFT_CUDA_TRY(cudaGetLastError());
 }
 

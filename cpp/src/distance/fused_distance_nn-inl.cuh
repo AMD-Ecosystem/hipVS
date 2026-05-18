@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -121,6 +121,11 @@ void fusedDistanceNN(OutT* min,
                      cudaStream_t stream)
 {
   ASSERT(isRowMajor, "fusedDistanceNN only supports row major inputs");
+
+  if constexpr (std::is_signed_v<IdxT>) {
+    RAFT_EXPECTS(m >= 0 && n >= 0 && k >= 0, "fusedDistanceNN: m, n, and k must be non-negative");
+  }
+
   // When k is smaller than 32, the Policy4x4 results in redundant calculations
   // as it uses tiles that have k=32. Therefore, use a "skinny" policy instead
   // that uses tiles with a smaller value of k.
