@@ -106,17 +106,13 @@ namespace cuvs::distance::detail {
 // the same architecture.
 inline bool isCkFusedNNSupported()
 {
-  // 0 = unknown, 1 = supported, 2 = not supported
-  static std::atomic<uint8_t> cache = {};
-  int const device                  = 0;
-  auto cached                       = cache.load(std::memory_order_relaxed);
-  if (cached != 0) return cached == 1;
-  hipDeviceProp_t prop{};
-  RAFT_CUDA_TRY(hipGetDeviceProperties(&prop, device));
-  const bool supported = std::strncmp(prop.gcnArchName, "gfx90a", 6) == 0 ||
-                         std::strncmp(prop.gcnArchName, "gfx942", 6) == 0 ||
-                         std::strncmp(prop.gcnArchName, "gfx950", 6) == 0;
-  cache.store(supported ? 1 : 2, std::memory_order_relaxed);
+  static bool supported = []() {
+    int const device = 0;
+    hipDeviceProp_t prop{};
+    return std::strncmp(prop.gcnArchName, "gfx90a", 6) == 0 ||
+           std::strncmp(prop.gcnArchName, "gfx942", 6) == 0 ||
+           std::strncmp(prop.gcnArchName, "gfx950", 6) == 0;
+  }();
   return supported;
 }
 

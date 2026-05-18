@@ -246,6 +246,8 @@ struct FusedDistanceNNCkEpilogue {
     // so that exactly NWave entries exist per row, all of which are written.
     // ===========================================================================================
 
+    // p_smem that's passed from the kernel's operator() method is ensured to be aligned.
+    // The Shared memory declaration should have an `alignas(raft::KeyValuePair<IdxT, float>)`
     auto reduce_smem = reinterpret_cast<KVPair*>(p_smem);
 
     int32_t const lane_id = threadIdx.x % ck_tile::get_warp_size();

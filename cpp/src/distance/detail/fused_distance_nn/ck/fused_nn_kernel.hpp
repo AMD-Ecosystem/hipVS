@@ -194,7 +194,7 @@ class FusedDistanceNNComposableKernel {
   {
     auto const [i_m, i_n] = get_tile_indices(kargs);
 
-    __shared__ hip::std::byte smem_ptr_0[GetSmemSize()];
+    __shared__ alignas(raft::KeyValuePair<IdxT, float>) hip::std::byte smem_ptr_0[GetSmemSize()];
 
     // Helpers to build CK tensor view → pad view → tile window
     auto make_tensor_view = [&](auto const* ptr, auto rows, auto cols, auto stride) {
