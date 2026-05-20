@@ -18,8 +18,9 @@ into three categories:
     - If you need more context on a particular issue, please ask and we shall
     provide.
 
-
 ## Code contributions
+
+Performance-critical changes require [proper benchmarks](cpp_guidelines.md#performance-benchmarking). Pull requests that affect performance-critical paths will not be merged until those benchmarks are produced; there are no exceptions to this rule.
 
 ### Your first issue
 
@@ -36,7 +37,6 @@ into three categories:
 
 Remember, if you are unsure about anything, don't hesitate to comment on issues
 and ask for clarifications!
-
 
 ### Python / Pre-commit hooks
 
@@ -72,7 +72,6 @@ pre-commit install
 Now code linters and formatters will be run each time you commit changes.
 
 You can skip these checks with `git commit --no-verify` or with the short version `git commit -n`.
-
 
 ### Seasoned developers
 

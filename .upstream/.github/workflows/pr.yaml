@@ -167,6 +167,7 @@ jobs:
           - '!ci/test_wheel_cuvs.sh'
           - '!ci/validate_wheel.sh'
           - '!docs/**'
+          - '!fern/**'
           - '!go/**'
           - '!img/**'
           - '!java/**'
@@ -203,6 +204,7 @@ jobs:
           - '!ci/validate_wheel.sh'
           - '!Dockerfile'
           - '!docs/**'
+          - '!fern/**'
           - '!img/**'
           - '!notebooks/**'
           - '!python/**'
@@ -242,6 +244,7 @@ jobs:
           - '!Dockerfile'
           - '!README.md'
           - '!docs/**'
+          - '!fern/**'
           - '!go/**'
           - '!img/**'
           - '!java/**'
@@ -286,6 +289,7 @@ jobs:
           - '!cpp/.clang-tidy'
           - '!cpp/doxygen/**'
           - '!docs/**'
+          - '!fern/**'
           - '!java/**'
           - '!go/**'
           - '!img/**'
@@ -325,6 +329,7 @@ jobs:
           - '!ci/test_wheel_cuvs.sh'
           - '!ci/validate_wheel.sh'
           - '!docs/**'
+          - '!fern/**'
           - '!go/**'
           - '!img/**'
           - '!java/**'
@@ -365,6 +370,7 @@ jobs:
           - '!ci/test_wheel_cuvs.sh'
           - '!ci/validate_wheel.sh'
           - '!docs/**'
+          - '!fern/**'
           - '!img/**'
           - '!java/**'
           - '!notebooks/**'
@@ -807,13 +813,16 @@ jobs:
       container_image: "rapidsai/ci-conda:26.06-cuda${{ matrix.CUDA_VER }}-${{ matrix.LINUX_VER }}-py${{ matrix.PY_VER }}"
       script: "ci/build_go.sh"
   docs-build:
-    needs: conda-python-build
-# <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
-#     secrets: inherit
-# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-# #     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# <<<<<<< OLD CODE from ce2124ef0 (41dfd4766) - COMMENTED OUT
+#     needs: conda-python-build
+# # <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
+# #     secrets: inherit
+# # # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# # #     uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/26.04
+# # # =======
 # # =======
 # =======
+# >>>>>>> END NEW CODE (41dfd4766)
     permissions:
       actions: read
       contents: read

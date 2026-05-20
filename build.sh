@@ -72,8 +72,13 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
  default action (no args) is to build libcuvs, tests and cuvs targets
 "
 LIBCUVS_BUILD_DIR=${LIBCUVS_BUILD_DIR:=${REPODIR}/cpp/build}
-SPHINX_BUILD_DIR=${REPODIR}/docs_amd
-PYTHON_BUILD_DIRS="${REPODIR}/python/cuvs/build ${REPODIR}/python/libcuvs/build"
+# <<<<<<< OLD CODE from ce2124ef0 (41dfd4766) - COMMENTED OUT
+# SPHINX_BUILD_DIR=${REPODIR}/docs_amd
+# PYTHON_BUILD_DIRS="${REPODIR}/python/cuvs/build ${REPODIR}/python/libcuvs/build"
+# =======
+FERN_DOCS_DIR=${REPODIR}/fern
+PYTHON_BUILD_DIR=${REPODIR}/python/cuvs/_skbuild
+# >>>>>>> END NEW CODE (41dfd4766)
 RUST_BUILD_DIR=${REPODIR}/rust/target
 BUILD_DIRS="${LIBCUVS_BUILD_DIR} ${PYTHON_BUILD_DIRS} ${RUST_BUILD_DIR}"
 
@@ -100,7 +105,9 @@ EXTRA_CMAKE_HIP_ARGS="-DCMAKE_CXX_COMPILER=hipcc"
 
 # Set defaults for vars that may not have been defined externally
 INSTALL_PREFIX=${INSTALL_PREFIX:=${PREFIX:=${CONDA_PREFIX:=$LIBCUVS_BUILD_DIR/install}}}
-PARALLEL_LEVEL=${PARALLEL_LEVEL:=$(nproc)}
+if [[ -z "${PARALLEL_LEVEL:-}" ]]; then
+    PARALLEL_LEVEL=$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)
+fi
 BUILD_ABI=${BUILD_ABI:=ON}
 UPDATE_RUST_DOCS=0
 
@@ -356,7 +363,11 @@ fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( NUMARGS == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg package || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
+# <<<<<<< OLD CODE from ce2124ef0 (41dfd4766) - COMMENTED OUT
+# if (( NUMARGS == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg package || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
+# =======
+if (( NUMARGS == 0 )) || hasArg libcuvs || hasArg tests || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
+# >>>>>>> END NEW CODE (41dfd4766)
     COMPILE_LIBRARY=ON
     if [[ "${BUILD_SHARED_LIBS}" != "OFF" ]]; then
         CMAKE_TARGET+=("cuvs")
@@ -466,17 +477,22 @@ export RAPIDS_VERSION_MAJOR_MINOR
 
 if hasArg docs; then
     set -x
-    cd "${SPHINX_BUILD_DIR}"
-    mkdir -p _build
-    rm -rf _build/*
-    LC_ALL=C.UTF-8 sphinx-build -E . _build # For this to work, the required dependencies specified in docs_amd/sphinx/requirements.txt must be installed.
-    if [ -x "$(command -v cargo)" ] && [ -n "${UPDATE_RUST_DOCS}" ]; then
-        echo "Building hipVS Rust docs..."
-        pushd "${REPODIR}"/rust
-        cargo doc -p hipvs --no-deps
-        rsync -av target/doc/* "${REPODIR}"/docs_amd/reference/rust_api/rust_html/
-        popd
-    fi
+# <<<<<<< OLD CODE from ce2124ef0 (41dfd4766) - COMMENTED OUT
+#     cd "${SPHINX_BUILD_DIR}"
+#     mkdir -p _build
+#     rm -rf _build/*
+#     LC_ALL=C.UTF-8 sphinx-build -E . _build # For this to work, the required dependencies specified in docs_amd/sphinx/requirements.txt must be installed.
+#     if [ -x "$(command -v cargo)" ] && [ -n "${UPDATE_RUST_DOCS}" ]; then
+#         echo "Building hipVS Rust docs..."
+#         pushd "${REPODIR}"/rust
+#         cargo doc -p hipvs --no-deps
+#         rsync -av target/doc/* "${REPODIR}"/docs_amd/reference/rust_api/rust_html/
+#         popd
+#     fi
+# =======
+    cd "${REPODIR}"
+    "${FERN_DOCS_DIR}/build_docs.sh" "${FERN_DOCS_MODE:-check}"
+# >>>>>>> END NEW CODE (41dfd4766)
 fi
 
 
