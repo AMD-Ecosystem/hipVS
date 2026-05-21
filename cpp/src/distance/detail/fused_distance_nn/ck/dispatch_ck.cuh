@@ -109,6 +109,7 @@ inline bool isCkFusedNNSupported()
   static bool supported = []() {
     int const device = 0;
     hipDeviceProp_t prop{};
+    RAFT_CUDA_TRY(hipGetDeviceProperties(&prop, device));
     return std::strncmp(prop.gcnArchName, "gfx90a", 6) == 0 ||
            std::strncmp(prop.gcnArchName, "gfx942", 6) == 0 ||
            std::strncmp(prop.gcnArchName, "gfx950", 6) == 0;
