@@ -1692,11 +1692,12 @@ void prune_graph_gpu(
   namespace bli                       = cuvs::spatial::knn::detail::utils;
   auto [copy_stream, enable_prefetch] = bli::get_prefetch_stream(res);
   auto workspace_mr                   = raft::resource::get_workspace_resource_ref(res);
+  auto large_workspace_mr             = raft::resource::get_large_workspace_resource_ref(res);
 
   // Single-batch read-only iterator for the input graph (graph_size rows fit in one batch).
   bli::batch_load_iterator<
     raft::mdspan<IdxT, raft::matrix_extent<int64_t>, raft::row_major, AccessorKnnGraph>>
-    d_input_graph(res, knn_graph, graph_size, copy_stream, workspace_mr);
+    d_input_graph(res, knn_graph, graph_size, copy_stream, large_workspace_mr);
   auto input_view = (*d_input_graph).view();
 
   bli::batch_load_iterator<
@@ -2032,19 +2033,10 @@ void optimize(
 // >>>>>>> END NEW CODE (a09e4b5e7)
   }
 
-  // reverse graph creation will always use the GPU
-  // using default workspace resource for random access
-  // otherwise will be managed memory which is slow upon first access
-  auto d_rev_graph = raft::make_device_mdarray<IdxT>(res, raft::make_extents<int64_t>(0, 0));
-  try {
-    d_rev_graph = raft::make_device_mdarray<IdxT>(
-      res, default_ws_mr, raft::make_extents<int64_t>(graph_size, output_graph_degree));
-  } catch (const std::exception& e) {
-    RAFT_LOG_DEBUG(
-      "Failed to create device matrix for reverse graph, switching to large workspace resource");
-    d_rev_graph = raft::make_device_mdarray<IdxT>(
-      res, large_tmp_mr, raft::make_extents<int64_t>(graph_size, output_graph_degree));
-  }
+  // reverse graph creation will always use the GPU / large workspace resource
+  auto d_rev_graph = raft::make_device_mdarray<IdxT>(
+    res, large_tmp_mr, raft::make_extents<int64_t>(graph_size, output_graph_degree));
+
   // This should use the default workspace resource for random access / atomics
   auto d_rev_graph_count = raft::make_device_mdarray<uint32_t>(
     res, default_ws_mr, raft::make_extents<int64_t>(graph_size));
