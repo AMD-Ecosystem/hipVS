@@ -11,7 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -29,8 +29,8 @@
 # THE SOFTWARE.
 
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(RAFT_FORK "AMD-AIOSS")
-set(RAFT_PINNED_TAG "amd-integration")
+set(RAFT_FORK "ROCm-DS")
+set(RAFT_PINNED_TAG "release/rocmds-26.03")
 
 function(find_and_configure_raft)
     set(oneValueArgs VERSION FORK PINNED_TAG BUILD_STATIC_DEPS ENABLE_NVTX ENABLE_MNMG_DEPENDENCIES CLONE_ON_PIN)
@@ -62,7 +62,7 @@ function(find_and_configure_raft)
             COMPONENTS          ${RAFT_COMPONENTS}
             CPM_ARGS
               EXCLUDE_FROM_ALL TRUE
-              GIT_REPOSITORY        https://$ENV{GITHUB_PASS}@github.com/${PKG_FORK}/hipRaft.git
+              GIT_REPOSITORY        https://github.com/${PKG_FORK}/hipRaft.git
               GIT_TAG               ${PKG_PINNED_TAG}
               SOURCE_SUBDIR         cpp
               OPTIONS
