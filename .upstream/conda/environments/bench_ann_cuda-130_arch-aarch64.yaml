@@ -14,10 +14,17 @@ dependencies:
 - cuda-nvrtc-dev
 - cuda-nvtx-dev
 - cuda-profiler-api
-- cuda-python>=13.0.1,<14.0
-- cuda-version=13.1
-- cupy>=13.6.0
-- cuvs==26.2.*,>=0.0.0a0
+# <<<<<<< OLD CODE from 414383a82 (c82c03f2b) - COMMENTED OUT
+# - cuda-python>=13.0.1,<14.0
+# - cuda-version=13.1
+# - cupy>=13.6.0
+# - cuvs==26.2.*,>=0.0.0a0
+# =======
+- cuda-python>=12.9.2,<13.0
+- cuda-version=12.9
+- cupy>=13.6.0,!=14.0.0,!=14.1.0
+- cuvs==26.6.*,>=0.0.0a0
+# >>>>>>> END NEW CODE (c82c03f2b)
 - cxx-compiler
 - cython>=3.0.0,<3.2.0
 - dlpack>=0.8,<1.0

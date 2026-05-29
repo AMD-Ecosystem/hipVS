@@ -70,7 +70,11 @@ classifiers = [
 
 [project.optional-dependencies]
 test = [
-    "amd-cupy",
+# <<<<<<< OLD CODE from 414383a82 (c82c03f2b) - COMMENTED OUT
+#     "amd-cupy",
+# =======
+    "cupy-cuda13x>=13.6.0,!=14.0.0,!=14.1.0",
+# >>>>>>> END NEW CODE (c82c03f2b)
     "pytest",
     "pytest-cov",
     "pytest<9.0.0",

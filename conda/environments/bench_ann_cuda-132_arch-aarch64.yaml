@@ -16,10 +16,14 @@ dependencies:
 - cuda-profiler-api
 - cuda-python>=13.0.1,<14.0
 - cuda-version=13.2
-- cupy>=13.6.0
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-# - cuvs==26.4.*
+# <<<<<<< OLD CODE from 414383a82 (c82c03f2b) - COMMENTED OUT
+# - cupy>=13.6.0
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# # - cuvs==26.4.*
+# # =======
 # =======
+- cupy>=13.6.0,!=14.0.0,!=14.1.0
+# >>>>>>> END NEW CODE (c82c03f2b)
 - cuvs==26.6.*,>=0.0.0a0
 # >>>>>>> END NEW CODE (84b92c31c)
 - cxx-compiler

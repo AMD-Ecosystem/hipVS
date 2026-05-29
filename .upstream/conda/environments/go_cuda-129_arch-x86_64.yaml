@@ -16,6 +16,10 @@ dependencies:
 - cuda-nvtx-dev
 - cuda-profiler-api
 - cuda-version=12.9
+# <<<<<<< OLD CODE from 414383a82 (c82c03f2b) - COMMENTED OUT
+# =======
+- cupy>=13.6.0,!=14.0.0,!=14.1.0
+# >>>>>>> END NEW CODE (c82c03f2b)
 - cxx-compiler
 - dlpack>=0.8,<1.0
 - gcc_linux-64=14.*
