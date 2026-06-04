@@ -23,8 +23,12 @@ dependencies:
 - cuda-python>=12.9.2,<13.0
 - cuda-version=12.9
 - cupy>=13.6.0,!=14.0.0,!=14.1.0
-- cuvs==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (c82c03f2b)
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# - cuvs==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (c82c03f2b)
+# =======
+- cuvs==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
 - cxx-compiler
 - cython>=3.0.0,<3.2.0
 - dlpack>=0.8,<1.0
@@ -38,14 +42,20 @@ dependencies:
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-# <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
-# - libcuvs==26.2.*,>=0.0.0a0
-# - librmm==26.2.*,>=0.0.0a0
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
+# # - libcuvs==26.2.*,>=0.0.0a0
+# # - librmm==26.2.*,>=0.0.0a0
+# # =======
+# - libcuvs==26.6.*,>=0.0.0a0
+# - libnvjitlink-dev
+# - librmm==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (34192f32e)
 # =======
-- libcuvs==26.6.*,>=0.0.0a0
+- libcuvs==26.6.*
 - libnvjitlink-dev
-- librmm==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (34192f32e)
+- librmm==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
 - matplotlib-base>=3.9
 - mkl-devel=2023
 - nccl>=2.19
@@ -53,7 +63,11 @@ dependencies:
 - nlohmann_json>=3.12.0
 - openblas
 - pandas
-- pylibraft==26.2.*,>=0.0.0a0
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# - pylibraft==26.2.*,>=0.0.0a0
+# =======
+- pylibraft==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
 - pyyaml
 - rapids-build-backend>=0.4.0,<0.5.0
 - requests

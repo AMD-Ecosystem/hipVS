@@ -24,8 +24,14 @@ dependencies:
 - libcurand-dev
 - libcusolver-dev
 - libcusparse-dev
-- libcuvs==26.2.*,>=0.0.0a0
-- libraft==26.2.*,>=0.0.0a0
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# - libcuvs==26.2.*,>=0.0.0a0
+# - libraft==26.2.*,>=0.0.0a0
+# =======
+- libcuvs==26.6.*
+- libnvjitlink-dev
+- libraft==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
 - nccl>=2.19
 - ninja
 - sysroot_linux-64==2.28

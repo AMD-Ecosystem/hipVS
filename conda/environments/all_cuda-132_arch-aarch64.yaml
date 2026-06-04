@@ -35,9 +35,13 @@ dependencies:
 # # =======
 # =======
 - libopenblas<=0.3.30
-# >>>>>>> END NEW CODE (ad85de0a2)
-- librmm==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # >>>>>>> END NEW CODE (ad85de0a2)
+# - librmm==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
+# =======
+- librmm==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
 - make
 - nccl>=2.19
 - ninja
@@ -45,11 +49,15 @@ dependencies:
 - numpy>=1.23,<3.0
 - openblas
 - pre-commit
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-# - pylibraft==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# # - pylibraft==26.4.*
+# # =======
+# - pylibraft==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-- pylibraft==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+- pylibraft==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
 - pytest
 - pytest-cov
 - rapids-build-backend>=0.4.0,<0.5.0

@@ -35,9 +35,28 @@ dependencies:
 # =======
 - libcuvs==26.6.*,>=0.0.0a0
 - libnvjitlink-dev
-- libraft==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# - libraft==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
+# - nccl>=2.19
+# - ninja
+# =======
+- libopenblas<=0.3.30
+- librmm==26.6.*
+- make
 - nccl>=2.19
 - ninja
+- nodejs>=22
+- numpy>=1.23,<3.0
+- openblas
+- pre-commit
+- pylibraft==26.6.*
+- pytest
+- pytest-cov
+- rapids-build-backend>=0.4.0,<0.5.0
+- rust
+- scikit-build-core>=0.11.0
+- scikit-learn>=1.5
+# >>>>>>> END NEW CODE (e2300e155)
 - sysroot_linux-aarch64==2.28
 name: go_cuda-129_arch-aarch64

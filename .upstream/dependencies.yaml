@@ -576,11 +576,15 @@ dependencies:
       - output_types: [conda, pyproject, requirements]
         packages:
           - click
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#           - cuvs==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #           - cuvs==26.4.*
+# # =======
+#           - cuvs==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-          - cuvs==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+          - cuvs==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - pandas
           - pyyaml
           - requests
@@ -607,29 +611,41 @@ dependencies:
     common:
       - output_types: conda
         packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#           - cuvs==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #           - cuvs==26.4.*
+# # =======
+#           - cuvs==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-          - cuvs==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+          - cuvs==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
   depends_on_cuvs_bench:
     common:
       - output_types: conda
         packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#           - cuvs-bench==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #           - cuvs-bench==26.4.*
+# # =======
+#           - cuvs-bench==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-          - cuvs-bench==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+          - cuvs-bench==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
   depends_on_libcuvs:
     common:
       - output_types: conda
         packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#           - &libcuvs_unsuffixed libcuvs==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #           - &libcuvs_unsuffixed libcuvs==26.4.*
+# # =======
+#           - &libcuvs_unsuffixed libcuvs==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-          - &libcuvs_unsuffixed libcuvs==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+          - &libcuvs_unsuffixed libcuvs==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -641,20 +657,28 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - libcuvs-cu12==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - libcuvs-cu12==26.4.*
+# # =======
+#               - libcuvs-cu12==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - libcuvs-cu12==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - libcuvs-cu12==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - matrix:
               cuda: "13.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - libcuvs-cu13==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - libcuvs-cu13==26.4.*
+# # =======
+#               - libcuvs-cu13==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - libcuvs-cu13==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - libcuvs-cu13==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - {matrix: null, packages: [*libcuvs_unsuffixed]}
   depends_on_libcuvs_tests:
     common:
@@ -665,11 +689,15 @@ dependencies:
     common:
       - output_types: conda
         packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#           - &libraft_unsuffixed libraft==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #           - &libraft_unsuffixed libraft==26.4.*
+# # =======
+#           - &libraft_unsuffixed libraft==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-          - &libraft_unsuffixed libraft==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+          - &libraft_unsuffixed libraft==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -681,30 +709,42 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - libraft-cu12==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - libraft-cu12==26.4.*
+# # =======
+#               - libraft-cu12==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - libraft-cu12==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - libraft-cu12==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - matrix:
               cuda: "13.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - libraft-cu13==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - libraft-cu13==26.4.*
+# # =======
+#               - libraft-cu13==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - libraft-cu13==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - libraft-cu13==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - {matrix: null, packages: [*libraft_unsuffixed]}
   depends_on_librmm:
     common:
       - output_types: conda
         packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#           - &librmm_unsuffixed librmm==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #           - &librmm_unsuffixed librmm==26.4.*
+# # =======
+#           - &librmm_unsuffixed librmm==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-          - &librmm_unsuffixed librmm==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+          - &librmm_unsuffixed librmm==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -716,30 +756,42 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - librmm-cu12==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - librmm-cu12==26.4.*
+# # =======
+#               - librmm-cu12==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - librmm-cu12==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - librmm-cu12==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - matrix:
               cuda: "13.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - librmm-cu13==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - librmm-cu13==26.4.*
+# # =======
+#               - librmm-cu13==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - librmm-cu13==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - librmm-cu13==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - {matrix: null, packages: [*librmm_unsuffixed]}
   depends_on_pylibraft:
     common:
       - output_types: conda
         packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#           - &pylibraft_unsuffixed pylibraft==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #           - &pylibraft_unsuffixed pylibraft==26.4.*
+# # =======
+#           - &pylibraft_unsuffixed pylibraft==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-          - &pylibraft_unsuffixed pylibraft==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+          - &pylibraft_unsuffixed pylibraft==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
       - output_types: requirements
         packages:
           # pip recognizes the index as a global option for the requirements.txt file
@@ -751,20 +803,28 @@ dependencies:
               cuda: "12.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - pylibraft-cu12==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - pylibraft-cu12==26.4.*
+# # =======
+#               - pylibraft-cu12==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - pylibraft-cu12==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - pylibraft-cu12==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - matrix:
               cuda: "13.*"
               cuda_suffixed: "true"
             packages:
-# <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-#               - pylibraft-cu13==26.4.*
+# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
+# #               - pylibraft-cu13==26.4.*
+# # =======
+#               - pylibraft-cu13==26.6.*,>=0.0.0a0
+# # >>>>>>> END NEW CODE (84b92c31c)
 # =======
-              - pylibraft-cu13==26.6.*,>=0.0.0a0
-# >>>>>>> END NEW CODE (84b92c31c)
+              - pylibraft-cu13==26.6.*
+# >>>>>>> END NEW CODE (e2300e155)
           - {matrix: null, packages: [*pylibraft_unsuffixed]}
   depends_on_nccl:
     common:
