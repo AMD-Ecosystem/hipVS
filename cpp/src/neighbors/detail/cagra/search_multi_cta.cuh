@@ -234,11 +234,12 @@ struct search
     const INDEX_T* dev_seed_ptr,              // [num_queries, num_seeds]
     uint32_t* const num_executed_iterations,  // [num_queries,]
     uint32_t topk,
-    SAMPLE_FILTER_T sample_filter)
+    SAMPLE_FILTER_T sample_filter) override
   {
     auto source_indices_ptr = source_indices.has_value() ? source_indices->data_handle() : nullptr;
     cudaStream_t stream     = raft::resource::get_cuda_stream(res);
-    select_and_run(dataset_desc,
+    select_and_run<DATA_T, INDEX_T, DISTANCE_T, SourceIndexT, SAMPLE_FILTER_T>(
+                   dataset_desc,
                    graph,
                    source_indices_ptr,
                    intermediate_indices.data(),

@@ -3,6 +3,31 @@
  * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
+
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
@@ -193,8 +218,14 @@ struct BlockSelect {
     warpSortAnyRegisters<K, V, NumThreadQ, !Dir, Comp>(threadK, threadV);
 
     constexpr int kNumWarpQRegisters = NumWarpQ / WarpSize;
-    K warpKRegisters[kNumWarpQRegisters];
-    V warpVRegisters[kNumWarpQRegisters];
+
+    // Guard against zero-length arrays when NumWarpQ < WarpSize (e.g. NumWarpQ=32, WarpSize=64).
+    // Use max(kNumWarpQRegisters, 1) for array declarations since HIP does not allow zero-length
+    // arrays in device code. The loops are bounded by kNumWarpQRegisters so excess elements are
+    // never accessed.
+    constexpr int kArraySize = kNumWarpQRegisters > 0 ? kNumWarpQRegisters : 1;
+    K warpKRegisters[kArraySize];
+    V warpVRegisters[kArraySize];
 
 #pragma unroll
     for (int i = 0; i < kNumWarpQRegisters; ++i) {
@@ -207,8 +238,10 @@ struct BlockSelect {
     // The warp queue is already sorted, and now that we've sorted the
     // per-thread queue, merge both sorted lists together, producing
     // one sorted list
-    warpMergeAnyRegisters<K, V, kNumWarpQRegisters, NumThreadQ, !Dir, Comp, false>(
-      warpKRegisters, warpVRegisters, threadK, threadV);
+    if constexpr (kNumWarpQRegisters > 0) {
+      warpMergeAnyRegisters<K, V, kNumWarpQRegisters, NumThreadQ, !Dir, Comp, false>(
+        warpKRegisters, warpVRegisters, threadK, threadV);
+    }
 
     // Write back out the warp queue
 #pragma unroll
@@ -374,6 +407,11 @@ template <typename K,
 struct WarpSelect {
   static constexpr int kNumWarpQRegisters = NumWarpQ / WarpSize;
 
+  // Minimum array size of 1 to avoid zero-length arrays when NumWarpQ < WarpSize
+  // (e.g. NumWarpQ=32 on a WarpSize=64 AMD GPU). All loops are still bounded by
+  // kNumWarpQRegisters so excess elements are never accessed.
+  static constexpr int kArraySize = kNumWarpQRegisters > 0 ? kNumWarpQRegisters : 1;
+
   __device__ inline WarpSelect(K initKVal, V initVVal, int k)
     : initK(initKVal), initV(initVVal), numVals(0), warpKTop(initKVal), kLane((k - 1) % WarpSize)
   {
@@ -439,7 +477,9 @@ struct WarpSelect {
     }
 
     // We have to beat at least this element
-    warpKTop = shfl(warpK[kNumWarpQRegisters - 1], kLane);
+    if constexpr (kNumWarpQRegisters > 0) {
+      warpKTop = shfl(warpK[kNumWarpQRegisters - 1], kLane);
+    }
   }
 
   /// This function handles sorting and merging together the
@@ -453,8 +493,10 @@ struct WarpSelect {
     // The warp queue is already sorted, and now that we've sorted the
     // per-thread queue, merge both sorted lists together, producing
     // one sorted list
-    warpMergeAnyRegisters<K, V, kNumWarpQRegisters, NumThreadQ, !Dir, Comp, false>(
-      warpK, warpV, threadK, threadV);
+    if constexpr (kNumWarpQRegisters > 0) {
+      warpMergeAnyRegisters<K, V, kNumWarpQRegisters, NumThreadQ, !Dir, Comp, false>(
+        warpK, warpV, threadK, threadV);
+    }
   }
 
   /// WARNING: all threads in a warp must participate in this.
@@ -505,8 +547,8 @@ struct WarpSelect {
   V threadV[NumThreadQ];
 
   // warpK[0] is highest (Dir) or lowest (!Dir)
-  K warpK[kNumWarpQRegisters];
-  V warpV[kNumWarpQRegisters];
+  K warpK[kArraySize];
+  V warpV[kArraySize];
 
   // This is what lane we should load an approximation (>=k) to the
   // kth element from the last register in the warp queue (i.e.,

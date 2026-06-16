@@ -3,6 +3,31 @@
  * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
+
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
@@ -159,8 +184,9 @@ template <typename K, typename V, bool Dir, typename Comp, bool Low>
 struct BitonicMergeStep<K, V, 1, Dir, Comp, Low, true> {
   static inline __device__ void merge(K k[1], V v[1])
   {
-    // Use warp shuffles
-    warpBitonicMergeLE16<K, V, 16, Dir, Comp, true>(k[0], v[0]);
+    // Use warp shuffles. L = WarpSize/2 covers the full warp width.
+    // For WarpSize == 32: L = 16; for WarpSize == 64: L = 32.
+    warpBitonicMergeLE16<K, V, WarpSize / 2, Dir, Comp, true>(k[0], v[0]);
   }
 };
 
@@ -501,20 +527,35 @@ struct BitonicSortStep {
   }
 };
 
+// Helper to recursively generate warp bitonic merge steps from L up to WarpSize/2
+template <typename K, typename V, int L, bool Dir, typename Comp>
+struct WarpBitonicMergeSteps {
+  static inline __device__ void merge(K& k, V& v)
+  {
+    warpBitonicMergeLE16<K, V, L, Dir, Comp, false>(k, v);
+    WarpBitonicMergeSteps<K, V, L * 2, Dir, Comp>::merge(k, v);
+  }
+};
+
+// Terminal case: L exceeds WarpSize / 2, stop recursion
+template <typename K, typename V, bool Dir, typename Comp>
+struct WarpBitonicMergeSteps<K, V, WarpSize, Dir, Comp> {
+  static inline __device__ void merge(K& k, V& v)
+  {
+    // No more merge steps needed; L == WarpSize exceeds the valid range
+  }
+};
+
 // Single warp (N == 1) sorting specialization
 template <typename K, typename V, bool Dir, typename Comp>
 struct BitonicSortStep<K, V, 1, Dir, Comp> {
   static inline __device__ void sort(K k[1], V v[1])
   {
-    // Update this code if this changes
-    // should go from 1 -> WarpSize in multiples of 2
-    static_assert(WarpSize == 32, "unexpected warp size");
-
-    warpBitonicMergeLE16<K, V, 1, Dir, Comp, false>(k[0], v[0]);
-    warpBitonicMergeLE16<K, V, 2, Dir, Comp, false>(k[0], v[0]);
-    warpBitonicMergeLE16<K, V, 4, Dir, Comp, false>(k[0], v[0]);
-    warpBitonicMergeLE16<K, V, 8, Dir, Comp, false>(k[0], v[0]);
-    warpBitonicMergeLE16<K, V, 16, Dir, Comp, false>(k[0], v[0]);
+    // Generate merge steps from 1 up to WarpSize/2 (inclusive).
+    // For WarpSize == 32: steps at L = 1, 2, 4, 8, 16
+    // For WarpSize == 64: steps at L = 1, 2, 4, 8, 16, 32
+    static_assert(WarpSize == 32 || WarpSize == 64, "unexpected warp size");
+    WarpBitonicMergeSteps<K, V, 1, Dir, Comp>::merge(k[0], v[0]);
   }
 };
 
