@@ -45,6 +45,7 @@
 #include <cuda/std/functional>
 #include <cuda/std/tuple>
 #include <thrust/device_ptr.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
 #include <thrust/fill.h>
@@ -245,7 +246,7 @@ struct init_label_roots {
   template <typename Tuple>
   __host__ __device__ void operator()(Tuple t)
   {
-    labels[cuda::std::get<1>(t)] = cuda::std::get<0>(t);
+    labels[thrust::get<1>(t)] = thrust::get<0>(t);
   }
 
  private:

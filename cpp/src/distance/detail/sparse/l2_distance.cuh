@@ -48,6 +48,7 @@
 
 #include <cuda/iterator>
 #include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
 
 #include <algorithm>
 #ifndef __HIP_PLATFORM_AMD__
