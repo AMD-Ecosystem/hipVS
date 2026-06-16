@@ -49,19 +49,15 @@ option(FIND_CUVS_CPP "Search for existing CUVS C++ installations before defaulti
 
 # If the user requested it we attempt to find CUVS.
 if(FIND_CUVS_CPP)
-# <<<<<<< OLD CODE from 76eb5a2b2 (fdf3862a0) - COMMENTED OUT
-#   find_package(cuvs REQUIRED COMPONENTS compiled c_api)
-#   if(NOT TARGET cuvs::cuvs)
-#     message(
-#       FATAL_ERROR
-#         "Building against a preexisting libcuvs library requires the compiled libcuvs to have been built!"
-#     )
-#   endif()
-# else()
-#   set(cuvs_FOUND OFF)
-# =======
-  find_package(cuvs "${RAPIDS_VERSION}" REQUIRED COMPONENTS c_api)
-# >>>>>>> END NEW CODE (fdf3862a0)
+  find_package(cuvs REQUIRED COMPONENTS compiled c_api)
+  if(NOT TARGET cuvs::cuvs)
+    message(
+      FATAL_ERROR
+        "Building against a preexisting libcuvs library requires the compiled libcuvs to have been built!"
+    )
+  endif()
+else()
+  set(cuvs_FOUND OFF)
 endif()
 
 if(NOT cuvs_FOUND)

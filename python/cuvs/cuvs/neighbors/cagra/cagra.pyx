@@ -549,13 +549,7 @@ def build(IndexParams index_params, dataset, resources=None):
     ----------
     index_params : IndexParams object
     dataset : CUDA array interface compliant matrix shape (n_samples, dim)
-# <<<<<<< OLD CODE from 9d16509ed (dba65a414) - COMMENTED OUT
-#         Supported dtype [float32, float16, int8, uint8]
-# =======
-        Supported dtype [float, half, int8, uint8]
-        **Note:** For ACE build algorithm, the dataset MUST be in host memory.
-        Use NumPy arrays or call .get() on CuPy arrays before passing.
-# >>>>>>> END NEW CODE (dba65a414)
+        Supported dtype [float32, float16, int8, uint8]
     {resources_docstring}
 
     Returns

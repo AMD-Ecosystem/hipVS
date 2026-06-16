@@ -479,11 +479,7 @@ void batch_build(
 {
   if (raft::resource::is_multi_gpu(handle)) {
     // For efficient CPU-computation of omp parallel for regions per GPU
-// <<<<<<< OLD CODE from 0d70cb04b (88455931d) - COMMENTED OUT
-//     omp_set_max_active_levels(1);
-// =======
     cuvs::core::omp::set_nested(1);
-// >>>>>>> END NEW CODE (88455931d)
   }
 
   size_t num_rows = static_cast<size_t>(dataset.extent(0));

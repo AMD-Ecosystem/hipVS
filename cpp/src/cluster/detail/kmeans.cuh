@@ -1,43 +1,25 @@
 /*
-// <<<<<<< OLD CODE from 748fb2a0c (87897a95e) - COMMENTED OUT
-// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-// //  * Copyright (c) 2020-2025, NVIDIA CORPORATION.
-// //  *
-// //  * Licensed under the Apache License, Version 2.0 (the "License");
-// //  * you may not use this file except in compliance with the License.
-// //  * You may obtain a copy of the License at
-// //  *
-// //  *     http://www.apache.org/licenses/LICENSE-2.0
-// //  *
-// //  * Unless required by applicable law or agreed to in writing, software
-// //  * distributed under the License is distributed on an "AS IS" BASIS,
-// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// //  * See the License for the specific language governing permissions and
-// //  * limitations under the License.
-// //  *
-// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
-// //  * of this software and associated documentation files (the "Software"), to deal
-// //  * in the Software without restriction, including without limitation the rights
-// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// //  * copies of the Software, and to permit persons to whom the Software is
-// //  * furnished to do so, subject to the following conditions:
-// //  * The above copyright notice and this permission notice shall be included in
-// //  * all copies or substantial portions of the Software.
-// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// //  * THE SOFTWARE.
-// // =======
-//  * SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
-// =======
  * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
-// >>>>>>> END NEW CODE (87897a95e)
  * SPDX-License-Identifier: Apache-2.0
-// >>>>>>> END NEW CODE (5a0ba144f)
+ */
+
+/*
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -79,13 +61,7 @@
 #include <cuvs/cuda_runtime.h>
 #else
 #include <cuda.h>
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-// #endif
-// #include <thrust/fill.h>
-// #include <thrust/iterator/transform_iterator.h>
-// #include <thrust/transform.h>
-// =======
-// >>>>>>> END NEW CODE (844faff67)
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -271,17 +247,6 @@ void kmeansPlusPlus(raft::resources const& handle,
       workspace.resize(temp_storage_bytes, stream);
 
       // Run argmin-reduction
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-//       RAFT_CUDA_TRY(cub::DeviceReduce::ArgMin(workspace.data(),
-//                                               temp_storage_bytes,
-//                                               costPerCandidate.data_handle(),
-//                                               minClusterIndexAndDistance.data(),
-//                                               costPerCandidate.extent(0),
-//                                               stream));
-//
-//       IndexT bestCandidateIdx = -1;
-//       raft::copy(&bestCandidateIdx, &minClusterIndexAndDistance.data()->key, 1, stream);
-// =======
       cub::DeviceReduce::ArgMin(workspace.data(),
                                 temp_storage_bytes,
                                 costPerCandidate.data_handle(),
@@ -293,7 +258,6 @@ void kmeansPlusPlus(raft::resources const& handle,
       raft::copy(handle,
                  raft::make_host_scalar_view(&bestCandidateIdx),
                  raft::make_device_scalar_view(&minClusterIndexAndDistance.data()->key));
-// >>>>>>> END NEW CODE (844faff67)
       raft::resource::sync_stream(handle);
       /// <<< End of Step-3 >>>
 

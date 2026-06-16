@@ -897,14 +897,10 @@ RAFT_KERNEL __launch_bounds__(kThreadsPerBlock)
       uint32_t sample_offset = 0;
       if (probe_id > 0) { sample_offset = chunk_indices[probe_id - 1]; }
       assert(list_length == chunk_indices[probe_id] - sample_offset);
-// <<<<<<< OLD CODE from 49cd4d5d9 (821114703) - COMMENTED OUT
-//       if constexpr (!kManageLocalTopK) { assert(sample_offset + list_length <= max_samples); }
-// =======
       if constexpr (!kManageLocalTopK) {
         // max_samples is zero/unused in the kManageLocalTopK mode
         assert(sample_offset + list_length <= max_samples);
       }
-// >>>>>>> END NEW CODE (821114703)
 
       constexpr int kUnroll        = raft::WarpSize / Veclen;
       constexpr uint32_t kNumWarps = kThreadsPerBlock / raft::WarpSize;

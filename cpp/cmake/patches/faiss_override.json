@@ -6,36 +6,8 @@
       "git_tag": "v${version}",
       "patches" : [
         {
-# <<<<<<< OLD CODE from 06d05b547 (89e1a61c2) - COMMENTED OUT
-# # <<<<<<< OLD CODE from a1d310fdd (91517d6eb) - COMMENTED OUT
-# # # <<<<<<< OLD CODE from 515c0daf2 (060d94c65) - COMMENTED OUT
-# # # # <<<<<<< OLD CODE from 9fd0a971d (d830c8d25) - COMMENTED OUT
-# # # #           "file" : "${current_json_dir}/faiss/rocm-build-changes.diff",
-# # # #           "issue" : "Add misc fixes for compilation on AMD platforms",
-# # # #           "fixed_in" : ""
-# # # #         },
-# # # #         {
-# # # #           "file" : "${current_json_dir}/faiss/fix-missing-includes-for-thrust-copy.patch",
-# # # #           "issue" : "Fix missing Thrust includes. https://github.com/facebookresearch/faiss/pull/4597",
-# # # #           "fixed_in" : ""
-# # # #         },
-# # # #         {
-# # # #           "file" : "${current_json_dir}/faiss/refactor-rmm-memory-resources.patch",
-# # # #           "issue" : "Refactor RMM memory resources to use updated APIs",
-# # # # =======
-# # #           "file" : "${current_json_dir}/faiss.diff",
-# # #           "issue" : "Multiple fixes for cuVS compatibility",
-# # # # >>>>>>> END NEW CODE (d830c8d25)
-# # # =======
-# #           "file" : "${current_json_dir}/faiss-25.12.diff",
-# # =======
-#           "file" : "${current_json_dir}/faiss-1.13-cuvs-25.12.diff",
-# # >>>>>>> END NEW CODE (91517d6eb)
-# =======
           "file" : "${current_json_dir}/faiss-1.14-cuvs-25.12.diff",
-# >>>>>>> END NEW CODE (89e1a61c2)
           "issue" : "Multiple fixes for cuVS and RMM compatibility",
-# >>>>>>> END NEW CODE (060d94c65)
           "fixed_in" : ""
         },
         {

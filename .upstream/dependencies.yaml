@@ -384,9 +384,6 @@ dependencies:
             packages:
   cuda_wheels:
     specific:
-# <<<<<<< OLD CODE from 1ef649377 (d71ffe883) - COMMENTED OUT
-#       - output_types: pyproject
-# =======
       # cuVS needs 'nvJitLink>={whatever-cuvs-was-built-against}' at runtime, and mixing
       # old-CTK with new-nvJitLink is supported, so maintain 1 entry here per CUDA major.minor
       # cuVS is built against.
@@ -394,7 +391,6 @@ dependencies:
       # nvJitLink has historically roughly followed the CTK's minor versioning scheme,
       # but check at https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
       - output_types: [requirements, pyproject]
-# >>>>>>> END NEW CODE (d71ffe883)
         matrices:
           # skip this whole group if explicitly opting out of CUDA wheels
           - matrix:

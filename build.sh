@@ -1,32 +1,23 @@
 #!/bin/bash
 
-# <<<<<<< OLD CODE from c92c69538 (5551dd57d) - COMMENTED OUT
-# # <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-# # # Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# # #
-# # # Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
-# # # Permission is hereby granted, free of charge, to any person obtaining a copy
-# # # of this software and associated documentation files (the "Software"), to deal
-# # # in the Software without restriction, including without limitation the rights
-# # # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# # # copies of the Software, and to permit persons to whom the Software is
-# # # furnished to do so, subject to the following conditions:
-# # # The above copyright notice and this permission notice shall be included in
-# # # all copies or substantial portions of the Software.
-# # # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# # # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# # # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# # # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# # # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# # # THE SOFTWARE.
-# # =======
-# # SPDX-FileCopyrightText: Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# =======
-# SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
-# >>>>>>> END NEW CODE (5551dd57d)
-# SPDX-License-Identifier: Apache-2.0
-# >>>>>>> END NEW CODE (5a0ba144f)
+# Copyright (c) 2020-2026, NVIDIA CORPORATION.
+#
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
 # cuvs build scripts
 
@@ -70,12 +61,9 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    --gpu-arch=\"<arch>\"       - build for specific GPU architectures (e.g. \"gfx90a;gfx942\")
    --no-shared-libs            - build without shared libraries
    --show_depr_warn            - show cmake deprecation warnings
-# <<<<<<< OLD CODE from c92c69538 (5551dd57d) - COMMENTED OUT
-# =======
    --run-java-tests            - run Java tests after building
    --build-metrics             - filename for generating build metrics report for libcuvs
    --incl-cache-stats          - include cache statistics in build metrics report
-# >>>>>>> END NEW CODE (5551dd57d)
    --cmake-args=\\\"<args>\\\" - pass arbitrary list of CMake configuration options (escape all quotes in argument)
    --cache-tool=<tool>         - pass the build cache tool (eg: ccache, sccache, distcc) that will be used
                                  to speedup the build process.
@@ -365,11 +353,7 @@ fi
 
 ################################################################################
 # Configure for building all C++ targets
-# <<<<<<< OLD CODE from 8626ab5ad (131cbc479) - COMMENTED OUT
-# if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || hasArg examples || hasArg bench-ann; then
-# =======
-if (( NUMARGS == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
-# >>>>>>> END NEW CODE (131cbc479)
+if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg package || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
     COMPILE_LIBRARY=ON
     if [[ "${BUILD_SHARED_LIBS}" != "OFF" ]]; then
         CMAKE_TARGET+=("cuvs")
@@ -455,22 +439,14 @@ if (( ${NUMARGS} == 0 )) || hasArg python; then
     # Build and install cuvs pip package
     SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${SKBUILD_EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
-# <<<<<<< OLD CODE from de56725eb (63e1199ec) - COMMENTED OUT
-#         python -m pip install --no-build-isolation --no-deps ${REPODIR}/python/cuvs
-# =======
         python -m pip install \
         "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}"/python/cuvs
-# >>>>>>> END NEW CODE (63e1199ec)
 fi
 
 # Build and (optionally) install the cuvs-bench Python package
 if (( NUMARGS == 0 )) || (hasArg bench-ann && ! hasArg -n); then
-# <<<<<<< OLD CODE from de56725eb (63e1199ec) - COMMENTED OUT
-#     python -m pip install --no-build-isolation --no-deps "${REPODIR}"/python/cuvs_bench
-# =======
     python -m pip install \
         "${PYTHON_ARGS_FOR_INSTALL[@]}" "${REPODIR}"/python/cuvs_bench
-# >>>>>>> END NEW CODE (63e1199ec)
 fi
 
 # Build the cuvs Rust bindings

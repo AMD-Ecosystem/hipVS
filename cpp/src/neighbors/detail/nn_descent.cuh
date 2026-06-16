@@ -28,11 +28,7 @@
 #include "cagra/device_common.hpp"
 #include "nn_descent_gnnd.hpp"
 
-// <<<<<<< OLD CODE from 0d70cb04b (88455931d) - COMMENTED OUT
-// #include <cstdint>
-// =======
 #include "../../core/omp_wrapper.hpp"
-// >>>>>>> END NEW CODE (88455931d)
 #include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/nn_descent.hpp>
 
@@ -63,12 +59,7 @@
 #else
 #include <cuda_runtime.h>
 #include <mma.h>
-// <<<<<<< OLD CODE from 0d70cb04b (88455931d) - COMMENTED OUT
-// #endif
-//
-// #include <omp.h>
-// =======
-// >>>>>>> END NEW CODE (88455931d)
+#endif
 
 #include <limits>
 #include <optional>
@@ -1470,15 +1461,11 @@ void GNND<Data_t, Index_t>::add_reverse_edges(Index_t* graph_ptr,
                                               int2* list_sizes,
                                               cudaStream_t stream)
 {
-// <<<<<<< OLD CODE from cbb06e06c (89c270b46) - COMMENTED OUT
-//   add_rev_edges_kernel<<<nrow_, raft::host_warp_size(stream), 0, stream>>>(
-// =======
   raft::matrix::fill(
     res,
-    raft::make_device_matrix_view<Index_t, int64_t>(d_rev_graph_ptr, nrow_, DEGREE_ON_DEVICE),
+    raft::make_device_matrix_view<Index_t, int64_t>(d_rev_graph_ptr, nrow_, get_degree_on_device(res)),
     std::numeric_limits<Index_t>::max());
-  add_rev_edges_kernel<<<nrow_, raft::warp_size(), 0, stream>>>(
-// >>>>>>> END NEW CODE (89c270b46)
+  add_rev_edges_kernel<<<nrow_, raft::host_warp_size(stream), 0, stream>>>(
     graph_ptr, d_rev_graph_ptr, NUM_SAMPLES, list_sizes);
   raft::copy(res,
              raft::make_host_vector_view(h_rev_graph_ptr, nrow_ * NUM_SAMPLES),
@@ -1490,60 +1477,6 @@ template <typename DistEpilogue_t>
 void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_epilogue)
 {
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
-// <<<<<<< OLD CODE from cbb06e06c (89c270b46) - COMMENTED OUT
-//   // The maximum number of threads in a kernel is (2^32 - 1), so the maximum grid dimension is (2^32
-//   // - 1) / BLOCK_SIZE.
-//   if (host_warp_size(stream) == 32) {
-//     constexpr int BLOCK_SIZE     = 512;
-//     constexpr size_t kMaxGridDim = std::numeric_limits<uint32_t>::max() / BLOCK_SIZE;
-//     for (size_t batch_offset = 0; batch_offset < nrow_; batch_offset += kMaxGridDim) {
-//       size_t batch_size = std::min(kMaxGridDim, nrow_ - batch_offset);
-//       local_join_kernel<BLOCK_SIZE>
-//         <<<batch_size, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
-//                                                 h_rev_graph_new_.data_handle(),
-//                                                 d_list_sizes_new_.data_handle(),
-//                                                 h_graph_old_.data_handle(),
-//                                                 h_rev_graph_old_.data_handle(),
-//                                                 d_list_sizes_old_.data_handle(),
-//                                                 NUM_SAMPLES,
-//                                                 d_data_.data_handle(),
-//                                                 ndim_,
-//                                                 graph_buffer_.data_handle(),
-//                                                 dists_buffer_.data_handle(),
-//                                                 get_degree_on_device(res),
-//                                                 d_locks_.data_handle(),
-//                                                 l2_norms_.data_handle(),
-//                                                 build_config_.metric,
-//                                                 dist_epilogue,
-//                                                 batch_offset,
-//                                                 nrow_);
-//     }
-//   } else {
-//     constexpr int BLOCK_SIZE     = 1024;
-//     constexpr size_t kMaxGridDim = std::numeric_limits<uint32_t>::max() / BLOCK_SIZE;
-//     for (size_t batch_offset = 0; batch_offset < nrow_; batch_offset += kMaxGridDim) {
-//       size_t batch_size = std::min(kMaxGridDim, nrow_ - batch_offset);
-//       local_join_kernel<BLOCK_SIZE>
-//         <<<batch_size, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
-//                                                 h_rev_graph_new_.data_handle(),
-//                                                 d_list_sizes_new_.data_handle(),
-//                                                 h_graph_old_.data_handle(),
-//                                                 h_rev_graph_old_.data_handle(),
-//                                                 d_list_sizes_old_.data_handle(),
-//                                                 NUM_SAMPLES,
-//                                                 d_data_.data_handle(),
-//                                                 ndim_,
-//                                                 graph_buffer_.data_handle(),
-//                                                 dists_buffer_.data_handle(),
-//                                                 get_degree_on_device(res),
-//                                                 d_locks_.data_handle(),
-//                                                 l2_norms_.data_handle(),
-//                                                 build_config_.metric,
-//                                                 dist_epilogue,
-//                                                 batch_offset,
-//                                                 nrow_);
-//     }
-// =======
   if (d_data_float_.has_value()) {
     local_join_kernel<<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
                                                         h_rev_graph_new_.data_handle(),
@@ -1556,29 +1489,65 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_
                                                         ndim_,
                                                         graph_buffer_.data_handle(),
                                                         dists_buffer_.data_handle(),
-                                                        DEGREE_ON_DEVICE,
+                                                        get_degree_on_device(res),
                                                         d_locks_.data_handle(),
                                                         l2_norms_.data_handle(),
                                                         build_config_.metric,
                                                         dist_epilogue);
   } else {
-    local_join_kernel<<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
-                                                        h_rev_graph_new_.data_handle(),
-                                                        d_list_sizes_new_.data_handle(),
-                                                        h_graph_old_.data_handle(),
-                                                        h_rev_graph_old_.data_handle(),
-                                                        d_list_sizes_old_.data_handle(),
-                                                        NUM_SAMPLES,
-                                                        d_data_half_.value().data_handle(),
-                                                        ndim_,
-                                                        graph_buffer_.data_handle(),
-                                                        dists_buffer_.data_handle(),
-                                                        DEGREE_ON_DEVICE,
-                                                        d_locks_.data_handle(),
-                                                        l2_norms_.data_handle(),
-                                                        build_config_.metric,
-                                                        dist_epilogue);
-// >>>>>>> END NEW CODE (89c270b46)
+    // The maximum number of threads in a kernel is (2^32 - 1), so the maximum grid dimension is (2^32
+    // - 1) / BLOCK_SIZE.
+    if (host_warp_size(stream) == 32) {
+      constexpr int BLOCK_SIZE     = 512;
+      constexpr size_t kMaxGridDim = std::numeric_limits<uint32_t>::max() / BLOCK_SIZE;
+      for (size_t batch_offset = 0; batch_offset < nrow_; batch_offset += kMaxGridDim) {
+        size_t batch_size = std::min(kMaxGridDim, nrow_ - batch_offset);
+        local_join_kernel<BLOCK_SIZE>
+          <<<batch_size, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
+                                                  h_rev_graph_new_.data_handle(),
+                                                  d_list_sizes_new_.data_handle(),
+                                                  h_graph_old_.data_handle(),
+                                                  h_rev_graph_old_.data_handle(),
+                                                  d_list_sizes_old_.data_handle(),
+                                                  NUM_SAMPLES,
+                                                  d_data_half_.value().data_handle(),
+                                                  ndim_,
+                                                  graph_buffer_.data_handle(),
+                                                  dists_buffer_.data_handle(),
+                                                  get_degree_on_device(res),
+                                                  d_locks_.data_handle(),
+                                                  l2_norms_.data_handle(),
+                                                  build_config_.metric,
+                                                  dist_epilogue,
+                                                  batch_offset,
+                                                  nrow_);
+      }
+    } else {
+      constexpr int BLOCK_SIZE     = 1024;
+      constexpr size_t kMaxGridDim = std::numeric_limits<uint32_t>::max() / BLOCK_SIZE;
+      for (size_t batch_offset = 0; batch_offset < nrow_; batch_offset += kMaxGridDim) {
+        size_t batch_size = std::min(kMaxGridDim, nrow_ - batch_offset);
+        local_join_kernel<BLOCK_SIZE>
+          <<<batch_size, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
+                                                  h_rev_graph_new_.data_handle(),
+                                                  d_list_sizes_new_.data_handle(),
+                                                  h_graph_old_.data_handle(),
+                                                  h_rev_graph_old_.data_handle(),
+                                                  d_list_sizes_old_.data_handle(),
+                                                  NUM_SAMPLES,
+                                                  d_data_half_.value().data_handle(),
+                                                  ndim_,
+                                                  graph_buffer_.data_handle(),
+                                                  dists_buffer_.data_handle(),
+                                                  get_degree_on_device(res),
+                                                  d_locks_.data_handle(),
+                                                  l2_norms_.data_handle(),
+                                                  build_config_.metric,
+                                                  dist_epilogue,
+                                                  batch_offset,
+                                                  nrow_);
+      }
+    }
   }
 }
 
@@ -1620,26 +1589,13 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
     data, static_cast<size_t>(nrow_), build_config_.dataset_dim, batch_size, stream};
   auto warp_size = raft::host_warp_size(stream);
   for (auto const& batch : vec_batches) {
-// <<<<<<< OLD CODE from cbb06e06c (89c270b46) - COMMENTED OUT
-//     preprocess_data_kernel<<<batch.size(),
-//                              warp_size,
-//                              sizeof(Data_t) *
-//                                ceildiv(build_config_.dataset_dim, static_cast<size_t>(warp_size)) *
-//                                warp_size,
-//                              stream>>>(batch.data(),
-//                                        d_data_.data_handle(),
-//                                        build_config_.dataset_dim,
-//                                        l2_norms_.data_handle(),
-//                                        batch.offset(),
-//                                        build_config_.metric);
-// =======
     if (d_data_float_.has_value()) {
       preprocess_data_kernel<<<batch.size(),
-                               raft::warp_size(),
+                               warp_size,
                                sizeof(Data_t) *
                                  ceildiv(build_config_.dataset_dim,
-                                         static_cast<size_t>(raft::warp_size())) *
-                                 raft::warp_size(),
+                                         static_cast<size_t>(warp_size)) *
+                                 warp_size,
                                stream>>>(batch.data(),
                                          d_data_float_.value().data_handle(),
                                          build_config_.dataset_dim,
@@ -1648,11 +1604,11 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
                                          build_config_.metric);
     } else {
       preprocess_data_kernel<<<batch.size(),
-                               raft::warp_size(),
+                               warp_size,
                                sizeof(Data_t) *
                                  ceildiv(build_config_.dataset_dim,
-                                         static_cast<size_t>(raft::warp_size())) *
-                                 raft::warp_size(),
+                                         static_cast<size_t>(warp_size)) *
+                                 warp_size,
                                stream>>>(batch.data(),
                                          d_data_half_.value().data_handle(),
                                          build_config_.dataset_dim,
@@ -1660,7 +1616,6 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
                                          batch.offset(),
                                          build_config_.metric);
     }
-// >>>>>>> END NEW CODE (89c270b46)
   }
 
   graph_.clear();
@@ -1740,19 +1695,8 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
     update_and_sample_thread.join();
 
     if (update_counter_ == -1) { break; }
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-//     raft::copy(graph_host_buffer_.data_handle(),
-//                graph_buffer_.data_handle(),
-//                nrow_ * get_degree_on_device(res),
-//                raft::resource::get_cuda_stream(res));
-//     raft::copy(dists_host_buffer_.data_handle(),
-//                dists_buffer_.data_handle(),
-//                nrow_ * get_degree_on_device(res),
-//                raft::resource::get_cuda_stream(res));
-// =======
     raft::copy(res, graph_host_buffer_.view(), graph_buffer_.view());
     raft::copy(res, dists_host_buffer_.view(), dists_buffer_.view());
-// >>>>>>> END NEW CODE (844faff67)
     raft::resource::sync_stream(res);
 
     graph_.sample_graph_new(graph_host_buffer_.data_handle(), get_degree_on_device(res));

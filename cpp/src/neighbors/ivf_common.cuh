@@ -1,43 +1,34 @@
 /*
-// <<<<<<< OLD CODE from 7c100be77 (7b0b6026d) - COMMENTED OUT
-// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-// //  * Copyright (c) 2024-2025, NVIDIA CORPORATION.
-// //  *
-// //  * Licensed under the Apache License, Version 2.0 (the "License");
-// //  * you may not use this file except in compliance with the License.
-// //  * You may obtain a copy of the License at
-// //  *
-// //  *     http://www.apache.org/licenses/LICENSE-2.0
-// //  *
-// //  * Unless required by applicable law or agreed to in writing, software
-// //  * distributed under the License is distributed on an "AS IS" BASIS,
-// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// //  * See the License for the specific language governing permissions and
-// //  * limitations under the License.
-// //  *
-// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
-// //  * of this software and associated documentation files (the "Software"), to deal
-// //  * in the Software without restriction, including without limitation the rights
-// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// //  * copies of the Software, and to permit persons to whom the Software is
-// //  * furnished to do so, subject to the following conditions:
-// //  * The above copyright notice and this permission notice shall be included in
-// //  * all copies or substantial portions of the Software.
-// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// //  * THE SOFTWARE.
-// // =======
-//  * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
-// =======
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
-// >>>>>>> END NEW CODE (7b0b6026d)
- * SPDX-License-Identifier: Apache-2.0
-// >>>>>>> END NEW CODE (5a0ba144f)
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -49,16 +40,12 @@
 #include <raft/linalg/map.cuh>
 #include <raft/matrix/detail/select_warpsort.cuh>  // matrix::detail::select::warpsort::warp_sort_distributed
 
-// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
-// #ifdef __HIP_PLATFORM_AMD__
-// #include <hipcub/hipcub.hpp>
-// namespace cub = hipcub;
-// #else
-// #include <cub/cub.cuh>
-// #endif
-//
-// =======
-// >>>>>>> END NEW CODE (27898589f)
+#ifdef __HIP_PLATFORM_AMD__
+#include <hipcub/hipcub.hpp>
+namespace cub = hipcub;
+#else
+#endif
+
 namespace cuvs::neighbors::ivf::detail {
 
 // Forward declaration of helper function to avoid including cub/device/* in header
@@ -317,32 +304,9 @@ void recompute_internal_state(const raft::resources& res, Index& index)
   }
 
   // Sort the cluster sizes in the descending order.
-// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
-//   int begin_bit             = 0;
-//   int end_bit               = sizeof(uint32_t) * 8;
-//   size_t cub_workspace_size = 0;
-//   RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(nullptr,
-//                                                          cub_workspace_size,
-//                                                          index.list_sizes().data_handle(),
-//                                                          sorted_sizes.data(),
-//                                                          index.n_lists(),
-//                                                          begin_bit,
-//                                                          end_bit,
-//                                                          stream));
-//   rmm::device_buffer cub_workspace(cub_workspace_size, stream, tmp_res);
-//   RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(cub_workspace.data(),
-//                                                          cub_workspace_size,
-//                                                          index.list_sizes().data_handle(),
-//                                                          sorted_sizes.data(),
-//                                                          index.n_lists(),
-//                                                          begin_bit,
-//                                                          end_bit,
-//                                                          stream));
-// =======
   // Use helper function to avoid including cub/device/* in this header
   sort_cluster_sizes_descending(
     index.list_sizes().data_handle(), sorted_sizes.data(), index.n_lists(), stream, tmp_res);
-// >>>>>>> END NEW CODE (27898589f)
   // copy the results to CPU
   auto sorted_sizes_host = raft::make_host_vector<uint32_t>(index.n_lists());
   raft::copy(res,

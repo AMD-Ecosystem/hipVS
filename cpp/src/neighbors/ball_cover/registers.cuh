@@ -14,17 +14,8 @@
 #include "../detail/faiss_select/key_value_block_select.cuh"
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-// #include <raft/linalg/unary_op.cuh>
-// // <<<<<<< OLD CODE from 5d2d0bb8a (29339f2bd) - COMMENTED OUT
-// // #include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
-// // #include <raft/util/bitwise_operations.hpp>
-// // =======
-// // >>>>>>> END NEW CODE (29339f2bd)
-// =======
 #include <raft/linalg/map.cuh>
 #include <raft/matrix/init.cuh>
-// >>>>>>> END NEW CODE (844faff67)
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/warp_primitives.cuh>
 

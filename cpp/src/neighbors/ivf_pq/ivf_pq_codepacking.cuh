@@ -283,15 +283,10 @@ __device__ void write_list(
     // __device__ function". It is not clear how nvcc handles this but in our case we have to work
     // around this by calling `std::get_if` which does not call `__throw_bad_variant_access`.
     const uint32_t dst_ix = std::holds_alternative<uint32_t>(offset_or_indices)
-// <<<<<<< OLD CODE from a3e2fb115 (a9a30b1b9) - COMMENTED OUT
-//                               ? *std::get_if<uint32_t>(&offset_or_indices) +
-//                                   ix  // Using std::get in a device function is questionable since
-//                                       // it throws. hipcc/amdclang++ seems to flag this as an issue.
-//                               : *std::get_if<const uint32_t*>(&offset_or_indices)[ix];
-//     write_vector<PqBits, SubWarpSize>(out_list_data, dst_ix, ix, pq_dim, action);
-// =======
-                              ? std::get<uint32_t>(offset_or_indices) + ix
-                              : std::get<const uint32_t*>(offset_or_indices)[ix];
+                              ? *std::get_if<uint32_t>(&offset_or_indices) +
+                                  ix  // Using std::get in a device function is questionable since
+                                      // it throws. hipcc/amdclang++ seems to flag this as an issue.
+                              : *std::get_if<const uint32_t*>(&offset_or_indices)[ix];
     write_vector_interleaved<PqBits, SubWarpSize>(out_list_data, dst_ix, ix, pq_dim, action);
   }
 }
@@ -309,12 +304,18 @@ __device__ void write_list_flat(uint8_t* out_flat_codes,
   uint32_t stride     = subwarp_align::div(blockDim.x);
   uint32_t ix         = subwarp_align::div(threadIdx.x + blockDim.x * blockIdx.x);
   for (; ix < len; ix += stride) {
+    // (HIP/AMD): TODO: Revert the std::get_if call once amdclang++ correctly handle std::get or the
+    // std::get implementation is fixed. Background: `std::get` in the libstdc++ implementation
+    // calls an inline function "__throw_bad_variant_access" that isn't marked either
+    // __host__/__device__ and is thus considered a host function by default. amdclang++ thus
+    // complains: "error: reference to __host__ function '__throw_bad_variant_access' in __host__
+    // __device__ function". It is not clear how nvcc handles this but in our case we have to work
+    // around this by calling `std::get_if` which does not call `__throw_bad_variant_access`.
     const uint32_t dst_ix = std::holds_alternative<uint32_t>(offset_or_indices)
-                              ? std::get<uint32_t>(offset_or_indices) + ix
-                              : std::get<const uint32_t*>(offset_or_indices)[ix];
+                              ? *std::get_if<uint32_t>(&offset_or_indices) + ix
+                              : *std::get_if<const uint32_t*>(&offset_or_indices)[ix];
     write_vector_flat<PqBits, SubWarpSize>(
       out_flat_codes, dst_ix, ix, pq_dim, bytes_per_vector, action);
-// >>>>>>> END NEW CODE (a9a30b1b9)
   }
 }
 

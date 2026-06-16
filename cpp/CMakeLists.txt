@@ -1,36 +1,33 @@
 # =============================================================================
-# <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-# # Copyright (c) 2020-2025, NVIDIA CORPORATION.
-# #
-# # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-# # in compliance with the License. You may obtain a copy of the License at
-# #
-# # http://www.apache.org/licenses/LICENSE-2.0
-# #
-# # Unless required by applicable law or agreed to in writing, software distributed under the License
-# # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# # or implied. See the License for the specific language governing permissions and limitations under
-# # the License.
-# #
-# # Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc. Permission is hereby granted,
-# # free of charge, to any person obtaining a copy of this software and associated documentation files
-# # (the "Software"), to deal in the Software without restriction, including without limitation the
-# # rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
-# # Software, and to permit persons to whom the Software is furnished to do so, subject to the
-# # following conditions: The above copyright notice and this permission notice shall be included in
-# # all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT
-# # WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-# # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
-# # THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#
-# =======
 # cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
-# >>>>>>> END NEW CODE (5a0ba144f)
+# =============================================================================
+
+# cmake-format: off
+# MIT License
+#
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# cmake-format: on
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
 
 # NOTE(HIP/AMD): make *.cu files HIP lang files
@@ -200,45 +197,31 @@ if(CUDA_STATIC_MATH_LIBRARIES)
 endif()
 
 if(NOT BUILD_CPU_ONLY)
-# <<<<<<< OLD CODE from 01965cb27 (87c96911a) - COMMENTED OUT
-#   if(CUDA_BACKEND)
-#     # CUDA runtime
-#     rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
-#     # * find CUDAToolkit package
-#     # * determine GPU architectures
-#     # * enable the CMake CUDA language
-#     # * set other CUDA compilation flags
-#     rapids_find_package(
-#       CUDAToolkit REQUIRED
-#       BUILD_EXPORT_SET cuvs-exports
-#       INSTALL_EXPORT_SET cuvs-exports
-#     )
-#   else()
-#     # HIP runtime
-#     rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
-#     # * find HIP package
-#     # * determine GPU architectures
-#     # * enable the CMake HIP language
-#     # * set other HIP compilation flags
-#     rapids_find_package(
-#       HIP REQUIRED
-#       BUILD_EXPORT_SET cuvs-exports
-#       INSTALL_EXPORT_SET cuvs-exports
-#     )
-#   endif()
-# =======
-  # CUDA runtime
-  rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
-  # * find CUDAToolkit package
-  # * determine GPU architectures
-  # * enable the CMake CUDA language
-  # * set other CUDA compilation flags
-  rapids_find_package(
-    CUDAToolkit REQUIRED
-    BUILD_EXPORT_SET cuvs-exports
-    INSTALL_EXPORT_SET cuvs-exports
-  )
-# >>>>>>> END NEW CODE (87c96911a)
+  if(CUDA_BACKEND)
+    # CUDA runtime
+    rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+    # * find CUDAToolkit package
+    # * determine GPU architectures
+    # * enable the CMake CUDA language
+    # * set other CUDA compilation flags
+    rapids_find_package(
+      CUDAToolkit REQUIRED
+      BUILD_EXPORT_SET cuvs-exports
+      INSTALL_EXPORT_SET cuvs-exports
+    )
+  else()
+    # HIP runtime
+    rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+    # * find HIP package
+    # * determine GPU architectures
+    # * enable the CMake HIP language
+    # * set other HIP compilation flags
+    rapids_find_package(
+      HIP REQUIRED
+      BUILD_EXPORT_SET cuvs-exports
+      INSTALL_EXPORT_SET cuvs-exports
+    )
+  endif()
 else()
   add_compile_definitions(BUILD_CPU_ONLY)
 endif()
@@ -268,26 +251,17 @@ rapids_cpm_init()
 
 if(NOT BUILD_CPU_ONLY)
   # We must find CCCL ourselves before raft so that we get the right version.
-# <<<<<<< OLD CODE from 4b9dba417 (d57dab88a) - COMMENTED OUT
-#   # TODO(AMD/HIP): Use RAFT's get_cccl.cmake until an AMD cccl equivalent exists
-#   # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
-#   # INSTALL_EXPORT_SET cuvs-exports)
-# =======
-  include(${rapids-cmake-dir}/cpm/cccl.cmake)
-  rapids_cpm_cccl()
-# >>>>>>> END NEW CODE (d57dab88a)
+  # TODO(AMD/HIP): Use RAFT's get_cccl.cmake until an AMD cccl equivalent exists
+  # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
+  # INSTALL_EXPORT_SET cuvs-exports)
   include(cmake/thirdparty/get_raft.cmake)
-# <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
-#   if(CUDA_BACKEND)
-#     include(cmake/thirdparty/get_cutlass.cmake)
-#   elseif(BUILD_CK_BACKEND)
-#     include(cmake/thirdparty/get_ck.cmake)
-#   endif()
-# =======
-  include(cmake/thirdparty/get_cutlass.cmake)
+  if(CUDA_BACKEND)
+    include(cmake/thirdparty/get_cutlass.cmake)
+  elseif(BUILD_CK_BACKEND)
+    include(cmake/thirdparty/get_ck.cmake)
+  endif()
   include(${rapids-cmake-dir}/cpm/cuco.cmake)
   rapids_cpm_cuco()
-# >>>>>>> END NEW CODE (8efe78e21)
 endif()
 
 if(BUILD_TESTS OR BUILD_C_TESTS)
@@ -445,12 +419,7 @@ if(NOT BUILD_CPU_ONLY)
   target_compile_options(
     cuvs-cagra-search
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
-#             "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
-# =======
-            "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
-            "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
-# >>>>>>> END NEW CODE (4f3afa378)
+            "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
   )
 
   if(BUILD_MG_ALGOS)
@@ -587,11 +556,8 @@ if(NOT BUILD_CPU_ONLY)
     src/cluster/kmeans_fit_predict_float.cu
     src/cluster/kmeans_predict_double.cu
     src/cluster/kmeans_predict_float.cu
-# <<<<<<< OLD CODE from 8bd1f7222 (b94793e6e) - COMMENTED OUT
-# =======
     src/cluster/kmeans_balanced_fit_float.cu
     src/cluster/kmeans_balanced_fit_half.cu
-# >>>>>>> END NEW CODE (b94793e6e)
     src/cluster/kmeans_balanced_fit_predict_float.cu
     src/cluster/kmeans_balanced_predict_float.cu
     src/cluster/kmeans_balanced_predict_half.cu
@@ -656,11 +622,6 @@ if(NOT BUILD_CPU_ONLY)
     src/distance/distance.cu
     src/distance/pairwise_distance.cu
     src/distance/sparse_distance.cu
-# <<<<<<< OLD CODE from 7f5a03083 (e4825e79d) - COMMENTED OUT
-#     src/neighbors/brute_force.cu
-#     src/embed/spectral.cu
-# =======
-# >>>>>>> END NEW CODE (e4825e79d)
     src/neighbors/all_neighbors/all_neighbors.cu
     src/neighbors/ball_cover.cu
     src/neighbors/epsilon_neighborhood.cu
@@ -674,11 +635,8 @@ if(NOT BUILD_CPU_ONLY)
     src/neighbors/cagra_build_half.cu
     src/neighbors/cagra_build_int8.cu
     src/neighbors/cagra_extend_float.cu
-# <<<<<<< OLD CODE from e62f53e60 (d75b7189a) - COMMENTED OUT
-#     src/neighbors/cagra_build_uint8.cu
-# =======
+    src/neighbors/cagra_build_uint8.cu
     src/neighbors/cagra_extend_half.cu
-# >>>>>>> END NEW CODE (d75b7189a)
     src/neighbors/cagra_extend_int8.cu
     src/neighbors/cagra_extend_uint8.cu
     src/neighbors/cagra_optimize.cu
@@ -807,26 +765,16 @@ if(NOT BUILD_CPU_ONLY)
                POSITION_INDEPENDENT_CODE ON
   )
   target_compile_options(
-# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
-#     cuvs_objs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-#                       "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
-# =======
-    cuvs_objs
-    PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-            "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
-            "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
-# >>>>>>> END NEW CODE (4f3afa378)
+    cuvs_objs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
+                      "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
   )
 
   target_compile_definitions(
     cuvs_objs
     PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
-#             $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED> $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
-# =======
             $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+            $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
             $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
-# >>>>>>> END NEW CODE (43d648565)
   )
 
   target_link_libraries(
@@ -925,64 +873,35 @@ if(NOT BUILD_CPU_ONLY)
       INTERFACE $<$<COMPILE_LANG_AND_ID:CUDA,NVIDIA>:--expt-extended-lambda
                 --expt-relaxed-constexpr>
       PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
-#               "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
-# =======
-              "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
-              "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
-# >>>>>>> END NEW CODE (4f3afa378)
+              "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
     )
     target_compile_definitions(
       cuvs
       PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
              $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
-#              $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
-# =======
+             $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
              $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
-# >>>>>>> END NEW CODE (43d648565)
     )
 
     target_link_libraries(
       cuvs
-# <<<<<<< OLD CODE from 8857048ba (e8d26c865) - COMMENTED OUT
-#       PUBLIC
-#         rmm::rmm
-#         raft::raft
-#         ${CUVS_CTK_MATH_DEPENDENCIES}
-#         $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
-#         $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-#         $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
-#       PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
-#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
-#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
-#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
-#               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-#               cuvs-cagra-search
-# =======
-      PUBLIC rmm::rmm
-             raft::raft
-             cuvs::cuvs_cpp_headers
-             ${CUVS_CTK_MATH_DEPENDENCIES}
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>>
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-             $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
-# # <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
-# #       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# # # >>>>>>> END NEW CODE (e8d26c865)
-# # =======
-#       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-#               $<COMPILE_ONLY:cuco::cuco>
-# # >>>>>>> END NEW CODE (8efe78e21)
-# =======
+      PUBLIC
+        rmm::rmm
+        raft::raft
+        cuvs::cuvs_cpp_headers
+        ${CUVS_CTK_MATH_DEPENDENCIES}
+        $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
+        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+        $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
       PRIVATE
+        $<$<BOOL:${CUDA_BACKEND}>:$<COMPILE_ONLY:nvidia::cutlass::cutlass>>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-        $<COMPILE_ONLY:nvidia::cutlass::cutlass>
         $<COMPILE_ONLY:cuco::cuco>
         $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
         $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
-# >>>>>>> END NEW CODE (43d648565)
     )
     if(CUVS_USE_ROCPROFSYS)
       find_package(rocprofiler-systems REQUIRED)
@@ -1031,73 +950,31 @@ SECTIONS
              $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
     )
 
-# <<<<<<< OLD CODE from 25cf64540 (fc363a868) - COMMENTED OUT
-#     target_include_directories(
-#       cuvs_static
-#       PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>"
-#       INTERFACE "$<INSTALL_INTERFACE:include>"
-#     )
-#     if(CUDA_BACKEND)
-#       # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
-#       target_link_options(cuvs_static PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
-#     endif()
-# =======
     target_include_directories(cuvs_static INTERFACE "$<INSTALL_INTERFACE:include>")
+    if(CUDA_BACKEND)
+      # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
+      target_link_options(cuvs_static PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
+    endif()
 
-    # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
-    target_link_options(cuvs_static PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
-# >>>>>>> END NEW CODE (fc363a868)
-
-# <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
-#     target_include_directories(
-#       cuvs_static
-#       PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-#              "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-#              "$<INSTALL_INTERFACE:include>"
-#     )
-#
-# =======
-# >>>>>>> END NEW CODE (4be4579c1)
     target_link_libraries(
       cuvs_static
-# <<<<<<< OLD CODE from c2fcaba2e (b5ce1b00b) - COMMENTED OUT
-#       PUBLIC
-#         rmm::rmm
-#         raft::raft
-#         ${CUVS_CTK_MATH_DEPENDENCIES}
-#         $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
-#         $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-#         $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
-#       PRIVATE $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
-#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
-#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
-#               $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
-#               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# =======
-      PUBLIC rmm::rmm
-             raft::raft
-             cuvs::cuvs_cpp_headers
-             ${CUVS_CTK_MATH_DEPENDENCIES}
-             $<TARGET_NAME_IF_EXISTS:NCCL::NCCL> # needs to be public for DT_NEEDED
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>> # header only
-# <<<<<<< OLD CODE from aa1b96427 (43d648565) - COMMENTED OUT
-# # <<<<<<< OLD CODE from cb517c210 (8efe78e21) - COMMENTED OUT
-# #       PRIVATE nvidia::cutlass::cutlass $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# #               $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# # # >>>>>>> END NEW CODE (b5ce1b00b)
-# # =======
-#       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-#               $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco>
-# # >>>>>>> END NEW CODE (8efe78e21)
-# =======
+      PUBLIC
+        rmm::rmm
+        raft::raft
+        cuvs::cuvs_cpp_headers
+        ${CUVS_CTK_MATH_DEPENDENCIES}
+        $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
+        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+        $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
       PRIVATE
+        $<$<BOOL:${CUDA_BACKEND}>:$<COMPILE_ONLY:nvidia::cutlass::cutlass>>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-        $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
-        $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-        $<COMPILE_ONLY:nvidia::cutlass::cutlass>
         $<COMPILE_ONLY:cuco::cuco>
+        $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
         $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
-# >>>>>>> END NEW CODE (43d648565)
     )
   endif()
 
@@ -1129,70 +1006,14 @@ target_compile_definitions(cuvs::cuvs INTERFACE $<$<BOOL:${CUVS_NVTX}>:NVTX_ENAB
   # ################################################################################################
   # * cuvs_c -------------------------------------------------------------------------------
   if(BUILD_C_LIBRARY)
-# <<<<<<< OLD CODE from 25cf64540 (fc363a868) - COMMENTED OUT
-#     add_library(
-#       cuvs_c SHARED
-#       src/core/c_api.cpp
-#       src/cluster/kmeans_c.cpp
-#       src/neighbors/brute_force_c.cpp
-#       src/neighbors/ivf_flat_c.cpp
-#       src/neighbors/ivf_pq_c.cpp
-#       src/neighbors/cagra_c.cpp
-#       $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:src/neighbors/hnsw_c.cpp>
-#       src/neighbors/nn_descent_c.cpp
-#       src/neighbors/vamana_c.cpp
-#       src/neighbors/refine/refine_c.cpp
-#       src/neighbors/tiered_index_c.cpp
-#       src/neighbors/all_neighbors_c.cpp
-#       src/preprocessing/quantize/binary_c.cpp
-#       src/preprocessing/quantize/scalar_c.cpp
-#       src/distance/pairwise_distance_c.cpp
-#       ${CUVS_C_MG_ALGOS}
-#     )
-#     add_library(cuvs::c_api ALIAS cuvs_c)
-#     set_target_properties(
-#       cuvs_c
-#       PROPERTIES BUILD_RPATH "\$ORIGIN"
-#                  INSTALL_RPATH "\$ORIGIN"
-#                  CXX_STANDARD 17
-#                  CXX_STANDARD_REQUIRED ON
-#                  POSITION_INDEPENDENT_CODE ON
-#                  INTERFACE_POSITION_INDEPENDENT_CODE ON
-#                  EXPORT_NAME c_api
-#     )
-#
-#     target_compile_definitions(
-#       cuvs_c PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-#     )
-#
-#     target_compile_options(cuvs_c PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>")
-#
-#     target_include_directories(
-#       cuvs_c
-#       PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>"
-#              "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-#       INTERFACE "$<INSTALL_INTERFACE:include>"
-#     )
-#
-#     target_link_libraries(
-#       cuvs_c
-#       PUBLIC cuvs::cuvs ${CUVS_CTK_MATH_DEPENDENCIES}
-#       PRIVATE raft::raft $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>
-#     )
-#     if(CUDA_BACKEND)
-#       # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
-#       target_link_options(cuvs_c PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld")
-#     endif()
-#   endif()
-#
-#   if(NOT DISABLE_OPENMP)
-#     target_link_options(cuvs PRIVATE "-fopenmp=libomp")
-#     if(TARGET cuvs_c)
-#       target_link_options(cuvs_c PRIVATE "-fopenmp=libomp")
-#     endif()
-# =======
     add_subdirectory(../c c)
-# >>>>>>> END NEW CODE (fc363a868)
+  endif()
+
+  if(NOT DISABLE_OPENMP)
+    target_link_options(cuvs PRIVATE "-fopenmp=libomp")
+    if(TARGET cuvs_c)
+      target_link_options(cuvs_c PRIVATE "-fopenmp=libomp")
+    endif()
   endif()
 
   # ################################################################################################

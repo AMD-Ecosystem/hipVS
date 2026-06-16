@@ -284,19 +284,9 @@ struct list_spec_interleaved {
 };
 
 template <typename SizeT, typename IdxT>
-// <<<<<<< OLD CODE from a3e2fb115 (a9a30b1b9) - COMMENTED OUT
-// constexpr list_spec<SizeT, IdxT>::list_spec(uint32_t pq_bits,
-//                                             uint32_t pq_dim,
-//                                             bool conservative_memory_allocation)
-//   : pq_bits(pq_bits), pq_dim(pq_dim), conservative_memory_allocation(conservative_memory_allocation)
-// =======
 constexpr list_spec_interleaved<SizeT, IdxT>::list_spec_interleaved(
   uint32_t pq_bits, uint32_t pq_dim, bool conservative_memory_allocation)
-  : pq_bits(pq_bits),
-    pq_dim(pq_dim),
-    align_min(kIndexGroupSize),
-    align_max(conservative_memory_allocation ? kIndexGroupSize : 1024)
-// >>>>>>> END NEW CODE (a9a30b1b9)
+  : pq_bits(pq_bits), pq_dim(pq_dim), conservative_memory_allocation(conservative_memory_allocation)
 {
 }
 

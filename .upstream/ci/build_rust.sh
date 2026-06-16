@@ -44,12 +44,8 @@ sccache --stop-server 2>/dev/null || true
 
 # we need to set up LIBCLANG_PATH to allow rust bindgen to work,
 # grab it from the conda env
-# <<<<<<< OLD CODE from 6d382eb5a (9cc10ff25) - COMMENTED OUT
-# export LIBCLANG_PATH=$(dirname $(find /opt/conda -name libclang.so | head -n 1))
-# =======
 LIBCLANG_PATH=$(dirname "$(find "$CONDA_PREFIX" -name libclang.so | head -n 1)")
 export LIBCLANG_PATH
-# >>>>>>> END NEW CODE (9cc10ff25)
 echo "LIBCLANG_PATH=$LIBCLANG_PATH"
 
 bash ./build.sh rust

@@ -131,12 +131,8 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
 {
   const unsigned lane_id = threadIdx.x % raft::warp_size();
   const unsigned warp_id = threadIdx.x / raft::warp_size();
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//   if (MULTI_WARPS == 0) {
-// =======
   static_assert(MAX_CANDIDATES <= 256);
   if constexpr (!MULTI_WARPS) {
-// >>>>>>> END NEW CODE (1ea06fcfe)
     if (warp_id > 0) { return; }
     constexpr unsigned N = (MAX_CANDIDATES + (raft::warp_size() - 1)) / raft::warp_size();
     float key[N];
@@ -166,10 +162,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
     assert(blockDim.x >= 64);
     // Use two warps (64 threads)
     constexpr unsigned max_candidates_per_warp = (MAX_CANDIDATES + 1) / 2;
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-// =======
     static_assert(max_candidates_per_warp <= 128);
-// >>>>>>> END NEW CODE (1ea06fcfe)
     constexpr unsigned N = (max_candidates_per_warp + (raft::warp_size() - 1)) / raft::warp_size();
     float key[N];
     IdxT val[N];
@@ -220,11 +213,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
     if (num_warps_used > 1) { __syncthreads(); }
     if (warp_id < num_warps_used) {
       /* Merge */
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//       bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
-// =======
-      bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
-// >>>>>>> END NEW CODE (1ea06fcfe)
+      bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       /* Reg -> Temp_itopk */
       for (unsigned i = 0; i < N; i++) {
         unsigned jl = (N * lane_id) + i;
@@ -252,14 +241,10 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
 {
   const unsigned lane_id = threadIdx.x % raft::warp_size();
   const unsigned warp_id = threadIdx.x / raft::warp_size();
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//   if (MULTI_WARPS == 0) {
-// =======
 
   static_assert(MAX_ITOPK <= 512);
   if constexpr (!MULTI_WARPS) {
     static_assert(MAX_ITOPK <= 256);
-// >>>>>>> END NEW CODE (1ea06fcfe)
     if (warp_id > 0) { return; }
     constexpr unsigned N = (MAX_ITOPK + (raft::warp_size() - 1)) / raft::warp_size();
     float key[N];
@@ -303,11 +288,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
       }
     }
     /* Warp Merge */
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//     bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
-// =======
-    bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
-// >>>>>>> END NEW CODE (1ea06fcfe)
+    bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
     /* Store new itopk results */
     for (unsigned i = 0; i < N; i++) {
       unsigned j = (N * lane_id) + i;
@@ -362,11 +343,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
           }
         }
         /* Warp Merge */
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//         bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
-// =======
-        bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
-// >>>>>>> END NEW CODE (1ea06fcfe)
+        bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       }
       __syncthreads();
       /* Store itopk results (sorted) */
@@ -448,11 +425,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
         }
       }
       /* Warp Merge */
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//       bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
-// =======
-      bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
-// >>>>>>> END NEW CODE (1ea06fcfe)
+      bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       /* Store new itopk results */
       for (unsigned i = 0; i < N; i++) {
         const unsigned j = (N * lane_id) + i;
@@ -862,19 +835,10 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
       // batch size is small (short-latency), but it might not be always good
       // when batch size is large (high-throughput).
       // topk_by_bitonic_sort_and_merge() consists of two operations:
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//       // if MAX_CANDIDATES is greater than 128, the first operation uses two warps;
-//       // if MAX_ITOPK is greater than 256, the second operation used two warps.
-//       const unsigned multi_warps_1 =
-//         ((blockDim.x >= raft::warp_size() * 2) && (MAX_CANDIDATES > raft::warp_size() * 4)) ? 1 : 0;
-//       const unsigned multi_warps_2 =
-//         ((blockDim.x >= raft::warp_size() * 2) && (MAX_ITOPK > raft::warp_size() * 8)) ? 1 : 0;
-// =======
       // if max_candidates is greater than 128, the first operation uses two warps;
       // if max_itopk is greater than 256, the second operation used two warps.
-      assert(blockDim.x >= 64);
-      const bool bitonic_sort_and_full_multi_warps = (max_candidates > 128) ? true : false;
-// >>>>>>> END NEW CODE (1ea06fcfe)
+      assert(blockDim.x >= raft::warp_size() * 2);
+      const bool bitonic_sort_and_full_multi_warps = (max_candidates > raft::warp_size() * 4) ? true : false;
 
       // reset small-hash table.
       if ((iter + 1) % small_hash_reset_interval == 0) {
@@ -886,25 +850,15 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
         unsigned hash_start_tid;
         if (blockDim.x == raft::warp_size()) {
           hash_start_tid = 0;
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//         } else if (blockDim.x == raft::warp_size() * 2) {
-//           if (multi_warps_1 || multi_warps_2) {
-// =======
-        } else if (blockDim.x == 64) {
+        } else if (blockDim.x == raft::warp_size() * 2) {
           if (bitonic_sort_and_full_multi_warps || BITONIC_SORT_AND_MERGE_MULTI_WARPS) {
-// >>>>>>> END NEW CODE (1ea06fcfe)
             hash_start_tid = 0;
           } else {
             hash_start_tid = raft::warp_size();
           }
         } else {
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//           if (multi_warps_1 || multi_warps_2) {
-//             hash_start_tid = raft::warp_size() * 2;
-// =======
           if (bitonic_sort_and_full_multi_warps || BITONIC_SORT_AND_MERGE_MULTI_WARPS) {
-            hash_start_tid = 64;
-// >>>>>>> END NEW CODE (1ea06fcfe)
+            hash_start_tid = raft::warp_size() * 2;
           } else {
             hash_start_tid = raft::warp_size();
           }
@@ -1091,15 +1045,7 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
     // candidate list.
     if (top_k > internal_topk || result_indices_buffer[top_k - 1] == invalid_index) {
       __syncthreads();
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//       const unsigned multi_warps_1 =
-//         ((blockDim.x >= raft::warp_size() * 2) && (MAX_CANDIDATES > raft::warp_size() * 4)) ? 1 : 0;
-//       const unsigned multi_warps_2 =
-//         ((blockDim.x >= raft::warp_size() * 2) && (MAX_ITOPK > raft::warp_size() * 8)) ? 1 : 0;
-//       topk_by_bitonic_sort_and_merge<MAX_ITOPK, MAX_CANDIDATES>(
-// =======
       topk_by_bitonic_sort_and_merge<BITONIC_SORT_AND_MERGE_MULTI_WARPS>(
-// >>>>>>> END NEW CODE (1ea06fcfe)
         result_distances_buffer,
         result_indices_buffer,
         max_itopk,
@@ -1458,21 +1404,8 @@ struct search_kernel_config {
                                              unsigned num_itopk_candidates,
                                              unsigned block_size) -> kernel_t
   {
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//     if (num_itopk_candidates <= 64) {
-//       // use bitonic sort based topk
-//       return choose_search_kernel<64, 1>(itopk_size);
-//     } else if (num_itopk_candidates <= 128) {
-//       return choose_search_kernel<128, 1>(itopk_size);
-//     } else if (num_itopk_candidates <= 256) {
-//       return choose_search_kernel<256, 1>(itopk_size);
-//     } else {
-//       // Radix-based topk is used
-//       constexpr unsigned max_candidates = 64;  // to avoid build failure
-// =======
     assert(itopk_size <= 512);
     if (num_itopk_candidates <= 256) {
-// >>>>>>> END NEW CODE (1ea06fcfe)
       if (itopk_size <= 256) {
         return dispatch_kernel<Persistent,
                                true,

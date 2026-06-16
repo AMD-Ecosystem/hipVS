@@ -1,43 +1,34 @@
 /*
-// <<<<<<< OLD CODE from 7cc5bbcad (d8780aef6) - COMMENTED OUT
-// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-// //  * Copyright (c) 2022-2025, NVIDIA CORPORATION.
-// //  *
-// //  * Licensed under the Apache License, Version 2.0 (the "License");
-// //  * you may not use this file except in compliance with the License.
-// //  * You may obtain a copy of the License at
-// //  *
-// //  *     http://www.apache.org/licenses/LICENSE-2.0
-// //  *
-// //  * Unless required by applicable law or agreed to in writing, software
-// //  * distributed under the License is distributed on an "AS IS" BASIS,
-// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// //  * See the License for the specific language governing permissions and
-// //  * limitations under the License.
-// //  *
-// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
-// //  * of this software and associated documentation files (the "Software"), to deal
-// //  * in the Software without restriction, including without limitation the rights
-// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// //  * copies of the Software, and to permit persons to whom the Software is
-// //  * furnished to do so, subject to the following conditions:
-// //  * The above copyright notice and this permission notice shall be included in
-// //  * all copies or substantial portions of the Software.
-// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// //  * THE SOFTWARE.
-// // =======
-//  * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
-// =======
- * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
-// >>>>>>> END NEW CODE (d8780aef6)
- * SPDX-License-Identifier: Apache-2.0
-// >>>>>>> END NEW CODE (5a0ba144f)
+ * Copyright (c) 2022-2025, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -192,22 +183,6 @@ void flat_compute_residuals(
   auto dim     = rotation_matrix.extent(1);
   auto rot_dim = rotation_matrix.extent(0);
   rmm::device_uvector<float> tmp(n_rows * dim, stream, device_memory);
-// <<<<<<< OLD CODE from c9519f6c4 (7103dc8ae) - COMMENTED OUT
-//   auto tmp_view             = raft::make_device_vector_view<float, IdxT>(tmp.data(), tmp.size());
-//   const uint32_t* label_ptr = nullptr;
-//   uint32_t offset{};
-//   if (std::holds_alternative<uint32_t>(labels)) {
-//     offset = std::get<uint32_t>(labels);
-//   } else {
-//     label_ptr = std::get<const uint32_t*>(labels);
-//   }
-//   raft::linalg::map_offset(
-//     handle, tmp_view, [centers, dataset, label_ptr, offset, dim] __device__(size_t i) {
-//       auto row_ix = i / dim;
-//       auto el_ix  = i % dim;
-//       auto label  = label_ptr == nullptr ? offset : label_ptr[row_ix];
-//       return utils::mapping<float>{}(dataset[i]) - centers(label, el_ix);
-// =======
   auto tmp_view = raft::make_device_vector_view<float, size_t>(tmp.data(), tmp.size());
 
   if (metric == cuvs::distance::DistanceType::CosineExpanded) {
@@ -236,15 +211,9 @@ void flat_compute_residuals(
       auto label  = std::holds_alternative<uint32_t>(labels)
                       ? std::get<uint32_t>(labels)
                       : std::get<const uint32_t*>(labels)[row_ix];
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-//       return tmp[i] - centers(label, el_ix);
-// // >>>>>>> END NEW CODE (7103dc8ae)
-//     });
-// =======
       return val - centers(label, el_ix);
     },
     raft::make_const_mdspan(tmp_view));
-// >>>>>>> END NEW CODE (844faff67)
 
   float alpha = 1.0f;
   float beta  = 0.0f;
@@ -1078,14 +1047,6 @@ void extend(raft::resources const& handle,
   // Try to allocate an index with the same parameters and the projected new size
   // (which can be slightly larger than index->size() + n_rows, due to padding for interleaved).
   // If this fails, the index would be too big to fit in the device anyway.
-// <<<<<<< OLD CODE from a3e2fb115 (a9a30b1b9) - COMMENTED OUT
-//
-//   std::optional<list_data<IdxT, size_t>> placeholder_list(
-//     std::in_place_t{},
-//     handle,
-//     list_spec<size_t, IdxT>{spec},
-//     n_rows + (kIndexGroupSize - 1) * std::min<IdxT>(n_clusters, n_rows));
-// =======
   std::optional<list_data_interleaved<IdxT, size_t>> placeholder_list_interleaved;
   std::optional<raft::device_matrix<uint8_t, IdxT, raft::row_major>> placeholder_list_flat;
   if (index->codes_layout() == list_layout::FLAT) {
@@ -1101,7 +1062,6 @@ void extend(raft::resources const& handle,
       list_spec_interleaved<size_t, IdxT>{spec},
       n_rows + (kIndexGroupSize - 1) * std::min<IdxT>(n_clusters, n_rows));
   }
-// >>>>>>> END NEW CODE (a9a30b1b9)
 
   // Available device memory
   size_t free_mem = raft::resource::get_workspace_free_bytes(handle);

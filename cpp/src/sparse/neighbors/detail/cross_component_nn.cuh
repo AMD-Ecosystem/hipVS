@@ -1,43 +1,34 @@
 /*
-// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
-// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-// //  * Copyright (c) 2018-2025, NVIDIA CORPORATION.
-// //  *
-// //  * Licensed under the Apache License, Version 2.0 (the "License");
-// //  * you may not use this file except in compliance with the License.
-// //  * You may obtain a copy of the License at
-// //  *
-// //  *     http://www.apache.org/licenses/LICENSE-2.0
-// //  *
-// //  * Unless required by applicable law or agreed to in writing, software
-// //  * distributed under the License is distributed on an "AS IS" BASIS,
-// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// //  * See the License for the specific language governing permissions and
-// //  * limitations under the License.
-// //  *
-// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
-// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
-// //  * of this software and associated documentation files (the "Software"), to deal
-// //  * in the Software without restriction, including without limitation the rights
-// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// //  * copies of the Software, and to permit persons to whom the Software is
-// //  * furnished to do so, subject to the following conditions:
-// //  * The above copyright notice and this permission notice shall be included in
-// //  * all copies or substantial portions of the Software.
-// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// //  * THE SOFTWARE.
-// // =======
-//  * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
-// =======
- * SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
-// >>>>>>> END NEW CODE (27898589f)
- * SPDX-License-Identifier: Apache-2.0
-// >>>>>>> END NEW CODE (5a0ba144f)
+ * Copyright (c) 2018-2025, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -65,23 +56,8 @@
 
 #include <rmm/device_uvector.hpp>
 
-// <<<<<<< OLD CODE from d138e4661 (2d26ea963) - COMMENTED OUT
-// // <<<<<<< OLD CODE from ca8ffe2de (a9d40ae8d) - COMMENTED OUT
-// // // <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
-// // // #ifdef __HIP_PLATFORM_AMD__
-// // // #include <hipcub/hipcub.hpp>
-// // // namespace cub = hipcub;
-// // // #else
-// // // #include <cub/cub.cuh>
-// // // #endif
-// // // =======
-// // // >>>>>>> END NEW CODE (27898589f)
-// // =======
-// =======
 #include <cuda/iterator>
-// >>>>>>> END NEW CODE (2d26ea963)
 #include <cuda/std/tuple>
-// >>>>>>> END NEW CODE (a9d40ae8d)
 #include <thrust/copy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/gather.h>
@@ -657,21 +633,16 @@ void cross_component_nn(
                          out_index.data());
 
   // compute final size
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-//   value_idx size = 0;
-//   raft::update_host(&size, out_index.data() + (out_index.size() - 1), 1, stream);
-// =======
   value_idx size_int = 0;
   raft::copy(handle,
              raft::make_host_scalar_view(&size_int),
              raft::make_device_scalar_view(out_index.data() + (out_index.size() - 1)));
-// >>>>>>> END NEW CODE (844faff67)
   raft::resource::sync_stream(handle, stream);
 
-  size++;
+  size_int++;
 
   raft::sparse::COO<value_t, value_idx> min_edges(stream);
-  min_edges.allocate(size, n_rows, n_rows, true, stream);
+  min_edges.allocate(size_int, n_rows, n_rows, true, stream);
 
   min_components_by_color(
     min_edges, out_index.data(), src_indices.data(), temp_inds_dists.data(), n_rows, stream);
@@ -685,7 +656,7 @@ void cross_component_nn(
                                                                min_edges.vals(),
                                                                n_rows,
                                                                n_rows,
-                                                               static_cast<size_t>(size),
+                                                               static_cast<size_t>(size_int),
                                                                out);
 }
 

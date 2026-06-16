@@ -282,15 +282,8 @@ class KmeansTest : public ::testing::TestWithParam<KmeansInputs<T>> {
       d_sample_weight.resize(n_samples, stream);
       d_sw = std::make_optional(
         raft::make_device_vector_view<const T, int>(d_sample_weight.data(), n_samples));
-// <<<<<<< OLD CODE from 64e54a54e (7752e92dc) - COMMENTED OUT
-//       thrust::fill(THRUST_EXECUTION_POLICY.on(stream),
-//                    d_sample_weight.data(),
-//                    d_sample_weight.data() + n_samples,
-//                    1);
-// =======
       raft::matrix::fill(
         handle, raft::make_device_vector_view<T, int>(d_sample_weight.data(), n_samples), T(1));
-// >>>>>>> END NEW CODE (7752e92dc)
     }
 
     raft::copy(d_labels_ref.data(), labels.data_handle(), n_samples, stream);

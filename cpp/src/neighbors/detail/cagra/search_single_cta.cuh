@@ -135,12 +135,8 @@ struct search
     //
     // Determine the thread block size
     //
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//     const int warp_size           = raft::host_warp_size(raft::resource::get_cuda_stream(res));
-//     const unsigned min_block_size = warp_size * 2;
-// =======
-    constexpr unsigned min_block_size       = 64;
-// >>>>>>> END NEW CODE (1ea06fcfe)
+    const int warp_size           = raft::host_warp_size(raft::resource::get_cuda_stream(res));
+    const unsigned min_block_size = warp_size * 2;
     constexpr unsigned min_block_size_radix = 256;
     constexpr unsigned max_block_size       = 1024;
     //
@@ -217,24 +213,7 @@ struct search
                  max_block_size);
     thread_block_size = block_size;
 
-// <<<<<<< OLD CODE from 108102b26 (1ea06fcfe) - COMMENTED OUT
-//     if (num_itopk_candidates <= 256) {
-//       RAFT_LOG_DEBUG("# bitonic-sort based topk routine is used");
-//     } else {
-//       RAFT_LOG_DEBUG("# radix-sort based topk routine is used");
-//       smem_size = base_smem_size;
-//       if (itopk_size <= 256) {
-//         constexpr unsigned MAX_ITOPK = 256;
-//         smem_size += topk_by_radix_sort<MAX_ITOPK, INDEX_T>::smem_size * sizeof(std::uint32_t);
-//       } else {
-//         constexpr unsigned MAX_ITOPK = 512;
-//         smem_size += topk_by_radix_sort<MAX_ITOPK, INDEX_T>::smem_size * sizeof(std::uint32_t);
-//       }
-//     }
-//
-// =======
     RAFT_LOG_DEBUG("# smem_size: %u", smem_size);
-// >>>>>>> END NEW CODE (1ea06fcfe)
     hashmap_size = 0;
     if (small_hash_bitlen == 0 && !this->persistent) {
       hashmap_size = max_queries * hashmap::get_size(hash_bitlen);

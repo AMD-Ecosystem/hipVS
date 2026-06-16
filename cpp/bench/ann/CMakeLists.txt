@@ -230,12 +230,8 @@ function(ConfigureAnnBench)
   target_compile_options(
     ${BENCH_NAME}
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${ConfigureAnnBench_CXXFLAGS}>"
-# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
-#             "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
-# =======
-            "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+            "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
             "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
-# >>>>>>> END NEW CODE (4f3afa378)
   )
 
   if(CUVS_ANN_BENCH_USE_${ConfigureAnnBench_NAME})

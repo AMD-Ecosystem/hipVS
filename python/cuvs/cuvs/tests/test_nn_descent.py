@@ -58,11 +58,8 @@ def test_nn_descent(
         distances = index.distances
         assert distances.shape == graph.shape
 
-# <<<<<<< OLD CODE from cbb06e06c (89c270b46) - COMMENTED OUT
-#     recall_threshold = 0.87 if n_rows <= 1024 else 0.9
-#     assert calc_recall(graph, bfknn_graph) > recall_threshold
-# =======
-    assert calc_recall(graph, bfknn_graph) > 0.9
+    recall_threshold = 0.87 if n_rows <= 1024 else 0.9
+    assert calc_recall(graph, bfknn_graph) > recall_threshold
 
 
 @pytest.mark.parametrize("n_cols", [2, 17, 32])
@@ -98,4 +95,3 @@ def test_nn_descent_dist_comp_dtype(n_cols, dist_comp_dtype, dtype):
         assert calc_recall(nnd_indices, bf_indices) < 0.7
     else:
         assert calc_recall(nnd_indices, bf_indices) > 0.9
-# >>>>>>> END NEW CODE (89c270b46)

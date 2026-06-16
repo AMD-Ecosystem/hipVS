@@ -52,14 +52,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   endif()
 endif()
 
-# <<<<<<< OLD CODE from 2aca99707 (cffd0318c) - COMMENTED OUT
-# # Allow invalid CUDA kernels in the short term
-# if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8.0)
-#   list(APPEND CUVS_GPU_FLAGS -static-global-template-stub=false)
-# endif()
-#
-# =======
-# >>>>>>> END NEW CODE (cffd0318c)
 if(CUDA_LOG_COMPILE_TIME)
   list(APPEND CUVS_GPU_FLAGS "--time=nvcc_compile_log.csv")
 endif()
@@ -92,13 +84,5 @@ if(OpenMP_FOUND)
 endif()
 
 # Debug options
-# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
-# if(CMAKE_BUILD_TYPE MATCHES Debug)
-#   message(VERBOSE "cuVS: Building with debugging flags")
-#   list(APPEND CUVS_GPU_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
-#   list(APPEND CUVS_GPU_FLAGS -Xptxas --suppress-stack-size-warning)
-# endif()
-# =======
 list(APPEND CUVS_DEBUG_CUDA_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
 list(APPEND CUVS_DEBUG_CUDA_FLAGS -Xptxas --suppress-stack-size-warning)
-# >>>>>>> END NEW CODE (4f3afa378)

@@ -212,11 +212,11 @@ extern "C" const char* cuvsGetLastErrorText()
   return last_error_text.empty() ? NULL : last_error_text.c_str();
 }
 
-// <<<<<<< OLD CODE from 62f88924a (b5a3c8c66) - COMMENTED OUT
-// extern "C" void cuvsLogLastErrorText()
-// {
-//   if (!last_error_text.empty()) { std::cerr << last_error_text << std::endl; }
-// =======
+extern "C" void cuvsLogLastErrorText()
+{
+  if (!last_error_text.empty()) { std::cerr << last_error_text << std::endl; }
+}
+
 extern "C" void cuvsSetLogLevel(cuvsLogLevel_t verbosity)
 {
   rapids_logger::level_enum level = rapids_logger::level_enum::trace;
@@ -250,7 +250,6 @@ extern "C" void cuvsSetLogLevel(cuvsLogLevel_t verbosity)
 extern "C" cuvsLogLevel_t cuvsGetLogLevel()
 {
   return static_cast<cuvsLogLevel_t>(raft::default_logger().level());
-// >>>>>>> END NEW CODE (b5a3c8c66)
 }
 
 extern "C" void cuvsSetLastErrorText(const char* error) { last_error_text = error ? error : ""; }

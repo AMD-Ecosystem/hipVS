@@ -1,43 +1,34 @@
 /*
-// <<<<<<< OLD CODE from 9f632f99e (321681706) - COMMENTED OUT
-// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
-// //  * Copyright (c) 2024-2025, NVIDIA CORPORATION.
-// //  *
-// //  * Licensed under the Apache License, Version 2.0 (the "License");
-// //  * you may not use this file except in compliance with the License.
-// //  * You may obtain a copy of the License at
-// //  *
-// //  *     http://www.apache.org/licenses/LICENSE-2.0
-// //  *
-// //  * Unless required by applicable law or agreed to in writing, software
-// //  * distributed under the License is distributed on an "AS IS" BASIS,
-// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// //  * See the License for the specific language governing permissions and
-// //  * limitations under the License.
-// //  *
-// //  * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
-// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
-// //  * of this software and associated documentation files (the "Software"), to deal
-// //  * in the Software without restriction, including without limitation the rights
-// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// //  * copies of the Software, and to permit persons to whom the Software is
-// //  * furnished to do so, subject to the following conditions:
-// //  * The above copyright notice and this permission notice shall be included in
-// //  * all copies or substantial portions of the Software.
-// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// //  * THE SOFTWARE.
-// // =======
-//  * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
-// =======
- * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
-// >>>>>>> END NEW CODE (321681706)
- * SPDX-License-Identifier: Apache-2.0
-// >>>>>>> END NEW CODE (5a0ba144f)
+ * Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #pragma once
@@ -493,14 +484,7 @@ void sharded_search_with_tree_merge(
       }
 
       auto d_trans = raft::make_device_vector<searchIdxT>(dev_res, 2);
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-//       RAFT_CUDA_TRY(cudaMemsetAsync(d_trans.data_handle(),
-//                                     0,
-//                                     2 * sizeof(searchIdxT),
-//                                     raft::resource::get_cuda_stream(dev_res)));
-// =======
       raft::matrix::fill(dev_res, d_trans.view(), searchIdxT(0));
-// >>>>>>> END NEW CODE (844faff67)
 
       int64_t remaining = index.num_ranks_;
       int64_t radix     = 2;

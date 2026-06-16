@@ -140,8 +140,6 @@ public final class CuVSParamsHelper {
       };
     }
   }
-// <<<<<<< OLD CODE from ad5a1ac61 (655f459c0) - COMMENTED OUT
-// =======
 
   static CloseableHandle createHnswAceParamsNative() {
     try (var localArena = Arena.ofConfined()) {
@@ -180,5 +178,4 @@ public final class CuVSParamsHelper {
       };
     }
   }
-// >>>>>>> END NEW CODE (655f459c0)
 }

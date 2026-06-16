@@ -1,9 +1,6 @@
 # hipVS
 
-# <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
-# **GPU-accelerated vector search for AMD GPUs**
-# =======
-# >>>>>>> END NEW CODE (4be4579c1)
+**GPU-accelerated vector search for AMD GPUs**
 
 ## What is hipVS?
 
@@ -52,34 +49,9 @@ There are several benefits to using hipVS and GPUs for vector search, including
 6. Multiple language support
 7. Building blocks for composing new or accelerating existing algorithms
 
-# <<<<<<< OLD CODE from e7ae9c881 (4be4579c1) - COMMENTED OUT
-# # <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
-# # =======
-# In addition to the items above, cuVS takes on the burden of keeping non-trivial accelerated code up to date as new NVIDIA architectures and CUDA versions are released. This provides a delightful development experience, guaranteeing that any libraries, databases, or applications built on top of it will always be getting the best performance and scale.
-# =======
-In addition to the items above, cuVS shoulders the burden of keeping non-trivial accelerated code up to date as new NVIDIA architectures and CUDA versions are released. This provides a delightful development experience, guaranteeing that any libraries, databases, or applications built on top of it will always be getting the best performance and scale.
-# >>>>>>> END NEW CODE (4be4579c1)
-
-## cuVS Technology Stack
-
-cuVS is built on top of the RAPIDS RAFT library of high performance machine learning primitives and provides all the necessary routines for vector search and clustering on the GPU.
-
-![cuVS is built on top of low-level CUDA libraries and provides many important routines that enable vector search and clustering on the GPU](img/tech_stack.png "cuVS Technology Stack")
-
-
-
-## Installing cuVS
-
-cuVS comes with pre-built packages that can be installed through [conda](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html#managing-python) and [pip](https://pip.pypa.io/en/stable/) or [tarball](https://developer.nvidia.com/cuvs-downloads). Different packages are available for the different languages supported by cuVS.
-
-> [!NOTE]
-> If compiled binary size is a concern, please note that the cuVS builds for CUDA 13 are roughly half the size of CUDA 12 builds. This is a result of improved compression rates in the newer supported CUDA drivers. We will be adopting the newer drivers for CUDA 12 builds in Spring of 2026, which will ultimately bring them down to roughly the size of the CUDA 13 builds. In the meantime, the NVIDIA cuVS team is continuing to shave down the binary sizes for all supported CUDA versions. If binary size is an issue for you, please consider linking to cuVS statically either by building from source or using pre-built `libcuvs-static` conda package.
-
-Please see the [Build and Install Guide](https://docs.rapids.ai/api/cuvs/nightly/build/) for more information on installing the available cuVS packages and building from source.
-
 ## Getting Started
 
-The following code snippets train an approximate nearest neighbors index for the CAGRA algorithm in the various different languages supported by cuVS.
+The following code snippets train an approximate nearest neighbors index for the CAGRA algorithm in the various different languages supported by hipVS.
 
 ### Python API
 
@@ -92,9 +64,6 @@ index_params = cagra.IndexParams()
 index = cagra.build(build_params, dataset)
 ```
 
-### C++ API
-# >>>>>>> END NEW CODE (57bc73d77)
-
 ##  Highlights
 
 * **Approximate & exact nearest-neighbor search** – HNSW, IVF-PQ, brute force and more
@@ -103,16 +72,16 @@ index = cagra.build(build_params, dataset)
 
 ##  Limitations
 
-# <<<<<<< OLD CODE from a2088ef68 (57bc73d77) - COMMENTED OUT
-# * The library is currently only tested on AMD GPUs with the ROCm stack.
-# * Multi-GPU and Multi Node functionality is still experimental and not officially supported.
-# =======
+* The library is currently only tested on AMD GPUs with the ROCm stack.
+* Multi-GPU and Multi Node functionality is still experimental and not officially supported.
+
+### C++ API
+
+```cpp
 cagra::index_params index_params;
 
 auto index = cagra::build(res, index_params, dataset);
 ```
-
-For more code examples of the C++ APIs, including drop-in Cmake project templates, please refer to the [C++ examples](https://github.com/rapidsai/cuvs/tree/HEAD/examples) directory in the codebase.
 
 ### C API
 
@@ -136,8 +105,6 @@ cuvsCagraIndexDestroy(index);
 cuvsCagraIndexParamsDestroy(index_params);
 cuvsResourcesDestroy(res);
 ```
-
-For more code examples of the C APIs, including drop-in Cmake project templates, please refer to the [C examples](https://github.com/rapidsai/cuvs/tree/release/26.04/examples/c)
 
 ### Rust API
 
@@ -200,13 +167,6 @@ fn cagra_example() -> Result<()> {
 }
 ```
 
-For more code examples of the Rust APIs, including a drop-in project templates, please refer to the [Rust examples](https://github.com/rapidsai/cuvs/tree/release/26.04/examples/rust).
-
-## Contributing
-
-If you are interested in contributing to the cuVS library, please read our [Contributing guidelines](docs/source/contributing.md). Refer to the [Developer Guide](docs/source/developer_guide.md) for details on the developer guidelines, workflows, and principles.
-# >>>>>>> END NEW CODE (57bc73d77)
-
 ## References
 
 For the interested reader, many of the accelerated implementations in hipVS are also based on research papers which can provide a lot more background. We also ask you to please cite the corresponding algorithms by referencing them in your own research.
@@ -215,9 +175,6 @@ For the interested reader, many of the accelerated implementations in hipVS are 
 - [Fast K-NN Graph Construction by GPU Based NN-Descent](https://dl.acm.org/doi/abs/10.1145/3459637.3482344?casa_token=O_nan1B1F5cAAAAA:QHWDEhh0wmd6UUTLY9_Gv6c3XI-5DXM9mXVaUXOYeStlpxTPmV3nKvABRfoivZAaQ3n8FWyrkWw>)
 - [cuSLINK: Single-linkage Agglomerative Clustering on the GPU](https://arxiv.org/abs/2306.16354)
 - [GPU Semiring Primitives for Sparse Neighborhood Methods](https://arxiv.org/abs/2104.06357)
-# <<<<<<< OLD CODE from 3bfb7f089 (4eaee1288) - COMMENTED OUT
-#
-# ---
-# =======
 - [VecFlow: A High-Performance Vector Data Management System for Filtered-Search on GPUs](https://arxiv.org/abs/2506.00812)
-# >>>>>>> END NEW CODE (4eaee1288)
+
+---

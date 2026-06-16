@@ -63,14 +63,6 @@ rapids-logger "Building '${package_name}' wheel"
 
 sccache --stop-server 2>/dev/null || true
 
-# <<<<<<< OLD CODE from 5c974e124 (4827ccf80) - COMMENTED OUT
-# rapids-pip-retry -m pip wheel \
-#     -w dist \
-#     -v \
-#     --no-deps \
-#     --disable-pip-version-check \
-#     --no-build-isolation \ # Revisit this after rocmds-cmake has been updated
-# =======
 RAPIDS_PIP_WHEEL_ARGS=(
   -w dist
   -v
@@ -97,7 +89,6 @@ fi
 unset PIP_CONSTRAINT
 rapids-pip-retry wheel \
     "${RAPIDS_PIP_WHEEL_ARGS[@]}" \
-# >>>>>>> END NEW CODE (4827ccf80)
     .
 
 sccache --show-adv-stats

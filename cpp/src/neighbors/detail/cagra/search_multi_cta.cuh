@@ -223,18 +223,6 @@ struct search
 
   ~search() {}
 
-// <<<<<<< OLD CODE from 9a5110a65 (d5ff54358) - COMMENTED OUT
-//   void operator()(raft::resources const& res,
-//                   raft::device_matrix_view<const INDEX_T, int64_t, raft::row_major> graph,
-//                   OutputIndexT* const topk_indices_ptr,  // [num_queries, topk]
-//                   DISTANCE_T* const topk_distances_ptr,  // [num_queries, topk]
-//                   const DATA_T* const queries_ptr,       // [num_queries, dataset_dim]
-//                   const uint32_t num_queries,
-//                   const INDEX_T* dev_seed_ptr,              // [num_queries, num_seeds]
-//                   uint32_t* const num_executed_iterations,  // [num_queries,]
-//                   uint32_t topk,
-//                   SAMPLE_FILTER_T sample_filter) override
-// =======
   void operator()(
     raft::resources const& res,
     raft::device_matrix_view<const INDEX_T, int64_t, raft::row_major> graph,
@@ -247,7 +235,6 @@ struct search
     uint32_t* const num_executed_iterations,  // [num_queries,]
     uint32_t topk,
     SAMPLE_FILTER_T sample_filter)
-// >>>>>>> END NEW CODE (d5ff54358)
   {
     auto source_indices_ptr = source_indices.has_value() ? source_indices->data_handle() : nullptr;
     cudaStream_t stream     = raft::resource::get_cuda_stream(res);

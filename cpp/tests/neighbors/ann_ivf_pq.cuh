@@ -1064,17 +1064,12 @@ inline auto enum_variety() -> test_cases_t
     x.search_params.coarse_search_dtype = CUDA_R_16F;
     x.min_recall                        = 0.86;
   });
-// <<<<<<< OLD CODE from 14abaa4e6 (136e300b7) - COMMENTED OUT
-//
-// // As of ROCm 7, hipblasLT does not support a coarse search dtype
-// // of CUDA_R_8I, so we disable the test. This test will automatically
-// // be enabled for new ROCm versions.
-// #ifdef __HIP_PLATFORM_AMD__
-// #if ROCM_VERSION_MAJOR > 7
-//   ADD_CASE({
-// =======
+// As of ROCm 7, hipblasLT does not support a coarse search dtype
+// of CUDA_R_8I, so we disable the test. This test will automatically
+// be enabled for new ROCm versions.
+#ifdef __HIP_PLATFORM_AMD__
+#if ROCM_VERSION_MAJOR > 7
   add_test_case(xs, [](ivf_pq_inputs& x) {
-// >>>>>>> END NEW CODE (136e300b7)
     x.search_params.coarse_search_dtype = CUDA_R_8I;
     // 8-bit coarse search is experimental and there's no go guarantee of any recall
     // if the data is not normalized. Especially for L2, because we store vector norms alongside the
@@ -1082,6 +1077,14 @@ inline auto enum_variety() -> test_cases_t
     x.min_recall = 0.1;
   });
 #endif
+#else
+  add_test_case(xs, [](ivf_pq_inputs& x) {
+    x.search_params.coarse_search_dtype = CUDA_R_8I;
+    // 8-bit coarse search is experimental and there's no go guarantee of any recall
+    // if the data is not normalized. Especially for L2, because we store vector norms alongside the
+    // cluster centers.
+    x.min_recall = 0.1;
+  });
 #endif
 
   add_test_case(xs, [](ivf_pq_inputs& x) {

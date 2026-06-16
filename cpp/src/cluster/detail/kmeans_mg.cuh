@@ -48,16 +48,7 @@
 #include <rmm/device_uvector.hpp>
 #ifndef __HIP_PLATFORM_AMD__
 #include <cuda/functional>
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-// #endif
-// #include <thrust/execution_policy.h>
-// #include <thrust/fill.h>
-// #include <thrust/iterator/transform_iterator.h>
-// #include <thrust/reduce.h>
-// #include <thrust/scan.h>
-// #include <thrust/transform.h>
-// =======
-// >>>>>>> END NEW CODE (844faff67)
+#endif
 
 #include <algorithm>
 #include <cstdint>
@@ -77,34 +68,22 @@ namespace cuvs::cluster::kmeans::mg::detail {
     if (isRoot) { RAFT_LOG_DEBUG(fmt, ##__VA_ARGS__); }      \
   } while (0)
 
-// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
-// namespace cuda {
-// template <typename ReturnType, typename Callable>
-// static inline auto proclaim_return_type(Callable&& callable)
-// {
-// #ifdef __HIP_PLATFORM_AMD__
-//   // (HIP/AMD)This is a temporary WAR until we have "proclaim_return_type" available from libhipcxx.
-//   // amdclang++ is able to deduce the return type of all the device lambdas used in this file,
-//   // therefore this band-aid is acceptable.
-//   // See: internal issue #19
-//   return std::forward<Callable>(callable);
-// #else
-//   return ::cuda::proclaim_return_type<ReturnType>(std::forward<Callable>(callable));
-// #endif
-// }
-// }  // namespace cuda
-//
-// template <typename IndexT, typename DataT>
-// struct KeyValueIndexOp {
-//   __host__ __device__ __forceinline__ IndexT
-//   operator()(const raft::KeyValuePair<IndexT, DataT>& a) const
-//   {
-//     return a.key;
-//   }
-// };
-//
-// =======
-// >>>>>>> END NEW CODE (844faff67)
+namespace cuda {
+template <typename ReturnType, typename Callable>
+static inline auto proclaim_return_type(Callable&& callable)
+{
+#ifdef __HIP_PLATFORM_AMD__
+  // (HIP/AMD)This is a temporary WAR until we have "proclaim_return_type" available from libhipcxx.
+  // amdclang++ is able to deduce the return type of all the device lambdas used in this file,
+  // therefore this band-aid is acceptable.
+  // See: internal issue #19
+  return std::forward<Callable>(callable);
+#else
+  return ::cuda::proclaim_return_type<ReturnType>(std::forward<Callable>(callable));
+#endif
+}
+}  // namespace cuda
+
 #define KMEANS_COMM_ROOT 0
 
 static cuvs::cluster::kmeans::params default_params;

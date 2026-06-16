@@ -455,15 +455,11 @@ void process_and_fill_codes(
   // TODO: with scaling workspace we could choose the batch size dynamically
   constexpr ix_t kReasonableMaxBatchSize = 65536;
   constexpr ix_t kBlockSize              = 256;
-// <<<<<<< OLD CODE from 5e16fc4df (2c129a2d2) - COMMENTED OUT
-//   const ix_t threads_per_vec = std::min<ix_t>(raft::host_warp_size(stream), pq_n_centers);
-// =======
   constexpr ix_t kMaxSharedMemorySize    = 16384;
   const ix_t rows_in_shared_memory       = std::min<ix_t>(
     pq_centers.extent(0), kMaxSharedMemorySize / (sizeof(MathT) * pq_centers.extent(1)));
   const ix_t sharedMemorySize = rows_in_shared_memory * pq_centers.extent(1) * sizeof(MathT);
-  const ix_t threads_per_vec  = std::min<ix_t>(raft::WarpSize, pq_n_centers);
-// >>>>>>> END NEW CODE (2c129a2d2)
+  const ix_t threads_per_vec  = std::min<ix_t>(raft::host_warp_size(stream), pq_n_centers);
   dim3 threads(kBlockSize, 1, 1);
   ix_t max_batch_size = std::min<ix_t>(n_rows, kReasonableMaxBatchSize);
   auto kernel         = [](uint32_t pq_bits) {
@@ -835,18 +831,12 @@ void process_and_fill_codes_subspaces(
 
   auto stream = raft::resource::get_cuda_stream(res);
 
-// <<<<<<< OLD CODE from 5e16fc4df (2c129a2d2) - COMMENTED OUT
-//   // TODO: with scaling workspace we could choose the batch size dynamically
-//   constexpr ix_t kReasonableMaxBatchSize = 65536;
-//   constexpr ix_t kBlockSize              = 256;
-//   // Use runtime warp size instead of compile-time raft::WarpSize
-//   const ix_t warp_size       = raft::host_warp_size(raft::resource::get_device_id(res));
-//   const ix_t threads_per_vec = std::min<ix_t>(warp_size, pq_n_centers);
-// =======
   constexpr ix_t kBlockSize              = 512;
   constexpr ix_t kReasonableMaxBatchSize = 131072;  // 128K rows per batch
   constexpr ix_t kMaxSharedMemorySize    = 16384;
-  const ix_t threads_per_vec             = std::min<ix_t>(raft::WarpSize, pq_n_centers);
+  // Use runtime warp size instead of compile-time raft::WarpSize
+  const ix_t warp_size       = raft::host_warp_size(raft::resource::get_device_id(res));
+  const ix_t threads_per_vec = std::min<ix_t>(warp_size, pq_n_centers);
   const uint32_t num_subwarps            = kBlockSize / threads_per_vec;
   const uint32_t pq_len                  = pq_centers.extent(1);
 
@@ -857,7 +847,6 @@ void process_and_fill_codes_subspaces(
     shared_memory_size = 0;
   }
 
-// >>>>>>> END NEW CODE (2c129a2d2)
   dim3 threads(kBlockSize, 1, 1);
   auto kernel = [](uint32_t pq_bits) {
     if (pq_bits == 4) {
