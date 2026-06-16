@@ -781,7 +781,7 @@ if(NOT BUILD_CPU_ONLY)
     cuvs_objs
     PRIVATE cuvs::cuvs_cpp_headers
             cuco::cuco
-            nvidia::cutlass::cutlass
+            $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
             ${CUVS_CTK_MATH_DEPENDENCIES}
             $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
             $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>

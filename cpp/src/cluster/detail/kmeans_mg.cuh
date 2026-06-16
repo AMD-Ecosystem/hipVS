@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -72,15 +72,11 @@ namespace cuda {
 template <typename ReturnType, typename Callable>
 static inline auto proclaim_return_type(Callable&& callable)
 {
-#ifdef __HIP_PLATFORM_AMD__
   // (HIP/AMD)This is a temporary WAR until we have "proclaim_return_type" available from libhipcxx.
   // amdclang++ is able to deduce the return type of all the device lambdas used in this file,
   // therefore this band-aid is acceptable.
   // See: internal issue #19
   return std::forward<Callable>(callable);
-#else
-  return ::cuda::proclaim_return_type<ReturnType>(std::forward<Callable>(callable));
-#endif
 }
 }  // namespace cuda
 
@@ -633,7 +629,7 @@ void fit(const raft::resources& handle,
 
     workspace.resize(n_samples, stream);
 
-    cuda::transform_iterator keys_itr(
+    ::cuda::transform_iterator keys_itr(
       minClusterAndDistance.data_handle(),
       cuvs::cluster::kmeans::detail::KeyValueIndexOp<IndexT, DataT>{});
     raft::linalg::reduce_rows_by_key((DataT*)X.data_handle(),

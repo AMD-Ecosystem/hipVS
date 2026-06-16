@@ -11,7 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -31,7 +31,7 @@
 
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(RAFT_FORK "AMD-AIOSS")
-set(RAFT_PINNED_TAG "amd-integration")
+set(RAFT_PINNED_TAG "upgrade/26.04")
 
 function(find_and_configure_raft)
     set(oneValueArgs VERSION FORK PINNED_TAG BUILD_STATIC_DEPS ENABLE_NVTX ENABLE_MNMG_DEPENDENCIES CLONE_ON_PIN)

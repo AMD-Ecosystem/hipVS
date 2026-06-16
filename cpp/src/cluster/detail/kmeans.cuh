@@ -4,7 +4,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -57,11 +57,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
-#ifdef __HIP_PLATFORM_AMD__
 #include <cuvs/cuda_runtime.h>
-#else
-#include <cuda.h>
-#endif
 
 #include <algorithm>
 #include <cmath>
@@ -247,12 +243,12 @@ void kmeansPlusPlus(raft::resources const& handle,
       workspace.resize(temp_storage_bytes, stream);
 
       // Run argmin-reduction
-      cub::DeviceReduce::ArgMin(workspace.data(),
-                                temp_storage_bytes,
-                                costPerCandidate.data_handle(),
-                                minClusterIndexAndDistance.data(),
-                                costPerCandidate.extent(0),
-                                stream);
+      RAFT_CUDA_TRY(cub::DeviceReduce::ArgMin(workspace.data(),
+                                               temp_storage_bytes,
+                                               costPerCandidate.data_handle(),
+                                               minClusterIndexAndDistance.data(),
+                                               costPerCandidate.extent(0),
+                                               stream));
 
       int bestCandidateIdx = -1;
       raft::copy(handle,

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -81,11 +81,7 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/managed_memory_resource.hpp>
 
-#ifdef __HIP_PLATFORM_AMD__
 #include <hip/hip_fp16.h>
-#else
-#include <cuda_fp16.h>
-#endif
 #include <thrust/extrema.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/scan.h>
@@ -99,10 +95,8 @@ using namespace cuvs::spatial::knn::detail;  // NOLINT
 
 using internal_extents_t = int64_t;  // The default mdspan extent type used internally.
 
-#ifdef __HIP_PLATFORM_AMD__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpass-failed"
-#endif
 
 /**
  * @brief Compute residual vectors from the source dataset given by selected indices.
@@ -208,9 +202,8 @@ void flat_compute_residuals(
     [centers, labels, dim] __device__(size_t i, float val) {
       auto row_ix = i / dim;
       auto el_ix  = i % dim;
-      auto label  = std::holds_alternative<uint32_t>(labels)
-                      ? std::get<uint32_t>(labels)
-                      : std::get<const uint32_t*>(labels)[row_ix];
+      auto* p_scalar = std::get_if<uint32_t>(&labels);
+      auto  label    = p_scalar ? *p_scalar : (*std::get_if<const uint32_t*>(&labels))[row_ix];
       return val - centers(label, el_ix);
     },
     raft::make_const_mdspan(tmp_view));
@@ -1704,7 +1697,5 @@ inline void extract_centers(raft::resources const& res,
                                   cudaMemcpyDefault,
                                   stream));
 }
-#ifdef __HIP_PLATFORM_AMD__
 #pragma clang diagnostic pop
-#endif
 }  // namespace cuvs::neighbors::ivf_pq::detail

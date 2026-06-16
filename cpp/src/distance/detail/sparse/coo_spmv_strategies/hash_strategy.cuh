@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -42,8 +42,7 @@
 #include <cuco/static_map.cuh>
 #include <cuda/iterator>
 #include <thrust/copy.h>
-
-#include <cooperative_groups.h>
+#include <hip/hip_cooperative_groups.h>
 #include <rmm/device_uvector.hpp>
 
 // this is needed by cuco as key, value must be bitwise comparable.

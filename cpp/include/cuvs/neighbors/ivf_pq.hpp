@@ -4,7 +4,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -24,11 +24,7 @@
 
 #pragma once
 
-#ifdef __HIP_PLATFORM_AMD__
 #include <hip/hip_fp16.h>
-#else
-#include <cuda_fp16.h>
-#endif
 
 #include <cuvs/neighbors/common.hpp>
 
@@ -552,13 +548,13 @@ class index : public index_iface<IdxT>, cuvs::neighbors::index {
    * Dimensionality of the cluster centers:
    * input data dim extended with vector norms and padded to 8 elems.
    */
-  uint32_t dim_ext() const noexcept;
+  uint32_t dim_ext() const noexcept override;
 
   /**
    * Dimensionality of the data after transforming it for PQ processing
    * (rotated and augmented to be muplitple of `pq_dim`).
    */
-  uint32_t rot_dim() const noexcept;
+  uint32_t rot_dim() const noexcept override;
 
   /** The bit length of an encoded vector element after compression by PQ. */
   uint32_t pq_bits() const noexcept override;
@@ -567,10 +563,10 @@ class index : public index_iface<IdxT>, cuvs::neighbors::index {
   uint32_t pq_dim() const noexcept override;
 
   /** Dimensionality of a subspace, i.e. the number of vector components mapped to a subspace */
-  uint32_t pq_len() const noexcept;
+  uint32_t pq_len() const noexcept override;
 
   /** The number of vectors in a PQ codebook (`1 << pq_bits`). */
-  uint32_t pq_book_size() const noexcept;
+  uint32_t pq_book_size() const noexcept override;
 
   /** Distance metric used for clustering. */
   cuvs::distance::DistanceType metric() const noexcept override;
@@ -582,7 +578,7 @@ class index : public index_iface<IdxT>, cuvs::neighbors::index {
   list_layout codes_layout() const noexcept override;
 
   /** Number of clusters/inverted lists (first level quantization). */
-  uint32_t n_lists() const noexcept;
+  uint32_t n_lists() const noexcept override;
 
   /**
    * Whether to use convervative memory allocation when extending the list (cluster) data
