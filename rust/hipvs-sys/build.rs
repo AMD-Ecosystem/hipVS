@@ -144,8 +144,13 @@ fn main() {
         .clang_args(cmake_cxx_flags.split(' '))
         // include dlpack from the cmake build dependencies
         .clang_arg(format!(
-            "-I{}/build/_deps/dlpack-src/include/",
-            out_path.display()
+            "-I{}/include/",
+            cmake_cache
+                .iter()
+                .find(|x| x.starts_with("CPM_PACKAGE_dlpack_SOURCE_DIR:"))
+                .and_then(|x| x.split_once('='))
+                .map(|(_, v)| v)
+                .expect("failed to find CPM_PACKAGE_dlpack_SOURCE_DIR in CMakeCache.txt"),
         ))
         // add `must_use' declarations to functions returning cuvsError_t
         // (so that if you don't check the error code a compile warning is

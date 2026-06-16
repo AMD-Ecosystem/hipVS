@@ -21,8 +21,21 @@ diff --git a/cmake/thirdparty/fetch_rapids.cmake b/cmake/thirdparty/fetch_rapids
 index 4133a4460..2a2464bf8 100644
 --- a/cmake/thirdparty/fetch_rapids.cmake
 +++ b/cmake/thirdparty/fetch_rapids.cmake
-@@ -18,10 +18,27 @@
+@@ -16,12 +16,40 @@
+ # the License.
+ # =============================================================================
  set(RAPIDS_VERSION "25.08")
++set(rapids-cmake-version "${RAPIDS_VERSION}")
++
++set(RAPIDS_CMAKE_MODULE_PATH
++    $ENV{RAPIDS_CMAKE_MODULE_PATH}
++    CACHE FILEPATH "Path to a local ROCmDS-CMake rapids-cmake module directory."
++)
++if(NOT "${RAPIDS_CMAKE_MODULE_PATH}" STREQUAL "")
++    list(APPEND CMAKE_MODULE_PATH "${RAPIDS_CMAKE_MODULE_PATH}")
++    include(rapids-cmake)
++    return()
++endif()
 
  if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/FAISS_RAPIDS.cmake)
 -    if(NOT rapids-cmake-version)

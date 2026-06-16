@@ -390,7 +390,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg tests || hasArg package || 
           -DBUILD_CUVS_BENCH=${BUILD_CUVS_BENCH} \
           ${EXTRA_CMAKE_HIP_ARGS} \
           ${CACHE_ARGS} \
-          ${EXTRA_CMAKE_ARGS}
+          ${EXTRA_CMAKE_ARGS[@]:+"${EXTRA_CMAKE_ARGS[@]}"}
 
   compile_start=$(date +%s)
   if [[ ${#CMAKE_TARGET} -ne 0 ]]; then
@@ -408,13 +408,15 @@ fi
 
 # Build and (optionally) install the cuvs Python package
 if (( ${NUMARGS} == 0 )) || hasArg python; then
+    SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS[*]// /;}"
+
     # Build and install libcuvs pip package
-    SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${EXTRA_CMAKE_ARGS}" \
+    SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${SKBUILD_EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
         python -m pip install --no-build-isolation ${REPODIR}/python/libcuvs
 
     # Build and install cuvs pip package
-    SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${EXTRA_CMAKE_ARGS}" \
+    SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${SKBUILD_EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
         python -m pip install --no-build-isolation --no-deps ${REPODIR}/python/cuvs
 fi

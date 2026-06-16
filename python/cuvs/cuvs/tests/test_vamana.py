@@ -21,8 +21,11 @@ from cuvs.neighbors import vamana
 
 
 def get_device_warp_size():
-    prop = cudaDeviceProp()
-    cudaGetDeviceProperties(prop, 0)
+    try:
+        prop = cudaDeviceProp()
+        cudaGetDeviceProperties(prop, 0)
+    except TypeError:
+        (_, prop) = cudaGetDeviceProperties(0)
     return prop.warpSize
 
 
