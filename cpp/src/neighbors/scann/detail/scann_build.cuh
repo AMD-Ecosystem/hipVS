@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -37,7 +37,11 @@
 #include <cuvs/cluster/kmeans.hpp>
 #include <cuvs/neighbors/scann.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_bfloat16.h>
+#else
 #include <cuda_bf16.h>
+#endif
 #include <raft/core/copy.cuh>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>

@@ -325,9 +325,14 @@ struct list_spec_flat {
   SizeT align_min;
   uint32_t pq_bits;
   uint32_t pq_dim;
+  bool conservative_memory_allocation;
 
   constexpr list_spec_flat(uint32_t pq_bits, uint32_t pq_dim, bool conservative_memory_allocation)
-    : pq_bits(pq_bits), pq_dim(pq_dim), align_min(1), align_max(1)
+    : pq_bits(pq_bits),
+      pq_dim(pq_dim),
+      conservative_memory_allocation(conservative_memory_allocation),
+      align_min(1),
+      align_max(1)
   {
   }
 
@@ -354,6 +359,7 @@ constexpr list_spec_flat<SizeT, IdxT>::list_spec_flat(
   const list_spec_flat<OtherSizeT, IdxT>& other_spec)
   : pq_bits{other_spec.pq_bits},
     pq_dim{other_spec.pq_dim},
+    conservative_memory_allocation{other_spec.conservative_memory_allocation},
     align_min{other_spec.align_min},
     align_max{other_spec.align_max}
 {

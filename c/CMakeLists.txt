@@ -175,6 +175,17 @@ target_compile_definitions(
 )
 
 target_compile_options(cuvs_c PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>")
+if(NOT CUDA_BACKEND)
+  # Force-include libhipcxx's HIP compatibility shim so cuda* identifiers
+  # (used by libhipcxx headers) are mapped to hip* before any template
+  # instantiation sees them. Without this, CXX-compiled code hits missing
+  # hipDeviceAttribute* enum values.
+  find_file(_LIBHIPCXX_AMD_RUNTIME "libhipcxx/__amd/cuda_runtime.h"
+            PATHS ${libhipcxx_SOURCE_DIR}/include NO_DEFAULT_PATH)
+  if(_LIBHIPCXX_AMD_RUNTIME)
+    target_compile_options(cuvs_c PRIVATE "-include${_LIBHIPCXX_AMD_RUNTIME}")
+  endif()
+endif()
 
 target_include_directories(
   cuvs_c

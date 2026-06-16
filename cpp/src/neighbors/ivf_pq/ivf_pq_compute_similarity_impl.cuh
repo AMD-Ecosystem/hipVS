@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -631,7 +631,8 @@ void compute_similarity_run(selected<OutT, LutT> s,
                             uint32_t* _out_indices)
 {
   auto launch_kernel = [&](filtering::ivf_filter_dev sample_filter) {
-    auto kernel = reinterpret_cast<compute_similarity_kernel_t<OutT, LutT>>(get_kernel(s));
+    auto kernel = reinterpret_cast<compute_similarity_kernel_t<OutT, LutT>>(
+      const_cast<void*>(get_kernel(s)));
     kernel<<<s.grid_dim, s.block_dim, s.smem_size, stream>>>(dim,
                                                              n_probes,
                                                              pq_dim,

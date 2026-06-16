@@ -1478,22 +1478,23 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_
 {
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   if (d_data_float_.has_value()) {
-    local_join_kernel<<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
-                                                        h_rev_graph_new_.data_handle(),
-                                                        d_list_sizes_new_.data_handle(),
-                                                        h_graph_old_.data_handle(),
-                                                        h_rev_graph_old_.data_handle(),
-                                                        d_list_sizes_old_.data_handle(),
-                                                        NUM_SAMPLES,
-                                                        d_data_float_.value().data_handle(),
-                                                        ndim_,
-                                                        graph_buffer_.data_handle(),
-                                                        dists_buffer_.data_handle(),
-                                                        get_degree_on_device(res),
-                                                        d_locks_.data_handle(),
-                                                        l2_norms_.data_handle(),
-                                                        build_config_.metric,
-                                                        dist_epilogue);
+    constexpr int BLOCK_SIZE_FLOAT = 512;
+    local_join_kernel<<<nrow_, BLOCK_SIZE_FLOAT, 0, stream>>>(graph_.h_graph_new.data_handle(),
+                                                               h_rev_graph_new_.data_handle(),
+                                                               d_list_sizes_new_.data_handle(),
+                                                               h_graph_old_.data_handle(),
+                                                               h_rev_graph_old_.data_handle(),
+                                                               d_list_sizes_old_.data_handle(),
+                                                               NUM_SAMPLES,
+                                                               d_data_float_.value().data_handle(),
+                                                               ndim_,
+                                                               graph_buffer_.data_handle(),
+                                                               dists_buffer_.data_handle(),
+                                                               get_degree_on_device(res),
+                                                               d_locks_.data_handle(),
+                                                               l2_norms_.data_handle(),
+                                                               build_config_.metric,
+                                                               dist_epilogue);
   } else {
     // The maximum number of threads in a kernel is (2^32 - 1), so the maximum grid dimension is (2^32
     // - 1) / BLOCK_SIZE.

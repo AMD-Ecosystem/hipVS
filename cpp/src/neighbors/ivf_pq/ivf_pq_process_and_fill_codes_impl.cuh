@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -99,7 +99,7 @@ void launch_process_and_fill_codes_kernel(
   raft::resources const& handle,
   index<IdxT>& index,
   raft::device_matrix_view<float, IdxT> new_vectors_residual,
-  std::variant<IdxT, const IdxT*> src_offset_or_indices,
+  cuda::std::variant<IdxT, const IdxT*> src_offset_or_indices,
   const uint32_t* new_labels,
   IdxT n_rows)
 {

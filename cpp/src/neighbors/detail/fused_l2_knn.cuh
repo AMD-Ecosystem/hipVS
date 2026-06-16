@@ -152,8 +152,10 @@ DI void loadPrevTopKsGmemWarpQ(myWarpSelect** heapArr,
           heapArr[i]->warpV[j] = (uint32_t)out_inds[std::size_t(gmemRowId) * numOfNN + idx];
         }
       }
-      static constexpr auto kLaneWarpKTop = myWarpSelect::kNumWarpQRegisters - 1;
-      heapArr[i]->warpKTop = raft::shfl(heapArr[i]->warpK[kLaneWarpKTop], heapArr[i]->kLane);
+      if constexpr (myWarpSelect::kNumWarpQRegisters > 0) {
+        static constexpr auto kLaneWarpKTop = myWarpSelect::kNumWarpQRegisters - 1;
+        heapArr[i]->warpKTop = raft::shfl(heapArr[i]->warpK[kLaneWarpKTop], heapArr[i]->kLane);
+      }
     }
   }
 }

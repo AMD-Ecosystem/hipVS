@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -33,8 +33,6 @@
 
 #pragma once
 
-#include <cub/block/block_merge_sort.cuh>
-
 #include "macros.cuh"
 #include "priority_queue.cuh"
 #include "vamana_structs.cuh"
@@ -42,6 +40,7 @@
 #include <hipcub/hipcub.hpp>
 namespace cub = hipcub;
 #else
+#include <cub/block/block_merge_sort.cuh>
 #include <cub/cub.cuh>
 
 #endif

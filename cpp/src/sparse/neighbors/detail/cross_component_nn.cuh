@@ -471,7 +471,7 @@ void sort_by_color(raft::resources const& handle,
                    size_t n_rows)
 {
   auto exec_policy   = raft::resource::get_thrust_policy(handle);
-  auto arg_sort_iter = cuda::make_counting_iterator<value_idx>(0);
+  auto arg_sort_iter = thrust::make_counting_iterator<value_idx>(0);
   thrust::copy(exec_policy, arg_sort_iter, arg_sort_iter + n_rows, src_indices);
 
   auto keys = thrust::make_zip_iterator(

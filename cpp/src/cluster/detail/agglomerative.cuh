@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include <raft/core/copy.cuh>
@@ -307,10 +331,10 @@ void extract_flattened_clusters(raft::resources const& handle,
     thrust::fill(thrust_policy, tmp_labels.data(), tmp_labels.data() + n_vertices, -1);
 
     // Write labels for cluster roots to "labels"
-    auto first = cuda::make_counting_iterator<uint>(0);
+    auto first = thrust::make_counting_iterator<uint>(0);
 
     auto z_iter = thrust::make_zip_iterator(
-      cuda::std::make_tuple(first, label_roots.data() + (label_roots.size() - n_clusters)));
+      thrust::make_tuple(first, label_roots.data() + (label_roots.size() - n_clusters)));
 
     thrust::for_each(
       thrust_policy, z_iter, z_iter + n_clusters, init_label_roots<value_idx>(tmp_labels.data()));

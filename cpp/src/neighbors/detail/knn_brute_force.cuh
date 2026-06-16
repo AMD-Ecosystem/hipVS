@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -272,7 +272,7 @@ void tiled_brute_force_knn(const raft::resources& handle,
       }
 
       auto distances_ptr        = temp_distances.data();
-      auto count                = cuda::make_counting_iterator<IndexType>(0);
+      auto count                = thrust::make_counting_iterator<IndexType>(0);
       DistanceT masked_distance = select_min ? std::numeric_limits<DistanceT>::infinity()
                                              : std::numeric_limits<DistanceT>::lowest();
 
@@ -320,7 +320,7 @@ void tiled_brute_force_knn(const raft::resources& handle,
         DistanceT* out_distances      = temp_out_distances.data();
         IndexType* out_indices        = temp_out_indices.data();
 
-        auto count = cuda::make_counting_iterator<IndexType>(0);
+        auto count = thrust::make_counting_iterator<IndexType>(0);
         thrust::for_each(raft::resource::get_thrust_policy(handle),
                          count,
                          count + current_query_size * current_k,

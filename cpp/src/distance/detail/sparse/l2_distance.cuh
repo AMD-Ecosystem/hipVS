@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -499,7 +499,7 @@ class russelrao_expanded_distances_t : public distances_t<value_t> {
       raft::make_const_mdspan(raft::make_device_vector_view<const value_t, int64_t>(out_dists, n)));
 
     auto exec_policy  = rmm::exec_policy(raft::resource::get_cuda_stream(config_->handle));
-    auto diags        = cuda::make_counting_iterator<value_idx>(0);
+    auto diags        = thrust::make_counting_iterator<value_idx>(0);
     value_idx b_nrows = config_->b_nrows;
     thrust::for_each(exec_policy, diags, diags + config_->a_nrows, [=] __device__(value_idx input) {
       out_dists[input * b_nrows + input] = 0.0;
