@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -223,15 +223,15 @@ struct TupleComp {
   __host__ __device__ bool operator()(const one& t1, const two& t2)
   {
     // sort first by each sample's color,
-    if (cuda::std::get<0>(t1) < cuda::std::get<0>(t2)) return true;
-    if (cuda::std::get<0>(t1) > cuda::std::get<0>(t2)) return false;
+    if (thrust::get<0>(t1) < thrust::get<0>(t2)) return true;
+    if (thrust::get<0>(t1) > thrust::get<0>(t2)) return false;
 
     // then by the color of each sample's closest neighbor,
-    if (cuda::std::get<1>(t1) < cuda::std::get<1>(t2)) return true;
-    if (cuda::std::get<1>(t1) > cuda::std::get<1>(t2)) return false;
+    if (thrust::get<1>(t1) < thrust::get<1>(t2)) return true;
+    if (thrust::get<1>(t1) > thrust::get<1>(t2)) return false;
 
     // then sort by value in descending order
-    return cuda::std::get<2>(t1).value < cuda::std::get<2>(t2).value;
+    return thrust::get<2>(t1).value < thrust::get<2>(t2).value;
   }
 };
 
@@ -475,8 +475,8 @@ void sort_by_color(raft::resources const& handle,
   thrust::copy(exec_policy, arg_sort_iter, arg_sort_iter + n_rows, src_indices);
 
   auto keys = thrust::make_zip_iterator(
-    cuda::std::make_tuple(colors, nn_colors, (raft::KeyValuePair<value_idx, value_t>*)kvp));
-  auto vals = thrust::make_zip_iterator(cuda::std::make_tuple(src_indices));
+    thrust::make_tuple(colors, nn_colors, (raft::KeyValuePair<value_idx, value_t>*)kvp));
+  auto vals = thrust::make_zip_iterator(thrust::make_tuple(src_indices));
   // get all the colors in contiguous locations so we can map them to warps.
   thrust::sort_by_key(exec_policy, keys, keys + n_rows, vals, TupleComp());
 }

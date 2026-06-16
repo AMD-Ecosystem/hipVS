@@ -581,6 +581,17 @@ void batch_build(
 
     if (needs_workaround) {
       RAFT_LOG_DEBUG("Applying managed memory workaround for pre-Ampere GPU architecture");
+#ifdef __HIP_PLATFORM_AMD__
+      hipMemLocation cpu_location = {hipMemLocationTypeHost, 0};
+      RAFT_CUDA_TRY(hipMemAdvise_v2(global_neighbors.data_handle(),
+                                    num_rows * k * sizeof(IdxT),
+                                    hipMemAdviseSetPreferredLocation,
+                                    cpu_location));
+      RAFT_CUDA_TRY(hipMemAdvise_v2(global_distances.data_handle(),
+                                    num_rows * k * sizeof(T),
+                                    hipMemAdviseSetPreferredLocation,
+                                    cpu_location));
+#else
       cudaMemLocation cpu_location = {cudaMemLocationTypeHost, 0};
       RAFT_CUDA_TRY(cudaMemAdvise(global_neighbors.data_handle(),
                                   num_rows * k * sizeof(IdxT),
@@ -590,6 +601,7 @@ void batch_build(
                                   num_rows * k * sizeof(T),
                                   cudaMemAdviseSetPreferredLocation,
                                   cpu_location));
+#endif
     }
   }
 

@@ -107,11 +107,11 @@ void sort_cluster_sizes_descending(uint32_t* input,
   int begin_bit             = 0;
   int end_bit               = sizeof(uint32_t) * 8;
   size_t cub_workspace_size = 0;
-  cub::DeviceRadixSort::SortKeysDescending(
-    nullptr, cub_workspace_size, input, output, n_lists, begin_bit, end_bit, stream);
+  RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(
+    nullptr, cub_workspace_size, input, output, n_lists, begin_bit, end_bit, stream));
   rmm::device_buffer cub_workspace(cub_workspace_size, stream, tmp_res);
-  cub::DeviceRadixSort::SortKeysDescending(
-    cub_workspace.data(), cub_workspace_size, input, output, n_lists, begin_bit, end_bit, stream);
+  RAFT_CUDA_TRY(cub::DeviceRadixSort::SortKeysDescending(
+    cub_workspace.data(), cub_workspace_size, input, output, n_lists, begin_bit, end_bit, stream));
 }
 
 }  // namespace cuvs::neighbors::ivf::detail
