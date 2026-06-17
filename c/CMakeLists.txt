@@ -28,6 +28,10 @@
 # SOFTWARE.
 
 cmake_minimum_required(VERSION 3.30.4 FATAL_ERROR)
+
+# NOTE(HIP/AMD): make *.cu files HIP lang files
+set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../overrides.cmake")
+
 include(../cmake/rapids_config.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
@@ -239,10 +243,17 @@ endif()
 # ##################################################################################################
 # * build tests ----------------------------------------------------
 if(BUILD_TESTS)
-  include(rapids-cuda)
-  rapids_cuda_init_architectures(CUVS_C)
-  enable_language(CUDA)
-  find_package(CUDAToolkit REQUIRED)
+  if(CUDA_BACKEND)
+    include(rapids-cuda)
+    rapids_cuda_init_architectures(CUVS_C)
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+  else()
+    include(rapids-hip)
+    rapids_hip_init_architectures(CUVS_C)
+    enable_language(HIP)
+    find_package(hip REQUIRED)
+  endif()
 
   enable_testing()
   add_subdirectory(tests)

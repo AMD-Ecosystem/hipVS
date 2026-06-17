@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -91,7 +91,7 @@ inline std::ostream& operator<<(std::ostream& stream, AnnVamanaInputs const& inp
   stream << "graph_degree: " << input.graph_degree << ',';
   stream << "visited_size: " << input.visited_size << ',';
   stream << "max_fraction: " << input.max_fraction << ',';
-  stream << "DistanceType " << input.metric << ',';
+  stream << "DistanceType " << static_cast<int>(input.metric) << ',';
   stream << "host_dataset: " << input.host_dataset << ',';
   stream << "reverse_batchsize: " << input.reverse_batchsize << ',';
   stream << "n_queries: " << input.n_queries << ',';
