@@ -369,6 +369,14 @@ ConfigureTest(
 )
 
 ConfigureTest(
+  NAME FUSED_DISTANCE_NN_TEST
+  PATH distance/fused_distance_nn.cu
+  GPUS 1
+  PERCENT 100
+  ADDITIONAL_DEP cuvs_src_internal
+)
+
+ConfigureTest(
   NAME PREPROCESSING_TEST
   PATH preprocessing/scalar_quantization.cu
        preprocessing/binary_quantization.cu
