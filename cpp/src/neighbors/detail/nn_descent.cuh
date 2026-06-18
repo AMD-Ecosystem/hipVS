@@ -1416,6 +1416,8 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
   static_assert(NUM_SAMPLES <= 32);
 
   using input_t = typename std::remove_const<Data_t>::type;
+  // TODO: port fp32 local_join_kernel to HIP (rocWMMA); always use half on ROCm for now.
+#ifndef __HIP_PLATFORM_AMD__
   if (std::is_same_v<input_t, float> &&
       (build_config.dist_comp_dtype == cuvs::neighbors::nn_descent::DIST_COMP_DTYPE::FP32 ||
        (build_config.dist_comp_dtype == cuvs::neighbors::nn_descent::DIST_COMP_DTYPE::AUTO &&
@@ -1431,6 +1433,14 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
         ? (build_config.dataset_dim + 1) / 2
         : build_config.dataset_dim));
   }
+#else
+  d_data_half_.emplace(raft::make_device_matrix<half, size_t, raft::row_major>(
+    res,
+    nrow_,
+    build_config.metric == cuvs::distance::DistanceType::BitwiseHamming
+      ? (build_config.dataset_dim + 1) / 2
+      : build_config.dataset_dim));
+#endif
 
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   auto graph_buffer_view = raft::make_device_matrix_view<Index_t, int64_t>(
