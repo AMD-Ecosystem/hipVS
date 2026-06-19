@@ -287,32 +287,37 @@ auto reconstruct_vectors(
 
   auto stream = raft::resource::get_cuda_stream(res);
 
-  constexpr IdxT kBlockSize  = 256;
-  const IdxT threads_per_vec = std::min<IdxT>(raft::WarpSize, pq_n_centers);
+  constexpr IdxT kBlockSize = 256;
+  // The sub-warp size (threads_per_vec) must equal the SubWarpSize template parameter the
+  // kernel below is instantiated with, and must be <= the *runtime* wavefront size: the kernel
+  // maps one row per sub-warp (row = tid / SubWarpSize) and reads lanes via laneId() % SubWarpSize.
+  // raft::WarpSize is a compile-time constant (rocprim max_size() == 64 on HIP) and must NOT be
+  // assumed here -- on a wave32 (RDNA) GPU a 64-lane sub-warp spans two physical wavefronts and
+  // the mapping breaks. So query the warp size at runtime and dispatch to the matching kernel
+  // instantiation. min(warp, pq_n_centers) is always a power of two in {16, 32, 64}.
+  const IdxT warp_size       = raft::host_warp_size(stream);
+  const IdxT threads_per_vec = std::min<IdxT>(warp_size, pq_n_centers);
   dim3 threads(kBlockSize, 1, 1);
-  auto kernel = [](uint32_t pq_bits) {
-    if (pq_bits == 4) {
-      return reconstruct_vectors_kernel<kBlockSize, 16, uint8_t, DataT, MathT, IdxT, LabelT>;
-    } else if (pq_bits <= 8) {
-      return reconstruct_vectors_kernel<kBlockSize,
-                                        raft::WarpSize,
-                                        uint8_t,
-                                        DataT,
-                                        MathT,
-                                        IdxT,
-                                        LabelT>;
-    } else if (pq_bits <= 16) {
-      return reconstruct_vectors_kernel<kBlockSize,
-                                        raft::WarpSize,
-                                        uint16_t,
-                                        DataT,
-                                        MathT,
-                                        IdxT,
-                                        LabelT>;
+  auto kernel = [&]() {
+    if (pq_bits <= 8) {  // uint8_t codes
+      if (threads_per_vec <= 16) {
+        return reconstruct_vectors_kernel<kBlockSize, 16, uint8_t, DataT, MathT, IdxT, LabelT>;
+      } else if (threads_per_vec <= 32) {
+        return reconstruct_vectors_kernel<kBlockSize, 32, uint8_t, DataT, MathT, IdxT, LabelT>;
+      } else {
+        return reconstruct_vectors_kernel<kBlockSize, 64, uint8_t, DataT, MathT, IdxT, LabelT>;
+      }
+    } else if (pq_bits <= 16) {  // uint16_t codes
+      if (threads_per_vec <= 32) {
+        return reconstruct_vectors_kernel<kBlockSize, 32, uint16_t, DataT, MathT, IdxT, LabelT>;
+      } else {
+        return reconstruct_vectors_kernel<kBlockSize, 64, uint16_t, DataT, MathT, IdxT, LabelT>;
+      }
     } else {
-      RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]", pq_bits);
+      RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]",
+                static_cast<uint32_t>(pq_bits));
     }
-  }(pq_bits);
+  }();
   dim3 blocks(raft::div_rounding_up_safe<IdxT>(n_rows, kBlockSize / threads_per_vec), 1, 1);
   kernel<<<blocks, threads, 0, stream>>>(
     codes, out_vectors, pq_centers, vq_centers, vq_labels, pq_bits, use_subspaces);

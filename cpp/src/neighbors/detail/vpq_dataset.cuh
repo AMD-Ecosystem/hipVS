@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -459,32 +459,37 @@ void process_and_fill_codes(
   const ix_t rows_in_shared_memory       = std::min<ix_t>(
     pq_centers.extent(0), kMaxSharedMemorySize / (sizeof(MathT) * pq_centers.extent(1)));
   const ix_t sharedMemorySize = rows_in_shared_memory * pq_centers.extent(1) * sizeof(MathT);
-  const ix_t threads_per_vec  = std::min<ix_t>(raft::host_warp_size(stream), pq_n_centers);
+  // threads_per_vec (the sub-warp size) must equal the SubWarpSize template parameter the kernel
+  // is instantiated with, and must be <= the *runtime* wavefront size: the kernel maps one row
+  // per sub-warp and reduces with raft::shfl_xor(..., SubWarpSize), which cannot cross a physical
+  // wavefront. raft::WarpSize is a compile-time constant (rocprim max_size() == 64 on HIP) and
+  // must NOT be assumed -- on a wave32 (RDNA) GPU a 64-lane sub-warp spans two wavefronts and the
+  // shuffle reduction produces wrong codes. Query the warp size at runtime and dispatch to the
+  // matching instantiation. min(warp, pq_n_centers) is always a power of two in {16, 32, 64}.
+  const ix_t warp_size       = raft::host_warp_size(stream);
+  const ix_t threads_per_vec = std::min<ix_t>(warp_size, pq_n_centers);
   dim3 threads(kBlockSize, 1, 1);
   ix_t max_batch_size = std::min<ix_t>(n_rows, kReasonableMaxBatchSize);
-  auto kernel         = [](uint32_t pq_bits) {
-    if (pq_bits == 4) {
-      return process_and_fill_codes_kernel<kBlockSize, 16, uint8_t, data_t, MathT, IdxT, label_t>;
-    } else if (pq_bits <= 8) {
-      return process_and_fill_codes_kernel<kBlockSize,
-                                                   raft::WarpSize,
-                                                   uint8_t,
-                                                   data_t,
-                                                   MathT,
-                                                   IdxT,
-                                                   label_t>;
-    } else if (pq_bits <= 16) {
-      return process_and_fill_codes_kernel<kBlockSize,
-                                                   raft::WarpSize,
-                                                   uint16_t,
-                                                   data_t,
-                                                   MathT,
-                                                   IdxT,
-                                                   label_t>;
+  auto kernel         = [&]() {
+    if (pq_bits <= 8) {  // uint8_t codes
+      if (threads_per_vec <= 16) {
+        return process_and_fill_codes_kernel<kBlockSize, 16, uint8_t, data_t, MathT, IdxT, label_t>;
+      } else if (threads_per_vec <= 32) {
+        return process_and_fill_codes_kernel<kBlockSize, 32, uint8_t, data_t, MathT, IdxT, label_t>;
+      } else {
+        return process_and_fill_codes_kernel<kBlockSize, 64, uint8_t, data_t, MathT, IdxT, label_t>;
+      }
+    } else if (pq_bits <= 16) {  // uint16_t codes
+      if (threads_per_vec <= 32) {
+        return process_and_fill_codes_kernel<kBlockSize, 32, uint16_t, data_t, MathT, IdxT, label_t>;
+      } else {
+        return process_and_fill_codes_kernel<kBlockSize, 64, uint16_t, data_t, MathT, IdxT, label_t>;
+      }
     } else {
-      RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]", pq_bits);
+      RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]",
+                static_cast<uint32_t>(pq_bits));
     }
-  }(pq_bits);
+  }();
   for (const auto& batch : cuvs::spatial::knn::detail::utils::batch_load_iterator(
          dataset.data_handle(),
          n_rows,
@@ -834,7 +839,13 @@ void process_and_fill_codes_subspaces(
   constexpr ix_t kBlockSize              = 512;
   constexpr ix_t kReasonableMaxBatchSize = 131072;  // 128K rows per batch
   constexpr ix_t kMaxSharedMemorySize    = 16384;
-  // Use runtime warp size instead of compile-time raft::WarpSize
+  // threads_per_vec (the sub-warp size) must equal the SubWarpSize template parameter the kernel
+  // is instantiated with, and must be <= the *runtime* wavefront size: the kernel maps one row
+  // per sub-warp and reduces with raft::shfl_xor(..., SubWarpSize), which cannot cross a physical
+  // wavefront. raft::WarpSize is a compile-time constant (rocprim max_size() == 64 on HIP) and
+  // must NOT be assumed -- on a wave32 (RDNA) GPU a 64-lane sub-warp spans two wavefronts and the
+  // shuffle reduction produces wrong codes. Query the warp size at runtime and dispatch to the
+  // matching instantiation. min(warp, pq_n_centers) is always a power of two in {16, 32, 64}.
   const ix_t warp_size       = raft::host_warp_size(raft::resource::get_device_id(res));
   const ix_t threads_per_vec = std::min<ix_t>(warp_size, pq_n_centers);
   const uint32_t num_subwarps            = kBlockSize / threads_per_vec;
@@ -848,35 +859,26 @@ void process_and_fill_codes_subspaces(
   }
 
   dim3 threads(kBlockSize, 1, 1);
-  auto kernel = [](uint32_t pq_bits) {
-    if (pq_bits == 4) {
-      return process_and_fill_codes_subspaces_kernel<kBlockSize,
-                                                     16,
-                                                     uint8_t,
-                                                     data_t,
-                                                     MathT,
-                                                     IdxT,
-                                                     label_t>;
-    } else if (pq_bits <= 8) {
-      return process_and_fill_codes_subspaces_kernel<kBlockSize,
-                                                     raft::WarpSize,
-                                                     uint8_t,
-                                                     data_t,
-                                                     MathT,
-                                                     IdxT,
-                                                     label_t>;
-    } else if (pq_bits <= 16) {
-      return process_and_fill_codes_subspaces_kernel<kBlockSize,
-                                                     raft::WarpSize,
-                                                     uint16_t,
-                                                     data_t,
-                                                     MathT,
-                                                     IdxT,
-                                                     label_t>;
+  auto kernel = [&]() {
+    if (pq_bits <= 8) {  // uint8_t codes
+      if (threads_per_vec <= 16) {
+        return process_and_fill_codes_subspaces_kernel<kBlockSize, 16, uint8_t, data_t, MathT, IdxT, label_t>;
+      } else if (threads_per_vec <= 32) {
+        return process_and_fill_codes_subspaces_kernel<kBlockSize, 32, uint8_t, data_t, MathT, IdxT, label_t>;
+      } else {
+        return process_and_fill_codes_subspaces_kernel<kBlockSize, 64, uint8_t, data_t, MathT, IdxT, label_t>;
+      }
+    } else if (pq_bits <= 16) {  // uint16_t codes
+      if (threads_per_vec <= 32) {
+        return process_and_fill_codes_subspaces_kernel<kBlockSize, 32, uint16_t, data_t, MathT, IdxT, label_t>;
+      } else {
+        return process_and_fill_codes_subspaces_kernel<kBlockSize, 64, uint16_t, data_t, MathT, IdxT, label_t>;
+      }
     } else {
-      RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]", pq_bits);
+      RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]",
+                static_cast<uint32_t>(pq_bits));
     }
-  }(pq_bits);
+  }();
 
   ix_t max_batch_size  = std::min<ix_t>(n_rows, kReasonableMaxBatchSize);
   auto copy_stream     = raft::resource::get_cuda_stream(res);  // Using the main stream by default
