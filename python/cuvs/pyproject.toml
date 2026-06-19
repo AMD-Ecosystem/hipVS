@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -42,11 +42,14 @@ requires-python = ">=3.11"
 dependencies = [
     "amd-libhipvs==1.0.*",
     "numpy>=1.23,<3.0",
-    "amd_hipmm~=4.0",
-    "hip-python",
-    "hip-python-as-cuda",
-    "amd-libraft==1.0.*",
-    "amd-pylibraft==1.0.*",
+    "amd_hipmm~=5.0",
+    # NOTE(HIP/AMD): AMD substitutes upstream `cuda-python` with the AMD pair
+    # `rocm-bindings-hip` + `hip-python-interop` (the latter exposes a `cuda.*`
+    # namespace backed by HIP).
+    "hip-python-interop>=7.2.3",
+    "rocm-bindings-hip>=7.2.3",
+    "amd-libraft==2.0.*",
+    "amd-pylibraft==2.0.*",
 ]
 classifiers = [
     "Intended Audience :: Developers",

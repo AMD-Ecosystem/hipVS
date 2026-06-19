@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -126,6 +126,10 @@ fn main() {
     bindgen::Builder::default()
         .header("cuvs_c_wrapper.h")
         .clang_arg("-I../../c/include")
+        .clang_arg("-I../../cpp/include")
+        .clang_arg("-D__HIP_PLATFORM_AMD__") // Usually set by the cmake build or hipcc
+        .clang_arg("-D__HIP_ROCclr__=1") // Usually set by the cmake build or hipcc
+        .clang_arg("-I/opt/rocm/include") // Assume that ROCm is installed in /opt/rocm
         // needed to find cudaruntime.h
         .clang_args(cmake_cxx_flags.split(' '))
         // include cuvs c headers and dlpack headers we copied
