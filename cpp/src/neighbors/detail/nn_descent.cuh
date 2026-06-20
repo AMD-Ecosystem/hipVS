@@ -610,9 +610,17 @@ __device__ __forceinline__ void calculate_metric(float* s_distances,
 // MAX_RESIDENT_THREAD_PER_SM = BLOCK_SIZE * BLOCKS_PER_SM = 2048
 // For architectures 750 and 860 (890), the values for MAX_RESIDENT_THREAD_PER_SM
 // is 1024 and 1536 respectively, which means the bounds don't work anymore
-template <typename Index_t, typename ID_t = InternalID_t<Index_t>, typename DistEpilogue_t>
+template <int BLOCK_SIZE,
+          typename Index_t,
+          typename ID_t = InternalID_t<Index_t>,
+          typename DistEpilogue_t>
 RAFT_KERNEL
-#ifdef __CUDA_ARCH__
+#ifdef __HIP_PLATFORM_AMD__
+// On AMD CDNA2 (MI210) and CDNA4 (MI350/MI355): LDS usage limits occupancy to 1
+// block per CU. Setting launch_bounds to (BLOCK_SIZE, 1) allows the compiler to
+// use more registers per thread, reducing spills and improving scheduling.
+__launch_bounds__(BLOCK_SIZE, 1)
+#elif defined(__CUDA_ARCH__)
 // Use minBlocksPerMultiprocessor = 4 on specific arches
 #if (__CUDA_ARCH__) == 700 || (__CUDA_ARCH__) == 800 || (__CUDA_ARCH__) == 900 || \
   (__CUDA_ARCH__) == 1000
@@ -638,8 +646,13 @@ __launch_bounds__(BLOCK_SIZE)
                     cuvs::distance::DistanceType metric,
                     DistEpilogue_t dist_epilogue)
 {
-#if (__CUDA_ARCH__ >= 700)
+#if (__CUDA_ARCH__ >= 700) || defined(__HIP_PLATFORM_AMD__)
+#ifndef __HIP_PLATFORM_AMD__
+  // The fp32 local_join_kernel computes the dot products with a plain scalar FMA
+  // loop (see below); the nvcuda namespace is only kept for parity with the half
+  // kernel and is unused on the HIP path.
   using namespace nvcuda;
+#endif
   __shared__ int s_list[MAX_NUM_BI_SAMPLES * 2];
 
   constexpr int APAD           = 4;
@@ -1416,8 +1429,9 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
   static_assert(NUM_SAMPLES <= 32);
 
   using input_t = typename std::remove_const<Data_t>::type;
-  // TODO: port fp32 local_join_kernel to HIP (rocWMMA); always use half on ROCm for now.
-#ifndef __HIP_PLATFORM_AMD__
+  // The fp32 local_join_kernel is a plain scalar FMA loop (no tensor/WMMA ops), so it
+  // runs on HIP as well — select fp32 distance computation for float input whenever the
+  // explicit/AUTO policy asks for it (AUTO picks fp32 for small dim to retain precision).
   if (std::is_same_v<input_t, float> &&
       (build_config.dist_comp_dtype == cuvs::neighbors::nn_descent::DIST_COMP_DTYPE::FP32 ||
        (build_config.dist_comp_dtype == cuvs::neighbors::nn_descent::DIST_COMP_DTYPE::AUTO &&
@@ -1433,14 +1447,6 @@ GNND<Data_t, Index_t>::GNND(raft::resources const& res, const BuildConfig& build
         ? (build_config.dataset_dim + 1) / 2
         : build_config.dataset_dim));
   }
-#else
-  d_data_half_.emplace(raft::make_device_matrix<half, size_t, raft::row_major>(
-    res,
-    nrow_,
-    build_config.metric == cuvs::distance::DistanceType::BitwiseHamming
-      ? (build_config.dataset_dim + 1) / 2
-      : build_config.dataset_dim));
-#endif
 
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   auto graph_buffer_view = raft::make_device_matrix_view<Index_t, int64_t>(
@@ -1471,10 +1477,10 @@ void GNND<Data_t, Index_t>::add_reverse_edges(Index_t* graph_ptr,
                                               int2* list_sizes,
                                               cudaStream_t stream)
 {
-  raft::matrix::fill(
-    res,
-    raft::make_device_matrix_view<Index_t, int64_t>(d_rev_graph_ptr, nrow_, get_degree_on_device(res)),
-    std::numeric_limits<Index_t>::max());
+  raft::matrix::fill(res,
+                     raft::make_device_matrix_view<Index_t, int64_t>(
+                       d_rev_graph_ptr, nrow_, get_degree_on_device(res)),
+                     std::numeric_limits<Index_t>::max());
   add_rev_edges_kernel<<<nrow_, raft::host_warp_size(stream), 0, stream>>>(
     graph_ptr, d_rev_graph_ptr, NUM_SAMPLES, list_sizes);
   raft::copy(res,
@@ -1488,25 +1494,37 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_
 {
   raft::matrix::fill(res, dists_buffer_.view(), std::numeric_limits<float>::max());
   if (d_data_float_.has_value()) {
-    constexpr int BLOCK_SIZE_FLOAT = 512;
-    local_join_kernel<<<nrow_, BLOCK_SIZE_FLOAT, 0, stream>>>(graph_.h_graph_new.data_handle(),
-                                                               h_rev_graph_new_.data_handle(),
-                                                               d_list_sizes_new_.data_handle(),
-                                                               h_graph_old_.data_handle(),
-                                                               h_rev_graph_old_.data_handle(),
-                                                               d_list_sizes_old_.data_handle(),
-                                                               NUM_SAMPLES,
-                                                               d_data_float_.value().data_handle(),
-                                                               ndim_,
-                                                               graph_buffer_.data_handle(),
-                                                               dists_buffer_.data_handle(),
-                                                               get_degree_on_device(res),
-                                                               d_locks_.data_handle(),
-                                                               l2_norms_.data_handle(),
-                                                               build_config_.metric,
-                                                               dist_epilogue);
+    // BLOCK_SIZE must agree with the launch block dim so the kernel's
+    // constexpr num_warps = BLOCK_SIZE / raft::warp_size() matches the real
+    // warp count. Dispatch by runtime wave size (32 on RDNA, 64 on CDNA).
+    auto launch_float = [&](auto block_size) {
+      constexpr int BLOCK_SIZE = decltype(block_size)::value;
+      local_join_kernel<BLOCK_SIZE>
+        <<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
+                                           h_rev_graph_new_.data_handle(),
+                                           d_list_sizes_new_.data_handle(),
+                                           h_graph_old_.data_handle(),
+                                           h_rev_graph_old_.data_handle(),
+                                           d_list_sizes_old_.data_handle(),
+                                           NUM_SAMPLES,
+                                           d_data_float_.value().data_handle(),
+                                           ndim_,
+                                           graph_buffer_.data_handle(),
+                                           dists_buffer_.data_handle(),
+                                           get_degree_on_device(res),
+                                           d_locks_.data_handle(),
+                                           l2_norms_.data_handle(),
+                                           build_config_.metric,
+                                           dist_epilogue);
+    };
+    if (host_warp_size(stream) == 32) {
+      launch_float(std::integral_constant<int, 512>{});
+    } else {
+      launch_float(std::integral_constant<int, 1024>{});
+    }
   } else {
-    // The maximum number of threads in a kernel is (2^32 - 1), so the maximum grid dimension is (2^32
+    // The maximum number of threads in a kernel is (2^32 - 1), so the maximum grid dimension is
+    // (2^32
     // - 1) / BLOCK_SIZE.
     if (host_warp_size(stream) == 32) {
       constexpr int BLOCK_SIZE     = 512;
@@ -1601,31 +1619,29 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
   auto warp_size = raft::host_warp_size(stream);
   for (auto const& batch : vec_batches) {
     if (d_data_float_.has_value()) {
-      preprocess_data_kernel<<<batch.size(),
-                               warp_size,
-                               sizeof(Data_t) *
-                                 ceildiv(build_config_.dataset_dim,
-                                         static_cast<size_t>(warp_size)) *
-                                 warp_size,
-                               stream>>>(batch.data(),
-                                         d_data_float_.value().data_handle(),
-                                         build_config_.dataset_dim,
-                                         l2_norms_.data_handle(),
-                                         batch.offset(),
-                                         build_config_.metric);
+      preprocess_data_kernel<<<
+        batch.size(),
+        warp_size,
+        sizeof(Data_t) * ceildiv(build_config_.dataset_dim, static_cast<size_t>(warp_size)) *
+          warp_size,
+        stream>>>(batch.data(),
+                  d_data_float_.value().data_handle(),
+                  build_config_.dataset_dim,
+                  l2_norms_.data_handle(),
+                  batch.offset(),
+                  build_config_.metric);
     } else {
-      preprocess_data_kernel<<<batch.size(),
-                               warp_size,
-                               sizeof(Data_t) *
-                                 ceildiv(build_config_.dataset_dim,
-                                         static_cast<size_t>(warp_size)) *
-                                 warp_size,
-                               stream>>>(batch.data(),
-                                         d_data_half_.value().data_handle(),
-                                         build_config_.dataset_dim,
-                                         l2_norms_.data_handle(),
-                                         batch.offset(),
-                                         build_config_.metric);
+      preprocess_data_kernel<<<
+        batch.size(),
+        warp_size,
+        sizeof(Data_t) * ceildiv(build_config_.dataset_dim, static_cast<size_t>(warp_size)) *
+          warp_size,
+        stream>>>(batch.data(),
+                  d_data_half_.value().data_handle(),
+                  build_config_.dataset_dim,
+                  l2_norms_.data_handle(),
+                  batch.offset(),
+                  build_config_.metric);
     }
   }
 
