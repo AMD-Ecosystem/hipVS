@@ -27,7 +27,7 @@
 #   PROJECT_ID, BUILD_DIR, INSTALL_DIR
 #
 # Optional environment variables (each defaults to false):
-#   HIPVS_CPP_TESTS      -- run C++ tests via ctest
+#   HIPVS_CPP_TESTS      -- run C++ and C tests via ctest
 #   HIPVS_PYTHON_TESTS   -- run Python tests via pytest
 #   HIPVS_RUST_TESTS     -- run Rust tests via cargo test
 #   HIPVS_RUN_BENCH_ANN  -- run ANN benchmarks
@@ -50,6 +50,17 @@ exit_code=0
 if [[ "${HIPVS_CPP_TESTS:-false}" == "true" ]]; then
     echo "=== Running C++ tests ==="
     (cd "${BUILD_DIR}/${PROJECT_ID}/cpp/build/tests" && ctest --output-on-failure .) || exit_code=$?
+
+    # The C tests are registered in a sibling build dir (cpp/build/c/tests), so the
+    # C++ ctest invocation above does not pick them up. Run them here when present.
+    # They are only built when HIPVS_BUILD_TESTS=true (-> BUILD_C_TESTS=ON).
+    c_test_dir="${BUILD_DIR}/${PROJECT_ID}/cpp/build/c/tests"
+    if [[ -f "${c_test_dir}/CTestTestfile.cmake" ]]; then
+        echo "=== Running C tests ==="
+        (cd "${c_test_dir}" && ctest --output-on-failure .) || exit_code=$?
+    else
+        echo "=== Skipping C tests (not built; no ${c_test_dir}/CTestTestfile.cmake) ==="
+    fi
 fi
 
 if [[ "${HIPVS_PYTHON_TESTS:-false}" == "true" ]]; then
