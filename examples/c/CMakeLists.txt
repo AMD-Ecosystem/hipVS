@@ -11,7 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc. Permission is hereby granted, free
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc. Permission is hereby granted, free
 # of charge, to any person obtaining a copy of this software and associated documentation files (the
 # "Software"), to deal in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
@@ -58,36 +58,42 @@ rapids_cpm_init()
 set(BUILD_CUVS_C_LIBRARY ON)
 include(../cmake/thirdparty/get_dlpack.cmake)
 include(../cmake/thirdparty/get_cuvs.cmake)
-find_package(CUDAToolkit REQUIRED)
+if(CUDA_BACKEND)
+  find_package(CUDAToolkit REQUIRED)
+  set(CUVS_EXAMPLE_RUNTIME CUDA::cudart)
+else()
+  find_package(hip REQUIRED)
+  set(CUVS_EXAMPLE_RUNTIME hip::host)
+endif()
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
 
 add_executable(CAGRA_C_EXAMPLE src/cagra_c_example.c)
 target_include_directories(CAGRA_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-  CAGRA_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+  CAGRA_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
 )
 
 add_executable(L2_C_EXAMPLE src/L2_c_example.c)
 target_include_directories(L2_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-  L2_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+  L2_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
 )
 
 add_executable(IVF_FLAT_C_EXAMPLE src/ivf_flat_c_example.c)
 target_include_directories(IVF_FLAT_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-  IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+  IVF_FLAT_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
 )
 
 add_executable(IVF_PQ_C_EXAMPLE src/ivf_pq_c_example.c)
 target_include_directories(IVF_PQ_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-  IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+  IVF_PQ_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
 )
 
 add_executable(BRUTEFORCE_C_EXAMPLE src/bruteforce_c_example.c)
 target_include_directories(BRUTEFORCE_C_EXAMPLE PUBLIC "$<BUILD_INTERFACE:${DLPACK_INCLUDE_DIR}>")
 target_link_libraries(
-  BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api CUDA::cudart $<TARGET_NAME_IF_EXISTS:conda_env>
+  BRUTEFORCE_C_EXAMPLE PRIVATE cuvs::c_api ${CUVS_EXAMPLE_RUNTIME} $<TARGET_NAME_IF_EXISTS:conda_env>
 )
