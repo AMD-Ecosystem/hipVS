@@ -3,26 +3,50 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #include <cuvs/neighbors/brute_force.h>
 #include <stdint.h>
 
-static const char dataset[] = {0.74021935f,
-                               0.9209938f,
-                               0.03902049f,
-                               0.9689629f,
-                               0.92514056f,
-                               0.4463501f,
-                               0.6673192f,
-                               0.10993068f};
+static const float dataset[] = {0.74021935f,
+                                0.9209938f,
+                                0.03902049f,
+                                0.9689629f,
+                                0.92514056f,
+                                0.4463501f,
+                                0.6673192f,
+                                0.10993068f};
 
-static const char queries[] = {0.48216683f,
-                               0.0428398f,
-                               0.5084142f,
-                               0.6545497f,
-                               0.51260436f,
-                               0.2643005f,
-                               0.05198065f,
-                               0.5789965f};
+static const float queries[] = {0.48216683f,
+                                0.0428398f,
+                                0.5084142f,
+                                0.6545497f,
+                                0.51260436f,
+                                0.2643005f,
+                                0.05198065f,
+                                0.5789965f};
 
 void index_and_search()
 {
