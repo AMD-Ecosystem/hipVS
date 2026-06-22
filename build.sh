@@ -413,12 +413,13 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
 fi
 
 
+# NOTE: the AMD/hipVS Python packages use scikit_build_core directly as their build backend
+# (not rapids_build_backend), so the upstream `rapidsai.*` config-settings are not recognized
+# and must not be passed here.
 PYTHON_ARGS_FOR_INSTALL=(
     "-v"
     "--no-build-isolation"
     "--no-deps"
-    "--config-settings"
-    "rapidsai.disable-cuda=true"
 )
 
 # If `RAPIDS_PY_VERSION` is set, use that as the lower-bound for the stable ABI CPython version

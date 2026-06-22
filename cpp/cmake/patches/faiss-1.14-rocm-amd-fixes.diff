@@ -1,0 +1,69 @@
+# MIT License
+#
+# Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -41,9 +41,11 @@ if(FAISS_ENABLE_CUVS)
+   include(rapids-export)
+   include(rapids-find)
+ 
+-  rapids_cuda_init_architectures(faiss)
+-  rapids_cuda_init_architectures(pyfaiss)
+-  rapids_cuda_init_architectures(faiss_c_library)
++  if(NOT FAISS_ENABLE_ROCM)
++    rapids_cuda_init_architectures(faiss)
++    rapids_cuda_init_architectures(pyfaiss)
++    rapids_cuda_init_architectures(faiss_c_library)
++  endif()
+ endif()
+ 
+ project(faiss
+diff --git a/faiss/CMakeLists.txt b/faiss/CMakeLists.txt
+--- a/faiss/CMakeLists.txt
++++ b/faiss/CMakeLists.txt
+@@ -345,3 +345,3 @@
+ if(NOT WIN32)
+-  target_compile_options(faiss_avx2 PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-mavx2 -mfma -mf16c -mpopcnt>)
++  target_compile_options(faiss_avx2 PRIVATE $<$<OR:$<COMPILE_LANGUAGE:CXX>,$<COMPILE_LANGUAGE:HIP>>:-mavx2 -mfma -mf16c -mpopcnt>)
+ else()
+diff --git a/faiss/gpu/CMakeLists.txt b/faiss/gpu/CMakeLists.txt
+--- a/faiss/gpu/CMakeLists.txt
++++ b/faiss/gpu/CMakeLists.txt
+@@ -340,6 +340,6 @@ foreach(header ${FAISS_GPU_HEADERS})
+ endforeach()
+ 
+ if (FAISS_ENABLE_ROCM)
+-  target_link_libraries(faiss_gpu_objs PRIVATE hip::host roc::hipblas)
++  target_link_libraries(faiss_gpu_objs PRIVATE hip::host roc::hipblas $<$<BOOL:${FAISS_ENABLE_CUVS}>:cuvs::cuvs>)
+   target_compile_options(faiss_gpu_objs PRIVATE)
+ else()
+diff --git a/faiss/gpu/hipify.sh b/faiss/gpu/hipify.sh
+--- a/faiss/gpu/hipify.sh
++++ b/faiss/gpu/hipify.sh
+@@ -83,5 +83,6 @@
+             sed -i 's@thrust::cuda::par@thrust::hip::par@' "$src"
+             sed -i 's@#include <hipblas.h>@#include <hipblas/hipblas.h>@' "$src"
+             sed -i 's@#include <hiprand_kernel.h>@#include <hiprand/hiprand_kernel.h>@' "$src"
++            sed -i 's@#include <hip/hip/device_functions.h>@#include <hip/device_functions.h>@' "$src"
+         done <   <(find ./gpu -name "*.$ext.tmp" -print0)
+     done

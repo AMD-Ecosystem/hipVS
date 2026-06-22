@@ -5,7 +5,7 @@
 
 // MIT License
 //
-// Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+// Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -38,21 +38,14 @@
 #include <faiss/IndexIVFPQ.h>
 #include <faiss/IndexRefine.h>
 #include <faiss/IndexScalarQuantizer.h>
-#ifdef __HIP_PLATFORM_AMD__
-#include <faiss/gpu-rocm/GpuIndexCagra.h>
-#include <faiss/gpu-rocm/GpuIndexFlat.h>
-#include <faiss/gpu-rocm/GpuIndexIVFFlat.h>
-#include <faiss/gpu-rocm/GpuIndexIVFPQ.h>
-#include <faiss/gpu-rocm/GpuIndexIVFScalarQuantizer.h>
-#include <faiss/gpu-rocm/StandardGpuResources.h>
-#else
+// faiss 1.14's hipify.sh converts the GPU sources in place under faiss/gpu/ (unlike older
+// faiss-rocm which relocated them to faiss/gpu-rocm/), so both backends include from faiss/gpu/.
 #include <faiss/gpu/GpuIndexCagra.h>
 #include <faiss/gpu/GpuIndexFlat.h>
 #include <faiss/gpu/GpuIndexIVFFlat.h>
 #include <faiss/gpu/GpuIndexIVFPQ.h>
 #include <faiss/gpu/GpuIndexIVFScalarQuantizer.h>
 #include <faiss/gpu/StandardGpuResources.h>
-#endif
 #include <faiss/impl/ScalarQuantizer.h>
 #include <faiss/index_io.h>
 #include <omp.h>

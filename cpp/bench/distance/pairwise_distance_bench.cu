@@ -67,9 +67,9 @@ auto make_random_matrices(raft::resources const& handle,
       handle, raft::make_const_mdspan(x_float.view()), x.view(), float_to_half_op{});
     raft::linalg::unary_op(
       handle, raft::make_const_mdspan(y_float.view()), y.view(), float_to_half_op{});
-    return {x, y};
+    return {std::move(x), std::move(y)};
   } else {
-    return {x_float, y_float};
+    return {std::move(x_float), std::move(y_float)};
   }
 }
 

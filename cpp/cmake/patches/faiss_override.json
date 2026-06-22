@@ -19,6 +19,11 @@
           "file" : "${current_json_dir}/faiss-1.14-cuvs-26.04.diff",
           "issue" : "Multiple fixes for cuVS compatibility",
           "fixed_in" : ""
+        },
+        {
+          "file" : "${current_json_dir}/faiss-1.14-rocm-amd-fixes.diff",
+          "issue" : "AMD/ROCm: skip rapids_cuda_init_architectures and link cuvs::cuvs for ROCm",
+          "fixed_in" : ""
         }
       ]
     }
