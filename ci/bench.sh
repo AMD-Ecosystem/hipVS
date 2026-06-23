@@ -72,7 +72,8 @@ python -m cuvs_bench.run \
     --dataset-path "${RAPIDS_DATASET_ROOT_DIR}" \
     -k "${HIPVS_BENCHMARK_TOP_K}" \
     --batch-size "${HIPVS_BENCHMARK_BATCH_SIZE}" \
-    --search-mode "${HIPVS_BENCHMARK_SEARCH_MODE}"
+    --search-mode "${HIPVS_BENCHMARK_SEARCH_MODE}" \
+    --force
 
 python -m cuvs_bench.run --data-export \
     --dataset "${DATASET_NAME}" \
