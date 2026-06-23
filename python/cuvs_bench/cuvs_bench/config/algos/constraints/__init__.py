@@ -74,19 +74,24 @@ def cuvs_cagra_search(params, build_params, k, batch_size):
         if params["itopk"] > 512:
             return False
 
-    # Constrain search_width * graph_degree to prevent block_size exceeding 1024.
-    # The shared memory requirement scales with:
-    #   result_buffer_size = itopk_size + search_width * graph_degree
-    # When this gets too large, the block_size calculation loop can exceed
-    # max_block_size (1024), causing a runtime error.
+    # Constrain search_width * graph_degree (== num_itopk_candidates) to keep the
+    # single-CTA search kernel's dynamic shared memory within the device LDS limit.
     #
-    # Conservative limit: search_width * graph_degree <= 2048
-    # This keeps num_itopk_candidates reasonable for the radix-sort path.
+    # The dynamic smem requirement (see search_single_cta.cuh::set_params) scales with:
+    #   result_buffer_size = itopk_size + search_width * graph_degree
+    # and, once num_itopk_candidates > 256, also includes the radix-sort topk buffer.
+    # On AMD GPUs the per-block LDS is 64 KiB (gfx90a: sharedMemPerBlock == 65536).
+    # At num_itopk_candidates == 2048 the result buffer + radix buffer + dataset
+    # workspace exceed 64 KiB and cudaFuncSetAttribute(MaxDynamicSharedMemorySize)
+    # fails at launch. Empirically num_itopk_candidates <= 1024 stays within budget
+    # across itopk in {128, 256, 512}, while 2048 overflows.
+    #
+    # (1024 also keeps block_size within max_block_size (1024) for the radix path.)
     if "search_width" in params and "graph_degree" in build_params:
         num_itopk_candidates = (
             params["search_width"] * build_params["graph_degree"]
         )
-        if num_itopk_candidates > 2048:
+        if num_itopk_candidates > 1024:
             return False
 
     return True
