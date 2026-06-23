@@ -255,6 +255,21 @@ struct FusedDistanceNNCkEpilogue {
     int32_t const n_lane  = lane_id % NPerXdl;
     int32_t const n_warp  = warp_id % NWave;
 
+    // reduce_smem aliases the GEMM pipeline's LDS (GetSmemSize = max(GemmPipeline, Epilogue)).
+    // Phase 4 below only writes the (block_row, n_warp) slots that the MFMA thread->row mapping
+    // happens to cover; any slot it does not write is left holding stale GEMM data. Phase 5 reads
+    // the full [kMPerBlock x NWave] range, so an unwritten slot whose leftover bit-pattern decodes
+    // to value <= 0 wins the min reduction and injects a garbage column index (with a real ~0
+    // value from the true winner). This manifested as wrong, non-deterministic nearest-neighbor
+    // keys for boundary tiles in large-n batched runs. Initialize every slot to the reduction
+    // identity {key=0, value=+inf} first so unwritten slots are guaranteed losers. The leading
+    // barrier ensures the GEMM pipeline has finished reading this LDS before we overwrite it.
+    ck_tile::block_sync_lds();
+    for (int32_t i = threadIdx.x; i < kMPerBlock * NWave; i += kBlockSize) {
+      reduce_smem[i] = {0, std::numeric_limits<float>::max()};
+    }
+    ck_tile::block_sync_lds();
+
     // Lane 0 of N-lane group writes per-row results to LDS
     // LDS layout: [kMPerBlock x NWave], indexed by [block_row * NWave + n_warp]
     if (n_lane == 0) {
