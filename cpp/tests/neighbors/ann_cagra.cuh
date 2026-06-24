@@ -365,14 +365,6 @@ class AnnCagraTest : public ::testing::TestWithParam<AnnCagraInputs> {
         ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)
       GTEST_SKIP();
     if (ps.metric == cuvs::distance::DistanceType::CosineExpanded) {
-#ifdef __HIP_PLATFORM_AMD__
-      // (HIP/AMD | TODO): int8/uint8 Cosine fails on HIP. Disabled pending investigation.
-      // See internal issue #158
-      if constexpr (std::is_same_v<DataT, std::int8_t> ||
-                    std::is_same_v<DataT, std::uint8_t>) {
-        GTEST_SKIP();
-      }
-#endif
       if (ps.compression.has_value()) { GTEST_SKIP(); }
       if (ps.build_algo == graph_build_algo::ITERATIVE_CAGRA_SEARCH || ps.dim == 1) {
         GTEST_SKIP();
@@ -566,16 +558,6 @@ class AnnCagraAddNodesTest : public ::testing::TestWithParam<AnnCagraInputs> {
         ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)
       GTEST_SKIP();
     if (ps.metric == cuvs::distance::DistanceType::CosineExpanded) {
-#ifdef __HIP_PLATFORM_AMD__
-      // TODO(hipVS Bug 2): int8/uint8 Cosine fails on HIP because the naive
-      // brute-force reference (naive_knn.cuh) computes garbage distances
-      // (~-6.88e31) for sizeof(DataT)==1. Disabled pending investigation; see
-      // DEBUG_PLAN.md "Bug 2".
-      if constexpr (std::is_same_v<DataT, std::int8_t> ||
-                    std::is_same_v<DataT, std::uint8_t>) {
-        GTEST_SKIP();
-      }
-#endif
       if (ps.compression.has_value()) { GTEST_SKIP(); }
       if (ps.build_algo == graph_build_algo::ITERATIVE_CAGRA_SEARCH || ps.dim == 1) {
         GTEST_SKIP();
@@ -792,16 +774,6 @@ class AnnCagraFilterTest : public ::testing::TestWithParam<AnnCagraInputs> {
         ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)
       GTEST_SKIP();
     if (ps.metric == cuvs::distance::DistanceType::CosineExpanded) {
-#ifdef __HIP_PLATFORM_AMD__
-      // TODO(hipVS Bug 2): int8/uint8 Cosine fails on HIP because the naive
-      // brute-force reference (naive_knn.cuh) computes garbage distances
-      // (~-6.88e31) for sizeof(DataT)==1. Disabled pending investigation; see
-      // DEBUG_PLAN.md "Bug 2".
-      if constexpr (std::is_same_v<DataT, std::int8_t> ||
-                    std::is_same_v<DataT, std::uint8_t>) {
-        GTEST_SKIP();
-      }
-#endif
       if (ps.compression.has_value()) { GTEST_SKIP(); }
       if (ps.build_algo == graph_build_algo::ITERATIVE_CAGRA_SEARCH || ps.dim == 1) {
         GTEST_SKIP();
@@ -1024,16 +996,6 @@ class AnnCagraIndexFilteredMergeTest : public ::testing::TestWithParam<AnnCagraI
         ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)
       GTEST_SKIP();
     if (ps.metric == cuvs::distance::DistanceType::CosineExpanded) {
-#ifdef __HIP_PLATFORM_AMD__
-      // TODO(hipVS Bug 2): int8/uint8 Cosine fails on HIP because the naive
-      // brute-force reference (naive_knn.cuh) computes garbage distances
-      // (~-6.88e31) for sizeof(DataT)==1. Disabled pending investigation; see
-      // DEBUG_PLAN.md "Bug 2".
-      if constexpr (std::is_same_v<DataT, std::int8_t> ||
-                    std::is_same_v<DataT, std::uint8_t>) {
-        GTEST_SKIP();
-      }
-#endif
       if (ps.build_algo == graph_build_algo::ITERATIVE_CAGRA_SEARCH || ps.dim == 1) {
         GTEST_SKIP();
       }
@@ -1278,16 +1240,6 @@ class AnnCagraIndexMergeTest : public ::testing::TestWithParam<AnnCagraInputs> {
         ps.build_algo != graph_build_algo::ITERATIVE_CAGRA_SEARCH)
       GTEST_SKIP();
     if (ps.metric == cuvs::distance::DistanceType::CosineExpanded) {
-#ifdef __HIP_PLATFORM_AMD__
-      // TODO(hipVS Bug 2): int8/uint8 Cosine fails on HIP because the naive
-      // brute-force reference (naive_knn.cuh) computes garbage distances
-      // (~-6.88e31) for sizeof(DataT)==1. Disabled pending investigation; see
-      // DEBUG_PLAN.md "Bug 2".
-      if constexpr (std::is_same_v<DataT, std::int8_t> ||
-                    std::is_same_v<DataT, std::uint8_t>) {
-        GTEST_SKIP();
-      }
-#endif
       if (ps.build_algo == graph_build_algo::ITERATIVE_CAGRA_SEARCH || ps.dim == 1) {
         GTEST_SKIP();
       }

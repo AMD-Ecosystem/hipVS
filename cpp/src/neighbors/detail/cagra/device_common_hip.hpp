@@ -1,6 +1,11 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights
+ * reserved. SPDX-License-Identifier: Apache-2.0
+ */
+
 // MIT License
 //
-// Copyright (c) 2025 Advanced Micro Devices, Inc.
+// Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +31,7 @@
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/warp_primitives.cuh>
 
-namespace cuvs::neighbors::cagra::detail {
-namespace device {
+namespace cuvs::neighbors::cagra::detail::device {
 
 /**
  * @brief Get the shared memory base offset. Some values in your 64 bit flat address pointer fall
@@ -36,17 +40,10 @@ namespace device {
  */
 RAFT_DEVICE_INLINE_FUNCTION uint64_t shared_base_offset()
 {
-  uint32_t lo, hi;
-  asm volatile(
-    // Move the symbol address into s[6:7], then copy those to lo/hi
-    "s_mov_b64 s[6:7], src_shared_base \n"  // src_shared_base is only available on GFX9+
-    "s_mov_b32 %0, s6 \n"
-    "s_mov_b32 %1, s7 \n"
-    : "=s"(lo), "=s"(hi)  // outputs
-    :                     // no inputs
-    : "s6", "s7"          // clobbers
-  );
-  return (static_cast<uint64_t>(hi) << 32) | lo;
+  uint64_t addr{};
+  asm volatile("s_mov_b64 %0, src_shared_base \n"  // src_shared_base is only available on GFX9+
+               : "=s"(addr));
+  return addr;
 }
 /**
  * @brief Convert a pointer in flat address space to an offset into the shared memory
@@ -58,12 +55,7 @@ RAFT_DEVICE_INLINE_FUNCTION uint64_t shared_base_offset()
 template <typename T>
 RAFT_DEVICE_INLINE_FUNCTION uint32_t flat_to_shared_offset(const T* ptr)
 {
-  union {
-    const T* p;
-    uint64_t i;
-  } uptr;
-  uptr.p = ptr;
-  return static_cast<uint32_t>(uptr.i - shared_base_offset());
+  return static_cast<uint32_t>(reinterpret_cast<uint64_t>(ptr) - shared_base_offset());
 }
 
 /**
@@ -76,12 +68,6 @@ RAFT_DEVICE_INLINE_FUNCTION uint32_t flat_to_shared_offset(const T* ptr)
 template <typename T>
 RAFT_DEVICE_INLINE_FUNCTION T* shared_offset_to_flat(uint32_t offset)
 {
-  union {
-    T* p;
-    uint64_t i;
-  } uptr;
-  uptr.i = shared_base_offset() + offset;
-  return uptr.p;
+  return reinterpret_cast<T*>(shared_base_offset() + offset);
 }
-}  // namespace device
-}  // namespace cuvs::neighbors::cagra::detail
+}  // namespace cuvs::neighbors::cagra::detail::device
