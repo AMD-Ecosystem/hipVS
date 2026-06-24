@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -232,7 +232,7 @@ RAFT_DEVICE_INLINE_FUNCTION auto compute_distance_standard_worker(
     for (uint32_t e = 0; e < reg_nelem; e++) {
       const uint32_t k = e * (kTeamSize * vlen) + elem_offset;
       if (k >= dim) break;
-#pragma unroll
+#pragma nounroll
       for (uint32_t v = 0; v < vlen; v++) {
         // Note this loop can go above the dataset_dim for padded arrays. This is not a problem
         // because:
