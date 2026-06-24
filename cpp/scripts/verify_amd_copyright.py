@@ -41,9 +41,39 @@ PATTERN = re.compile(
 )
 
 FILES_ADDED_IN_NEW_UPSTREAM_COMMITS = {
+    # Files added upstream after BASE_COMMIT_HASH — treat as "Modified" not "Added"
+    "c/CMakeLists.txt",
+    "c/include/cuvs/core/c_api.h",
+    "c/src/core/detail/interop.hpp",
+    "c/tests/distance/pairwise_distance_c.cu",
+    "c/tests/neighbors/ann_cagra_c.cu",
+    "c/tests/neighbors/ann_hnsw_c.cu",
+    "c/tests/neighbors/ann_ivf_flat_c.cu",
+    "c/tests/neighbors/ann_ivf_pq_c.cu",
+    "c/tests/neighbors/brute_force_c.cu",
+    "cmake/RAPIDS.cmake",
+    "cmake/rapids_config.cmake",
     "cpp/include/cuvs/preprocessing/quantize/binary.hpp",
-    "cpp/tests/preprocessing/binary_quantization.cu",
+    "cpp/src/neighbors/all_neighbors/all_neighbors_batched.cuh",
+    "cpp/src/neighbors/all_neighbors/all_neighbors_merge.cuh",
+    "cpp/src/neighbors/detail/faiss_select/Comparators.cuh",
+    "cpp/src/neighbors/detail/faiss_select/Select.cuh",
+    "cpp/src/neighbors/ivf_flat/ivf_flat_interleaved_scan_ext.cuh",
+    "cpp/src/neighbors/ivf_flat/ivf_flat_interleaved_scan_half_int64_t.cu",
+    "cpp/src/neighbors/ivf_flat/ivf_flat_interleaved_scan_half_int64_t_bitset.cu",
+    "cpp/src/neighbors/ivf_pq/detail/ivf_pq_process_and_fill_codes.cu",
+    "cpp/src/neighbors/ivf_pq/ivf_pq_process_and_fill_codes.cuh",
+    "cpp/src/neighbors/ivf_pq/ivf_pq_process_and_fill_codes_impl.cuh",
+    "cpp/src/neighbors/mg/snmg.cuh",
+    "cpp/src/neighbors/scann/detail/scann_avq.cuh",
+    "cpp/src/neighbors/scann/detail/scann_build.cuh",
+    "cpp/src/neighbors/scann/detail/scann_soar.cuh",
     "cpp/src/preprocessing/quantize/detail/binary.cuh",
+    "cpp/tests/preprocessing/binary_quantization.cu",
+    "python/cuvs/cuvs/neighbors/nn_descent/CMakeLists.txt",
+    "python/cuvs/cuvs/neighbors/nn_descent/nn_descent.pyx",
+    "python/cuvs/cuvs/neighbors/vamana/vamana.pyx",
+    "python/cuvs/cuvs/preprocessing/quantize/binary/CMakeLists.txt",
 }
 
 

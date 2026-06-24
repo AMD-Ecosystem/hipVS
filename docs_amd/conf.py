@@ -1,6 +1,6 @@
 # MIT License
 #
-# Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ left_nav_title = f"hipVS {version_number} documentation"
 # for PDF output on Read the Docs
 project = "hipVS"
 author = "Advanced Micro Devices, Inc."
-copyright = "Copyright (c) 2025-2026 Advanced Micro Devices, Inc. All rights reserved."
+copyright = "Copyright (c) 2025-2026 Advanced Micro Devices, Inc."
 version = version_number
 release = version_number
 cpp_maximum_signature_line_length = 10
