@@ -631,8 +631,8 @@ void compute_similarity_run(selected<OutT, LutT> s,
                             uint32_t* _out_indices)
 {
   auto launch_kernel = [&](filtering::ivf_filter_dev sample_filter) {
-    auto kernel = reinterpret_cast<compute_similarity_kernel_t<OutT, LutT>>(
-      const_cast<void*>(get_kernel(s)));
+    auto kernel =
+      reinterpret_cast<compute_similarity_kernel_t<OutT, LutT>>(const_cast<void*>(get_kernel(s)));
     kernel<<<s.grid_dim, s.block_dim, s.smem_size, stream>>>(dim,
                                                              n_probes,
                                                              pq_dim,

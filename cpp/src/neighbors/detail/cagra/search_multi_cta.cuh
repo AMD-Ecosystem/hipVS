@@ -239,27 +239,27 @@ struct search
     auto source_indices_ptr = source_indices.has_value() ? source_indices->data_handle() : nullptr;
     cudaStream_t stream     = raft::resource::get_cuda_stream(res);
     select_and_run<DATA_T, INDEX_T, DISTANCE_T, SourceIndexT, SAMPLE_FILTER_T>(
-                   dataset_desc,
-                   graph,
-                   source_indices_ptr,
-                   intermediate_indices.data(),
-                   intermediate_distances.data(),
-                   queries_ptr,
-                   num_queries,
-                   dev_seed_ptr,
-                   num_executed_iterations,
-                   *this,
-                   topk,
-                   thread_block_size,
-                   result_buffer_size,
-                   smem_size,
-                   small_hash_bitlen,
-                   hash_bitlen,
-                   hashmap.data(),
-                   num_cta_per_query,
-                   num_seeds,
-                   sample_filter,
-                   stream);
+      dataset_desc,
+      graph,
+      source_indices_ptr,
+      intermediate_indices.data(),
+      intermediate_distances.data(),
+      queries_ptr,
+      num_queries,
+      dev_seed_ptr,
+      num_executed_iterations,
+      *this,
+      topk,
+      thread_block_size,
+      result_buffer_size,
+      smem_size,
+      small_hash_bitlen,
+      hash_bitlen,
+      hashmap.data(),
+      num_cta_per_query,
+      num_seeds,
+      sample_filter,
+      stream);
     RAFT_CUDA_TRY(cudaPeekAtLastError());
 
     // Select the top-k results from the intermediate results

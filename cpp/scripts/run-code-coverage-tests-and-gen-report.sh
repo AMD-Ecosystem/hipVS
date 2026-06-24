@@ -2,7 +2,7 @@
 
 # MIT License
 #
-# Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 # associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -37,7 +37,7 @@ HIPVS_PROFILES_DIR=${HIPVS_BUILD_DIR}/profiles
 HIPVS_COVERAGE_DATA=${HIPVS_BUILD_DIR}/hipvs-coverage.profdata
 HIPVS_COVERAGE_REPORT_PATH=${HIPVS_BUILD_DIR}/coverage_report
 
-mkdir -p $HIPVS_PROFILES_DIR
+mkdir -p "$HIPVS_PROFILES_DIR"
 
 # Run C++ tests
 BINARIES=("${HIPVS_BUILD_DIR}/libcuvs.so" "${HIPVS_BUILD_DIR}/libcuvs_c.so")
@@ -49,7 +49,7 @@ if [ -d "${GTEST_DIR}" ]; then
             echo "Running ./${test_exec} ..."
             BINARIES+=("${GTEST_DIR}/${test_exec}")
             export LLVM_PROFILE_FILE="${HIPVS_PROFILES_DIR}/${test_exec}.profraw"
-            if ! ./$test_exec; then
+            if ! ./"$test_exec"; then
                 echo "Test ${test_exec} failed"
                 have_failures=1
             fi
@@ -59,19 +59,21 @@ if [ -d "${GTEST_DIR}" ]; then
     done
 else
     echo "C++ test directory not found at ${GTEST_DIR}"
+    # shellcheck disable=SC2034
     have_failures=1
 fi
 
 set -x
 
-llvm-profdata merge -sparse ${HIPVS_PROFILES_DIR}/*.profraw -o ${HIPVS_COVERAGE_DATA}
+llvm-profdata merge -sparse "${HIPVS_PROFILES_DIR}"/*.profraw -o "${HIPVS_COVERAGE_DATA}"
 
-mkdir -p $HIPVS_COVERAGE_REPORT_PATH
+mkdir -p "$HIPVS_COVERAGE_REPORT_PATH"
 
 OBJECTS="$(printf ' --object=%s' "${BINARIES[@]}")"
 LLVM_COV_OPTIONS="--format=html --show-line-counts-or-regions --Xdemangler c++filt"
+# shellcheck disable=SC2086
 llvm-cov show \
     ${OBJECTS} ${LLVM_COV_OPTIONS} \
-    --instr-profile=${HIPVS_COVERAGE_DATA} \
-    --output-dir=${HIPVS_COVERAGE_REPORT_PATH} \
-    --ignore-filename-regex=${HIPVS_BUILD_DIR}/_deps
+    --instr-profile="${HIPVS_COVERAGE_DATA}" \
+    --output-dir="${HIPVS_COVERAGE_REPORT_PATH}" \
+    --ignore-filename-regex="${HIPVS_BUILD_DIR}"/_deps

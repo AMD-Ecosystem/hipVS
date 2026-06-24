@@ -43,7 +43,7 @@ PATTERN = re.compile(
 FILES_ADDED_IN_NEW_UPSTREAM_COMMITS = {
     "cpp/include/cuvs/preprocessing/quantize/binary.hpp",
     "cpp/tests/preprocessing/binary_quantization.cu",
-    "cpp/src/preprocessing/quantize/detail/binary.cuh"
+    "cpp/src/preprocessing/quantize/detail/binary.cuh",
 }
 
 
@@ -88,7 +88,9 @@ def validate_modified_file(file_path):
         content = f.read()
     match = PATTERN.search(content)
     if match is None:
-        print(f"[ERROR] AMD Modifications Copyright is missing from {file_path}")
+        print(
+            f"[ERROR] AMD Modifications Copyright is missing from {file_path}"
+        )
     else:
         match_dict = match.groupdict()
         if match_dict["modifications_amd"] is None:
@@ -125,7 +127,7 @@ def validate_new_file(file_path):
         match_dict = match.groupdict()
         if match_dict["modifications_amd"] is not None:
             print(
-                f"[ERROR] Found Modifications Copyright in {file_path} that's being added. Add the \"MIT License\" instead.",
+                f'[ERROR] Found Modifications Copyright in {file_path} that\'s being added. Add the "MIT License" instead.',
                 file=sys.stderr,
             )
         elif match_dict["copyright_amd"] is None:
@@ -160,5 +162,5 @@ if __name__ == "__main__":
     if all(validation_results):
         exit(0)
     else:
-        print(f"[ERROR] Copyright validation failed", file=sys.stderr)
+        print("[ERROR] Copyright validation failed", file=sys.stderr)
         exit(1)

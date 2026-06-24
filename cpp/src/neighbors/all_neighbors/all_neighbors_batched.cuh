@@ -32,8 +32,8 @@
 #include "../detail/reachability.cuh"
 #include "all_neighbors_builder.cuh"
 #include "raft/core/logger_macros.hpp"
-#include <cuvs/cuda_runtime.h>
 #include <cuvs/cluster/kmeans.hpp>
+#include <cuvs/cuda_runtime.h>
 #include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/all_neighbors.hpp>
 #include <cuvs/neighbors/brute_force.hpp>

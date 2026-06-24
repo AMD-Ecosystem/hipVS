@@ -200,10 +200,10 @@ void flat_compute_residuals(
     handle,
     tmp_view,
     [centers, labels, dim] __device__(size_t i, float val) {
-      auto row_ix = i / dim;
-      auto el_ix  = i % dim;
+      auto row_ix    = i / dim;
+      auto el_ix     = i % dim;
       auto* p_scalar = std::get_if<uint32_t>(&labels);
-      auto  label    = p_scalar ? *p_scalar : (*std::get_if<const uint32_t*>(&labels))[row_ix];
+      auto label     = p_scalar ? *p_scalar : (*std::get_if<const uint32_t*>(&labels))[row_ix];
       return val - centers(label, el_ix);
     },
     raft::make_const_mdspan(tmp_view));

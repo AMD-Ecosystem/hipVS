@@ -4,7 +4,7 @@
 
 # MIT License
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -107,7 +107,7 @@ def load_dataset(dataset_url, work_folder=None):
     dataset_path = os.path.join(work_folder, dataset_filename)
     if not os.path.exists(dataset_path):
         opener = urllib.request.build_opener()
-        opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
+        opener.addheaders = [("User-Agent", "Mozilla/5.0")]
         urllib.request.install_opener(opener)
         urllib.request.urlretrieve(dataset_url, dataset_path)
 

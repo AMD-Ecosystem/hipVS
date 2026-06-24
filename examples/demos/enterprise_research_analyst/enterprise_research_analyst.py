@@ -46,7 +46,6 @@ import urllib.request
 from html.parser import HTMLParser
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
 
 import cupy as cp
 import gradio as gr
@@ -57,6 +56,7 @@ from sentence_transformers import SentenceTransformer
 
 try:
     from pypdf import PdfReader
+
     HAS_PDF = True
 except ImportError:
     HAS_PDF = False
@@ -92,9 +92,16 @@ class _BlogContentExtractor(HTMLParser):
     elements so the output is dominated by article prose.
     """
 
-    _SKIP_TAGS = frozenset({
-        "script", "style", "nav", "footer", "header", "noscript",
-    })
+    _SKIP_TAGS = frozenset(
+        {
+            "script",
+            "style",
+            "nav",
+            "footer",
+            "header",
+            "noscript",
+        }
+    )
 
     def __init__(self):
         super().__init__()
@@ -133,7 +140,8 @@ def _download_blog_post(url, timeout=30):
     """Fetch *url* and return the extracted article text."""
 
     req = urllib.request.Request(
-        url, headers={"User-Agent": "hipVS-demo/1.0"},
+        url,
+        headers={"User-Agent": "hipVS-demo/1.0"},
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         html = resp.read().decode("utf-8", errors="replace")
@@ -234,11 +242,13 @@ class DocumentParser:
         for page_num, page in enumerate(reader.pages, 1):
             text = (page.extract_text() or "").strip()
             if text:
-                segments.append({
-                    "text": text,
-                    "source": Path(path).name,
-                    "page": page_num,
-                })
+                segments.append(
+                    {
+                        "text": text,
+                        "source": Path(path).name,
+                        "page": page_num,
+                    }
+                )
         return segments
 
     @staticmethod
@@ -274,12 +284,14 @@ class DocumentParser:
             print(f"Error: '{directory}' is not a directory")
             return []
         for path in sorted(root.rglob("*")):
-            if path.suffix.lower() in SUPPORTED_DOC_EXTENSIONS and path.is_file():
+            if (
+                path.suffix.lower() in SUPPORTED_DOC_EXTENSIONS
+                and path.is_file()
+            ):
                 docs = DocumentParser.parse_file(str(path))
                 documents.extend(docs)
         print(
-            f"  Parsed {len(documents)} document segment(s) "
-            f"from {directory}"
+            f"  Parsed {len(documents)} document segment(s) from {directory}"
         )
         return documents
 
@@ -307,13 +319,15 @@ class TextChunker:
                 end = start + self.chunk_size
                 chunk_text = text[start:end].strip()
                 if chunk_text:
-                    chunks.append({
-                        "text": chunk_text,
-                        "source": source,
-                        "page": page,
-                        "chunk_id": len(chunks),
-                        "start_char": start,
-                    })
+                    chunks.append(
+                        {
+                            "text": chunk_text,
+                            "source": source,
+                            "page": page,
+                            "chunk_id": len(chunks),
+                            "start_char": start,
+                        }
+                    )
                 if end >= len(text):
                     break
                 start = end - self.overlap
@@ -371,7 +385,9 @@ class TextEmbedder:
 
     def encode_query(self, text):
         return self.model.encode(
-            [text], normalize_embeddings=True, convert_to_numpy=True,
+            [text],
+            normalize_embeddings=True,
+            convert_to_numpy=True,
         ).astype(np.float32)
 
 
@@ -404,7 +420,9 @@ def load_embedding_cache(cache_dir, expected):
             chunks = json.load(f)
         if len(embeddings) != expected or len(chunks) != expected:
             return None
-        print(f"  Loaded {len(embeddings):,} cached embeddings from {cache_dir}")
+        print(
+            f"  Loaded {len(embeddings):,} cached embeddings from {cache_dir}"
+        )
         return embeddings, chunks
     except Exception:
         return None
@@ -436,8 +454,7 @@ class HipVSIndex:
 
         for algo in algorithms:
             print(
-                f"Building hipVS index ({algo}): "
-                f"{n:,} vectors, dim={dim} ...",
+                f"Building hipVS index ({algo}): {n:,} vectors, dim={dim} ...",
                 flush=True,
             )
             t0 = time.perf_counter()
@@ -454,15 +471,20 @@ class HipVSIndex:
                         intermediate_graph_degree=igd,
                     )
                     self.indices[algo] = cagra.build(
-                        params, gpu_data, resources=self.resources,
+                        params,
+                        gpu_data,
+                        resources=self.resources,
                     )
                 elif algo == "ivf_flat":
                     actual_n_lists = min(n_lists, max(1, n // 10))
                     params = ivf_flat.IndexParams(
-                        n_lists=actual_n_lists, metric="inner_product",
+                        n_lists=actual_n_lists,
+                        metric="inner_product",
                     )
                     self.indices[algo] = ivf_flat.build(
-                        params, gpu_data, resources=self.resources,
+                        params,
+                        gpu_data,
+                        resources=self.resources,
                     )
                 elif algo == "ivf_pq":
                     actual_n_lists = min(n_lists, max(1, n // 10))
@@ -474,11 +496,14 @@ class HipVSIndex:
                         pq_bits=8,
                     )
                     self.indices[algo] = ivf_pq.build(
-                        params, gpu_data, resources=self.resources,
+                        params,
+                        gpu_data,
+                        resources=self.resources,
                     )
                 elif algo == "brute_force":
                     self.indices[algo] = brute_force.build(
-                        gpu_data, metric="inner_product",
+                        gpu_data,
+                        metric="inner_product",
                         resources=self.resources,
                     )
 
@@ -503,22 +528,37 @@ class HipVSIndex:
         if algorithm == "cagra":
             sp = cagra.SearchParams()
             distances, neighbors = cagra.search(
-                sp, index, gpu_query, k, resources=self.resources,
+                sp,
+                index,
+                gpu_query,
+                k,
+                resources=self.resources,
             )
         elif algorithm == "ivf_flat":
             sp = ivf_flat.SearchParams(n_probes=50)
             distances, neighbors = ivf_flat.search(
-                sp, index, gpu_query, k=k, resources=self.resources,
+                sp,
+                index,
+                gpu_query,
+                k=k,
+                resources=self.resources,
             )
         elif algorithm == "ivf_pq":
             n_lists_est = max(1, int(math.sqrt(self.n_vectors)))
             sp = ivf_pq.SearchParams(n_probes=max(1, n_lists_est // 5))
             distances, neighbors = ivf_pq.search(
-                sp, index, gpu_query, k, resources=self.resources,
+                sp,
+                index,
+                gpu_query,
+                k,
+                resources=self.resources,
             )
         elif algorithm == "brute_force":
             distances, neighbors = brute_force.search(
-                index, gpu_query, k, resources=self.resources,
+                index,
+                gpu_query,
+                k,
+                resources=self.resources,
             )
 
         self.resources.sync()
@@ -541,13 +581,15 @@ class PerformanceTracker:
         self.queries = []
 
     def record(self, algorithm, latency_ms, num_results, num_sub_queries=1):
-        self.queries.append({
-            "algorithm": algorithm,
-            "latency_ms": latency_ms,
-            "num_results": num_results,
-            "num_sub_queries": num_sub_queries,
-            "timestamp": time.time(),
-        })
+        self.queries.append(
+            {
+                "algorithm": algorithm,
+                "latency_ms": latency_ms,
+                "num_results": num_results,
+                "num_sub_queries": num_sub_queries,
+                "timestamp": time.time(),
+            }
+        )
 
     def avg_latency(self, algorithm=None):
         items = (
@@ -584,12 +626,14 @@ class OllamaBackend(LLMBackend):
         self.base_url = base_url.rstrip("/")
 
     def generate(self, prompt):
-        payload = json.dumps({
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.3, "num_predict": 1024},
-        }).encode()
+        payload = json.dumps(
+            {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.3, "num_predict": 1024},
+            }
+        ).encode()
         req = urllib.request.Request(
             f"{self.base_url}/api/generate",
             data=payload,
@@ -605,12 +649,14 @@ class OpenAIBackend(LLMBackend):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
 
     def generate(self, prompt):
-        payload = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3,
-            "max_tokens": 1024,
-        }).encode()
+        payload = json.dumps(
+            {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.3,
+                "max_tokens": 1024,
+            }
+        ).encode()
         req = urllib.request.Request(
             "https://api.openai.com/v1/chat/completions",
             data=payload,
@@ -644,7 +690,9 @@ def _parse_sub_queries(response):
         block = block.strip().strip("`")
         try:
             parsed = json.loads(block)
-            if isinstance(parsed, list) and all(isinstance(q, str) for q in parsed):
+            if isinstance(parsed, list) and all(
+                isinstance(q, str) for q in parsed
+            ):
                 return parsed
         except (json.JSONDecodeError, ValueError):
             continue
@@ -668,7 +716,13 @@ class ResearchAnalyst:
     """Agentic RAG: decompose, multi-retrieve, synthesise with citations."""
 
     def __init__(
-        self, embedder, index, chunks, llm, tracker, top_k_per_query=5,
+        self,
+        embedder,
+        index,
+        chunks,
+        llm,
+        tracker,
+        top_k_per_query=5,
     ):
         self.embedder = embedder
         self.index = index
@@ -712,8 +766,13 @@ class ResearchAnalyst:
         q = question.strip().rstrip("?").lower()
 
         comparisons = [
-            "compare", "vs", "versus", "difference", "differ",
-            "contrast", "between",
+            "compare",
+            "vs",
+            "versus",
+            "difference",
+            "differ",
+            "contrast",
+            "between",
         ]
         is_comparison = any(w in q for w in comparisons)
 
@@ -727,7 +786,8 @@ class ResearchAnalyst:
 
         parts = re.split(
             r"\bhow\b|\bwhat\b|\bwhy\b|\bwhen\b|\bwhich\b",
-            q, flags=re.IGNORECASE,
+            q,
+            flags=re.IGNORECASE,
         )
         parts = [p.strip() for p in parts if len(p.strip()) > 10]
         if len(parts) >= 2:
@@ -739,7 +799,9 @@ class ResearchAnalyst:
         """Embed query and search. Return (result_chunks, latency_ms)."""
         query_emb = self.embedder.encode_query(query_text)
         ids, dists, latency_ms = self.index.search(
-            query_emb, top_k=top_k, algorithm=algorithm,
+            query_emb,
+            top_k=top_k,
+            algorithm=algorithm,
         )
         results = []
         for idx, dist in zip(ids, dists):
@@ -767,12 +829,14 @@ class ResearchAnalyst:
                     seen_ids.add(cid)
                     unique_chunks.append(r)
                     new_count += 1
-            per_query.append({
-                "query": sq,
-                "num_chunks": len(results),
-                "new_chunks": new_count,
-                "latency_ms": ms,
-            })
+            per_query.append(
+                {
+                    "query": sq,
+                    "num_chunks": len(results),
+                    "new_chunks": new_count,
+                    "latency_ms": ms,
+                }
+            )
 
         unique_chunks.sort(key=lambda c: c["score"], reverse=True)
         return unique_chunks, per_query, total_ms
@@ -788,7 +852,7 @@ class ResearchAnalyst:
                 page_str = f", p.{c['page']}"
             passage_parts.append(
                 f"[{i + 1}] (Source: {c['source']}{page_str}"
-                f", score: {c['score']:.3f}):\n\"{c['text'][:600]}\""
+                f', score: {c["score"]:.3f}):\n"{c["text"][:600]}"'
             )
         passages = "\n\n".join(passage_parts)
 
@@ -836,7 +900,8 @@ class ResearchAnalyst:
         sub_queries = self.decompose_query(question)
 
         chunks, per_query_stats, retrieval_ms = self.multi_retrieve(
-            sub_queries, algorithm,
+            sub_queries,
+            algorithm,
         )
 
         answer = self.synthesise(question, sub_queries, chunks)
@@ -852,8 +917,13 @@ class ResearchAnalyst:
         )
 
         response = self._format_response(
-            question, sub_queries, per_query_stats,
-            chunks, answer, algorithm, retrieval_ms,
+            question,
+            sub_queries,
+            per_query_stats,
+            chunks,
+            answer,
+            algorithm,
+            retrieval_ms,
         )
 
         return {
@@ -867,8 +937,14 @@ class ResearchAnalyst:
         }
 
     def _format_response(
-        self, question, sub_queries, per_query_stats,
-        chunks, answer, algorithm, retrieval_ms,
+        self,
+        question,
+        sub_queries,
+        per_query_stats,
+        chunks,
+        answer,
+        algorithm,
+        retrieval_ms,
     ):
         lines = []
         num_sources = len(self._unique_sources(chunks))
@@ -877,9 +953,7 @@ class ResearchAnalyst:
         # Always show the reasoning trace / retrieval stats
         lines.append(f"**{mode_label} Analysis**\n")
         if len(sub_queries) > 1:
-            lines.append(
-                f"Decomposed into {len(sub_queries)} sub-queries:\n"
-            )
+            lines.append(f"Decomposed into {len(sub_queries)} sub-queries:\n")
         else:
             lines.append("Retrieval query:\n")
         lines.append("| # | Sub-Query | Chunks | Latency |")
@@ -926,8 +1000,7 @@ class ResearchAnalyst:
                 page_info = f", p.{c['page']}"
             excerpt = c["text"][:120].replace("\n", " ")
             lines.append(
-                f"- **[{i + 1}]** *{c['source']}{page_info}* "
-                f'-- "{excerpt}..."'
+                f'- **[{i + 1}]** *{c["source"]}{page_info}* -- "{excerpt}..."'
             )
 
         return "\n".join(lines)
@@ -961,7 +1034,9 @@ class ResearchAnalyst:
         print("Warming up embedding + hipVS ...", flush=True)
         for algo in self.index.available_algorithms():
             _, _, ms = self.index.search(
-                self.embedder.encode_query("warmup"), top_k=3, algorithm=algo,
+                self.embedder.encode_query("warmup"),
+                top_k=3,
+                algorithm=algo,
             )
             print(f"  {algo}: {ms:.2f}ms", flush=True)
         print("Warmup complete.", flush=True)
@@ -1034,7 +1109,7 @@ def _build_metrics_html(tracker, index, num_docs):
         '<div class="metric-card">'
         f'<div class="metric-value">{index.dim}</div>'
         '<div class="metric-label">Embed Dim</div></div>'
-        '</div>'
+        "</div>"
     )
 
 
@@ -1114,7 +1189,6 @@ def create_ui(analyst):
     with gr.Blocks(
         title="hipVS -- Enterprise Research Analyst",
     ) as app:
-
         gr.HTML(
             '<div class="header">'
             "<h1>Enterprise Research Analyst</h1>"
@@ -1127,7 +1201,6 @@ def create_ui(analyst):
         )
 
         with gr.Tabs():
-
             # ---- Tab 1: Research Chat ----
             with gr.TabItem("Research Chat"):
                 with gr.Row():
@@ -1144,20 +1217,29 @@ def create_ui(analyst):
                                 container=False,
                             )
                             send_btn = gr.Button(
-                                "Send", variant="primary", scale=1,
+                                "Send",
+                                variant="primary",
+                                scale=1,
                             )
                         with gr.Row():
                             algo_dropdown = gr.Dropdown(
-                                algos, value=algos[0],
-                                label="Algorithm", scale=1,
+                                algos,
+                                value=algos[0],
+                                label="Algorithm",
+                                scale=1,
                             )
                             topk_slider = gr.Slider(
-                                3, 20, value=5, step=1,
-                                label="Results per sub-query", scale=1,
+                                3,
+                                20,
+                                value=5,
+                                step=1,
+                                label="Results per sub-query",
+                                scale=1,
                             )
-                            clear_btn = gr.ClearButton(
+                            gr.ClearButton(
                                 [chatbot, msg_input],
-                                value="Clear", scale=1,
+                                value="Clear",
+                                scale=1,
                             )
                         gr.Examples(
                             examples=EXAMPLE_QUERIES,
@@ -1166,7 +1248,9 @@ def create_ui(analyst):
                         )
                     with gr.Column(scale=1):
                         metrics_panel = gr.HTML(
-                            _build_metrics_html(tracker, index, num_source_docs),
+                            _build_metrics_html(
+                                tracker, index, num_source_docs
+                            ),
                         )
                         query_details = gr.Markdown(
                             "*Ask a question to see retrieval details.*"
@@ -1181,13 +1265,20 @@ def create_ui(analyst):
                 with gr.Row():
                     arena_query = gr.Textbox(
                         placeholder="Enter a query to compare algorithms...",
-                        show_label=False, scale=5, container=False,
+                        show_label=False,
+                        scale=5,
+                        container=False,
                     )
                     arena_btn = gr.Button(
-                        "Compare All", variant="primary", scale=1,
+                        "Compare All",
+                        variant="primary",
+                        scale=1,
                     )
                 arena_topk = gr.Slider(
-                    3, 15, value=5, step=1,
+                    3,
+                    15,
+                    value=5,
+                    step=1,
                     label="Top-K per algorithm",
                 )
                 arena_results = gr.HTML(
@@ -1211,7 +1302,8 @@ def create_ui(analyst):
                     )
                     upload_btn = gr.Button(
                         "Add to Knowledge Base",
-                        variant="primary", scale=1,
+                        variant="primary",
+                        scale=1,
                     )
                 upload_status = gr.Markdown("")
                 gr.Markdown("### Corpus Overview")
@@ -1235,7 +1327,8 @@ def create_ui(analyst):
         def do_chat(message, history, algorithm, top_k):
             if not message or not message.strip():
                 return (
-                    history, "",
+                    history,
+                    "",
                     _build_metrics_html(tracker, index, num_source_docs),
                     "*Enter a question.*",
                 )
@@ -1255,7 +1348,9 @@ def create_ui(analyst):
                 f"| {result['algorithm'].upper()}"
             )
             new_metrics = _build_metrics_html(
-                tracker, index, num_source_docs,
+                tracker,
+                index,
+                num_source_docs,
             )
             return history, "", new_metrics, detail_md
 
@@ -1267,14 +1362,19 @@ def create_ui(analyst):
             results_by_algo = {}
             for algo in index.available_algorithms():
                 ids, dists, ms = index.search(
-                    query_emb, top_k=int(top_k), algorithm=algo,
+                    query_emb,
+                    top_k=int(top_k),
+                    algorithm=algo,
                 )
                 found = []
                 for idx, dist in zip(ids, dists):
                     if 0 <= idx < len(analyst.chunks):
-                        found.append({
-                            **analyst.chunks[idx], "score": float(dist),
-                        })
+                        found.append(
+                            {
+                                **analyst.chunks[idx],
+                                "score": float(dist),
+                            }
+                        )
                 results_by_algo[algo] = (found, ms)
             return _build_arena_html(results_by_algo)
 
@@ -1293,7 +1393,8 @@ def create_ui(analyst):
 
             try:
                 n = analyst.add_documents(
-                    files, algorithms=tuple(index.available_algorithms()),
+                    files,
+                    algorithms=tuple(index.available_algorithms()),
                 )
             except Exception as e:
                 return (
@@ -1327,10 +1428,14 @@ def create_ui(analyst):
             [chatbot, msg_input, metrics_panel, query_details],
         )
         arena_btn.click(
-            do_arena, [arena_query, arena_topk], [arena_results],
+            do_arena,
+            [arena_query, arena_topk],
+            [arena_results],
         )
         upload_btn.click(
-            do_upload, [file_upload], [upload_status, corpus_info],
+            do_upload,
+            [file_upload],
+            [upload_status, corpus_info],
         )
 
     return app
@@ -1347,58 +1452,80 @@ def main():
         "Agentic Multi-Document RAG on AMD GPUs",
     )
     parser.add_argument(
-        "--docs", type=str, default=None,
+        "--docs",
+        type=str,
+        default=None,
         help="Path to a directory of documents (PDF, MD, TXT). "
-             "Uses built-in sample corpus if not provided.",
+        "Uses built-in sample corpus if not provided.",
     )
     parser.add_argument(
-        "--embed-model", type=str, default="all-MiniLM-L6-v2",
+        "--embed-model",
+        type=str,
+        default="all-MiniLM-L6-v2",
         help="sentence-transformers model (default: all-MiniLM-L6-v2)",
     )
     parser.add_argument(
-        "--chunk-size", type=int, default=800,
+        "--chunk-size",
+        type=int,
+        default=800,
         help="Chunk size in characters (default: 800)",
     )
     parser.add_argument(
-        "--chunk-overlap", type=int, default=150,
+        "--chunk-overlap",
+        type=int,
+        default=150,
         help="Chunk overlap in characters (default: 150)",
     )
     parser.add_argument(
-        "--top-k", type=int, default=5,
+        "--top-k",
+        type=int,
+        default=5,
         help="Results per sub-query (default: 5)",
     )
     parser.add_argument(
-        "--algorithms", type=str, nargs="+",
+        "--algorithms",
+        type=str,
+        nargs="+",
         default=list(ALL_ALGORITHMS),
         choices=list(ALL_ALGORITHMS),
         help="Algorithms to build (default: all four)",
     )
     parser.add_argument(
-        "--llm", type=str, default="retrieval",
+        "--llm",
+        type=str,
+        default="retrieval",
         choices=["ollama", "openai", "retrieval"],
         help="LLM backend: 'ollama' (local), 'openai' (API), or "
-             "'retrieval' (no LLM, just show retrieved passages)",
+        "'retrieval' (no LLM, just show retrieved passages)",
     )
     parser.add_argument("--ollama-model", type=str, default="llama3.2:3b")
     parser.add_argument(
-        "--ollama-url", type=str, default="http://localhost:11434",
+        "--ollama-url",
+        type=str,
+        default="http://localhost:11434",
     )
     parser.add_argument("--openai-model", type=str, default="gpt-4o-mini")
     parser.add_argument(
-        "--no-cache", action="store_true",
+        "--no-cache",
+        action="store_true",
         help="Force re-embedding; ignore cached embeddings",
     )
     parser.add_argument(
-        "--embed-device", type=str, default="gpu",
+        "--embed-device",
+        type=str,
+        default="gpu",
         choices=["cpu", "gpu"],
         help="Device for embedding model (default: gpu)",
     )
     parser.add_argument(
-        "--port", type=int, default=7863,
+        "--port",
+        type=int,
+        default=7863,
         help="Gradio server port (default: 7863)",
     )
     parser.add_argument(
-        "--share", action="store_true",
+        "--share",
+        action="store_true",
         help="Create a public Gradio share link",
     )
     args = parser.parse_args()
@@ -1426,7 +1553,8 @@ def main():
 
     # ---- Chunk ----
     chunker = TextChunker(
-        chunk_size=args.chunk_size, overlap=args.chunk_overlap,
+        chunk_size=args.chunk_size,
+        overlap=args.chunk_overlap,
     )
     chunks = chunker.chunk_documents(raw_docs)
     if not chunks:
@@ -1441,8 +1569,7 @@ def main():
     cache_key = _embedding_cache_key(docs_dir, args.embed_model, chunk_cfg)
     cache_dir = os.path.join("./data/cache", cache_key)
     cached = (
-        None if args.no_cache
-        else load_embedding_cache(cache_dir, len(chunks))
+        None if args.no_cache else load_embedding_cache(cache_dir, len(chunks))
     )
 
     if cached is not None:
@@ -1480,7 +1607,8 @@ def main():
     # ---- LLM backend ----
     if args.llm == "ollama":
         llm = OllamaBackend(
-            model=args.ollama_model, base_url=args.ollama_url,
+            model=args.ollama_model,
+            base_url=args.ollama_url,
         )
         print(
             f"LLM: Ollama ({args.ollama_model}) at {args.ollama_url}",

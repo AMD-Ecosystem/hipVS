@@ -41,10 +41,10 @@
 
 #include <cuco/static_map.cuh>
 #include <cuda/iterator>
-#include <thrust/copy.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <hip/hip_cooperative_groups.h>
 #include <rmm/device_uvector.hpp>
+#include <thrust/copy.h>
+#include <thrust/iterator/counting_iterator.h>
 
 // this is needed by cuco as key, value must be bitwise comparable.
 // compilers don't declare float/double as bitwise comparable

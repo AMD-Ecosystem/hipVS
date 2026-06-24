@@ -25,9 +25,9 @@
 #include <distance/fused_distance_nn-inl.cuh>
 
 #include <cuvs/distance/distance.hpp>
-#include <raft/core/nvtx.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/kvp.hpp>
+#include <raft/core/nvtx.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resources.hpp>
 #include <raft/linalg/norm.cuh>

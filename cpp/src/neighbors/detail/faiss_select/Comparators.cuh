@@ -37,8 +37,8 @@
 
 #pragma once
 
-#include <hip/hip_runtime.h>
 #include <hip/hip_fp16.h>
+#include <hip/hip_runtime.h>
 
 namespace cuvs::neighbors::detail::faiss_select {
 

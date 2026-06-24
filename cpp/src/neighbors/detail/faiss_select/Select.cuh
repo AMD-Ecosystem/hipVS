@@ -477,9 +477,7 @@ struct WarpSelect {
     }
 
     // We have to beat at least this element
-    if constexpr (kNumWarpQRegisters > 0) {
-      warpKTop = shfl(warpK[kNumWarpQRegisters - 1], kLane);
-    }
+    if constexpr (kNumWarpQRegisters > 0) { warpKTop = shfl(warpK[kNumWarpQRegisters - 1], kLane); }
   }
 
   /// This function handles sorting and merging together the

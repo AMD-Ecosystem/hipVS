@@ -36,7 +36,7 @@ ARGS=$*
 REPODIR=$(cd "$(dirname "$0")"; pwd)
 
 VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --allgpuarch --no-shared-libs --show_depr_warn -h --cpu-only"
-HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-bench-ann=<targets>] [--limit-tests=<targets>] [--gpu-arch="arch"]
+HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-bench-ann=<targets>] [--limit-tests=<targets>] [--gpu-arch=\"arch\"]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
    libcuvs          - build the cuvs/hipvs C++ code only. Also builds the C-wrapper library
@@ -200,7 +200,7 @@ function gpuArch {
     # Check for multiple gpu-arch options
     if [[ $(echo "$ARGS" | { grep -Eo "\-\-gpu\-arch" || true; } | wc -l ) -gt 1 ]]; then
         echo "Error: Multiple --gpu-arch options were provided. Please combine architectures into a single option."
-        echo "Instead of: --gpu-arch="gfx90a" --gpu-arch="gfx942""
+        echo "Instead of: --gpu-arch=\"gfx90a\" --gpu-arch=\"gfx942\""
         echo "Use:        --gpu-arch=\"gfx90a;gfx942\""
         exit 1
     fi
@@ -289,7 +289,7 @@ if hasArg -g; then
     BUILD_TYPE=Debug
 fi
 
-if hasArg tests || (( ${NUMARGS} == 0 )); then
+if hasArg tests || (( NUMARGS == 0 )); then
     BUILD_TESTS=ON
     CMAKE_TARGET+=("${TEST_TARGETS}")
 fi
@@ -304,11 +304,13 @@ if hasArg bench-ann || (( NUMARGS == 0 )); then
     if hasArg --cpu-only; then
         BUILD_CPU_ONLY=ON
         BUILD_SHARED_LIBS=OFF
+        # shellcheck disable=SC2034
         NVTX=OFF
     fi
 fi
 
 if hasArg package; then
+    # shellcheck disable=SC2128,SC2178
     CMAKE_TARGET="${CMAKE_TARGET};package"
 fi
 
@@ -318,6 +320,7 @@ fi
 
 if hasArg --time; then
     echo "-- Logging compile times to cpp/build/nvcc_compile_log.csv"
+    # shellcheck disable=SC2034
     LOG_COMPILE_TIME=ON
 fi
 if hasArg --show_depr_warn; then
@@ -348,12 +351,12 @@ if (( CLEAN == 1 )); then
     done
 
     # clean examples build folders
-    (cd ${REPODIR}/examples && ./build.sh clean)
+    (cd "${REPODIR}"/examples && ./build.sh clean)
 fi
 
 ################################################################################
 # Configure for building all C++ targets
-if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg package || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
+if (( NUMARGS == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg package || hasArg bench-prims || hasArg bench-ann || hasArg examples; then
     COMPILE_LIBRARY=ON
     if [[ "${BUILD_SHARED_LIBS}" != "OFF" ]]; then
         CMAKE_TARGET+=("cuvs")
@@ -379,23 +382,23 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
         fi
     fi
 
-    mkdir -p ${LIBCUVS_BUILD_DIR}
-    cd ${LIBCUVS_BUILD_DIR}
-    PATH="${PATH}:/opt/rocm/bin/" cmake -S ${REPODIR}/cpp -B ${LIBCUVS_BUILD_DIR} \
-          -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-          -DCMAKE_HIP_ARCHITECTURES=${HIPVS_CMAKE_HIP_ARCHITECTURES} \
+    mkdir -p "${LIBCUVS_BUILD_DIR}"
+    cd "${LIBCUVS_BUILD_DIR}"
+    PATH="${PATH}:/opt/rocm/bin/" cmake -S "${REPODIR}"/cpp -B "${LIBCUVS_BUILD_DIR}" \
+          -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+          -DCMAKE_HIP_ARCHITECTURES="${HIPVS_CMAKE_HIP_ARCHITECTURES}" \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
           -DDISABLE_DEPRECATION_WARNINGS=${DISABLE_DEPRECATION_WARNINGS} \
           -DBUILD_TESTS=${BUILD_TESTS} \
           -DBUILD_C_TESTS=${BUILD_TESTS} \
-          -DBUILD_CPU_ONLY=${BUILD_CPU_ONLY} \
+          -DBUILD_CPU_ONLY="${BUILD_CPU_ONLY}" \
           -DBUILD_MG_ALGOS=${BUILD_MG_ALGOS} \
           -DCMAKE_MESSAGE_LOG_LEVEL=${CMAKE_LOG_LEVEL} \
           -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
-          -DBUILD_CUVS_BENCH=${BUILD_CUVS_BENCH} \
+          -DBUILD_CUVS_BENCH="${BUILD_CUVS_BENCH}" \
           ${EXTRA_CMAKE_HIP_ARGS} \
-          ${CACHE_ARGS} \
+          ${CACHE_ARGS[@]:+"${CACHE_ARGS[@]}"} \
           ${EXTRA_CMAKE_ARGS[@]:+"${EXTRA_CMAKE_ARGS[@]}"}
 
   compile_start=$(date +%s)
@@ -408,6 +411,7 @@ if (( ${NUMARGS} == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || has
       fi
   fi
   compile_end=$(date +%s)
+  # shellcheck disable=SC2034
   compile_total=$(( compile_end - compile_start ))
 
 fi
@@ -429,13 +433,13 @@ if [ -n "${RAPIDS_PY_VERSION:-}" ]; then
 fi
 
 # Build and (optionally) install the cuvs Python package
-if (( ${NUMARGS} == 0 )) || hasArg python; then
+if (( NUMARGS == 0 )) || hasArg python; then
     SKBUILD_EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS[*]// /;}"
 
     # Build and install libcuvs pip package
     SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${SKBUILD_EXTRA_CMAKE_ARGS}" \
         SKBUILD_BUILD_OPTIONS="-j${PARALLEL_LEVEL}" \
-        python -m pip install --no-build-isolation ${REPODIR}/python/libcuvs
+        python -m pip install --no-build-isolation "${REPODIR}"/python/libcuvs
 
     # Build and install cuvs pip package
     SKBUILD_CMAKE_ARGS="-DCMAKE_CXX_COMPILER=hipcc;-DCMAKE_PREFIX_PATH=${INSTALL_PREFIX};${SKBUILD_EXTRA_CMAKE_ARGS}" \
@@ -465,15 +469,15 @@ export RAPIDS_VERSION_MAJOR_MINOR
 
 if hasArg docs; then
     set -x
-    cd ${SPHINX_BUILD_DIR}
+    cd "${SPHINX_BUILD_DIR}"
     mkdir -p _build
     rm -rf _build/*
     LC_ALL=C.UTF-8 sphinx-build -E . _build # For this to work, the required dependencies specified in docs_amd/sphinx/requirements.txt must be installed.
     if [ -x "$(command -v cargo)" ] && [ -n "${UPDATE_RUST_DOCS}" ]; then
         echo "Building hipVS Rust docs..."
-        pushd ${REPODIR}/rust
+        pushd "${REPODIR}"/rust
         cargo doc -p hipvs --no-deps
-        rsync -av target/doc/* ${REPODIR}/docs_amd/reference/rust_api/rust_html/
+        rsync -av target/doc/* "${REPODIR}"/docs_amd/reference/rust_api/rust_html/
         popd
     fi
 fi
@@ -485,7 +489,7 @@ fi
 if hasArg examples; then
     set -x
 
-    pushd ${REPODIR}/examples
+    pushd "${REPODIR}"/examples
 
     PARALLEL_LEVEL=${PARALLEL_LEVEL} \
     BUILD_TYPE=${BUILD_TYPE} \

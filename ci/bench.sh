@@ -96,7 +96,7 @@ BENCHMARK_RESULT_SPEC="${GPU_ARCH}:${RAPIDS_DATASET_ROOT_DIR}/${DATASET_NAME}/re
 BENCHMARK_SYSTEM_INFO_SPEC="${GPU_ARCH}:${BENCHMARK_SYSTEM_INFO_SPEC_FILEPATH}"
 
 python "${SRC_DIR}/${PROJECT_ID}/python/cuvs_bench/report_generator/generate_html_report.py" \
-    ${BENCHMARK_RESULT_SPEC} \
+    "${BENCHMARK_RESULT_SPEC}" \
     --system-info \
-    ${BENCHMARK_SYSTEM_INFO_SPEC} \
+    "${BENCHMARK_SYSTEM_INFO_SPEC}" \
     -o "${ARTIFACTS_DIR}/report.html"

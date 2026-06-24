@@ -244,11 +244,11 @@ void kmeansPlusPlus(raft::resources const& handle,
 
       // Run argmin-reduction
       RAFT_CUDA_TRY(cub::DeviceReduce::ArgMin(workspace.data(),
-                                               temp_storage_bytes,
-                                               costPerCandidate.data_handle(),
-                                               minClusterIndexAndDistance.data(),
-                                               costPerCandidate.extent(0),
-                                               stream));
+                                              temp_storage_bytes,
+                                              costPerCandidate.data_handle(),
+                                              minClusterIndexAndDistance.data(),
+                                              costPerCandidate.extent(0),
+                                              stream));
 
       int bestCandidateIdx = -1;
       raft::copy(handle,

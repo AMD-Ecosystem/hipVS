@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -838,7 +838,8 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
       // if max_candidates is greater than 128, the first operation uses two warps;
       // if max_itopk is greater than 256, the second operation used two warps.
       assert(blockDim.x >= raft::warp_size() * 2);
-      const bool bitonic_sort_and_full_multi_warps = (max_candidates > raft::warp_size() * 4) ? true : false;
+      const bool bitonic_sort_and_full_multi_warps =
+        (max_candidates > raft::warp_size() * 4) ? true : false;
 
       // reset small-hash table.
       if ((iter + 1) % small_hash_reset_interval == 0) {

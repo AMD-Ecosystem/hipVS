@@ -26,7 +26,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 @@ -41,9 +41,11 @@ if(FAISS_ENABLE_CUVS)
    include(rapids-export)
    include(rapids-find)
- 
+
 -  rapids_cuda_init_architectures(faiss)
 -  rapids_cuda_init_architectures(pyfaiss)
 -  rapids_cuda_init_architectures(faiss_c_library)
@@ -36,7 +36,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 +    rapids_cuda_init_architectures(faiss_c_library)
 +  endif()
  endif()
- 
+
  project(faiss
 diff --git a/faiss/CMakeLists.txt b/faiss/CMakeLists.txt
 --- a/faiss/CMakeLists.txt
@@ -51,7 +51,7 @@ diff --git a/faiss/gpu/CMakeLists.txt b/faiss/gpu/CMakeLists.txt
 +++ b/faiss/gpu/CMakeLists.txt
 @@ -340,6 +340,6 @@ foreach(header ${FAISS_GPU_HEADERS})
  endforeach()
- 
+
  if (FAISS_ENABLE_ROCM)
 -  target_link_libraries(faiss_gpu_objs PRIVATE hip::host roc::hipblas)
 +  target_link_libraries(faiss_gpu_objs PRIVATE hip::host roc::hipblas $<$<BOOL:${FAISS_ENABLE_CUVS}>:cuvs::cuvs>)

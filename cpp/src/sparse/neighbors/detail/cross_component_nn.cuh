@@ -59,9 +59,9 @@
 #include <cuda/iterator>
 #include <cuda/std/tuple>
 #include <thrust/copy.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/device_ptr.h>
 #include <thrust/gather.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/scatter.h>

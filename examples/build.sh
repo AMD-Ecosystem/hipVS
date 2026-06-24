@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -44,7 +44,7 @@ NUMARGS=$#
 ARGS=$*
 
 function hasArg {
-    (( ${NUMARGS} != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
+    (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
 if hasArg clean; then
@@ -55,7 +55,7 @@ fi
 
 function gpuArch {
 
-    if hasArg --allgpuarch && [[ -n $(echo $ARGS | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
+    if hasArg --allgpuarch && [[ -n $(echo "$ARGS" | { grep -E "\-\-gpu\-arch" || true; } ) ]]; then
         echo "Error: Cannot specify both --gpu-arch and --allgpuarch"
         echo "Use either:"
         echo "  --gpu-arch=\"gfx90a;gfx942\"    (for specific architectures)"
@@ -90,9 +90,10 @@ function gpuArch {
 }
 
 # Set up build configuration
-PARALLEL_LEVEL=${PARALLEL_LEVEL:=`nproc`}
+PARALLEL_LEVEL=${PARALLEL_LEVEL:=$(nproc)}
 
 BUILD_TYPE=${BUILD_TYPE:="Release"}
+# shellcheck disable=SC2034
 BUILD_DIR=build/
 CUVS_REPO_REL=""
 EXTRA_CMAKE_ARGS=()
@@ -131,18 +132,18 @@ build_example() {
   CMAKE_OVERRIDES_FILE="${EXAMPLES_DIR}/cmake/overrides.cmake"
 
   # Configure
-  cmake -S ${example_dir} -B ${build_dir} \
-        -DCMAKE_USER_MAKE_RULES_OVERRIDE=${CMAKE_OVERRIDES_FILE} \
-        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+  cmake -S "${example_dir}" -B "${build_dir}" \
+        -DCMAKE_USER_MAKE_RULES_OVERRIDE="${CMAKE_OVERRIDES_FILE}" \
+        -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
         -DCUDA_BACKEND=OFF \
-        -DCMAKE_HIP_ARCHITECTURES=${HIPVS_CMAKE_HIP_ARCHITECTURES} \
+        -DCMAKE_HIP_ARCHITECTURES="${HIPVS_CMAKE_HIP_ARCHITECTURES}" \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-        ${EXTRA_CMAKE_ARGS}
+        "${EXTRA_CMAKE_ARGS[@]}"
 
   # Build
   cmake --build "${build_dir}" -j"${PARALLEL_LEVEL}"
 }
 
 for lang in ${EXAMPLE_LANGS}; do
-  build_example ${lang}
+  build_example "${lang}"
 done

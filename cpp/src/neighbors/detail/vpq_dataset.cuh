@@ -481,9 +481,21 @@ void process_and_fill_codes(
       }
     } else if (pq_bits <= 16) {  // uint16_t codes
       if (threads_per_vec <= 32) {
-        return process_and_fill_codes_kernel<kBlockSize, 32, uint16_t, data_t, MathT, IdxT, label_t>;
+        return process_and_fill_codes_kernel<kBlockSize,
+                                                     32,
+                                                     uint16_t,
+                                                     data_t,
+                                                     MathT,
+                                                     IdxT,
+                                                     label_t>;
       } else {
-        return process_and_fill_codes_kernel<kBlockSize, 64, uint16_t, data_t, MathT, IdxT, label_t>;
+        return process_and_fill_codes_kernel<kBlockSize,
+                                                     64,
+                                                     uint16_t,
+                                                     data_t,
+                                                     MathT,
+                                                     IdxT,
+                                                     label_t>;
       }
     } else {
       RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]",
@@ -846,10 +858,10 @@ void process_and_fill_codes_subspaces(
   // must NOT be assumed -- on a wave32 (RDNA) GPU a 64-lane sub-warp spans two wavefronts and the
   // shuffle reduction produces wrong codes. Query the warp size at runtime and dispatch to the
   // matching instantiation. min(warp, pq_n_centers) is always a power of two in {16, 32, 64}.
-  const ix_t warp_size       = raft::host_warp_size(raft::resource::get_device_id(res));
-  const ix_t threads_per_vec = std::min<ix_t>(warp_size, pq_n_centers);
-  const uint32_t num_subwarps            = kBlockSize / threads_per_vec;
-  const uint32_t pq_len                  = pq_centers.extent(1);
+  const ix_t warp_size        = raft::host_warp_size(raft::resource::get_device_id(res));
+  const ix_t threads_per_vec  = std::min<ix_t>(warp_size, pq_n_centers);
+  const uint32_t num_subwarps = kBlockSize / threads_per_vec;
+  const uint32_t pq_len       = pq_centers.extent(1);
 
   uint32_t shared_memory_size =
     pq_len <= threads_per_vec ? 0 : num_subwarps * pq_len * sizeof(MathT);
@@ -862,17 +874,47 @@ void process_and_fill_codes_subspaces(
   auto kernel = [&]() {
     if (pq_bits <= 8) {  // uint8_t codes
       if (threads_per_vec <= 16) {
-        return process_and_fill_codes_subspaces_kernel<kBlockSize, 16, uint8_t, data_t, MathT, IdxT, label_t>;
+        return process_and_fill_codes_subspaces_kernel<kBlockSize,
+                                                       16,
+                                                       uint8_t,
+                                                       data_t,
+                                                       MathT,
+                                                       IdxT,
+                                                       label_t>;
       } else if (threads_per_vec <= 32) {
-        return process_and_fill_codes_subspaces_kernel<kBlockSize, 32, uint8_t, data_t, MathT, IdxT, label_t>;
+        return process_and_fill_codes_subspaces_kernel<kBlockSize,
+                                                       32,
+                                                       uint8_t,
+                                                       data_t,
+                                                       MathT,
+                                                       IdxT,
+                                                       label_t>;
       } else {
-        return process_and_fill_codes_subspaces_kernel<kBlockSize, 64, uint8_t, data_t, MathT, IdxT, label_t>;
+        return process_and_fill_codes_subspaces_kernel<kBlockSize,
+                                                       64,
+                                                       uint8_t,
+                                                       data_t,
+                                                       MathT,
+                                                       IdxT,
+                                                       label_t>;
       }
     } else if (pq_bits <= 16) {  // uint16_t codes
       if (threads_per_vec <= 32) {
-        return process_and_fill_codes_subspaces_kernel<kBlockSize, 32, uint16_t, data_t, MathT, IdxT, label_t>;
+        return process_and_fill_codes_subspaces_kernel<kBlockSize,
+                                                       32,
+                                                       uint16_t,
+                                                       data_t,
+                                                       MathT,
+                                                       IdxT,
+                                                       label_t>;
       } else {
-        return process_and_fill_codes_subspaces_kernel<kBlockSize, 64, uint16_t, data_t, MathT, IdxT, label_t>;
+        return process_and_fill_codes_subspaces_kernel<kBlockSize,
+                                                       64,
+                                                       uint16_t,
+                                                       data_t,
+                                                       MathT,
+                                                       IdxT,
+                                                       label_t>;
       }
     } else {
       RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]",

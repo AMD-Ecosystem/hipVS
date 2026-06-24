@@ -1,3 +1,4 @@
+#!/bin/bash
 # MIT License
 #
 # Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
@@ -19,8 +20,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-#!/bin/bash
 #
 # System Information Collection Script for GPU Benchmarking
 # Collects hardware specs, software versions, and configuration for reproducibility
@@ -58,7 +57,7 @@ echo ""
     echo "Date: $(date)"
     echo "Uptime: $(uptime)"
     echo "Kernel: $(uname -r)"
-    echo "OS: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || echo "Unknown")"
+    echo "OS: $(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo "Unknown")"
     echo "Architecture: $(uname -m)"
     echo ""
     # -------------------------------------------------------------------------
@@ -271,7 +270,7 @@ cat > "${JSON_FILE}" << JSONEOF
     "script_version": "1.0"
   },
   "system": {
-    "os": "$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"' -f2 || echo "Unknown")",
+    "os": "$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d'"' -f2 || echo "Unknown")",
     "kernel": "$(uname -r)",
     "architecture": "$(uname -m)"
   },
