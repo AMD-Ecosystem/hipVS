@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "../../ck_version_compat.hpp"
 #include "fused_nn_epilogue.hpp"
 
 #include <ck_tile/core.hpp>
@@ -126,8 +127,11 @@ using FusedNNUniversalGemmProblemT =
                                         FusedNNGemmShapeT<Config>,
                                         FusedNNGemmUniversalTraitsT<Config>,
                                         Config::Scheduler,
+#if !CUVS_CK_TILE_NEW_GEMM_API
+                                        // Removed in the ROCm 7.13 ck_tile API.
                                         true,
                                         ck_tile::TailNumber::Full,
+#endif
                                         ck_tile::element_wise::PassThrough,
                                         ck_tile::element_wise::PassThrough,
                                         float,

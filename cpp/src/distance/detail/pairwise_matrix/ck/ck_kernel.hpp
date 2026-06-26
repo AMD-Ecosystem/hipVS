@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "../../ck_version_compat.hpp"
 #include "element_wise_ops.hpp"
 #include "epilogue.hpp"
 
@@ -134,8 +135,11 @@ using UniversalGemmProblem =
                                         GemmShape,
                                         GemmUniversalTraits<DataT, InputLayout>,
                                         GemmDistanceConfig::Scheduler,
+#if !CUVS_CK_TILE_NEW_GEMM_API
+                                        // Removed in the ROCm 7.13 ck_tile API.
                                         true,
                                         ck_tile::TailNumber::Full,
+#endif
                                         ck_tile::element_wise::PassThrough,
                                         ck_tile::element_wise::PassThrough,
                                         DataT,
@@ -250,6 +254,22 @@ struct PairwiseDistanceCkKernel {
     __shared__ char smem_ptr_0[GetSmemSize()];
     const auto gemm_pointers = make_gemm_pointers(kargs, splitk_batch_offset);
 
+#if CUVS_CK_TILE_NEW_GEMM_API
+    // ROCm 7.13+ ck_tile: per-operand block-window helpers replace the
+    // MakeGemmTensorViews -> MakeGemmPadViews -> MakeGemmTileWindows chain.
+    // i_m/i_n are element offsets (iM * MPerBlock), matching what the upstream
+    // UniversalGemmKernel::operator() passes into these helpers.
+    const auto& as_block_window = HelperKernel::MakeABlockWindows(
+      gemm_pointers.as_ptr, universal_args, splitk_batch_offset.splitted_k, i_m);
+    const auto& bs_block_window = HelperKernel::MakeBBlockWindows(
+      gemm_pointers.bs_ptr, universal_args, splitk_batch_offset.splitted_k, i_n);
+    auto e_block_window = HelperKernel::template MakeCBlockWindows<DummyEpilogue::MemoryOperation>(
+      gemm_pointers.e_ptr, universal_args, i_m, i_n);
+
+    const ck_tile::index_t num_loop = ck_tile::amd_wave_read_first_lane(
+      TilePartitioner::GetLoopNum(splitk_batch_offset.splitted_k));
+#else
+    // ROCm <= 7.2.x ck_tile API.
     const auto& gemm_tensor_views_tuple =
       HelperKernel::template MakeGemmTensorViews<DummyEpilogue::MemoryOperation>(
         gemm_pointers.as_ptr,
@@ -268,6 +288,7 @@ struct PairwiseDistanceCkKernel {
     const auto& as_block_window = gemm_tile_windows.at(ck_tile::number<0>{});
     const auto& bs_block_window = gemm_tile_windows.at(ck_tile::number<1>{});
     auto& e_block_window        = gemm_tile_windows.at(ck_tile::number<3>{});
+#endif
 
     run_gemm_and_epilogue(
       as_block_window, bs_block_window, e_block_window, num_loop, smem_ptr_0, kargs, i_m, i_n);

@@ -896,7 +896,9 @@ if(NOT BUILD_CPU_ONLY)
       PRIVATE
         $<$<BOOL:${CUDA_BACKEND}>:$<COMPILE_ONLY:nvidia::cutlass::cutlass>>
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
-        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
+        # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
+        # is a no-op on ROCm 7.13+ where it was removed.
+        $<$<BOOL:${BUILD_CK_BACKEND}>:$<TARGET_NAME_IF_EXISTS:composable_kernel::device_gemm_operations>>
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
         $<COMPILE_ONLY:cuco::cuco>
@@ -969,7 +971,9 @@ SECTIONS
       PRIVATE
         $<$<BOOL:${CUDA_BACKEND}>:$<COMPILE_ONLY:nvidia::cutlass::cutlass>>
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
-        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_gemm_operations>
+        # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
+        # is a no-op on ROCm 7.13+ where it was removed.
+        $<$<BOOL:${BUILD_CK_BACKEND}>:$<TARGET_NAME_IF_EXISTS:composable_kernel::device_gemm_operations>>
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
         $<COMPILE_ONLY:cuco::cuco>
