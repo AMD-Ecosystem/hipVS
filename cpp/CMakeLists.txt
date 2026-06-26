@@ -275,6 +275,12 @@ endif()
 if(BUILD_CUVS_BENCH)
   include(${rapids-cmake-dir}/cpm/gbench.cmake)
   rapids_cpm_gbench(BUILD_STATIC)
+  # Google Benchmark's __COUNTER__ usage triggers -Wc2y-extensions with HIP/clang
+  foreach(_bench_tgt benchmark benchmark_main)
+    if(TARGET ${_bench_tgt})
+      target_compile_options(${_bench_tgt} PRIVATE -Wno-c2y-extensions)
+    endif()
+  endforeach()
 endif()
 
 if(BUILD_CAGRA_HNSWLIB)
