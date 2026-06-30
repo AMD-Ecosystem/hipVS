@@ -40,7 +40,7 @@ authors = [
 license = { text = "Apache-2.0 AND MIT" }
 requires-python = ">=3.11"
 dependencies = [
-    "amd-libhipvs==1.0.*",
+    "amd-libhipvs==2.0.*",
     "numpy>=1.23,<3.0",
     "amd_hipmm~=5.0",
     # NOTE(HIP/AMD): AMD substitutes upstream `cuda-python` with the AMD pair
