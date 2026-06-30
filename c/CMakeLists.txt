@@ -78,7 +78,7 @@ rapids_cmake_build_type(Release)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT DEFINED CUVS_CXX_FLAGS)
-  include(../cpp/cmake/modules/ConfigureCUDA.cmake)
+  include(../cpp/cmake/modules/ConfigureHIP.cmake)
 endif()
 
 # ##################################################################################################
@@ -173,22 +173,20 @@ target_compile_definitions(
   cuvs_c
   PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
          $<$<BOOL:${BUILD_MG_ALGOS}>:CUVS_BUILD_MG_ALGOS>
-  PRIVATE $<$<NOT:$<BOOL:${CUDA_BACKEND}>>:__HIP_PLATFORM_AMD__=1>
+  PRIVATE __HIP_PLATFORM_AMD__=1
 )
 
 target_compile_options(cuvs_c PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>")
-if(NOT CUDA_BACKEND)
-  # Force-include libhipcxx's HIP compatibility shim so cuda* identifiers (used by libhipcxx
-  # headers) are mapped to hip* before any template instantiation sees them. Without this,
-  # CXX-compiled code hits missing hipDeviceAttribute* enum values.
-  find_file(
-    _LIBHIPCXX_AMD_RUNTIME "libhipcxx/__amd/cuda_runtime.h"
-    PATHS ${libhipcxx_SOURCE_DIR}/include
-    NO_DEFAULT_PATH
-  )
-  if(_LIBHIPCXX_AMD_RUNTIME)
-    target_compile_options(cuvs_c PRIVATE "-include${_LIBHIPCXX_AMD_RUNTIME}")
-  endif()
+# Force-include libhipcxx's HIP compatibility shim so cuda* identifiers (used by libhipcxx headers)
+# are mapped to hip* before any template instantiation sees them. Without this, CXX-compiled code
+# hits missing hipDeviceAttribute* enum values.
+find_file(
+  _LIBHIPCXX_AMD_RUNTIME "libhipcxx/__amd/cuda_runtime.h"
+  PATHS ${libhipcxx_SOURCE_DIR}/include
+  NO_DEFAULT_PATH
+)
+if(_LIBHIPCXX_AMD_RUNTIME)
+  target_compile_options(cuvs_c PRIVATE "-include${_LIBHIPCXX_AMD_RUNTIME}")
 endif()
 
 target_include_directories(
@@ -243,17 +241,10 @@ endif()
 # ##################################################################################################
 # * build tests ----------------------------------------------------
 if(BUILD_TESTS)
-  if(CUDA_BACKEND)
-    include(rapids-cuda)
-    rapids_cuda_init_architectures(CUVS_C)
-    enable_language(CUDA)
-    find_package(CUDAToolkit REQUIRED)
-  else()
-    include(rapids-hip)
-    rapids_hip_init_architectures(CUVS_C)
-    enable_language(HIP)
-    find_package(hip REQUIRED)
-  endif()
+  include(rapids-hip)
+  rapids_hip_init_architectures(CUVS_C)
+  enable_language(HIP)
+  find_package(hip REQUIRED)
 
   enable_testing()
   add_subdirectory(tests)

@@ -51,11 +51,9 @@ option(CUVS_ANN_BENCH_USE_CUVS_CAGRA_DISKANN "Include cuVS CAGRA with DISKANN se
        OFF
 )
 # AMD: Does not support DISKANN
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "(ARM|arm|aarch64)" OR NOT CUDA_BACKEND)
-  set(CUVS_ANN_BENCH_USE_DISKANN OFF)
-  set(CUVS_ANN_BENCH_USE_CUVS_VAMANA OFF)
-  set(CUVS_ANN_BENCH_USE_CUVS_CAGRA_DISKANN OFF)
-endif()
+set(CUVS_ANN_BENCH_USE_DISKANN OFF)
+set(CUVS_ANN_BENCH_USE_CUVS_VAMANA OFF)
+set(CUVS_ANN_BENCH_USE_CUVS_CAGRA_DISKANN OFF)
 option(CUVS_ANN_BENCH_USE_CUVS_MG "Include cuVS ann mg algorithm in benchmark" ${BUILD_MG_ALGOS})
 option(CUVS_ANN_BENCH_SINGLE_EXE
        "Make a single executable with benchmark as shared library modules" OFF
@@ -183,11 +181,7 @@ function(ConfigureAnnBench)
   endif()
 
   if(GPU_BUILD)
-    if(CUDA_BACKEND)
-      set(GPU_RUNTIME_LIB CUDA::cudart_static)
-    else()
-      set(GPU_RUNTIME_LIB hip::host)
-    endif()
+    set(GPU_RUNTIME_LIB hip::host)
   endif()
 
   target_link_libraries(
@@ -327,7 +321,7 @@ if(CUVS_ANN_BENCH_USE_CUVS_MG)
     $<$<BOOL:${CUVS_ANN_BENCH_USE_CUVS_MG}>:src/cuvs/cuvs_mg_cagra.cu>
     LINKS
     cuvs
-    $<IF:$<BOOL:${CUDA_BACKEND}>,nccl,roc::rccl>
+    roc::rccl
   )
 endif()
 

@@ -238,7 +238,6 @@ build_examples() {
         -DCMAKE_HIP_ARCHITECTURES="${AMDGPU_TARGETS}" \
         -Dcuvs_ROOT="${install_prefix}" \
         -DCMAKE_USER_MAKE_RULES_OVERRIDE="${overrides_cmake}" \
-        -DCUDA_BACKEND=OFF \
         ${cmake_args[@]:+"${cmake_args[@]}"} \
         -S examples/c \
         -B examples/c/build
@@ -250,7 +249,6 @@ build_examples() {
         -DCMAKE_HIP_ARCHITECTURES="${AMDGPU_TARGETS}" \
         -Dcuvs_ROOT="${install_prefix}" \
         -DCMAKE_USER_MAKE_RULES_OVERRIDE="${overrides_cmake}" \
-        -DCUDA_BACKEND=OFF \
         ${cmake_args[@]:+"${cmake_args[@]}"} \
         -S examples/cpp \
         -B examples/cpp/build

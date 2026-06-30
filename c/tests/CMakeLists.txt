@@ -118,11 +118,7 @@ endif()
 
 ConfigureTest(NAME cuvs_c_headers PATH core/headers.c)
 ConfigureTest(NAME cuvs_c_test PATH core/c_api.c)
-if(CUDA_BACKEND)
-  target_link_libraries(cuvs_c_test PRIVATE CUDA::cudart)
-else()
-  target_link_libraries(cuvs_c_test PRIVATE hip::host)
-endif()
+target_link_libraries(cuvs_c_test PRIVATE hip::host)
 ConfigureTest(NAME cuvs_c_neighbors_test PATH neighbors/c_api.c)
 
 # ##################################################################################################

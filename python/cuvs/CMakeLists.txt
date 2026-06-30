@@ -25,13 +25,7 @@ include(../../cmake/rapids_config.cmake)
 # We always need CUDA for cuvs because the cuvs dependency brings in a header-only cuco dependency
 # that enables CUDA unconditionally.
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../../overrides.cmake")
-option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
-set(lang_list "C" "CXX")
-if(CUDA_BACKEND)
-  list(APPEND lang_list "CUDA")
-else()
-  list(APPEND lang_list "HIP")
-endif()
+set(lang_list "C" "CXX" "HIP")
 
 project(
   cuvs_py

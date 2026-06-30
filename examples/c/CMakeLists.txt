@@ -35,20 +35,12 @@ include(rapids-export)
 include(rapids-find)
 
 # ------------- configure project --------------#
-option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
-
 # CXX is needed for building dependencies
 set(lang_list "C" "CXX")
 
-if(CUDA_BACKEND)
-  include(rapids-cuda)
-  rapids_cuda_init_architectures(hipvs_c_examples)
-  list(APPEND lang_list "CUDA")
-else()
-  include(rapids-hip)
-  rapids_hip_init_architectures(hipvs_c_examples)
-  list(APPEND lang_list "HIP")
-endif()
+include(rapids-hip)
+rapids_hip_init_architectures(hipvs_c_examples)
+list(APPEND lang_list "HIP")
 
 project(hipvs_c_examples LANGUAGES ${lang_list})
 
@@ -58,13 +50,8 @@ rapids_cpm_init()
 set(BUILD_CUVS_C_LIBRARY ON)
 include(../cmake/thirdparty/get_dlpack.cmake)
 include(../cmake/thirdparty/get_cuvs.cmake)
-if(CUDA_BACKEND)
-  find_package(CUDAToolkit REQUIRED)
-  set(CUVS_EXAMPLE_RUNTIME CUDA::cudart)
-else()
-  find_package(hip REQUIRED)
-  set(CUVS_EXAMPLE_RUNTIME hip::host)
-endif()
+find_package(hip REQUIRED)
+set(CUVS_EXAMPLE_RUNTIME hip::host)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror")
 

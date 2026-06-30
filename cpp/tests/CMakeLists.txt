@@ -339,7 +339,7 @@ if(BUILD_MG_ALGOS)
     PATH neighbors/mg/test_float.cu
     GPUS 1
     PERCENT 100
-    ADDITIONAL_DEP $<IF:$<BOOL:${CUDA_BACKEND}>,NCCL::NCCL,roc::rccl>
+    ADDITIONAL_DEP roc::rccl
   )
 endif()
 

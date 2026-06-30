@@ -135,7 +135,6 @@ build_example() {
   cmake -S "${example_dir}" -B "${build_dir}" \
         -DCMAKE_USER_MAKE_RULES_OVERRIDE="${CMAKE_OVERRIDES_FILE}" \
         -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
-        -DCUDA_BACKEND=OFF \
         -DCMAKE_HIP_ARCHITECTURES="${HIPVS_CMAKE_HIP_ARCHITECTURES}" \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
         "${EXTRA_CMAKE_ARGS[@]}"

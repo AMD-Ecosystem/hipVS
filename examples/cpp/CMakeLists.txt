@@ -11,7 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc. Permission is hereby granted, free
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc. Permission is hereby granted, free
 # of charge, to any person obtaining a copy of this software and associated documentation files (the
 # "Software"), to deal in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
@@ -35,19 +35,11 @@ include(rapids-export)
 include(rapids-find)
 
 # ------------- configure project --------------#
-option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
-
 set(lang_list "CXX")
 
-if(CUDA_BACKEND)
-  include(rapids-cuda)
-  rapids_cuda_init_architectures(hipvs_cxx_examples)
-  list(APPEND lang_list "CUDA")
-else()
-  include(rapids-hip)
-  rapids_hip_init_architectures(hipvs_cxx_examples)
-  list(APPEND lang_list "HIP")
-endif()
+include(rapids-hip)
+rapids_hip_init_architectures(hipvs_cxx_examples)
+list(APPEND lang_list "HIP")
 
 project(hipvs_cxx_examples LANGUAGES ${lang_list})
 
@@ -58,10 +50,8 @@ set(BUILD_CUVS_C_LIBRARY OFF)
 include(../cmake/thirdparty/get_cuvs.cmake)
 
 # -------------- compile tasks ----------------- #
-if(NOT CUDA_BACKEND)
-  file(GLOB CUDA_SRC_FILES "src/*.cu")
-  set_source_files_properties(${CUDA_SRC_FILES} PROPERTIES LANGUAGE HIP)
-endif()
+file(GLOB CUDA_SRC_FILES "src/*.cu")
+set_source_files_properties(${CUDA_SRC_FILES} PROPERTIES LANGUAGE HIP)
 
 add_executable(BRUTE_FORCE_EXAMPLE src/brute_force_bitmap.cu)
 add_executable(CAGRA_EXAMPLE src/cagra_example.cu)

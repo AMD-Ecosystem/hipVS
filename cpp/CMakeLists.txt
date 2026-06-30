@@ -40,7 +40,6 @@ include(rapids-export)
 include(rapids-find)
 
 option(BUILD_CPU_ONLY "Build CPU only components. Applies to CUVS benchmarks currently" OFF)
-option(CUDA_BACKEND "Build for CUDA devices. Default configuration builds for AMD devices." OFF)
 option(BUILD_CK_BACKEND "Build with Composable Kernel distance backend (AMD only)" ON)
 
 # workaround for rapids_cuda_init_architectures not working for arch detection with
@@ -48,15 +47,9 @@ option(BUILD_CK_BACKEND "Build with Composable Kernel distance backend (AMD only
 set(lang_list "CXX" "C")
 
 if(NOT BUILD_CPU_ONLY)
-  if(CUDA_BACKEND)
-    include(rapids-cuda)
-    rapids_cuda_init_architectures(CUVS)
-    list(APPEND lang_list "CUDA")
-  else()
-    include(rapids-hip)
-    rapids_hip_init_architectures(CUVS)
-    list(APPEND lang_list "HIP")
-  endif()
+  include(rapids-hip)
+  rapids_hip_init_architectures(CUVS)
+  list(APPEND lang_list "HIP")
 endif()
 
 project(
@@ -104,9 +97,6 @@ option(DISABLE_OPENMP "Disable OpenMP" OFF)
 option(CUVS_COMPILE_DYNAMIC_ONLY "Only build the shared library and skip the static library." OFF)
 option(CUVS_NVTX "Enable nvtx markers" OFF)
 option(CUVS_USE_ROCPROFSYS "Enable rocprofiler-systems user API instrumentation" OFF)
-if(CUVS_USE_ROCPROFSYS AND CUDA_BACKEND)
-  message(FATAL_ERROR "CUVS_USE_ROCPROFSYS requires the ROCm backend (CUDA_BACKEND must be OFF)")
-endif()
 option(CUVS_RAFT_CLONE_ON_PIN "Explicitly clone RAFT branch when pinned to non-feature branch" ON)
 
 option(ENABLE_CODE_COVERAGE "turn on flags for code coverage" OFF)
@@ -197,31 +187,17 @@ if(CUDA_STATIC_MATH_LIBRARIES)
 endif()
 
 if(NOT BUILD_CPU_ONLY)
-  if(CUDA_BACKEND)
-    # CUDA runtime
-    rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
-    # * find CUDAToolkit package
-    # * determine GPU architectures
-    # * enable the CMake CUDA language
-    # * set other CUDA compilation flags
-    rapids_find_package(
-      CUDAToolkit REQUIRED
-      BUILD_EXPORT_SET cuvs-exports
-      INSTALL_EXPORT_SET cuvs-exports
-    )
-  else()
-    # HIP runtime
-    rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
-    # * find HIP package
-    # * determine GPU architectures
-    # * enable the CMake HIP language
-    # * set other HIP compilation flags
-    rapids_find_package(
-      HIP REQUIRED
-      BUILD_EXPORT_SET cuvs-exports
-      INSTALL_EXPORT_SET cuvs-exports
-    )
-  endif()
+  # HIP runtime
+  rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+  # * find HIP package
+  # * determine GPU architectures
+  # * enable the CMake HIP language
+  # * set other HIP compilation flags
+  rapids_find_package(
+    HIP REQUIRED
+    BUILD_EXPORT_SET cuvs-exports
+    INSTALL_EXPORT_SET cuvs-exports
+  )
 else()
   add_compile_definitions(BUILD_CPU_ONLY)
 endif()
@@ -237,11 +213,7 @@ if(NOT DISABLE_OPENMP)
   endif()
 endif()
 
-if(CUDA_BACKEND)
-  include(cmake/modules/ConfigureCUDA.cmake)
-else()
-  include(cmake/modules/ConfigureHIP.cmake)
-endif()
+include(cmake/modules/ConfigureHIP.cmake)
 
 # ##################################################################################################
 # * Requirements -------------------------------------------------------------
@@ -255,9 +227,7 @@ if(NOT BUILD_CPU_ONLY)
   # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
   # INSTALL_EXPORT_SET cuvs-exports)
   include(cmake/thirdparty/get_raft.cmake)
-  if(CUDA_BACKEND)
-    include(cmake/thirdparty/get_cutlass.cmake)
-  elseif(BUILD_CK_BACKEND)
+  if(BUILD_CK_BACKEND)
     include(cmake/thirdparty/get_ck.cmake)
   endif()
   include(${rapids-cmake-dir}/cpm/cuco.cmake)
@@ -400,13 +370,7 @@ if(NOT BUILD_CPU_ONLY)
     src/neighbors/detail/cagra/search_single_cta_uint8_uint32.cu
   )
 
-  file(GLOB_RECURSE compute_distance_sources "src/neighbors/detail/cagra/compute_distance_*.cu")
-  # TODO(AMD/HIP): Use __launch_bounds__ for AMD/HIP devices
-  if(CUDA_BACKEND)
-    set_source_files_properties(
-      ${compute_distance_sources} PROPERTIES COMPILE_FLAGS -maxrregcount=64
-    )
-  endif()
+  # TODO(AMD/HIP): Use __launch_bounds__ for AMD/HIP devices to cap register usage
 
   set_target_properties(
     cuvs-cagra-search
@@ -785,12 +749,8 @@ if(NOT BUILD_CPU_ONLY)
 
   target_link_libraries(
     cuvs_objs
-    PRIVATE cuvs::cuvs_cpp_headers
-            cuco::cuco
-            $<$<BOOL:${CUDA_BACKEND}>:nvidia::cutlass::cutlass>
-            ${CUVS_CTK_MATH_DEPENDENCIES}
-            $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-            $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>
+    PRIVATE cuvs::cuvs_cpp_headers cuco::cuco ${CUVS_CTK_MATH_DEPENDENCIES}
+            $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>
   )
 
   target_include_directories(
@@ -810,54 +770,38 @@ if(NOT BUILD_CPU_ONLY)
   endif()
 
   if(BUILD_MG_ALGOS)
-    if(CUDA_BACKEND)
-      rapids_find_generate_module(
-        NCCL
-        HEADER_NAMES nccl.h
-        LIBRARY_NAMES nccl
-      )
-      find_package(NCCL REQUIRED)
-    else()
-      find_package(rccl CONFIG PATHS "/opt/rocm/")
-    endif()
-    target_link_libraries(
-      cuvs_objs PUBLIC $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,NCCL::NCCL,roc::rccl>>
-    )
+    find_package(rccl CONFIG PATHS "/opt/rocm/")
+    target_link_libraries(cuvs_objs PUBLIC $<BUILD_LOCAL_INTERFACE:roc::rccl>)
 
     target_compile_definitions(cuvs_objs PUBLIC CUVS_BUILD_MG_ALGOS)
     target_compile_definitions(cuvs-cagra-search PUBLIC CUVS_BUILD_MG_ALGOS)
   endif()
 
-  if(CUDA_BACKEND)
-    set(CUVS_CUSOLVER_DEPENDENCY CUDA::cusolver${_ctk_static_suffix})
-    set(CUVS_CUBLAS_DEPENDENCY CUDA::cublas${_ctk_static_suffix})
-    set(CUVS_CURAND_DEPENDENCY CUDA::curand${_ctk_static_suffix})
-    set(CUVS_CUSPARSE_DEPENDENCY CUDA::cusparse${_ctk_static_suffix})
-  else()
-    find_package(hipsolver CONFIG PATHS "/opt/rocm/")
-    find_package(hipblas CONFIG PATHS "/opt/rocm/")
-    find_package(hipblaslt CONFIG PATHS "/opt/rocm/")
-    find_package(hiprand CONFIG PATHS "/opt/rocm/")
-    find_package(hipsparse CONFIG PATHS "/opt/rocm/")
-    find_package(BLAS REQUIRED)
-    find_package(LAPACK REQUIRED)
+  find_package(hipsolver CONFIG PATHS "/opt/rocm/")
+  find_package(hipblas CONFIG PATHS "/opt/rocm/")
+  find_package(hipblaslt CONFIG PATHS "/opt/rocm/")
+  find_package(hiprand CONFIG PATHS "/opt/rocm/")
+  find_package(hipsparse CONFIG PATHS "/opt/rocm/")
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
 
-    set(CUVS_CUSOLVER_DEPENDENCY hipsolver${_ctk_static_suffix})
-    set(CUVS_CUBLAS_DEPENDENCY hipblas${_ctk_static_suffix})
-    set(CUVS_CUBLASLT_DEPENDENCY hipblaslt${_ctk_static_suffix})
-    set(CUVS_CURAND_DEPENDENCY hiprand${_ctk_static_suffix})
-    set(CUVS_CUSPARSE_DEPENDENCY hipsparse${_ctk_static_suffix})
-    set(CUVS_BLAS_DEPENDENCY ${BLAS_LIBRARIES}${_ctk_static_suffix})
-    set(CUVS_LAPACK_DEPENDENCY ${LAPACK_LIBRARIES}${_ctk_static_suffix})
-  endif()
-  set(CUVS_CTK_MATH_DEPENDENCIES ${CUVS_CUBLAS_DEPENDENCY} ${CUVS_CUSOLVER_DEPENDENCY}
-                                 ${CUVS_CUSPARSE_DEPENDENCY} ${CUVS_CURAND_DEPENDENCY}
+  set(CUVS_CUSOLVER_DEPENDENCY hipsolver${_ctk_static_suffix})
+  set(CUVS_CUBLAS_DEPENDENCY hipblas${_ctk_static_suffix})
+  set(CUVS_CUBLASLT_DEPENDENCY hipblaslt${_ctk_static_suffix})
+  set(CUVS_CURAND_DEPENDENCY hiprand${_ctk_static_suffix})
+  set(CUVS_CUSPARSE_DEPENDENCY hipsparse${_ctk_static_suffix})
+  set(CUVS_BLAS_DEPENDENCY ${BLAS_LIBRARIES}${_ctk_static_suffix})
+  set(CUVS_LAPACK_DEPENDENCY ${LAPACK_LIBRARIES}${_ctk_static_suffix})
+
+  set(CUVS_CTK_MATH_DEPENDENCIES
+      ${CUVS_CUBLAS_DEPENDENCY}
+      ${CUVS_CUSOLVER_DEPENDENCY}
+      ${CUVS_CUSPARSE_DEPENDENCY}
+      ${CUVS_CURAND_DEPENDENCY}
+      ${CUVS_CUBLASLT_DEPENDENCY}
+      ${CUVS_BLAS_DEPENDENCY}
+      ${CUVS_LAPACK_DEPENDENCY}
   )
-  if(NOT CUDA_BACKEND)
-    list(APPEND CUVS_CTK_MATH_DEPENDENCIES ${CUVS_CUBLASLT_DEPENDENCY} ${CUVS_BLAS_DEPENDENCY}
-         ${CUVS_LAPACK_DEPENDENCY}
-    )
-  endif()
 
   if(NOT cuvs_compile_mode STREQUAL "static_only")
     add_library(cuvs SHARED $<TARGET_OBJECTS:cuvs_objs> $<TARGET_OBJECTS:cuvs-cagra-search>)
@@ -891,16 +835,14 @@ if(NOT BUILD_CPU_ONLY)
 
     target_link_libraries(
       cuvs
-      PUBLIC
-        rmm::rmm
-        raft::raft
-        cuvs::cuvs_cpp_headers
-        ${CUVS_CTK_MATH_DEPENDENCIES}
-        $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
-        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-        $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
+      PUBLIC rmm::rmm
+             raft::raft
+             cuvs::cuvs_cpp_headers
+             ${CUVS_CTK_MATH_DEPENDENCIES}
+             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:roc::rccl>>
+             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+             $<$<BOOL:${CUVS_NVTX}>:roctx64>
       PRIVATE
-        $<$<BOOL:${CUDA_BACKEND}>:$<COMPILE_ONLY:nvidia::cutlass::cutlass>>
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
         # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
         # is a no-op on ROCm 7.13+ where it was removed.
@@ -914,21 +856,6 @@ if(NOT BUILD_CPU_ONLY)
     if(CUVS_USE_ROCPROFSYS)
       find_package(rocprofiler-systems REQUIRED)
       target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
-    endif()
-    if(CUDA_BACKEND)
-      # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
-      file(
-        WRITE "${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld"
-        [=[
-SECTIONS
-{
-.nvFatBinSegment : { *(.nvFatBinSegment) }
-.nv_fatbin : { *(.nv_fatbin) }
-}
-]=]
-      )
-      target_link_options(cuvs PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
-
     endif()
   endif()
 
@@ -959,23 +886,17 @@ SECTIONS
     )
 
     target_include_directories(cuvs_static INTERFACE "$<INSTALL_INTERFACE:include>")
-    if(CUDA_BACKEND)
-      # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
-      target_link_options(cuvs_static PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
-    endif()
 
     target_link_libraries(
       cuvs_static
-      PUBLIC
-        rmm::rmm
-        raft::raft
-        cuvs::cuvs_cpp_headers
-        ${CUVS_CTK_MATH_DEPENDENCIES}
-        $<BUILD_LOCAL_INTERFACE:$<IF:$<BOOL:${CUDA_BACKEND}>,$<TARGET_NAME_IF_EXISTS:NCCL::NCCL>,$<TARGET_NAME_IF_EXISTS:roc::rccl>>>
-        $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-        $<$<BOOL:${CUVS_NVTX}>:$<IF:$<BOOL:${CUDA_BACKEND}>,CUDA::nvtx3,roctx64>>
+      PUBLIC rmm::rmm
+             raft::raft
+             cuvs::cuvs_cpp_headers
+             ${CUVS_CTK_MATH_DEPENDENCIES}
+             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:roc::rccl>>
+             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+             $<$<BOOL:${CUVS_NVTX}>:roctx64>
       PRIVATE
-        $<$<BOOL:${CUDA_BACKEND}>:$<COMPILE_ONLY:nvidia::cutlass::cutlass>>
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
         # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
         # is a no-op on ROCm 7.13+ where it was removed.

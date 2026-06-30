@@ -24,12 +24,7 @@ include(../../cmake/rapids_config.cmake)
 
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/../../overrides.cmake")
 
-set(lang_list "CXX")
-if(CUDA_BACKEND)
-  list(APPEND lang_list "CUDA")
-else()
-  list(APPEND lang_list "HIP")
-endif()
+set(lang_list "CXX" "HIP")
 
 project(
   libcuvs-python
@@ -65,30 +60,11 @@ set(CUVS_COMPILE_DYNAMIC_ONLY ON)
 
 add_subdirectory(../../cpp cuvs-cpp)
 
-if(CUDA_BACKEND)
-  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
-    # starting with CTK 13 wheels, all libraries are grouped in this 'nvidia/cu13/lib' directory
-    set(rpaths "$ORIGIN/../../nvidia/cu13/lib")
-  else()
-    set(rpaths
-        "$ORIGIN/../../nvidia/cublas/lib"
-        "$ORIGIN/../../nvidia/curand/lib"
-        "$ORIGIN/../../nvidia/cusolver/lib"
-        "$ORIGIN/../../nvidia/cusparse/lib"
-        "$ORIGIN/../../nvidia/nvjitlink/lib"
-    )
-  endif()
-
-  if(USE_NCCL_RUNTIME_WHEEL)
-    list(APPEND rpaths "$ORIGIN/../../nvidia/nccl/lib")
-  endif()
-else()
-  set(rpaths
-      "$ORIGIN/../../../../" # Assumes the following conda structure:
-                             # $ORIGIN=$CONDA_PREFIX/lib/site-packages/libcuvs/lib/
-      "/opt/rocm/lib/llvm/lib/" # Assumes ROCm is installed in /opt/rocm. This is for libomp.so
-  )
-endif()
+set(rpaths
+    "$ORIGIN/../../../../" # Assumes the following conda structure:
+                           # $ORIGIN=$CONDA_PREFIX/lib/site-packages/libcuvs/lib/
+    "/opt/rocm/lib/llvm/lib/" # Assumes ROCm is installed in /opt/rocm. This is for libomp.so
+)
 
 set_property(
   TARGET cuvs
