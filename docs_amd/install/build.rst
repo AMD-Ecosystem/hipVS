@@ -53,15 +53,15 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
    * - `ninja <https://ninja-build.org/>`_
      - ≥ 1.11.1
    * - `hipsolver <https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - `hipblas <https://rocm.docs.amd.com/projects/hipBLAS/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - `hipblaslt <https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - `hiprand <https://rocm.docs.amd.com/projects/hipRAND/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - `hipsparse <https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - `libblas-dev <https://www.netlib.org/lapack/>`_
      - Tested with 3.12.0
    * - `liblapack-dev <https://www.netlib.org/lapack/>`_
@@ -79,15 +79,15 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
    * - **\*** `hipRAFT <https://github.com/ROCm-DS/hipRAFT>`_
      - 1.0.0
    * - **\*** `hipCUB <https://github.com/ROCm/hipCUB>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - **\*** `rocThrust <https://github.com/ROCm/rocThrust>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - **\*\*** `OpenMP <https://www.openmp.org/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - **Optional Dependencies**
      -
    * - `RCCL <https://github.com/ROCm/rccl>`_
-     - Version that comes bundled with ROCm ≥ 7.2.0
+     - Version that comes bundled with ROCm ≥ 7.2.3
    * - `UCX <https://github.com/openucx/ucx>`_
      - ≥ 1.18.0
    * - `Googletest <https://github.com/google/googletest>`_
