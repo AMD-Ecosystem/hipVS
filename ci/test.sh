@@ -45,6 +45,11 @@ if ! activate_hipvs_conda_env; then
     activate_hipvs_venv
 fi
 
+# TheRock-based ROCm installs hipBLASLt's Tensile kernels under a per-arch
+# subdir; point the runtime at them so hipBLASLt matmuls don't abort. No-op on
+# standard ROCm layouts and when HIPBLASLT_TENSILE_LIBPATH is already set.
+setup_hipblaslt_tensile_libpath
+
 exit_code=0
 
 if [[ "${HIPVS_CPP_TESTS:-false}" == "true" ]]; then
