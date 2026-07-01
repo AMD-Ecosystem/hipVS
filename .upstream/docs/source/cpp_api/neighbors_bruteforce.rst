@@ -19,8 +19,6 @@ Index
     :members:
     :content-only:
 
-.. _neighbors-bruteforce-index-build:
-
 Index build
 -----------
 
@@ -28,8 +26,6 @@ Index build
     :project: cuvs
     :members:
     :content-only:
-
-.. _neighbors-bruteforce-index-search:
 
 Index search
 ------------

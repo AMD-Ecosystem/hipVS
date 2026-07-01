@@ -1,7 +1,7 @@
 ..
     MIT License
 
-    Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+    Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -32,12 +32,12 @@ Nearest Neighbors
    :maxdepth: 2
    :caption: Contents:
 
+   neighbors_all_neighbors.rst
    neighbors_brute_force.rst
    neighbors_cagra.rst
    neighbors_hnsw.rst
    neighbors_ivf_flat.rst
    neighbors_ivf_pq.rst
-   neighbors_nn_decent.rst
-   neighbors_all_neighbors.rst
    neighbors_vamana.rst
    neighbors_multi_gpu.rst
+   neighbors_nn_decent.rst

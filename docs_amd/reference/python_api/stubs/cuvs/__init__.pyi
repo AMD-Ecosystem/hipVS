@@ -24,4 +24,4 @@ from __future__ import annotations
 from . import _version
 __all__: list[str] = list()
 __git_commit__: str = ''
-__version__: str = '01.00.00'
+__version__: str = '02.00.00'

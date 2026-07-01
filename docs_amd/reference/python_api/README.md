@@ -22,17 +22,12 @@
     SOFTWARE.
 -->
 
+To regenerate the stubs, run the script from a Python environment with
+`cuvs` and `pybind11-stubgen` installed:
+
 ```bash
-pybind11-stubgen --ignore-all-errors cuvs.distance
-pybind11-stubgen --ignore-all-errors cuvs
-pybind11-stubgen --ignore-all-errors cuvs.neighbors
-pybind11-stubgen --ignore-all-errors cuvs.neighbors.hnsw
-pybind11-stubgen --ignore-all-errors cuvs.preprocessing.quantize
-pybind11-stubgen --ignore-all-errors cuvs.cluster
-pybind11-stubgen --ignore-all-errors cuvs.neighbors.all_neighbors
-pybind11-stubgen --ignore-all-errors cuvs.neighbors.mg
-pybind11-stubgen --ignore-all-errors cuvs.neighbors.mg.cagra
-pybind11-stubgen --ignore-all-errors cuvs.neighbors.mg.ivf_flat
-pybind11-stubgen --ignore-all-errors cuvs.neighbors.mg.ivf_pq
-pybind11-stubgen --ignore-all-errors cuvs.neighbors.vamana
+./generate_stubs.sh
 ```
+
+The script automatically discovers all `cuvs` submodules via
+`pkgutil.walk_packages` and runs `pybind11-stubgen` on each one.

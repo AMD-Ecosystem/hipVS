@@ -99,3 +99,4 @@ doxygen_project = {
 }
 
 html_extra_path = ["reference/rust_api"]
+external_projects_remote_repository = ""

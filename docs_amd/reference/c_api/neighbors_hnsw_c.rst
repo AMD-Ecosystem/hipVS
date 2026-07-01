@@ -24,14 +24,14 @@
 HNSW
 ====
 
-This is a wrapper for hnswlib, to load a CAGRA index as an immutable HNSW index. The loaded HNSW index is only compatible in cuVS, and can be searched using wrapper functions.
+This is a wrapper for hnswlib, to load a CAGRA index as an immutable HNSW index. The loaded HNSW index is only compatible in hipVS, and can be searched using wrapper functions.
 
 
 .. role:: py(code)
    :language: c
    :class: highlight
 
-``#include <raft/neighbors/hnsw.h>``
+``#include <cuvs/neighbors/hnsw.h>``
 
 Index search parameters
 -----------------------

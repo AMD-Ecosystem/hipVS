@@ -40,6 +40,8 @@ namespace *cuvs::preprocessing::quantize::scalar*
 
 .. doxygengroup:: scalar
    :project: cuvs
+   :members:
+   :content-only:
 
 Binary
 ------
@@ -50,3 +52,17 @@ namespace *cuvs::preprocessing::quantize::binary*
 
 .. doxygengroup:: binary
    :project: cuvs
+   :members:
+   :content-only:
+
+Product
+-------
+
+``#include <cuvs/preprocessing/quantize/pq.hpp>``
+
+namespace *cuvs::preprocessing::quantize::pq*
+
+.. doxygengroup:: pq
+   :project: cuvs
+   :members:
+   :content-only:

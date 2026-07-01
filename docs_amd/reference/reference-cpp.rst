@@ -35,7 +35,6 @@ hipVS C++ API documentation
    :maxdepth: 4
 
    cpp_api/cluster.rst
-   cpp_api/core_interop.rst
    cpp_api/distance.rst
    cpp_api/neighbors.rst
    cpp_api/preprocessing.rst

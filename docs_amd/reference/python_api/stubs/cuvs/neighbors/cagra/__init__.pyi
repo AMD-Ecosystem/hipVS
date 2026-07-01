@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from __future__ import annotations
+from cuvs.neighbors.cagra.cagra import AceParams
 from cuvs.neighbors.cagra.cagra import CompressionParams
 from cuvs.neighbors.cagra.cagra import ExtendParams
 from cuvs.neighbors.cagra.cagra import Index
@@ -33,4 +34,4 @@ from cuvs.neighbors.cagra.cagra import load
 from cuvs.neighbors.cagra.cagra import save
 from cuvs.neighbors.cagra.cagra import search
 from . import cagra
-__all__: list = ['CompressionParams', 'ExtendParams', 'Index', 'IndexParams', 'SearchParams', 'build', 'extend', 'from_graph', 'load', 'save', 'search']
+__all__: list = ['AceParams', 'CompressionParams', 'ExtendParams', 'Index', 'IndexParams', 'SearchParams', 'build', 'extend', 'from_graph', 'load', 'save', 'search']

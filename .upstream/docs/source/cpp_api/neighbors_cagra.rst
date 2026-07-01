@@ -43,8 +43,6 @@ Index
     :members:
     :content-only:
 
-.. _neighbors-cagra-index-build:
-
 Index build
 -----------
 
@@ -52,8 +50,6 @@ Index build
     :project: cuvs
     :members:
     :content-only:
-
-.. _neighbors-cagra-index-search:
 
 Index search
 ------------

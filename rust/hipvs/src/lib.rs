@@ -21,7 +21,7 @@
  * THE SOFTWARE.
  */
 
-//! cuVS: Rust bindings for Vector Search on the GPU
+//! hipVS: Rust bindings for Vector Search on the GPU
 //!
 //! This crate provides Rust bindings for cuVS, allowing you to run
 //! approximate nearest neighbors search on the GPU.

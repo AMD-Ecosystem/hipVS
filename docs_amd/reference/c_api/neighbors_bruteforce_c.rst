@@ -30,7 +30,7 @@ The bruteforce method is running the KNN algorithm. It performs an extensive sea
    :language: c
    :class: highlight
 
-``#include <raft/neighbors/bruteforce.h>``
+``#include <cuvs/neighbors/brute_force.h>``
 
 Index
 -----

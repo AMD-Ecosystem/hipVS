@@ -43,8 +43,6 @@ Index build
     :members:
     :content-only:
 
-.. _neighbors-ivf-flat-index-extend:
-
 Index extend
 ------------
 

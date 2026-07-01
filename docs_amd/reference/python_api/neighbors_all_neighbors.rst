@@ -21,17 +21,17 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 
-All-neighbors KNN
-=================
+All-Neighbors
+=============
 
 .. role:: py(code)
    :language: python
    :class: highlight
 
-All-neighbors allows building an approximate all-neighbors knn graph. Given a full dataset, it finds nearest neighbors for all the training vectors in the dataset.
+All-Neighbors allows building an approximate all-neighbors knn graph. Given a full dataset, it finds nearest neighbors for all the training vectors in the dataset.
 
-Parameters
-##########
+Build Parameters
+################
 
 .. autoapiclass:: cuvs.neighbors.all_neighbors.AllNeighborsParams
     :members:

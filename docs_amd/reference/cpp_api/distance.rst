@@ -24,7 +24,7 @@
 Distance
 ========
 
-This page provides C++ class references for the publicly-exposed elements of the `cuvs/distance` package. cuVS's
+This page provides C++ class references for the publicly-exposed elements of the `cuvs/distance` package. hipVS's
 distances have been highly optimized and support a wide assortment of different distance measures.
 
 .. role:: py(code)
