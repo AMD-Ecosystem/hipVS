@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -330,7 +330,10 @@ class RandomBruteForceKNNTest : public ::testing::TestWithParam<RandomKNNInputs>
 
         int64_t c_index = trans_c ? i * params_.num_db_vecs + j : j * params_.num_queries + i;
 
-        h_vals[c_index] = alpha * sum + beta * h_vals[c_index];
+        // Guard against 0 * NaN/Inf: when beta == 0 the h_vals term is meant to
+        // drop out entirely, but h_vals is read from the uninitialized
+        // temp_distances buffer, so a leftover NaN/Inf would poison the result.
+        h_vals[c_index] = beta == DistT(0) ? alpha * sum : alpha * sum + beta * h_vals[c_index];
         if (params_.metric == cuvs::distance::DistanceType::L2Expanded) {
           h_vals[c_index] = DistT(-2.0) * h_vals[c_index] + norms_A + norms_B;
         } else if (params_.metric == cuvs::distance::DistanceType::L2SqrtExpanded) {
@@ -358,6 +361,11 @@ class RandomBruteForceKNNTest : public ::testing::TestWithParam<RandomKNNInputs>
 
     auto temp_dist = temp_distances.data();
     rmm::device_uvector<DistT> temp_row_major_dist(num_db_vecs * num_queries, stream_);
+
+    // temp_distances is uninitialized pool memory; zero it so a stale NaN/Inf
+    // bit pattern can't leak into the reference distances via cpu_distance.
+    RAFT_CUDA_TRY(
+      cudaMemsetAsync(temp_distances.data(), 0, temp_distances.size() * sizeof(DistT), stream_));
 
     // For the complex post processes in these algorithms, we use CPU logic to make the baseline.
     if (metric == cuvs::distance::DistanceType::L2Expanded ||
