@@ -1649,6 +1649,14 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
   graph_.init_random_graph();
   graph_.sample_graph(true);
 
+  // Number of consecutive below-threshold iterations observed so far. The
+  // convergence check (below) only terminates once this reaches
+  // required_low_update_iterations. update_and_sample runs on a worker thread
+  // that is joined before the next iteration starts, so this is only ever
+  // touched by a single thread at a time (join() establishes the happens-before
+  // ordering between iterations) and needs no synchronization.
+  size_t low_update_streak = 0;
+
   auto update_and_sample = [&](bool update_graph, size_t iteration) {
     if (update_graph) {
       update_counter_ = 0;
@@ -1656,16 +1664,27 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
                           dists_host_buffer_.data_handle(),
                           get_degree_on_device(res),
                           update_counter_);
-      // Only check termination after a minimum number of iterations.
-      // On wf32 the first few iterations produce sparse updates that can
-      // miss all sampled rows (counter_interval=100), triggering a false
-      // early termination before the graph has had a chance to converge.
+      // The convergence check samples only every counter_interval-th row
+      // (~nrow / counter_interval rows), so a single iteration's update count is
+      // a noisy estimate of true convergence. On wf32 the per-iteration updates
+      // are sparse enough that a still-unconverged graph can momentarily
+      // register zero updates across all sampled rows; terminating on that lone
+      // noisy iteration leaves the graph near its random initialization and
+      // collapses recall. Guard against this two ways:
+      //   1. Do not consider termination until a minimum number of iterations.
+      //   2. Require the below-threshold condition to hold for several
+      //      consecutive iterations (debounce) before actually terminating, so a
+      //      single noisy iteration cannot end the build early.
       constexpr size_t min_iterations_before_termination = 5;
-      if (iteration >= min_iterations_before_termination &&
-          update_counter_ < build_config_.termination_threshold * nrow_ *
-                              build_config_.dataset_dim / counter_interval) {
-        update_counter_ = -1;
+      constexpr size_t required_low_update_iterations    = 3;
+      bool const below_threshold = update_counter_ < build_config_.termination_threshold * nrow_ *
+                                                       build_config_.dataset_dim / counter_interval;
+      if (iteration >= min_iterations_before_termination && below_threshold) {
+        low_update_streak++;
+      } else {
+        low_update_streak = 0;
       }
+      if (low_update_streak >= required_low_update_iterations) { update_counter_ = -1; }
     }
     graph_.sample_graph(false);
   };
