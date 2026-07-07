@@ -22,7 +22,7 @@ url = "https://download.pytorch.org/whl/rocm7.2"
 
 [[tool.uv.index]]
 name = "amd-pypi"
-url = "https://pypi.amd.com/rocm-7.2.1/simple/"
+url = "https://pypi.amd.com/rocm-7.2.3/simple/"
 
 [tool.uv.sources]
 torch = { index = "pytorch-rocm" }

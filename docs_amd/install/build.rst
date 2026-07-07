@@ -39,7 +39,7 @@ and AMD GPUs before building and installing hipVS.
 Dependencies
 ============
 
-Install ROCm 7.2.0 or 7.2.1 and verify that the ``rocminfo`` and ``hipcc`` commands are available in your ``PATH``.
+Install ROCm 7.2.3 and verify that the ``rocminfo`` and ``hipcc`` commands are available in your ``PATH``.
 hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
 
 .. list-table::

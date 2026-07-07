@@ -7,7 +7,7 @@ hipVS is AMD's port of NVIDIA's cuVS (CUDA Vector Search) library, enabling appr
 ### Features
 - Upgraded upstream hipVS baseline from 25.02 to 25.10, incorporating new upstream primitives, performance improvements, and API changes
 - Added support for gfx950 AMD GPU architectures
-- ROCm 7.2.1 support
+- ROCm 7.2.3 support
 - Enabled multi-GPU algorithms and RCCL configurations
 - **Composable Kernel (CK) pairwise distance:** CK-accelerated L2, cosine, and inner-product distance kernels on AMD GPUs, supporting both C-order and F-order layouts including gfx950 float column-major paths
 - **Benchmark visualization:** Static site generator for interactive benchmark result comparison
@@ -32,7 +32,7 @@ hipVS is AMD's port of NVIDIA's cuVS (CUDA Vector Search) library, enabling appr
 
 ### Build & Infrastructure
 - Update dependency branch names in versions.json
-- Bump ROCm base version to 7.2.1 in build infrastructure
+- Bump ROCm base version to 7.2.3 in build infrastructure
 
 ### Limitations
 - Multi-Node/ Multi GPU is experimental
