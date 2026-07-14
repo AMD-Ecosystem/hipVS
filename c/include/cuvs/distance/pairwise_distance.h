@@ -33,20 +33,11 @@ extern "C" {
 #endif
 
 /**
-// <<<<<<< OLD CODE from 9610676f4 (4a4ba891a) - COMMENTED OUT
-//  * @defgroup pairwise_distance_c C API for pairwise distance computation
-//  *
-//  */
-//
-// /**
-//  * @ingroup pairwise_distance_c
-// =======
  * @defgroup pairwise_distance_c C pairwise distance
  * @{
  */
 
 /**
-// >>>>>>> END NEW CODE (4a4ba891a)
  * @brief Compute pairwise distances for two matrices
  *
  *

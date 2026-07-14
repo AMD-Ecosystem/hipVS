@@ -44,11 +44,8 @@
 #include <hip/hip_fp16.h>
 #else
 #include <cuda_fp16.h>
-// <<<<<<< OLD CODE from 051c53129 (60df22060) - COMMENTED OUT
-// #endif
-// =======
+#endif
 #include <cuvs/core/export.hpp>
-// >>>>>>> END NEW CODE (60df22060)
 
 namespace CUVS_EXPORT cuvs {
 namespace neighbors {
