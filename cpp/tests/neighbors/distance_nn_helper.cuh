@@ -32,6 +32,7 @@
 #include <cuda/std/limits>
 #ifdef __HIP_PLATFORM_AMD__
 #include <hip/hip_fp16.h>
+#include <cuvs/cuda_runtime.h>
 #else
 #include <cuda_fp16.h>
 #endif
