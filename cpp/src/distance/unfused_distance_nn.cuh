@@ -35,6 +35,8 @@
 #ifdef __HIP_PLATFORM_AMD__
 #include <hipcub/hipcub.hpp>
 namespace cub = hipcub;
+#include <cuvs/cublas_v2.h>
+#include <cuvs/cuda_runtime.h>
 #else
 #include <cub/block/block_reduce.cuh>
 #endif

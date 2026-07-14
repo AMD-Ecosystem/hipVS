@@ -68,6 +68,15 @@ using cudaKernel_t = hipFunction_t;
 using cudaLibrary_t = hipModule_t;
 #endif
 
+// FP16 constants — CUDA defines these in cuda_fp16.h; HIP does not provide
+// equivalents, so define them from the IEEE 754 half-precision bit patterns.
+#ifndef CUDART_MAX_NORMAL_FP16
+#define CUDART_MAX_NORMAL_FP16 __ushort_as_half((unsigned short)0x7BFF)
+#endif
+#ifndef CUDART_MIN_DENORM_FP16
+#define CUDART_MIN_DENORM_FP16 __ushort_as_half((unsigned short)0x0001)
+#endif
+
 // macros, enum constant definitions
 #ifndef cudaDevAttrComputeCapabilityMajor
 #define cudaDevAttrComputeCapabilityMajor hipDeviceAttributeComputeCapabilityMajor

@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2025 Advanced Micro Devices, Inc.
+// Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -98,6 +98,25 @@
 #endif
 #ifndef CUBLAS_STATUS_INVALID_VALUE
 #define CUBLAS_STATUS_INVALID_VALUE HIPBLAS_STATUS_INVALID_VALUE
+#endif
+
+#ifndef CUBLAS_COMPUTE_32F_FAST_TF32
+#define CUBLAS_COMPUTE_32F_FAST_TF32 HIPBLAS_COMPUTE_32F_FAST_TF32
+#endif
+#ifndef CUBLAS_GEMM_DEFAULT
+#define CUBLAS_GEMM_DEFAULT HIPBLAS_GEMM_DEFAULT
+#endif
+#ifndef CUBLAS_STATUS_SUCCESS
+#define CUBLAS_STATUS_SUCCESS HIPBLAS_STATUS_SUCCESS
+#endif
+#ifndef CUBLAS_STATUS_NOT_INITIALIZED
+#define CUBLAS_STATUS_NOT_INITIALIZED HIPBLAS_STATUS_NOT_INITIALIZED
+#endif
+#ifndef CUBLAS_STATUS_MAPPING_ERROR
+#define CUBLAS_STATUS_MAPPING_ERROR HIPBLAS_STATUS_MAPPING_ERROR
+#endif
+#ifndef CUBLAS_STATUS_NOT_SUPPORTED
+#define CUBLAS_STATUS_NOT_SUPPORTED HIPBLAS_STATUS_NOT_SUPPORTED
 #endif
 
 // Functions
@@ -220,4 +239,10 @@
 #endif
 #ifndef cublasStrsm
 #define cublasStrsm hipblasStrsm
+#endif
+#ifndef cublasGemmEx
+#define cublasGemmEx hipblasGemmEx
+#endif
+#ifndef cublasGemmStridedBatchedEx
+#define cublasGemmStridedBatchedEx hipblasGemmStridedBatchedEx
 #endif
