@@ -25,7 +25,9 @@ namespace ivf_sq {
  * @{
  */
 
-constexpr static uint32_t kIndexGroupSize = 32;
+// Use fixed 64 for consistent host/device values across wf32 and wf64 targets
+// This ensures type consistency between host and device code.
+constexpr static uint32_t kIndexGroupSize = 64;
 
 /**
  * @brief IVF-SQ index build parameters.

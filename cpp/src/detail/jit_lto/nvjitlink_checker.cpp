@@ -6,10 +6,24 @@
 #include <cuvs/detail/jit_lto/nvjitlink_checker.hpp>
 
 #include <memory>
-#include <nvJitLink.h>
 #include <string>
 
 #include <raft/core/error.hpp>
+
+#ifdef __HIP_PLATFORM_AMD__
+
+void check_hiprtc_link_result(hiprtcResult result)
+{
+  if (result != HIPRTC_SUCCESS) {
+    std::string error_msg = "hipRTC link error: ";
+    error_msg += hiprtcGetErrorString(result);
+    RAFT_FAIL("AlgorithmPlanner hipRTC error: %s", error_msg.c_str());
+  }
+}
+
+#else
+
+#include <nvJitLink.h>
 
 void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
 {
@@ -25,3 +39,5 @@ void check_nvjitlink_result(nvJitLinkHandle handle, nvJitLinkResult result)
     RAFT_FAIL("AlgorithmPlanner nvJITLink error log: %s", error_msg.c_str());
   }
 }
+
+#endif

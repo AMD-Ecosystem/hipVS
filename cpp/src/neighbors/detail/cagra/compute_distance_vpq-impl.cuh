@@ -23,7 +23,7 @@
 #pragma once
 
 #include "compute_distance_vpq.hpp"
-#include "device_common.hpp"
+#include "device_memory_ops.hpp"
 
 #include <cuvs/distance/distance.hpp>
 #include <raft/util/pow2_utils.cuh>

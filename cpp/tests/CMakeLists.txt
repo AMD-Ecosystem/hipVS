@@ -362,7 +362,7 @@ if(BUILD_MG_ALGOS)
     PATH cluster/kmeans_mg_batched.cu
     GPUS 1
     PERCENT 100
-    ADDITIONAL_DEP NCCL::NCCL
+    ADDITIONAL_DEP roc::rccl
   )
 endif()
 

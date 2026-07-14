@@ -11,9 +11,14 @@
 #include <neighbors/detail/cagra/search_multi_cta_helpers.cuh>
 
 #include <raft/util/integer_utils.hpp>
+#include <raft/util/warp_primitives.cuh>
 
 #include <cstdint>
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_fp16.h>
+#else
 #include <cuda_fp16.h>
+#endif
 #include <type_traits>
 
 #ifdef _CLK_BREAKDOWN
@@ -305,9 +310,10 @@ __device__ void search_kernel_jit(
           is_valid = true;
         }
       }
-      const auto mask = __ballot_sync(0xffffffff, is_valid);
+      const bitmask_type mask = __ballot_sync(raft::LANE_MASK_ALL, is_valid);
       if (is_valid) {
-        const auto j = offset + __popc(mask & ((1 << threadIdx.x) - 1));
+        const auto j =
+          offset + raft::__POPC(mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1));
         if (j < itopk_size) {
           uint32_t k            = j + (itopk_size * (cta_id + (num_cta_per_query * query_id)));
           result_indices_ptr[k] = index & ~index_msb_1_mask;
@@ -321,7 +327,7 @@ __device__ void search_kernel_jit(
           hashmap::remove<INDEX_T>(local_traversed_hashmap_ptr, traversed_hash_bitlen, index);
         }
       }
-      offset += __popc(mask);
+      offset += raft::__POPC(mask);
     }
     // If the number of outputs is insufficient, fill in with invalid results.
     for (uint32_t i = offset + threadIdx.x; i < itopk_size; i += 32) {

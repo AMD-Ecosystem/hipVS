@@ -42,7 +42,11 @@ _RAFT_DEVICE __noinline__ auto setup_workspace_standard_impl(
     const auto smem_ptr_offset =
       reinterpret_cast<uint8_t*>(&(r->args.smem_ws_ptr)) - reinterpret_cast<uint8_t*>(r);
     if (threadIdx.x == uint32_t(smem_ptr_offset / sizeof(word_type))) {
+#ifdef __HIP_PLATFORM_AMD__
+      r->args.smem_ws_ptr = device::flat_to_shared_offset(buf);
+#else
       r->args.smem_ws_ptr = uint32_t(__cvta_generic_to_shared(buf));
+#endif
     }
     __syncthreads();
   }
@@ -97,7 +101,11 @@ _RAFT_DEVICE __noinline__ auto setup_workspace_vpq_impl(
       dst[i] = src[i];
     }
 
+#ifdef __HIP_PLATFORM_AMD__
+    auto codebook_buf = device::flat_to_shared_offset(r + 1);
+#else
     auto codebook_buf = uint32_t(__cvta_generic_to_shared(r + 1));
+#endif
     const auto smem_ptr_offset =
       reinterpret_cast<uint8_t*>(&(r->args.smem_ws_ptr)) - reinterpret_cast<uint8_t*>(r);
     if (threadIdx.x == uint32_t(smem_ptr_offset / sizeof(word_type))) {

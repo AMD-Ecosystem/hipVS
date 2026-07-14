@@ -6,6 +6,115 @@
 
 #include <raft/core/detail/macros.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_fp16.h>
+#include "device_common_hip.hpp"
+
+namespace cuvs::neighbors::cagra::detail::device {
+
+RAFT_DEVICE_INLINE_FUNCTION void lds(float& x, uint32_t addr)
+{
+  x = *shared_offset_to_flat<const float>(addr);
+}
+RAFT_DEVICE_INLINE_FUNCTION void lds(half& x, uint32_t addr)
+{
+  x = *shared_offset_to_flat<const half>(addr);
+}
+RAFT_DEVICE_INLINE_FUNCTION void lds(half2& x, uint32_t addr)
+{
+  x = *shared_offset_to_flat<const half2>(addr);
+}
+RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[1], uint32_t addr)
+{
+  x[0] = *shared_offset_to_flat<const half>(addr);
+}
+RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[2], uint32_t addr)
+{
+  auto* p = shared_offset_to_flat<const half>(addr);
+  x[0]    = p[0];
+  x[1]    = p[1];
+}
+RAFT_DEVICE_INLINE_FUNCTION void lds(half (&x)[4], uint32_t addr)
+{
+  auto* p = shared_offset_to_flat<const half>(addr);
+  x[0]    = p[0];
+  x[1]    = p[1];
+  x[2]    = p[2];
+  x[3]    = p[3];
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void lds(uint8_t& x, uint32_t addr)
+{
+  x = *shared_offset_to_flat<const uint8_t>(addr);
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void lds(uint32_t& x, uint32_t addr)
+{
+  x = *shared_offset_to_flat<const uint32_t>(addr);
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void lds(uint32_t& x, const uint32_t* addr)
+{
+  lds(x, flat_to_shared_offset(addr));
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void lds(uint4& x, uint32_t addr)
+{
+  x = *shared_offset_to_flat<const uint4>(addr);
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void lds(uint4& x, const uint4* addr)
+{
+  lds(x, flat_to_shared_offset(addr));
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void sts(uint32_t addr, const half2& x)
+{
+  *shared_offset_to_flat<half2>(addr) = x;
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint4& x, const uint4* addr) { x = *addr; }
+
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint4& x, const uint4* addr) { x = *addr; }
+
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint32_t& x, const uint32_t* addr) { x = *addr; }
+
+RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint32_t& x, const uint32_t* addr) { x = *addr; }
+
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half& x, const half* addr) { x = *addr; }
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[1], const half* addr) { x[0] = *addr; }
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[2], const half* addr)
+{
+  x[0] = addr[0];
+  x[1] = addr[1];
+}
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[4], const half* addr)
+{
+  x[0] = addr[0];
+  x[1] = addr[1];
+  x[2] = addr[2];
+  x[3] = addr[3];
+}
+
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2& x, const half* addr)
+{
+  x = *reinterpret_cast<const half2*>(addr);
+}
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[1], const half* addr)
+{
+  x[0] = *reinterpret_cast<const half2*>(addr);
+}
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[2], const half* addr)
+{
+  auto* p = reinterpret_cast<const half2*>(addr);
+  x[0]    = p[0];
+  x[1]    = p[1];
+}
+
+}  // namespace cuvs::neighbors::cagra::detail::device
+
+#else  // CUDA path — upstream PTX inline assembly
+
 #include <cuda_fp16.h>
 
 namespace cuvs::neighbors::cagra::detail::device {
@@ -152,3 +261,5 @@ RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[2], const half* addr)
 }
 
 }  // namespace cuvs::neighbors::cagra::detail::device
+
+#endif  // __HIP_PLATFORM_AMD__

@@ -11,7 +11,11 @@ AlgorithmLauncher::AlgorithmLauncher(cudaKernel_t k, cudaLibrary_t lib) : kernel
 
 AlgorithmLauncher::~AlgorithmLauncher()
 {
+#ifdef __HIP_PLATFORM_AMD__
+  if (library != nullptr) { (void)hipModuleUnload(library); }
+#else
   if (library != nullptr) { (void)cudaLibraryUnload(library); }
+#endif
 }
 
 AlgorithmLauncher::AlgorithmLauncher(AlgorithmLauncher&& other) noexcept
@@ -24,7 +28,11 @@ AlgorithmLauncher::AlgorithmLauncher(AlgorithmLauncher&& other) noexcept
 AlgorithmLauncher& AlgorithmLauncher::operator=(AlgorithmLauncher&& other) noexcept
 {
   if (this != &other) {
+#ifdef __HIP_PLATFORM_AMD__
+    if (library != nullptr) { (void)hipModuleUnload(library); }
+#else
     if (library != nullptr) { cudaLibraryUnload(library); }
+#endif
     kernel        = other.kernel;
     library       = other.library;
     other.kernel  = nullptr;
@@ -36,6 +44,19 @@ AlgorithmLauncher& AlgorithmLauncher::operator=(AlgorithmLauncher&& other) noexc
 void AlgorithmLauncher::call(
   cudaStream_t stream, dim3 grid, dim3 block, std::size_t shared_mem, void** kernel_args)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  RAFT_CUDA_TRY(hipModuleLaunchKernel(kernel,
+                                       grid.x,
+                                       grid.y,
+                                       grid.z,
+                                       block.x,
+                                       block.y,
+                                       block.z,
+                                       static_cast<unsigned int>(shared_mem),
+                                       stream,
+                                       kernel_args,
+                                       nullptr));
+#else
   cudaLaunchConfig_t config{};
   config.gridDim          = grid;
   config.blockDim         = block;
@@ -45,11 +66,24 @@ void AlgorithmLauncher::call(
   config.attrs            = NULL;
 
   RAFT_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
+#endif
 }
 
 void AlgorithmLauncher::call_cooperative(
   cudaStream_t stream, dim3 grid, dim3 block, std::size_t shared_mem, void** kernel_args)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  RAFT_CUDA_TRY(hipModuleLaunchCooperativeKernel(kernel,
+                                                  grid.x,
+                                                  grid.y,
+                                                  grid.z,
+                                                  block.x,
+                                                  block.y,
+                                                  block.z,
+                                                  static_cast<unsigned int>(shared_mem),
+                                                  stream,
+                                                  kernel_args));
+#else
   cudaLaunchAttribute attribute[1];
   attribute[0].id              = cudaLaunchAttributeCooperative;
   attribute[0].val.cooperative = 1;
@@ -63,4 +97,5 @@ void AlgorithmLauncher::call_cooperative(
   config.attrs            = attribute;
 
   RAFT_CUDA_TRY(cudaLaunchKernelExC(&config, kernel, kernel_args));
+#endif
 }

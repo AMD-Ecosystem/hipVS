@@ -32,6 +32,7 @@
  */
 #pragma once
 
+
 #include "utils.hpp"
 
 #include <raft/core/copy.cuh>
@@ -61,8 +62,14 @@
 #include <float.h>
 #include <sys/time.h>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_cooperative_groups.h>
+// Use the WAR coming from hipCollections
+#include <hip_extensions/hip_cooperative_groups/hip_cooperative_groups_reduce.hpp>
+#else
 #include <cooperative_groups.h>
 #include <cooperative_groups/reduce.h>
+#endif
 
 #include <climits>
 #include <iostream>

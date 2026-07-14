@@ -8,7 +8,11 @@
 #include <cuvs/neighbors/ivf_flat.hpp>
 #include <raft/core/math.hpp>
 #include <raft/matrix/detail/select_warpsort.cuh>
+#ifdef __HIP_PLATFORM_AMD__
+#include <raft/util/device_loads_stores_hip.cuh>
+#else
 #include <raft/util/device_loads_stores.cuh>
+#endif
 
 namespace cuvs::neighbors::ivf_flat::detail {
 

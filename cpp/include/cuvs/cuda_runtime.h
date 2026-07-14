@@ -22,6 +22,7 @@
 #pragma once
 
 #include <hip/hip_runtime.h>
+#include <type_traits>
 
 // types
 #ifndef cudaDataType_t
@@ -56,6 +57,15 @@
 #endif
 #ifndef cudaStream_t
 #define cudaStream_t hipStream_t
+#endif
+
+// JIT module types — cudaKernel_t / cudaLibrary_t are CUDA 12.x driver-level
+// types that have no direct HIP macro equivalent.  Map them to the hipModule API.
+#ifndef cudaKernel_t
+using cudaKernel_t = hipFunction_t;
+#endif
+#ifndef cudaLibrary_t
+using cudaLibrary_t = hipModule_t;
 #endif
 
 // macros, enum constant definitions
@@ -322,14 +332,50 @@
 #ifndef cudaMemsetAsync
 #define cudaMemsetAsync hipMemsetAsync
 #endif
+// hipOccupancyMaxActiveBlocksPerMultiprocessor takes `const void*` (host function
+// pointer), but JIT-loaded kernels are hipFunction_t (module handle).  Provide a
+// type-safe overload set so callers using either kind compile and route correctly.
 #ifndef cudaOccupancyMaxActiveBlocksPerMultiprocessor
-#define cudaOccupancyMaxActiveBlocksPerMultiprocessor hipOccupancyMaxActiveBlocksPerMultiprocessor
+inline hipError_t cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+  int* numBlocks, hipFunction_t f, int blockSize, size_t dynSharedMemPerBlk)
+{
+  return hipModuleOccupancyMaxActiveBlocksPerMultiprocessor(
+    numBlocks, f, blockSize, dynSharedMemPerBlk);
+}
+template <typename T,
+          typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<T>, hipFunction_t>>>
+inline hipError_t cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+  int* numBlocks, T f, int blockSize, size_t dynSharedMemPerBlk)
+{
+  return hipOccupancyMaxActiveBlocksPerMultiprocessor(numBlocks, f, blockSize, dynSharedMemPerBlk);
+}
 #endif
 #ifndef cudaOccupancyMaxPotentialBlockSize
 #define cudaOccupancyMaxPotentialBlockSize hipOccupancyMaxPotentialBlockSize
 #endif
 #ifndef cudaOccupancyMaxPotentialBlockSizeVariableSMem
 #define cudaOccupancyMaxPotentialBlockSizeVariableSMem hipOccupancyMaxPotentialBlockSizeVariableSMem
+#endif
+// CUDA 12.x kernel attribute APIs.  On AMD, dynamic shared memory limits don't
+// require an opt-in call (full LDS is available by default), so these are no-ops
+// when the kernel handle is a hipFunction_t (module-loaded JIT kernel).
+#ifndef cudaFuncSetAttribute
+inline hipError_t cudaFuncSetAttribute(hipFunction_t, hipFuncAttribute, int)
+{
+  return hipSuccess;
+}
+template <typename T,
+          typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<T>, hipFunction_t>>>
+inline hipError_t cudaFuncSetAttribute(T func, hipFuncAttribute attr, int value)
+{
+  return hipFuncSetAttribute(reinterpret_cast<const void*>(func), attr, value);
+}
+#endif
+#ifndef cudaKernelSetAttributeForDevice
+inline hipError_t cudaKernelSetAttributeForDevice(hipFunction_t, hipFuncAttribute, int, int)
+{
+  return hipSuccess;
+}
 #endif
 #ifndef cudaPeekAtLastError
 #define cudaPeekAtLastError hipPeekAtLastError

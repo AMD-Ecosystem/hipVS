@@ -186,7 +186,7 @@ endif()
 
 if(NOT BUILD_CPU_ONLY)
   # HIP runtime
-  rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+  rapids_hip_init_runtime(USE_STATIC FALSE)
   # * find HIP package
   # * determine GPU architectures
   # * enable the CMake HIP language
@@ -402,11 +402,6 @@ if(NOT BUILD_CPU_ONLY)
     )
   endif()
 
-  set(JIT_LTO_TARGET_ARCHITECTURE "70-real")
-  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
-    set(JIT_LTO_TARGET_ARCHITECTURE "75-real")
-  endif()
-
   # Generate interleaved scan kernel files at build time
   include(cmake/modules/generate_jit_lto_kernels.cmake)
 
@@ -418,14 +413,13 @@ if(NOT BUILD_CPU_ONLY)
   )
   target_compile_options(
     jit_lto_kernel_usage_requirements INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-                                                "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+                                                "$<$<COMPILE_LANGUAGE:HIP>:${CUVS_GPU_FLAGS}>"
   )
-  target_compile_features(jit_lto_kernel_usage_requirements INTERFACE cuda_std_20)
+  target_compile_features(jit_lto_kernel_usage_requirements INTERFACE cxx_std_20)
   target_link_libraries(jit_lto_kernel_usage_requirements INTERFACE rmm::rmm raft::raft CCCL::CCCL)
 
   block(PROPAGATE jit_lto_files)
   set(jit_lto_files)
-  set(CMAKE_CUDA_ARCHITECTURES ${JIT_LTO_TARGET_ARCHITECTURE})
   set(neighbors_ns "cuvs::neighbors::detail")
   generate_jit_lto_kernels(
     jit_lto_files
@@ -1307,6 +1301,8 @@ if(NOT BUILD_CPU_ONLY)
                   $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
     )
 
+    find_package(hiprtc REQUIRED)
+
     target_link_libraries(
       cuvs
       PUBLIC rmm::rmm
@@ -1324,27 +1320,13 @@ if(NOT BUILD_CPU_ONLY)
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
         $<COMPILE_ONLY:cuco::cuco>
-        CUDA::nvJitLink
-        CUDA::nvrtc
+        hiprtc::hiprtc
         rmm::rmm
     )
     if(CUVS_USE_ROCPROFSYS)
       find_package(rocprofiler-systems REQUIRED)
       target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
     endif()
-
-    # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
-    file(
-      WRITE "${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld"
-      [=[
-SECTIONS
-{
-.nvFatBinSegment : { *(.nvFatBinSegment) }
-.nv_fatbin : { *(.nv_fatbin) }
-}
-]=]
-    )
-    target_link_options(cuvs PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
   endif()
 
   if(NOT cuvs_compile_mode STREQUAL "shared_only")
@@ -1388,8 +1370,7 @@ SECTIONS
         $<$<BOOL:${BUILD_CK_BACKEND}>:$<TARGET_NAME_IF_EXISTS:composable_kernel::device_gemm_operations>>
         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-        CUDA::nvJitLink
-        CUDA::nvrtc
+        hiprtc::hiprtc
         $<COMPILE_ONLY:nvidia::cutlass::cutlass>
         $<COMPILE_ONLY:cuco::cuco>
     )

@@ -6,12 +6,16 @@
 #pragma once
 
 #include <cstdint>
+#ifdef __HIP_PLATFORM_AMD__
+#include <cuvs/cuda_runtime.h>
+#else
 #include <driver_types.h>
+#include <vector_types.h>
+#include <cuda_runtime.h>
+#endif
 #include <string>
 #include <unordered_map>
-#include <vector_types.h>
 
-#include <cuda_runtime.h>
 #include <memory>
 
 struct AlgorithmLauncher {

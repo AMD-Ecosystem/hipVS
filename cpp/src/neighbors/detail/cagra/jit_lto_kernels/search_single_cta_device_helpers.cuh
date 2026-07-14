@@ -23,7 +23,7 @@
 #include <type_traits>
 
 #include <cuda/atomic>
-#include <cuda_runtime.h>  // For uint4
+#include <cuvs/cuda_runtime.h>  // For uint4
 
 namespace cuvs::neighbors::cagra::detail::single_cta_search {
 
@@ -120,16 +120,18 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parents(std::uint32_t* const termin
         new_parent = 1;
       }
     }
-    const std::uint32_t ballot_mask = __ballot_sync(0xffffffff, new_parent);
+    const bitmask_type ballot_mask = __ballot_sync(raft::LANE_MASK_ALL, new_parent);
     if (new_parent) {
-      const auto i = __popc(ballot_mask & ((1 << threadIdx.x) - 1)) + num_new_parents;
+      const auto i =
+        raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1)) +
+        num_new_parents;
       if (i < search_width) {
         next_parent_indices[i] = jj;
         // set most significant bit as used node
         internal_topk_indices[jj] |= index_msb_1_mask;
       }
     }
-    num_new_parents += __popc(ballot_mask);
+    num_new_parents += raft::__POPC(ballot_mask);
     if (num_new_parents >= search_width) { break; }
   }
   if (threadIdx.x == 0 && (num_new_parents == 0)) { *terminate_flag = 1; }
@@ -163,7 +165,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
       }
     }
     /* Sort */
-    bitonic::warp_sort<float, IdxT, N>(key, val);
+    bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
     /* Reg -> Temp_itopk */
     for (unsigned i = 0; i < N; i++) {
       unsigned j = (N * lane_id) + i;
@@ -194,7 +196,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
         }
       }
       /* Sort */
-      bitonic::warp_sort<float, IdxT, N>(key, val);
+      bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
       /* Reg -> Temp_candidates */
       for (unsigned i = 0; i < N; i++) {
         unsigned jl = (N * lane_id) + i;
@@ -227,7 +229,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
     if (num_warps_used > 1) { __syncthreads(); }
     if (warp_id < num_warps_used) {
       /* Merge */
-      bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
+      bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       /* Reg -> Temp_itopk */
       for (unsigned i = 0; i < N; i++) {
         unsigned jl = (N * lane_id) + i;
@@ -308,7 +310,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
         }
       }
       /* Warp Sort */
-      bitonic::warp_sort<float, IdxT, N>(key, val);
+      bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
     } else {
       /* Load itopk results */
       for (unsigned i = 0; i < N; i++) {
@@ -334,7 +336,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
       }
     }
     /* Warp Merge */
-    bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
+    bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
     /* Store new itopk results */
     for (unsigned i = 0; i < N; i++) {
       unsigned j = (N * lane_id) + i;
@@ -365,7 +367,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
           }
         }
         /* Warp Sort */
-        bitonic::warp_sort<float, IdxT, N>(key, val);
+        bitonic::warp_sort<float, IdxT, N, raft::warp_size()>(key, val);
         /* Store intermedidate results */
         for (unsigned i = 0; i < N; i++) {
           unsigned j = (N * threadIdx.x) + i;
@@ -389,7 +391,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
           }
         }
         /* Warp Merge */
-        bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
+        bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       }
       __syncthreads();
       /* Store itopk results (sorted) */
@@ -468,7 +470,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
         }
       }
       /* Warp Merge */
-      bitonic::warp_merge<float, IdxT, N>(key, val, raft::warp_size());
+      bitonic::warp_merge<float, IdxT, N, raft::warp_size()>(key, val, raft::warp_size());
       /* Store new itopk results */
       for (unsigned i = 0; i < N; i++) {
         const unsigned j = (N * lane_id) + i;

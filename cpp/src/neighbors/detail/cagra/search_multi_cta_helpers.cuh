@@ -9,6 +9,7 @@
 #include <neighbors/detail/cagra/hashmap.hpp>
 #include <neighbors/detail/cagra/utils.hpp>
 #include <raft/core/operators.hpp>
+#include <raft/util/warp_primitives.cuh>
 
 namespace cuvs::neighbors::cagra::detail::multi_cta_search {
 
@@ -41,9 +42,10 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parent(
       is_candidate = 1;
     }
 
-    const auto ballot_mask  = __ballot_sync(0xffffffff, is_candidate);
-    const auto candidate_id = __popc(ballot_mask & ((1 << threadIdx.x) - 1));
-    for (int k = 0; k < __popc(ballot_mask); k++) {
+    const bitmask_type ballot_mask = __ballot_sync(raft::LANE_MASK_ALL, is_candidate);
+    const auto candidate_id =
+      raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1));
+    for (int k = 0; k < raft::__POPC(ballot_mask); k++) {
       int flag_done = 0;
       if (is_candidate && candidate_id == k) {
         is_candidate = 0;
@@ -69,10 +71,10 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parent(
           is_invalid         = 1;
         }
       }
-      if (__any_sync(0xffffffff, (flag_done > 0))) { return; }
+      if (__any_sync(raft::LANE_MASK_ALL, (flag_done > 0))) { return; }
     }
     if (i < itopk_size) {
-      j = 31 - __clz(__ballot_sync(0xffffffff, is_invalid));
+      j = raft::warp_highest_active_lane(is_invalid);
       if (j < 0) { return; }
     }
   }
@@ -100,7 +102,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort(float* distances,  // [num
     }
   }
   /* Warp Sort */
-  bitonic::warp_sort<float, INDEX_T, N>(key, val);
+  bitonic::warp_sort<float, INDEX_T, N, raft::warp_size()>(key, val);
   /* Store sorted results */
   for (unsigned i = 0; i < N; i++) {
     unsigned j = (N * lane_id) + i;

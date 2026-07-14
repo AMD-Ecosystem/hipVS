@@ -17,7 +17,12 @@
 #include <raft/util/integer_utils.hpp>  // For raft::round_up_safe
 #include <raft/util/pow2_utils.cuh>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hipcub/hipcub.hpp>
+namespace cub = hipcub;
+#else
 #include <cub/warp/warp_scan.cuh>
+#endif
 
 #include <cuda/atomic>
 #include <cuda/std/atomic>

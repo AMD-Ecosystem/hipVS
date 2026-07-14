@@ -108,8 +108,16 @@ __device__ __forceinline__ void ivf_sq_scan_impl(const uint8_t* const* data_ptrs
                                                  int64_t bitset_len,
                                                  int64_t original_nbits)
 {
+#ifdef __HIP_PLATFORM_AMD__
+  // On AMD, raft::WarpSize is a device constexpr (64 on CDNA); kIndexGroupSize
+  // is set to 64 to match.  RDNA (wave32) would need runtime dispatch — see
+  // hip-warp-size-host-device memory note.
+  static_assert(kIndexGroupSize == 64,
+                "AMD IVF-SQ requires kIndexGroupSize == 64 (CDNA wavefront)");
+#else
   static_assert(kIndexGroupSize == raft::WarpSize,
                 "Warp-coalesced scan requires kIndexGroupSize == WarpSize");
+#endif
 
   constexpr int BlockDim          = kSqScanThreads;
   constexpr bool kManageLocalTopK = (Capacity > 0);

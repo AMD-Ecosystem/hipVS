@@ -15,8 +15,14 @@
 #include <cuvs/detail/jit_lto/AlgorithmPlanner.hpp>
 #include <cuvs/detail/jit_lto/nvjitlink_checker.hpp>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <cstring>
+#include <cuvs/cuda_runtime.h>
+#include <hip/hiprtc.h>
+#else
 #include "cuda_runtime.h"
 #include "nvJitLink.h"
+#endif
 
 #include <raft/core/logger.hpp>
 #include <raft/util/cuda_rt_essentials.hpp>
@@ -62,6 +68,59 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::get_launcher()
 
 std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
 {
+#ifdef __HIP_PLATFORM_AMD__
+  int device = 0;
+  RAFT_CUDA_TRY(cudaGetDevice(&device));
+
+  hipDeviceProp_t prop{};
+  RAFT_CUDA_TRY(cudaGetDeviceProperties(&prop, device));
+
+  std::string gcn_arch(prop.gcnArchName);
+  auto colon_pos = gcn_arch.find(':');
+  if (colon_pos != std::string::npos) { gcn_arch = gcn_arch.substr(0, colon_pos); }
+
+  std::string arch_opt = "--offload-arch=" + gcn_arch;
+
+  std::vector<const char*> ir_opts;
+  ir_opts.push_back(arch_opt.c_str());
+  for (auto const& opt : linktime_extra_options) {
+    ir_opts.push_back(opt.c_str());
+  }
+
+  size_t ir_opt_count                 = ir_opts.size();
+  hiprtcJIT_option options[]          = {hipJitOptionIRtoISAOptExt, hipJitOptionIRtoISAOptCountExt};
+  void* option_values[]               = {static_cast<void*>(ir_opts.data()),
+                                         reinterpret_cast<void*>(ir_opt_count)};
+
+  hiprtcLinkState link_state;
+  auto result = hiprtcLinkCreate(2, options, option_values, &link_state);
+  check_hiprtc_link_result(result);
+
+  for (const auto& frag : this->fragments) {
+    frag->add_to(link_state);
+  }
+
+  void* bin_out   = nullptr;
+  size_t bin_size = 0;
+  result          = hiprtcLinkComplete(link_state, &bin_out, &bin_size);
+  check_hiprtc_link_result(result);
+
+  // bin_out is only valid until hiprtcLinkDestroy — copy it
+  std::vector<char> code_object(static_cast<char*>(bin_out),
+                                static_cast<char*>(bin_out) + bin_size);
+
+  result = hiprtcLinkDestroy(link_state);
+  RAFT_EXPECTS(result == HIPRTC_SUCCESS, "hiprtcLinkDestroy failed");
+
+  cudaLibrary_t library;
+  RAFT_CUDA_TRY(hipModuleLoadData(&library, code_object.data()));
+
+  cudaKernel_t kernel;
+  RAFT_CUDA_TRY(hipModuleGetFunction(&kernel, library, this->entrypoint.c_str()));
+
+  return std::make_shared<AlgorithmLauncher>(kernel, library);
+
+#else
   int device = 0;
   int major  = 0;
   int minor  = 0;
@@ -113,4 +172,5 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   RAFT_CUDA_TRY(cudaLibraryGetKernel(&kernel, library, this->entrypoint.c_str()));
 
   return std::make_shared<AlgorithmLauncher>(kernel, library);
+#endif
 }

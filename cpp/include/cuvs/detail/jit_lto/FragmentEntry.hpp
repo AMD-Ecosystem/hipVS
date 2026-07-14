@@ -11,14 +11,22 @@
 #include <typeinfo>
 #include <vector>
 
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hiprtc.h>
+#else
 #include <nvJitLink.h>
+#endif
 
 #include "nvjitlink_checker.hpp"
 
 struct FragmentEntry {
   virtual ~FragmentEntry() = default;
 
+#ifdef __HIP_PLATFORM_AMD__
+  virtual bool add_to(hiprtcLinkState state) const = 0;
+#else
   virtual bool add_to(nvJitLinkHandle& handle) const = 0;
+#endif
 
   virtual const char* get_key() const = 0;
 };
@@ -28,7 +36,13 @@ struct FatbinFragmentEntry : FragmentEntry {
 
   virtual size_t get_length() const = 0;
 
+#ifdef __HIP_PLATFORM_AMD__
+  virtual hiprtcJITInputType get_input_type() const { return HIPRTC_JIT_INPUT_LLVM_BITCODE; }
+
+  bool add_to(hiprtcLinkState state) const override final;
+#else
   bool add_to(nvJitLinkHandle& handle) const override final;
+#endif
 };
 
 template <typename FragmentTag>

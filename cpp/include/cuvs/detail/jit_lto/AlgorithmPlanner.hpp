@@ -45,9 +45,15 @@ struct AlgorithmPlanner {
   }
 
  protected:
+#ifdef __HIP_PLATFORM_AMD__
+  /** Extra link-time option strings passed to hiprtcLink via hipJitOptionIRtoISAOptExt.
+   *  Base build() always passes "--offload-arch=gfxXXX" first; derived planners may
+   *  append here in their constructor body. */
+#else
   /** Extra link-time option strings passed to nvJitLink. Base build()
    *  always passes "-lto" and "-arch=sm_XX" first; derived planners may append here in their
    *  constructor body. */
+#endif
   std::vector<std::string> linktime_extra_options;
 
  private:

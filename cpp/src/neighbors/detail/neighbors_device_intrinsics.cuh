@@ -8,8 +8,11 @@
 #include <raft/core/detail/macros.hpp>
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/warp_primitives.cuh>
-
+#ifdef __HIP_PLATFORM_AMD__
+#include <hip/hip_fp16.h>
+#else
 #include <cuda_fp16.h>
+#endif
 
 #include <cfloat>
 #include <cstdint>

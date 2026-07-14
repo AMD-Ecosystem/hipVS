@@ -1,6 +1,7 @@
 # =============================================================================
 # cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+# Modifications Copyright (c) 2026, Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: Apache-2.0
 # cmake-format: on
 # =============================================================================
@@ -9,6 +10,29 @@ include_guard(GLOBAL)
 
 include(${CMAKE_CURRENT_LIST_DIR}/compute_matrix_product.cmake)
 
+# Write the bin2c-replacement CMake script once at configure time.  Invoked at
+# build time via  cmake -P <script> -DINPUT_FILE=... -DOUTPUT_FILE=...
+# Produces:  static const uint8_t embedded_fatbin[] = { 0xNN, ... };
+set(_bin2c_script "${CMAKE_CURRENT_BINARY_DIR}/_embed_bitcode.cmake")
+file(
+  WRITE "${_bin2c_script}"
+  [=[
+file(READ "${INPUT_FILE}" _hex HEX)
+string(LENGTH "${_hex}" _hex_len)
+set(_c_hex "")
+math(EXPR _last "${_hex_len} - 2")
+if(_last GREATER_EQUAL 0)
+  foreach(_i RANGE 0 ${_last} 2)
+    string(SUBSTRING "${_hex}" ${_i} 2 _byte)
+    string(APPEND _c_hex "0x${_byte},")
+  endforeach()
+endif()
+file(WRITE "${OUTPUT_FILE}"
+  "static const uint8_t embedded_fatbin[] = {\n${_c_hex}\n};\n"
+)
+]=]
+)
+
 function(add_jit_lto_kernel kernel_target)
   set(options)
   set(one_value KERNEL_FILE FATBIN_HEADER_FILE)
@@ -16,28 +40,60 @@ function(add_jit_lto_kernel kernel_target)
 
   cmake_parse_arguments(_JIT_LTO "${options}" "${one_value}" "${multi_value}" ${ARGN})
 
-  add_library(${kernel_target} OBJECT EXCLUDE_FROM_ALL "${_JIT_LTO_KERNEL_FILE}")
-  # Do not modify these properties, options, and libraries. Usage requirements (including CUDA
-  # version, etc.) should be propagated to the kernel targets via INTERFACE libraries passed in
-  # through the LINK_LIBRARIES argument.
-  target_link_libraries(${kernel_target} PRIVATE ${_JIT_LTO_LINK_LIBRARIES})
-  target_compile_options(${kernel_target} PRIVATE -Xfatbin=--compress-all --compress-mode=size)
-  if(_JIT_LTO_EXTRA_COMPILE_OPTIONS)
-    target_compile_options(${kernel_target} PRIVATE ${_JIT_LTO_EXTRA_COMPILE_OPTIONS})
+  set(bc_file "${_JIT_LTO_KERNEL_FILE}.bc")
+
+  # Filter out nvcc-only options that have no AMDGPU equivalent
+  set(_filtered_opts)
+  foreach(_opt IN LISTS _JIT_LTO_EXTRA_COMPILE_OPTIONS)
+    if(NOT _opt MATCHES "^--maxrregcount" AND NOT _opt MATCHES "^-Xfatbin")
+      list(APPEND _filtered_opts "${_opt}")
+    endif()
+  endforeach()
+
+  # Create a helper target to resolve transitive include directories from all
+  # linked dependencies (rmm, raft, CCCL, etc.).  We never build this target;
+  # we only read its INCLUDE_DIRECTORIES property at generation time.
+  if(NOT TARGET _jit_lto_include_resolver)
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/_jit_lto_stub.cpp" "")
+    add_library(_jit_lto_include_resolver OBJECT EXCLUDE_FROM_ALL
+                "${CMAKE_CURRENT_BINARY_DIR}/_jit_lto_stub.cpp")
+    target_link_libraries(_jit_lto_include_resolver PRIVATE jit_lto_kernel_usage_requirements)
   endif()
-  set_target_properties(
-    ${kernel_target}
-    PROPERTIES CUDA_SEPARABLE_COMPILATION ON
-               CUDA_FATBIN_COMPILATION ON
-               POSITION_INDEPENDENT_CODE ON
-               INTERPROCEDURAL_OPTIMIZATION ON
+
+  # Step 1: compile .cu → LLVM bitcode via hipcc
+  add_custom_command(
+    OUTPUT "${bc_file}"
+    COMMAND
+      "${HIPCC}"
+      -x hip
+      -emit-llvm
+      -fgpu-rdc
+      -c
+      --cuda-device-only
+      -include hip/hip_runtime.h
+      -std=c++20
+      -fPIC
+      -D__HIP_PLATFORM_AMD__
+      ${_filtered_opts}
+      "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,INCLUDE_DIRECTORIES>,PREPEND,-I>"
+      "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,COMPILE_DEFINITIONS>,PREPEND,-D>"
+      -o "${bc_file}"
+      "${_JIT_LTO_KERNEL_FILE}"
+    DEPENDS "${_JIT_LTO_KERNEL_FILE}"
+    COMMENT "Compiling JIT bitcode: ${kernel_target}"
+    COMMAND_EXPAND_LISTS
   )
 
+  # Step 2: embed .bc → C header via CMake script
   add_custom_command(
     OUTPUT "${_JIT_LTO_FATBIN_HEADER_FILE}"
-    COMMAND "${bin_to_c}" --const --name embedded_fatbin --static $<TARGET_OBJECTS:${kernel_target}>
-            > "${_JIT_LTO_FATBIN_HEADER_FILE}"
-    DEPENDS $<TARGET_OBJECTS:${kernel_target}> ${kernel_target}
+    COMMAND
+      "${CMAKE_COMMAND}"
+      "-DINPUT_FILE=${bc_file}"
+      "-DOUTPUT_FILE=${_JIT_LTO_FATBIN_HEADER_FILE}"
+      -P "${_bin2c_script}"
+    DEPENDS "${bc_file}"
+    COMMENT "Embedding bitcode: ${kernel_target}"
   )
 endfunction()
 
@@ -92,11 +148,12 @@ function(generate_jit_lto_kernels source_list_var)
 
   cmake_parse_arguments(_JIT_LTO "${options}" "${one_value}" "${multi_value}" ${ARGN})
 
-  find_package(CUDAToolkit REQUIRED)
   find_program(
-    bin_to_c
-    NAMES bin2c
-    PATHS ${CUDAToolkit_BIN_DIR}
+    HIPCC
+    NAMES hipcc
+    PATHS /opt/rocm/bin ENV ROCM_PATH
+    PATH_SUFFIXES bin
+    REQUIRED
   )
 
   if(_JIT_LTO_MATRIX_JSON_FILE)

@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-#include <cuda_runtime.h>
+#include <cuvs/cuda_runtime.h>
 
 namespace cuvs::neighbors::ivf_sq::detail {
 
