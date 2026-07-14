@@ -243,6 +243,7 @@ __device__ __forceinline__ void warp_bitonic_sort(T* element_ptr, const int lane
 constexpr int NUM_SAMPLES = 32;
 // For now, the max. number of samples is 32, so the sample cache size is fixed
 // to 64 (32 * 2).
+constexpr int BLOCK_SIZE                = 512;
 constexpr int MAX_NUM_BI_SAMPLES        = 64;
 constexpr int SKEWED_MAX_NUM_BI_SAMPLES = skew_dim<float>(MAX_NUM_BI_SAMPLES);
 constexpr int WMMA_M                    = 16;
@@ -685,7 +686,9 @@ __launch_bounds__(BLOCK_SIZE)
                          int* locks,
                          DistData_t* l2_norms,
                          cuvs::distance::DistanceType metric,
-                         DistEpilogue_t dist_epilogue)
+                         DistEpilogue_t dist_epilogue,
+                         const size_t batch_offset,
+                         const size_t total_nrow)
 {
 #if (__CUDA_ARCH__ >= 700) || defined(__HIP_PLATFORM_AMD__)
   __shared__ int s_list[MAX_NUM_BI_SAMPLES * 2];
@@ -963,7 +966,9 @@ __launch_bounds__(BLOCK_SIZE)
                          int* locks,
                          DistData_t* l2_norms,
                          cuvs::distance::DistanceType metric,
-                         DistEpilogue_t dist_epilogue)
+                         DistEpilogue_t dist_epilogue,
+                         const size_t batch_offset,
+                         const size_t total_nrow)
 {
 #if (__CUDA_ARCH__ >= 700) || defined(__HIP_PLATFORM_AMD__)
 #ifdef __HIP_PLATFORM_AMD__
@@ -1547,7 +1552,9 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_
                                                                d_locks_.data_handle(),
                                                                l2_norms_.data_handle(),
                                                                build_config_.metric,
-                                                               dist_epilogue);
+                                                               dist_epilogue,
+                                                               size_t{0},
+                                                               static_cast<size_t>(nrow_));
     } else {
       local_join_kernel_wmma<<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
                                                                h_rev_graph_new_.data_handle(),
@@ -1564,7 +1571,9 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_
                                                                d_locks_.data_handle(),
                                                                l2_norms_.data_handle(),
                                                                build_config_.metric,
-                                                               dist_epilogue);
+                                                               dist_epilogue,
+                                                               size_t{0},
+                                                               static_cast<size_t>(nrow_));
     }
     RAFT_CUDA_TRY(cudaPeekAtLastError());
   };
