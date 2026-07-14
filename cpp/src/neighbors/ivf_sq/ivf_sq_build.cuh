@@ -55,6 +55,7 @@
 #include <raft/stats/histogram.cuh>
 #include <raft/util/pow2_utils.cuh>
 #include <raft/util/vectorized.cuh>
+#include <raft/util/warp_primitives.cuh>
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <hipcub/hipcub.hpp>
@@ -250,8 +251,8 @@ __launch_bounds__(BlockSize) RAFT_KERNEL encode_and_fill_kernel(const uint32_t* 
     inlist_id      = atomicAdd(list_sizes_ptr + list_id, 1);
     list_index_ptrs[list_id][inlist_id] = source_ix;
   }
-  list_id   = __shfl_sync(0xFFFFFFFF, list_id, 0);
-  inlist_id = __shfl_sync(0xFFFFFFFF, inlist_id, 0);
+  list_id   = __shfl_sync(static_cast<bitmask_type>(~0ULL), list_id, 0);
+  inlist_id = __shfl_sync(static_cast<bitmask_type>(~0ULL), inlist_id, 0);
 
   using interleaved_group = raft::Pow2<kIndexGroupSize>;
   auto group_offset       = interleaved_group::roundDown(inlist_id);

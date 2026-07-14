@@ -1661,11 +1661,11 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
       if (needs_l2_norms) {
         // Compute l2 norms on the fp32 batches before they're downcast to fp16.
         compute_l2_norms_kernel<<<batch.size(),
-                                  raft::warp_size(),
+                                  raft::host_warp_size(stream),
                                   sizeof(float) *
                                     raft::ceildiv(build_config_.dataset_dim,
-                                                  static_cast<size_t>(raft::warp_size())) *
-                                    raft::warp_size(),
+                                                  static_cast<size_t>(raft::host_warp_size(stream))) *
+                                    raft::host_warp_size(stream),
                                   stream>>>(
           batch.data(), build_config_.dataset_dim, l2_norms_.data_handle() + batch.offset());
         RAFT_CUDA_TRY(cudaPeekAtLastError());
@@ -1691,11 +1691,11 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
 
   if (needs_l2_norms && !downcast_host_data) {
     compute_l2_norms_kernel<<<nrow_,
-                              raft::warp_size(),
+                              raft::host_warp_size(stream),
                               sizeof(input_t) *
                                 raft::ceildiv(build_config_.dataset_dim,
-                                              static_cast<size_t>(raft::warp_size())) *
-                                raft::warp_size(),
+                                              static_cast<size_t>(raft::host_warp_size(stream))) *
+                                raft::host_warp_size(stream),
                               stream>>>(
       static_cast<const input_t*>(d_data_ptr_), build_config_.dataset_dim, l2_norms_.data_handle());
     RAFT_CUDA_TRY(cudaPeekAtLastError());
