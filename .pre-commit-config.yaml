@@ -20,252 +20,17 @@
 exclude: '^(docs_amd/|\.upstream/)'
 
 repos:
-# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
-#       - repo: https://github.com/pre-commit/pre-commit-hooks
-#         rev: v5.0.0
-#         hooks:
-#               - id: check-json
-#                 exclude: ^docs_amd/
-#               - id: trailing-whitespace
-#                 exclude: ^docs_amd/
-#               - id: end-of-file-fixer
-#                 exclude: ^\.upstream/
-#               - id: check-symlinks
-#                 exclude: ^docs_amd/
-#       - repo: https://github.com/PyCQA/isort
-#         rev: 5.12.0
-#         hooks:
-#               - id: isort
-#                 # Use the config file specific to each subproject so that each
-#                 # project can specify its own first/third-party packages.
-#                 args: ["--config-root=python/", "--resolve-all-configs"]
-#                 files: python/.*
-#                 types: [cython]
-#       - repo: https://github.com/astral-sh/ruff-pre-commit
-#         rev: v0.14.3
-#         hooks:
-#               - id: ruff-check
-#                 args: [--fix]
-#               - id: ruff-format
-#       - repo: https://github.com/pre-commit/mirrors-mypy
-#         rev: 'v1.19.1'
-#         hooks:
-#               - id: mypy
-#                 additional_dependencies: [types-cachetools]
-#                 args: ["--config-file=pyproject.toml",
-#                        "python/cuvs/cuvs",
-#                        "cpp/cmake/modules",
-#                        "cpp/tests/python",
-#                        "ci/checks"]
-#                 pass_filenames: false
-#       - repo: https://github.com/PyCQA/pydocstyle
-#         rev: 6.1.1
-#         hooks:
-#               - id: pydocstyle
-#                 # https://github.com/PyCQA/pydocstyle/issues/603
-#                 additional_dependencies: [toml]
-#                 args: ["--config=pyproject.toml"]
-#       - repo: https://github.com/pre-commit/mirrors-clang-format
-#         rev: v20.1.8
-#         hooks:
-#               - id: clang-format
-#                 types_or: [c, c++, cuda]
-#                 args: ["-fallback-style=none", "-style=file", "-i"]
-#       - repo: local
-#         hooks:
-#               - id: check-license-installation
-#                 name: check-license-installation
-#                 entry: bash -c "type license_verificator >/dev/null 2>&1 || echo \"Warning license verificator not installed!\" || true"
-#                 language: system
-#                 verbose: true
-#                 pass_filenames: false
-#               - id: amd-copyright
-#                 name: amd-copyright
-#                 entry: bash -c "(! type license_verificator >/dev/null 2>&1) || license_verificator --pre-commit"
-#                 language: system
-#                 pass_filenames: false
-#                 files: |
-#                   (?x)
-#                       [.](c|cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs)$|
-#                       CMakeLists[.]txt$|
-#                       CMakeLists_standalone[.]txt$|
-#                       meta[.]yaml$
-#                 exclude: |
-#                   (?x)
-#                       docs/source/sphinxext/github_link\.py|
-#                       cpp/cmake/modules/FindAVX\.cmake
-#               - id: no-deprecationwarning
-#                 name: no-deprecationwarning
-#                 description: 'Enforce that DeprecationWarning is not introduced (use FutureWarning instead)'
-#                 entry: '(category=|\s)DeprecationWarning[,)]'
-#                 language: pygrep
-#                 types_or: [python, cython]
-#               - id: cmake-format
-#                 name: cmake-format
-#                 entry: ./cpp/scripts/run-cmake-format.sh cmake-format
-#                 language: python
-#                 types: [cmake]
-#                 exclude: .*/thirdparty/.*|.*FindAVX.cmake.*|^\.upstream/
-#                 # Note that pre-commit autoupdate does not update the versions
-#                 # of dependencies, so we'll have to update this manually.
-#                 additional_dependencies:
-#                   - cmakelang==0.6.13
-#                 verbose: true
-#                 require_serial: true
-#               - id: cmake-lint
-#                 name: cmake-lint
-#                 entry: ./cpp/scripts/run-cmake-format.sh cmake-lint
-#                 language: python
-#                 types: [cmake]
-#                 # Note that pre-commit autoupdate does not update the versions
-#                 # of dependencies, so we'll have to update this manually.
-#                 additional_dependencies:
-#                   - cmakelang==0.6.13
-#                 verbose: true
-#                 require_serial: true
-#                 exclude: .*/thirdparty/.*|^\.upstream/
-#               - id: include-check
-#                 name: include-check
-#                 entry: python ./cpp/scripts/include_checker.py cpp/bench cpp/include cpp/tests
-#                 pass_filenames: false
-#                 language: python
-#                 additional_dependencies: [gitpython]
-#               - id: cargo-fmt
-#                 name: cargo-fmt
-#                 entry: cargo fmt --manifest-path rust/Cargo.toml --all
-#                 pass_filenames: false
-#                 files: rust/.*
-#                 language: rust
-#               - id: clang-format-with-cmake-placeholders
-#                 name: clang-format-with-cmake-placeholders
-#                 entry: python3 ci/checks/clang_format_with_cmake_placeholders.py
-#                 language: python
-#                 additional_dependencies: [clang_format==20.1.8]
-#                 files: |
-#                   (?x)
-#                     [.](cpp|cu|hpp|cuh)[.]in$
-#                 # clang-format struggles with one of the placeholders in register_fatbin.cpp.in, so exclude it
-#                 exclude: |
-#                   (?x)
-#                     ^cpp/cmake/modules/register_fatbin[.]cpp[.]in$
-#       - repo: https://github.com/codespell-project/codespell
-#         rev: v2.4.1
-#         hooks:
-#               - id: codespell
-#                 additional_dependencies: [tomli]
-#                 args: ["--toml", "pyproject.toml"]
-#                 exclude: |
-#                   (?x)
-#                     ^CHANGELOG[.]md$|
-# # <<<<<<< OLD CODE from 2bea0aebe (71d4844a8) - COMMENTED OUT
-# # # <<<<<<< OLD CODE from 513ee4e94 (420e1f4ed) - COMMENTED OUT
-# # #                     ^cpp/cmake/patches/cutlass/build-export[.]patch$|
-# # #                     ^docs_amd/reference/rust_api/rust_html/.
-# # # =======
-# #                     ^cpp/cmake/patches/cutlass/build-export[.]patch$
-# # =======
-#                     ^cpp/cmake/patches/cutlass/build-export[.]patch$|
-#                     ^rust/cuvs-sys/src/bindings[.]rs$
-# # >>>>>>> END NEW CODE (71d4844a8)
-#       - repo: https://github.com/rapidsai/pre-commit-hooks
-#         rev: v1.3.3
-#         hooks:
-#           - id: verify-copyright
-#             name: verify-copyright-cuvs
-#             args: [--fix, --spdx]
-#             files: |
-#               (?x)
-#                 [.](cmake|c|cpp([.]in)?|cu([.]in)?|cuh([.]in)?|h|hpp([.]in)?|sh|pxd|py|pyx|rs|java)$|
-#                 CMakeLists[.]txt$|
-#                 CMakeLists_standalone[.]txt$|
-#                 meta[.]yaml$|
-#                 pyproject[.]toml$|
-#                 ^python/cuvs_bench/cuvs_bench/split_groundtruth/split_groundtruth[.]pl$|
-#                 Dockerfile$|
-#                 pom[.]xml$|
-#                 ^java/cuvs-java/src/assembly/native-with-deps[.]xml$|
-#                 ^java/docker-build/build-in-docker$|
-#                 ^java/docker-build/run-in-docker$|
-#                 ^[.]flake8$|
-#                 recipe[.]yaml$|
-#                 ^[.]pre-commit-config[.]yaml$
-#             exclude: |
-#               (?x)^(
-#                 docs/source/sphinxext/github_link[.]py$|
-#                 cpp/cmake/modules/FindAVX[.]cmake$|
-#                 cpp/src/neighbors/detail/faiss_distance_utils[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/gemm[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/epilogue[.]cuh$|
-#                 cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_normvec_smem[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/persistent_gemm[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/epilogue_elementwise[.]cuh$|
-#                 cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_reduced_vec[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$|
-#                 rust/cuvs-sys/src/bindings[.]rs$
-#               )
-#           - id: verify-copyright
-#             name: verify-copyright-scikit-learn
-#             args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
-#             files: |
-#               (?x)^(
-#                 docs/source/sphinxext/github_link[.]py$
-#               )
-#           - id: verify-copyright
-#             name: verify-copyright-cutlass
-#             args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
-#             files: |
-#               (?x)^(
-#                 cpp/src/distance/detail/fused_distance_nn/gemm[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/epilogue[.]cuh$|
-#                 cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_normvec_smem[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/persistent_gemm[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/epilogue_elementwise[.]cuh$|
-#                 cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_reduced_vec[.]h$|
-#                 cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$
-#               )
-#           - id: verify-copyright
-#             name: verify-copyright-faiss
-#             args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND MIT"]
-#             files: |
-#               (?x)^(
-#                 cpp/src/neighbors/detail/faiss_distance_utils[.]h$
-#               )
-#           - id: verify-alpha-spec
-#           - id: verify-codeowners
-#             args: [--fix, --project-prefix=cuvs]
-#           - id: verify-pyproject-license
-#             # ignore the top-level pyproject.toml, which doesn't
-#             # have or need a [project] table
-#             exclude: |
-#               (?x)
-#                 ^pyproject[.]toml$
-#       - repo: https://github.com/rapidsai/dependency-file-generator
-#         rev: v1.20.0
-#         hooks:
-#             - id: rapids-dependency-file-generator
-#               args: ["--clean", "--warn-all", "--strict"]
-# # >>>>>>> END NEW CODE (420e1f4ed)
-#       - repo: https://github.com/shellcheck-py/shellcheck-py
-#         rev: v0.10.0.1
-#         hooks:
-# # <<<<<<< OLD CODE from 3c4aee638 (2c9a86e77) - COMMENTED OUT
-# #               - id: shellcheck
-# # =======
-#           - id: shellcheck
-#       - repo: https://github.com/zizmorcore/zizmor-pre-commit
-#         rev: v1.24.1
-#         hooks:
-#           - id: zizmor
-#
-# # >>>>>>> END NEW CODE (2c9a86e77)
-# =======
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-json
+        exclude: ^docs_amd/
       - id: trailing-whitespace
+        exclude: ^docs_amd/
       - id: end-of-file-fixer
+        exclude: ^\.upstream/
       - id: check-symlinks
+        exclude: ^docs_amd/
   - repo: https://github.com/PyCQA/isort
     rev: 5.12.0
     hooks:
@@ -303,6 +68,27 @@ repos:
         args: ["-fallback-style=none", "-style=file", "-i"]
   - repo: local
     hooks:
+      - id: check-license-installation
+        name: check-license-installation
+        entry: bash -c "type license_verificator >/dev/null 2>&1 || echo \"Warning license verificator not installed!\" || true"
+        language: system
+        verbose: true
+        pass_filenames: false
+      - id: amd-copyright
+        name: amd-copyright
+        entry: bash -c "(! type license_verificator >/dev/null 2>&1) || license_verificator --pre-commit"
+        language: system
+        pass_filenames: false
+        files: |
+          (?x)
+              [.](c|cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs)$|
+              CMakeLists[.]txt$|
+              CMakeLists_standalone[.]txt$|
+              meta[.]yaml$
+        exclude: |
+          (?x)
+              docs/source/sphinxext/github_link\.py|
+              cpp/cmake/modules/FindAVX\.cmake
       - id: no-deprecationwarning
         name: no-deprecationwarning
         description: 'Enforce that DeprecationWarning is not introduced (use FutureWarning instead)'
@@ -314,7 +100,7 @@ repos:
         entry: ./cpp/scripts/run-cmake-format.sh cmake-format
         language: python
         types: [cmake]
-        exclude: .*/thirdparty/.*|.*FindAVX.cmake.*
+        exclude: .*/thirdparty/.*|.*FindAVX.cmake.*|^\.upstream/
         # Note that pre-commit autoupdate does not update the versions
         # of dependencies, so we'll have to update this manually.
         additional_dependencies:
@@ -332,7 +118,7 @@ repos:
           - cmakelang==0.6.13
         verbose: true
         require_serial: true
-        exclude: .*/thirdparty/.*
+        exclude: .*/thirdparty/.*|^\.upstream/
       - id: include-check
         name: include-check
         entry: python ./cpp/scripts/include_checker.py cpp/bench cpp/include cpp/tests
@@ -367,88 +153,8 @@ repos:
           (?x)
             ^CHANGELOG[.]md$|
             ^cpp/cmake/patches/cutlass/build-export[.]patch$|
+            ^docs_amd/reference/rust_api/rust_html/.|
             ^rust/cuvs-sys/src/bindings[.]rs$
-  - repo: https://github.com/rapidsai/pre-commit-hooks
-    rev: v1.3.3
-    hooks:
-      - id: verify-copyright
-        name: verify-copyright-cuvs
-        args: [--fix, --spdx]
-        files: |
-          (?x)
-            [.](cmake|c|cpp([.]in)?|cu([.]in)?|cuh([.]in)?|h|hpp([.]in)?|sh|pxd|py|pyx|rs|java)$|
-            CMakeLists[.]txt$|
-            CMakeLists_standalone[.]txt$|
-            meta[.]yaml$|
-            pyproject[.]toml$|
-            ^python/cuvs_bench/cuvs_bench/split_groundtruth/split_groundtruth[.]pl$|
-            Dockerfile$|
-            pom[.]xml$|
-            ^java/cuvs-java/src/assembly/native-with-deps[.]xml$|
-            ^java/docker-build/build-in-docker$|
-            ^java/docker-build/run-in-docker$|
-            ^[.]flake8$|
-            recipe[.]yaml$|
-            ^[.]pre-commit-config[.]yaml$
-        exclude: |
-          (?x)^(
-            docs/source/sphinxext/github_link[.]py$|
-            cpp/cmake/modules/FindAVX[.]cmake$|
-            cpp/src/neighbors/detail/faiss_distance_utils[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/gemm[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/epilogue[.]cuh$|
-            cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_normvec_smem[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/persistent_gemm[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/epilogue_elementwise[.]cuh$|
-            cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_reduced_vec[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$|
-            rust/cuvs-sys/src/bindings[.]rs$
-          )
-      - id: verify-copyright
-        name: verify-copyright-scikit-learn
-        args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
-        files: |
-          (?x)^(
-            docs/source/sphinxext/github_link[.]py$
-          )
-      - id: verify-copyright
-        name: verify-copyright-cutlass
-        args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND BSD-3-Clause"]
-        files: |
-          (?x)^(
-            cpp/src/distance/detail/fused_distance_nn/gemm[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/epilogue[.]cuh$|
-            cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_normvec_smem[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/persistent_gemm[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/epilogue_elementwise[.]cuh$|
-            cpp/src/distance/detail/fused_distance_nn/predicated_tile_iterator_reduced_vec[.]h$|
-            cpp/src/distance/detail/fused_distance_nn/custom_epilogue_with_broadcast[.]h$
-          )
-      - id: verify-copyright
-        name: verify-copyright-faiss
-        args: [--fix, --spdx, "--spdx-license-identifier=Apache-2.0 AND MIT"]
-        files: |
-          (?x)^(
-            cpp/src/neighbors/detail/faiss_distance_utils[.]h$
-          )
-      - id: verify-alpha-spec
-        args:
-          - --fix
-          - --mode
-          - release
-      - id: verify-codeowners
-        args: [--fix, --project-prefix=cuvs]
-      - id: verify-pyproject-license
-        # ignore the top-level pyproject.toml, which doesn't
-        # have or need a [project] table
-        exclude: |
-          (?x)
-            ^pyproject[.]toml$
-  - repo: https://github.com/rapidsai/dependency-file-generator
-    rev: v1.20.0
-    hooks:
-      - id: rapids-dependency-file-generator
-        args: ["--clean", "--warn-all", "--strict"]
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
     hooks:
@@ -457,6 +163,5 @@ repos:
     rev: v1.24.1
     hooks:
       - id: zizmor
-# >>>>>>> END NEW CODE (e2300e155)
 default_language_version:
   python: python3

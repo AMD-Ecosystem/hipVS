@@ -5,7 +5,7 @@
 # cmake-format: on
 # =============================================================================
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 # associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -56,15 +56,9 @@ if(CUDA_LOG_COMPILE_TIME)
   list(APPEND CUVS_GPU_FLAGS "--time=nvcc_compile_log.csv")
 endif()
 
-# <<<<<<< OLD CODE from d95217d2c (ec88d4e6f) - COMMENTED OUT
-# list(APPEND CUVS_GPU_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
-# =======
-# disable warpspeed scan / workaround for CCCL bug https://github.com/NVIDIA/cccl/issues/8838
 list(APPEND CUVS_CXX_FLAGS "-DCCCL_DISABLE_WARPSPEED_SCAN")
-list(APPEND CUVS_CUDA_FLAGS "-DCCCL_DISABLE_WARPSPEED_SCAN")
-
-list(APPEND CUVS_CUDA_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
-# >>>>>>> END NEW CODE (ec88d4e6f)
+list(APPEND CUVS_GPU_FLAGS "-DCCCL_DISABLE_WARPSPEED_SCAN")
+list(APPEND CUVS_GPU_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
 list(APPEND CUVS_CXX_FLAGS "-DCUDA_API_PER_THREAD_DEFAULT_STREAM")
 list(APPEND CUVS_GPU_FLAGS "-DCUDA_API_PER_THREAD_DEFAULT_STREAM")
 # make sure we produce smallest binary size
