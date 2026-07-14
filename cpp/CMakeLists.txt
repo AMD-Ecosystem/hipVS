@@ -185,15 +185,9 @@ if(CUDA_STATIC_MATH_LIBRARIES)
 endif()
 
 if(NOT BUILD_CPU_ONLY)
-# <<<<<<< OLD CODE from d07a3b6b2 (04f402a00) - COMMENTED OUT
-#   # HIP runtime
-#   rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
-#   # * find HIP package
-# =======
-  # CUDA runtime
-  rapids_cuda_init_runtime(USE_STATIC ON)
-  # * find CUDAToolkit package
-# >>>>>>> END NEW CODE (04f402a00)
+  # HIP runtime
+  rapids_hip_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
+  # * find HIP package
   # * determine GPU architectures
   # * enable the CMake HIP language
   # * set other HIP compilation flags
@@ -375,138 +369,6 @@ if(NOT BUILD_CPU_ONLY)
     "${CMAKE_CURRENT_BINARY_DIR}/src/neighbors/detail/cagra/compute_distance.cu" @ONLY
   )
 
-# <<<<<<< OLD CODE from 60b6ef05c (86bc514df) - COMMENTED OUT
-#   add_library(
-#     cuvs-cagra-search OBJECT
-# # <<<<<<< OLD CODE from 513ee4e94 (420e1f4ed) - COMMENTED OUT
-# #     src/neighbors/cagra_search_float.cu
-# #     src/neighbors/cagra_search_half.cu
-# #     src/neighbors/cagra_search_int8.cu
-# #     src/neighbors/cagra_search_uint8.cu
-# #     src/neighbors/detail/cagra/compute_distance.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_BitwiseHamming_u8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_BitwiseHamming_u8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_BitwiseHamming_u8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_float_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_float_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_float_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_float_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_float_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_float_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_half_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_half_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_half_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_int8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_int8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_int8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_uint8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_uint8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_InnerProduct_uint8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_float_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_float_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_float_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_half_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_half_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_half_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_int8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_int8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_int8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_uint8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_uint8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L1_uint8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_float_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_float_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_float_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_half_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_half_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_half_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_half_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_half_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_half_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_int8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_int8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_int8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_uint8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_uint8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_CosineExpanded_uint8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_int8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_int8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_int8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_uint8_uint32_dim128_t8.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_uint8_uint32_dim256_t16.cu
-# #     src/neighbors/detail/cagra/compute_distance_standard_L2Expanded_uint8_uint32_dim512_t32.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_float_uint32_dim128_t8_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_float_uint32_dim128_t8_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_float_uint32_dim256_t16_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_float_uint32_dim256_t16_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_float_uint32_dim512_t32_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_float_uint32_dim512_t32_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_half_uint32_dim128_t8_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_half_uint32_dim128_t8_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_half_uint32_dim256_t16_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_half_uint32_dim256_t16_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_half_uint32_dim512_t32_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_half_uint32_dim512_t32_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_int8_uint32_dim128_t8_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_int8_uint32_dim128_t8_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_int8_uint32_dim256_t16_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_int8_uint32_dim256_t16_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_int8_uint32_dim512_t32_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_int8_uint32_dim512_t32_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_uint8_uint32_dim128_t8_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_uint8_uint32_dim128_t8_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_uint8_uint32_dim256_t16_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_uint8_uint32_dim256_t16_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_uint8_uint32_dim512_t32_8pq_2subd_half.cu
-# #     src/neighbors/detail/cagra/compute_distance_vpq_L2Expanded_uint8_uint32_dim512_t32_8pq_4subd_half.cu
-# #     src/neighbors/detail/cagra/search_multi_cta_float_uint32.cu
-# #     src/neighbors/detail/cagra/search_multi_cta_half_uint32.cu
-# #     src/neighbors/detail/cagra/search_multi_cta_int8_uint32.cu
-# #     src/neighbors/detail/cagra/search_multi_cta_uint8_uint32.cu
-# #     src/neighbors/detail/cagra/search_single_cta_float_uint32.cu
-# #     src/neighbors/detail/cagra/search_single_cta_half_uint32.cu
-# #     src/neighbors/detail/cagra/search_single_cta_int8_uint32.cu
-# #     src/neighbors/detail/cagra/search_single_cta_uint8_uint32.cu
-# #   )
-# #
-# #   # TODO(AMD/HIP): Use __launch_bounds__ for AMD/HIP devices to cap register usage
-# # =======
-#     ${cagra_search_inst_files}
-#     ${CMAKE_CURRENT_BINARY_DIR}/src/neighbors/detail/cagra/compute_distance.cu
-#     ${cagra_compute_distance_standard_inst_files}
-#     ${cagra_compute_distance_vpq_inst_files}
-#     ${cagra_search_multi_cta_inst_files}
-#     ${cagra_search_single_cta_inst_files}
-#   )
-#
-#   set_source_files_properties(
-#     ${cagra_compute_distance_standard_inst_files} ${cagra_compute_distance_vpq_inst_files}
-#     PROPERTIES COMPILE_FLAGS -maxrregcount=64
-#   )
-# # >>>>>>> END NEW CODE (420e1f4ed)
-#
-#   set_target_properties(
-#     cuvs-cagra-search
-#     PROPERTIES BUILD_RPATH "\$ORIGIN"
-#                CXX_STANDARD 20
-#                CXX_STANDARD_REQUIRED ON
-#                CUDA_STANDARD 20
-#                CUDA_STANDARD_REQUIRED ON
-#                CUDA_SEPARABLE_COMPILATION ON
-#                POSITION_INDEPENDENT_CODE ON
-#   )
-#   target_link_libraries(
-#     cuvs-cagra-search PRIVATE cuvs::cuvs_cpp_headers
-#                               $<TARGET_NAME_IF_EXISTS:nvidia::cutlass::cutlass>
-#   )
-#   target_compile_options(
-#     cuvs-cagra-search
-#     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUVS_CXX_FLAGS}>"
-#             "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
-#   )
-#   target_include_directories(
-#     cuvs-cagra-search PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_BINARY_DIR}/src"
-# =======
   set(cuvs_cagra_search_cuda_inst_files
       ${cagra_search_inst_files}
       ${CMAKE_CURRENT_BINARY_DIR}/src/neighbors/detail/cagra/compute_distance.cu
@@ -514,7 +376,6 @@ if(NOT BUILD_CPU_ONLY)
       ${cagra_compute_distance_vpq_inst_files}
       ${cagra_search_multi_cta_inst_files}
       ${cagra_search_single_cta_inst_files}
-# >>>>>>> END NEW CODE (86bc514df)
   )
 
   if(BUILD_MG_ALGOS)
@@ -1273,19 +1134,8 @@ if(NOT BUILD_CPU_ONLY)
     src/neighbors/brute_force.cu
     src/neighbors/brute_force_serialize.cu
     src/neighbors/cagra.cpp
-# <<<<<<< OLD CODE from 513ee4e94 (420e1f4ed) - COMMENTED OUT
-#     src/neighbors/cagra_build_float.cu
-#     src/neighbors/cagra_build_half.cu
-#     src/neighbors/cagra_build_int8.cu
-#     src/neighbors/cagra_extend_float.cu
-#     src/neighbors/cagra_build_uint8.cu
-#     src/neighbors/cagra_extend_half.cu
-#     src/neighbors/cagra_extend_int8.cu
-#     src/neighbors/cagra_extend_uint8.cu
-# =======
     ${cagra_build_inst_files}
     ${cagra_extend_inst_files}
-# >>>>>>> END NEW CODE (420e1f4ed)
     src/neighbors/cagra_optimize.cu
     ${cagra_serialize_inst_files}
     ${cagra_merge_inst_files}
@@ -1369,16 +1219,9 @@ if(NOT BUILD_CPU_ONLY)
   )
 
   target_compile_definitions(
-# <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
-#     cuvs_objs
-#     PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-#             $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-#             $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
-#             $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
-# =======
     cuvs_objs PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
                       $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-# >>>>>>> END NEW CODE (34192f32e)
+                      $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
   )
 
   target_link_libraries(
@@ -1459,16 +1302,9 @@ if(NOT BUILD_CPU_ONLY)
               "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
     )
     target_compile_definitions(
-# <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
-#       cuvs
-#       PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-#              $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-#              $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
-#              $<$<BOOL:${JIT_LTO_COMPILATION}>:CUVS_ENABLE_JIT_LTO>
-# =======
       cuvs PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
                   $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-# >>>>>>> END NEW CODE (34192f32e)
+                  $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
     )
 
     target_link_libraries(
@@ -1479,55 +1315,23 @@ if(NOT BUILD_CPU_ONLY)
              ${CUVS_CTK_MATH_DEPENDENCIES}
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:roc::rccl>>
              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-# <<<<<<< OLD CODE from 57a8bc7bb (9363fc0a4) - COMMENTED OUT
-#              $<$<BOOL:${CUVS_NVTX}>:roctx64>
-#       PRIVATE
-#         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
-#         # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
-#         # is a no-op on ROCm 7.13+ where it was removed.
-#         $<$<BOOL:${BUILD_CK_BACKEND}>:$<TARGET_NAME_IF_EXISTS:composable_kernel::device_gemm_operations>>
-#         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
-#         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-#         $<COMPILE_ONLY:cuco::cuco>
-#         $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
-#         $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
-# =======
-             $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-# <<<<<<< OLD CODE from e562e5f57 (83506f067) - COMMENTED OUT
-# # <<<<<<< OLD CODE from 978aa6704 (fe2648ed8) - COMMENTED OUT
-# # # <<<<<<< OLD CODE from a87b0107f (34192f32e) - COMMENTED OUT
-# # # # <<<<<<< OLD CODE from a53604ef9 (10b0d1ff4) - COMMENTED OUT
-# # # #       PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-# # # #               $<COMPILE_ONLY:cuco::cuco> $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
-# # # # # >>>>>>> END NEW CODE (9363fc0a4)
-# # # #     )
-# # # #     if(CUVS_USE_ROCPROFSYS)
-# # # #       find_package(rocprofiler-systems REQUIRED)
-# # # #       target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
-# # # #     endif()
-# # # # =======
-# # #       PRIVATE rmm::rmm
-# # #               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# # #               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-# # #               $<COMPILE_ONLY:cuco::cuco>
-# # #               $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
-# # # =======
-# #       PRIVATE rmm::rmm $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-# #               $<COMPILE_ONLY:nvidia::cutlass::cutlass> $<COMPILE_ONLY:cuco::cuco> CUDA::nvJitLink
-# # # >>>>>>> END NEW CODE (34192f32e)
-# # =======
-#       PRIVATE rmm::rmm
-#               $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-#               $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-#               $<COMPILE_ONLY:cuco::cuco>
-#               CUDA::nvJitLink
-#               CUDA::nvrtc
-# # >>>>>>> END NEW CODE (fe2648ed8)
-# =======
-      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX> $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-              $<COMPILE_ONLY:cuco::cuco> CUDA::nvJitLink CUDA::nvrtc
-# >>>>>>> END NEW CODE (83506f067)
+             $<$<BOOL:${CUVS_NVTX}>:roctx64>
+      PRIVATE
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
+        # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
+        # is a no-op on ROCm 7.13+ where it was removed.
+        $<$<BOOL:${BUILD_CK_BACKEND}>:$<TARGET_NAME_IF_EXISTS:composable_kernel::device_gemm_operations>>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
+        $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+        $<COMPILE_ONLY:cuco::cuco>
+        CUDA::nvJitLink
+        CUDA::nvrtc
+        rmm::rmm
     )
+    if(CUVS_USE_ROCPROFSYS)
+      find_package(rocprofiler-systems REQUIRED)
+      target_link_libraries(cuvs PUBLIC rocprofiler-systems::rocprofiler-systems)
+    endif()
 
     # ensure CUDA symbols aren't relocated to the middle of the debug build binaries
     file(
@@ -1541,8 +1345,6 @@ SECTIONS
 ]=]
     )
     target_link_options(cuvs PRIVATE $<HOST_LINK:${CMAKE_CURRENT_BINARY_DIR}/fatbin.ld>)
-
-# >>>>>>> END NEW CODE (10b0d1ff4)
   endif()
 
   if(NOT cuvs_compile_mode STREQUAL "shared_only")
@@ -1576,30 +1378,20 @@ SECTIONS
              raft::raft
              cuvs::cuvs_cpp_headers
              ${CUVS_CTK_MATH_DEPENDENCIES}
-# <<<<<<< OLD CODE from 57a8bc7bb (9363fc0a4) - COMMENTED OUT
-#              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:roc::rccl>>
-#              $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
-#              $<$<BOOL:${CUVS_NVTX}>:roctx64>
-#       PRIVATE
-#         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
-#         # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
-#         # is a no-op on ROCm 7.13+ where it was removed.
-#         $<$<BOOL:${BUILD_CK_BACKEND}>:$<TARGET_NAME_IF_EXISTS:composable_kernel::device_gemm_operations>>
-#         $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
-#         $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-#         $<COMPILE_ONLY:cuco::cuco>
-#         $<$<BOOL:${JIT_LTO_COMPILATION}>:CUDA::nvJitLink>
-#         $<$<BOOL:${JIT_LTO_COMPILATION}>:$<LINK_LIBRARY:WHOLE_ARCHIVE,cuvs::cuvs_jit_lto_kernels>>
-# =======
-             $<TARGET_NAME_IF_EXISTS:NCCL::NCCL> # needs to be public for DT_NEEDED
-             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>> # header only
-      PRIVATE $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
-              CUDA::nvJitLink
-              CUDA::nvrtc
-              $<$<BOOL:${CUVS_NVTX}>:CUDA::nvtx3>
-              $<COMPILE_ONLY:nvidia::cutlass::cutlass>
-              $<COMPILE_ONLY:cuco::cuco>
-# >>>>>>> END NEW CODE (9363fc0a4)
+             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:roc::rccl>>
+             $<BUILD_LOCAL_INTERFACE:$<TARGET_NAME_IF_EXISTS:hnswlib::hnswlib>>
+             $<$<BOOL:${CUVS_NVTX}>:roctx64>
+      PRIVATE
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::device_other_operations>
+        # device_gemm_operations only exists in composable_kernel <= ROCm 7.2.x; guarded so the link
+        # is a no-op on ROCm 7.13+ where it was removed.
+        $<$<BOOL:${BUILD_CK_BACKEND}>:$<TARGET_NAME_IF_EXISTS:composable_kernel::device_gemm_operations>>
+        $<$<BOOL:${BUILD_CK_BACKEND}>:composable_kernel::utility>
+        $<TARGET_NAME_IF_EXISTS:OpenMP::OpenMP_CXX>
+        CUDA::nvJitLink
+        CUDA::nvrtc
+        $<COMPILE_ONLY:nvidia::cutlass::cutlass>
+        $<COMPILE_ONLY:cuco::cuco>
     )
   endif()
 
