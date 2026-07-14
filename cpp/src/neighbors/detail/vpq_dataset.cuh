@@ -505,9 +505,6 @@ void process_and_fill_codes(
       RAFT_FAIL("Invalid pq_bits (%u), the value must be within [4, 16]",
                 static_cast<uint32_t>(pq_bits));
     }
-// <<<<<<< OLD CODE from 69d5941c4 (ace4157ce) - COMMENTED OUT
-//   }();
-// =======
   }(pq_bits);
   bool need_copy_to_device =
     cuvs::spatial::knn::detail::utils::check_pointer_residency(dataset.data_handle()) ==
@@ -544,16 +541,6 @@ void process_and_fill_codes(
     return;
   }
 
-// <<<<<<< OLD CODE from 8bcd03640 (a09e4b5e7) - COMMENTED OUT
-// // >>>>>>> END NEW CODE (ace4157ce)
-//   for (const auto& batch : cuvs::spatial::knn::detail::utils::batch_load_iterator(
-//          dataset.data_handle(),
-//          n_rows,
-//          dim,
-//          max_batch_size,
-//          stream,
-//          rmm::mr::get_current_device_resource_ref())) {
-// =======
   auto _vpq_batches_codes = cuvs::spatial::knn::detail::utils::make_batch_load_iterator<data_t>(
     res,
     dataset.data_handle(),
@@ -563,7 +550,6 @@ void process_and_fill_codes(
     stream,
     rmm::mr::get_current_device_resource_ref());
   for (const auto& batch : _vpq_batches_codes) {
-// >>>>>>> END NEW CODE (a09e4b5e7)
     auto batch_view        = raft::make_device_matrix_view(batch.data(), ix_t(batch.size()), dim);
     auto batch_labels_view = raft::make_device_vector_view<label_t, IdxT>(nullptr, 0);
     if (inline_vq_labels) {
