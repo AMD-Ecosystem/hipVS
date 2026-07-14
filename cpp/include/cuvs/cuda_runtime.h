@@ -22,7 +22,6 @@
 #pragma once
 
 #include <hip/hip_runtime.h>
-#include <type_traits>
 
 // types
 #ifndef cudaDataType_t
@@ -59,6 +58,7 @@
 #define cudaStream_t hipStream_t
 #endif
 
+#ifdef __cplusplus
 // JIT module types — cudaKernel_t / cudaLibrary_t are CUDA 12.x driver-level
 // types that have no direct HIP macro equivalent.  Map them to the hipModule API.
 #ifndef cudaKernel_t
@@ -66,6 +66,7 @@ using cudaKernel_t = hipFunction_t;
 #endif
 #ifndef cudaLibrary_t
 using cudaLibrary_t = hipModule_t;
+#endif
 #endif
 
 // FP16 constants — CUDA defines these in cuda_fp16.h; HIP does not provide
@@ -345,19 +346,7 @@ using cudaLibrary_t = hipModule_t;
 // pointer), but JIT-loaded kernels are hipFunction_t (module handle).  Provide a
 // type-safe overload set so callers using either kind compile and route correctly.
 #ifndef cudaOccupancyMaxActiveBlocksPerMultiprocessor
-inline hipError_t cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-  int* numBlocks, hipFunction_t f, int blockSize, size_t dynSharedMemPerBlk)
-{
-  return hipModuleOccupancyMaxActiveBlocksPerMultiprocessor(
-    numBlocks, f, blockSize, dynSharedMemPerBlk);
-}
-template <typename T,
-          typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<T>, hipFunction_t>>>
-inline hipError_t cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-  int* numBlocks, T f, int blockSize, size_t dynSharedMemPerBlk)
-{
-  return hipOccupancyMaxActiveBlocksPerMultiprocessor(numBlocks, f, blockSize, dynSharedMemPerBlk);
-}
+#define cudaOccupancyMaxActiveBlocksPerMultiprocessor hipOccupancyMaxActiveBlocksPerMultiprocessor
 #endif
 #ifndef cudaOccupancyMaxPotentialBlockSize
 #define cudaOccupancyMaxPotentialBlockSize hipOccupancyMaxPotentialBlockSize
@@ -368,22 +357,31 @@ inline hipError_t cudaOccupancyMaxActiveBlocksPerMultiprocessor(
 // CUDA 12.x kernel attribute APIs.  On AMD, dynamic shared memory limits don't
 // require an opt-in call (full LDS is available by default), so these are no-ops
 // when the kernel handle is a hipFunction_t (module-loaded JIT kernel).
+#ifdef __cplusplus
 #ifndef cudaFuncSetAttribute
 inline hipError_t cudaFuncSetAttribute(hipFunction_t, hipFuncAttribute, int)
 {
   return hipSuccess;
 }
-template <typename T,
-          typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<T>, hipFunction_t>>>
-inline hipError_t cudaFuncSetAttribute(T func, hipFuncAttribute attr, int value)
+inline hipError_t cudaFuncSetAttribute(const void* func, hipFuncAttribute attr, int value)
 {
-  return hipFuncSetAttribute(reinterpret_cast<const void*>(func), attr, value);
+  return hipFuncSetAttribute(func, attr, value);
 }
 #endif
 #ifndef cudaKernelSetAttributeForDevice
 inline hipError_t cudaKernelSetAttributeForDevice(hipFunction_t, hipFuncAttribute, int, int)
 {
   return hipSuccess;
+}
+#endif
+// hipOccupancyMaxActiveBlocksPerMultiprocessor takes const void* (host function
+// pointer).  For JIT-loaded hipFunction_t, route to the hipModule variant.
+// Declared after the macro so the name resolves via ADL, not the macro.
+inline hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(
+  int* numBlocks, hipFunction_t f, int blockSize, size_t dynSharedMemPerBlk)
+{
+  return hipModuleOccupancyMaxActiveBlocksPerMultiprocessor(
+    numBlocks, f, blockSize, dynSharedMemPerBlk);
 }
 #endif
 #ifndef cudaPeekAtLastError
