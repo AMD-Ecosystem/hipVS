@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -37,15 +37,7 @@ license = "Apache-2.0 AND MIT"
 requires-python = ">=3.11"
 dependencies = [
     "click",
-# <<<<<<< OLD CODE from 705faaf66 (e2300e155) - COMMENTED OUT
-# # <<<<<<< OLD CODE from 643ea2d63 (84b92c31c) - COMMENTED OUT
-# #     "amd-hipvs",
-# # =======
-#     "cuvs==26.6.*,>=0.0.0a0",
-# # >>>>>>> END NEW CODE (84b92c31c)
-# =======
-    "cuvs==26.6.*",
-# >>>>>>> END NEW CODE (e2300e155)
+    "amd-hipvs",
     "matplotlib>=3.9",
     "pandas",
     "pyyaml",
