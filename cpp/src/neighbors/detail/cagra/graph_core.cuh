@@ -80,6 +80,18 @@ namespace cg = cooperative_groups;
 
 namespace cuvs::neighbors::cagra::detail::graph {
 
+#ifdef __HIP_PLATFORM_AMD__
+template <typename T, unsigned TileSize, typename ParentCGTy>
+__device__ T cg_reduce_min(const cg::thread_block_tile<TileSize, ParentCGTy>& tile, T val)
+{
+  for (unsigned offset = tile.size() / 2; offset > 0; offset /= 2) {
+    T other = tile.shfl_xor(val, offset);
+    if (other < val) { val = other; }
+  }
+  return val;
+}
+#endif
+
 // unnamed namespace to avoid multiple definition error
 namespace {
 inline double cur_time(void)
@@ -341,7 +353,11 @@ __global__ void kern_fused_prune(KnnGraphView knn_graph,        // [graph_chunk_
     }
 
     uint32_t local_min_with_tag = (local_min << 16) | ((uint32_t)local_idx);
+#ifdef __HIP_PLATFORM_AMD__
+    uint32_t warp_min_with_tag  = cg_reduce_min(warp, local_min_with_tag);
+#else
     uint32_t warp_min_with_tag  = cg::reduce(warp, local_min_with_tag, cg::less<uint32_t>());
+#endif
     uint32_t warp_min_count     = warp_min_with_tag >> 16;
     uint32_t warp_local_idx     = warp_min_with_tag & 0xffff;
 
@@ -376,7 +392,11 @@ __device__ unsigned int warp_pos_in_array(T val, const T* array, uint64_t num)
 
   cg::thread_block block         = cg::this_thread_block();
   cg::thread_block_tile<32> warp = cg::tiled_partition<32>(block);
+#ifdef __HIP_PLATFORM_AMD__
+  ret                            = cg_reduce_min(warp, ret);
+#else
   ret                            = cg::reduce(warp, ret, cg::less<unsigned int>());
+#endif
   return ret;
 }
 
