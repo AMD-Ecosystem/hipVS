@@ -474,7 +474,7 @@ void process_and_fill_codes(
   const ix_t threads_per_vec = std::min<ix_t>(warp_size, pq_n_centers);
   dim3 threads(kBlockSize, 1, 1);
   ix_t max_batch_size = std::min<ix_t>(n_rows, kReasonableMaxBatchSize);
-  auto kernel         = [&]() {
+  auto kernel         = [&](uint32_t pq_bits) {
     if (pq_bits <= 8) {  // uint8_t codes
       if (threads_per_vec <= 16) {
         return process_and_fill_codes_kernel<kBlockSize, 16, uint8_t, data_t, MathT, IdxT, label_t>;

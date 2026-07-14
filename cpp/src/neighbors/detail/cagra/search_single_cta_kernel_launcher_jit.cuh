@@ -250,9 +250,9 @@ struct persistent_runner_base_t {
   persistent_runner_base_t(float persistent_lifetime)
     : lifetime(size_t(persistent_lifetime * 1000)), job_queue(), worker_queue()
   {
-    cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
+    RAFT_CUDA_TRY(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   }
-  virtual ~persistent_runner_base_t() noexcept { cudaStreamDestroy(stream); };
+  virtual ~persistent_runner_base_t() noexcept { (void)cudaStreamDestroy(stream); };
 };
 
 struct alignas(kCacheLineBytes) persistent_state {
