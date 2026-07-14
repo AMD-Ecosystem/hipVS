@@ -4,7 +4,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -122,43 +122,11 @@ inline std::enable_if_t<std::is_floating_point_v<MathT>> predict_core(
 
       cuvs::cluster::kmeans::detail::minClusterAndDistanceCompute<MathT, IdxT>(
         handle,
-// <<<<<<< OLD CODE from 9c34494ba (3d0fe8560) - COMMENTED OUT
-//         raft::make_device_matrix_view<const MathT, IdxT, raft::row_major>(centers, n_clusters, dim),
-//         centroidsNorm.view(),
-//         raft::sqrt_op{});
-//
-//       // Fix: Replace zero norms with epsilon to avoid NaN from division by zero in cosine distance.
-//       // Zero-norm centers occur when hierarchical kmeans produces empty clusters.
-//       // Cosine distance = 1 - dot/(norm_x * norm_y) becomes NaN if norm_y = 0.
-//       // By setting zero norms to epsilon, empty clusters get max distance and are never selected.
-//       constexpr MathT epsilon = std::numeric_limits<MathT>::min();
-//       thrust::transform(
-//         raft::resource::get_thrust_policy(handle),
-//         centroidsNorm.data_handle(),
-//         centroidsNorm.data_handle() + n_clusters,
-//         centroidsNorm.data_handle(),
-//         [epsilon] __device__(MathT norm) { return norm == MathT(0) ? epsilon : norm; });
-//
-//       cuvs::distance::fusedDistanceNNMinReduce<MathT, raft::KeyValuePair<IdxT, MathT>, IdxT>(
-//         minClusterAndDistance.data_handle(),
-//         dataset,
-//         centers,
-//         dataset_norm,
-//         centroidsNorm.data_handle(),
-//         n_rows,
-//         n_clusters,
-//         dim,
-//         (void*)workspace.data_handle(),
-//         false,
-//         false,
-//         true,
-// =======
         X_view,
         centroids_view,
         minClusterAndDistance.view(),
         X_norm_view,
         L2NormBuf_OR_DistBuf,
-// >>>>>>> END NEW CODE (3d0fe8560)
         params.metric,
         0,  // batch_samples (unused for fused reduction)
         0,  // batch_centroids (unused for fused reduction)

@@ -698,26 +698,6 @@ struct batch_load_iterator {
         }
       }
     }
-// <<<<<<< OLD CODE from 8bcd03640 (a09e4b5e7) - COMMENTED OUT
-//     rmm::cuda_stream_view stream_;
-//     rmm::device_uvector<T> buf_0_;
-//     rmm::device_uvector<T> buf_1_;
-//     const T* source_;
-//     size_type n_rows_;
-//     size_type row_width_;
-//     size_type batch_size_;
-//     size_type n_iters_;
-//     bool needs_copy_;
-//     bool prefetch_;
-//
-//     std::optional<size_type> pos_;
-//     std::optional<size_type> prefetch_pos_;
-//     size_type batch_len_;
-//     T* dev_ptr_;
-//     T* prefetch_dev_ptr_;
-//     friend struct batch_load_iterator<T>;
-// =======
-// >>>>>>> END NEW CODE (a09e4b5e7)
 
     /**
      * Make this batch represent position `pos`.
