@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 // Device-only includes - no host-side headers
@@ -103,13 +127,15 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parents(std::uint32_t* const termin
 {
   constexpr INDEX_T index_msb_1_mask = utils::gen_index_msb_1_mask<INDEX_T>::value;
 
-  for (std::uint32_t i = threadIdx.x; i < search_width; i += 32) {
+  for (std::uint32_t i = threadIdx.x; i < search_width; i += raft::warp_size()) {
     next_parent_indices[i] = utils::get_max_value<INDEX_T>();
   }
   std::uint32_t itopk_max = internal_topk_size;
-  if (itopk_max % 32) { itopk_max += 32 - (itopk_max % 32); }
+  if (itopk_max % raft::warp_size()) {
+    itopk_max += raft::warp_size() - (itopk_max % raft::warp_size());
+  }
   std::uint32_t num_new_parents = 0;
-  for (std::uint32_t j = threadIdx.x; j < itopk_max; j += 32) {
+  for (std::uint32_t j = threadIdx.x; j < itopk_max; j += raft::warp_size()) {
     std::uint32_t jj = j;
     if (TOPK_BY_BITONIC_SORT) { jj = device::swizzling(j); }
     INDEX_T index;
@@ -623,21 +649,20 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
 }
 
 // This function move the invalid index element to the end of the itopk list.
-// Require : array_length % 32 == 0 && The invalid entry is only one.
+// Require : array_length % raft::warp_size() == 0 && The invalid entry is only one.
 template <class IdxT>
 RAFT_DEVICE_INLINE_FUNCTION void move_invalid_to_end_of_list(IdxT* const index_array,
                                                              float* const distance_array,
                                                              const std::uint32_t array_length)
 {
-  constexpr std::uint32_t warp_size     = 32;
   constexpr std::uint32_t invalid_index = utils::get_max_value<IdxT>();
-  const std::uint32_t lane_id           = threadIdx.x % warp_size;
+  const std::uint32_t lane_id           = threadIdx.x % raft::warp_size();
 
-  if (threadIdx.x >= warp_size) { return; }
+  if (threadIdx.x >= raft::warp_size()) { return; }
 
   bool found_invalid = false;
-  if (array_length % warp_size == 0) {
-    for (std::uint32_t i = lane_id; i < array_length; i += warp_size) {
+  if (array_length % raft::warp_size() == 0) {
+    for (std::uint32_t i = lane_id; i < array_length; i += raft::warp_size()) {
       const auto index    = index_array[i];
       const auto distance = distance_array[i];
 
@@ -645,11 +670,10 @@ RAFT_DEVICE_INLINE_FUNCTION void move_invalid_to_end_of_list(IdxT* const index_a
         index_array[i - 1]    = index;
         distance_array[i - 1] = distance;
       } else {
-        // Check if the index is invalid
         const auto I_found_invalid = (index == invalid_index);
-        const auto who_has_invalid = raft::ballot(I_found_invalid);
-        // if a value that is loaded by a smaller lane id thread, shift the array
-        if (who_has_invalid << (warp_size - lane_id)) {
+        using mask_type = std::conditional_t<raft::warp_size() == 32, uint32_t, uint64_t>;
+        const mask_type who_has_invalid = raft::ballot(I_found_invalid, __activemask());
+        if ((who_has_invalid << (raft::warp_size() - lane_id)) and i > 0) {
           index_array[i - 1]    = index;
           distance_array[i - 1] = distance;
         }

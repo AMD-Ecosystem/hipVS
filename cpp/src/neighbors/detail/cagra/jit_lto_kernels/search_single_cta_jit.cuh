@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 // Device-only helpers - split out to avoid pulling host launcher code into JIT translation units
@@ -113,7 +137,7 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
 
   // Layout of result_buffer
   const auto result_buffer_size    = internal_topk + (search_width * graph_degree);
-  const auto result_buffer_size_32 = raft::round_up_safe<uint32_t>(result_buffer_size, 32);
+  const auto result_buffer_size_32 = raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
   const auto small_hash_size       = hashmap::get_size(small_hash_bitlen);
 
   // Get dim and smem_ws_size directly from base descriptor
@@ -188,19 +212,19 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
       if ((iter + 1) % small_hash_reset_interval == 0) {
         _CLK_START();
         unsigned hash_start_tid;
-        if (blockDim.x == 32) {
+        if (blockDim.x == raft::warp_size()) {
           hash_start_tid = 0;
-        } else if (blockDim.x == 64) {
+        } else if (blockDim.x == 2 * raft::warp_size()) {
           if (bitonic_sort_and_full_multi_warps || BITONIC_SORT_AND_MERGE_MULTI_WARPS) {
             hash_start_tid = 0;
           } else {
-            hash_start_tid = 32;
+            hash_start_tid = raft::warp_size();
           }
         } else {
           if (bitonic_sort_and_full_multi_warps || BITONIC_SORT_AND_MERGE_MULTI_WARPS) {
-            hash_start_tid = 64;
+            hash_start_tid = 2 * raft::warp_size();
           } else {
-            hash_start_tid = 32;
+            hash_start_tid = raft::warp_size();
           }
         }
         hashmap::init(local_visited_hashmap_ptr, hash_bitlen, hash_start_tid);
@@ -259,7 +283,7 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
     if (iter + 1 == max_iteration) { break; }
 
     // pick up next parents
-    if (threadIdx.x < 32) {
+    if (threadIdx.x < raft::warp_size()) {
       _CLK_START();
       pickup_next_parents<TOPK_BY_BITONIC_SORT, IndexT>(
         terminate_flag, parent_list_buffer, result_indices_buffer, internal_topk, search_width);
@@ -268,7 +292,7 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
 
     // restore small-hash table by putting internal-topk indices in it
     if ((iter + 1) % small_hash_reset_interval == 0) {
-      const unsigned first_tid = ((blockDim.x <= 32) ? 0 : 32);
+      const unsigned first_tid = ((blockDim.x <= raft::warp_size()) ? 0 : raft::warp_size());
       _CLK_START();
       hashmap_restore(
         local_visited_hashmap_ptr, hash_bitlen, result_indices_buffer, internal_topk, first_tid);
@@ -340,14 +364,13 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
 
   __syncthreads();
   // Move invalid index items to the end of the buffer without sorting the entire buffer
-  using scan_op_t    = cub::WarpScan<unsigned>;
+  using scan_op_t    = cub::WarpScan<unsigned, raft::warp_size()>;
   auto& temp_storage = *reinterpret_cast<typename scan_op_t::TempStorage*>(smem_work_ptr);
 
-  constexpr std::uint32_t warp_size = 32;
-  if (threadIdx.x < warp_size) {
+  if (threadIdx.x < raft::warp_size()) {
     std::uint32_t num_found_valid = 0;
     for (std::uint32_t buffer_offset = 0; buffer_offset < internal_topk;
-         buffer_offset += warp_size) {
+         buffer_offset += raft::warp_size()) {
       const auto src_position = buffer_offset + threadIdx.x;
       const std::uint32_t is_valid_index =
         (result_indices_buffer[src_position] & (~index_msb_1_mask)) == invalid_index ? 0 : 1;
@@ -360,8 +383,8 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
       }
 
       num_found_valid += new_position;
-      for (std::uint32_t offset = (warp_size >> 1); offset > 0; offset >>= 1) {
-        const auto v = raft::shfl_xor(num_found_valid, offset);
+      for (std::uint32_t offset = (raft::warp_size() >> 1); offset > 0; offset >>= 1) {
+        const auto v = raft::shfl_xor(num_found_valid, offset, raft::warp_size(), __activemask());
         if ((threadIdx.x & offset) == 0) { num_found_valid = v; }
       }
 
@@ -369,7 +392,8 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
     }
 
     if (num_found_valid < top_k) {
-      for (std::uint32_t i = num_found_valid + threadIdx.x; i < internal_topk; i += warp_size) {
+      for (std::uint32_t i = num_found_valid + threadIdx.x; i < internal_topk;
+           i += raft::warp_size()) {
         result_indices_buffer[i]   = invalid_index;
         result_distances_buffer[i] = utils::get_max_value<DistanceT>();
       }

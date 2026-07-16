@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include <raft/core/detail/macros.hpp>
@@ -20,7 +44,7 @@
 namespace cuvs::neighbors::detail::device {
 
 // warpSize for compile time calculation
-constexpr unsigned warp_size = 32;
+constexpr unsigned warp_size = raft::WarpSize;
 
 // using LOAD_256BIT_T = ulonglong4;
 using LOAD_128BIT_T = uint4;
@@ -50,7 +74,7 @@ RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x) -> T
 {
 #pragma unroll
   for (uint32_t stride = TeamSize >> 1; stride > 0; stride >>= 1) {
-    x += raft::shfl_xor(x, stride, TeamSize);
+    x += raft::shfl_xor(x, stride, TeamSize, __activemask());
   }
   return x;
 }
@@ -59,11 +83,12 @@ template <typename T>
 RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x, uint32_t team_size_bitshift) -> T
 {
   switch (team_size_bitshift) {
-    case 5: x += raft::shfl_xor(x, 16); [[fallthrough]];
-    case 4: x += raft::shfl_xor(x, 8); [[fallthrough]];
-    case 3: x += raft::shfl_xor(x, 4); [[fallthrough]];
-    case 2: x += raft::shfl_xor(x, 2); [[fallthrough]];
-    case 1: x += raft::shfl_xor(x, 1); [[fallthrough]];
+    case 6: x += raft::shfl_xor(x, 32, warp_size, __activemask()); [[fallthrough]];
+    case 5: x += raft::shfl_xor(x, 16, warp_size, __activemask()); [[fallthrough]];
+    case 4: x += raft::shfl_xor(x, 8, warp_size, __activemask()); [[fallthrough]];
+    case 3: x += raft::shfl_xor(x, 4, warp_size, __activemask()); [[fallthrough]];
+    case 2: x += raft::shfl_xor(x, 2, warp_size, __activemask()); [[fallthrough]];
+    case 1: x += raft::shfl_xor(x, 1, warp_size, __activemask()); [[fallthrough]];
     default: return x;
   }
 }

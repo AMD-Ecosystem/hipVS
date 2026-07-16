@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include "../hashmap.hpp"
@@ -157,7 +181,7 @@ __device__ void search_kernel_jit(
   uint32_t iter = 0;
   while (1) {
     _CLK_START();
-    if (threadIdx.x < 32) {
+    if (threadIdx.x < raft::warp_size()) {
       // [1st warp] Topk with bitonic sort
       if constexpr (std::is_same_v<INDEX_T, uint32_t>) {
         // use a non-template wrapper function to avoid pre-inlining the topk_by_bitonic_sort
@@ -193,7 +217,7 @@ __device__ void search_kernel_jit(
     if (iter + 1 >= max_iteration) { break; }
 
     _CLK_START();
-    if (threadIdx.x < 32) {
+    if (threadIdx.x < raft::warp_size()) {
       // [1st warp] Pick up a next parent
       pickup_next_parent<INDEX_T, DISTANCE_T>(parent_indices_buffer,
                                               result_indices_buffer,
@@ -202,7 +226,7 @@ __device__ void search_kernel_jit(
                                               traversed_hash_bitlen);
     } else {
       // [Other warps] Reset visited hashmap
-      hashmap::init<INDEX_T>(local_visited_hashmap_ptr, visited_hash_bitlen, 32);
+      hashmap::init<INDEX_T>(local_visited_hashmap_ptr, visited_hash_bitlen, raft::warp_size());
     }
     __syncthreads();
     _CLK_REC(clk_pickup_parents);
@@ -293,9 +317,9 @@ __device__ void search_kernel_jit(
   __syncthreads();
 
   // Output search results (1st warp only).
-  if (threadIdx.x < 32) {
+  if (threadIdx.x < raft::warp_size()) {
     uint32_t offset = 0;
-    for (uint32_t i = threadIdx.x; i < result_buffer_size_32; i += 32) {
+    for (uint32_t i = threadIdx.x; i < result_buffer_size_32; i += raft::warp_size()) {
       INDEX_T index = result_indices_buffer[i];
       bool is_valid = false;
       if (index != invalid_index) {
@@ -330,7 +354,7 @@ __device__ void search_kernel_jit(
       offset += raft::__POPC(mask);
     }
     // If the number of outputs is insufficient, fill in with invalid results.
-    for (uint32_t i = offset + threadIdx.x; i < itopk_size; i += 32) {
+    for (uint32_t i = offset + threadIdx.x; i < itopk_size; i += raft::warp_size()) {
       uint32_t k            = i + (itopk_size * (cta_id + (num_cta_per_query * query_id)));
       result_indices_ptr[k] = invalid_index;
       if (result_distances_ptr != nullptr) {

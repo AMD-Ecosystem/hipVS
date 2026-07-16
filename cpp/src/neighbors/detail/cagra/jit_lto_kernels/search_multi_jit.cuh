@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include "../../neighbors_device_intrinsics.cuh"
@@ -59,7 +83,7 @@ __device__ void random_pickup_kernel_jit(
   const INDEX_T seed_index_limit = graph_size > 0 ? graph_size : dataset_size;
   const auto args_load           = smem_desc->args.load();
 
-  INDEX_T best_index_team_local;
+  INDEX_T best_index_team_local      = utils::get_max_value<INDEX_T>();
   DISTANCE_T best_norm2_team_local = utils::get_max_value<DISTANCE_T>();
   for (unsigned i = 0; i < num_distilation; i++) {
     INDEX_T seed_index;
@@ -144,6 +168,7 @@ __device__ void compute_distance_to_child_nodes_kernel_jit(
     return;
   }
   const auto parent_index = raw_parent_index & ~index_msb_1_mask;
+  assert(parent_index < dataset_desc->size);
 
   const auto neighbor_list_head_ptr = neighbor_graph_ptr + (graph_degree * parent_index);
 
