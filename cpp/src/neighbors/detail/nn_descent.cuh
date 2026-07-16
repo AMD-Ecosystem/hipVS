@@ -243,6 +243,10 @@ __device__ __forceinline__ void warp_bitonic_sort(T* element_ptr, const int lane
 constexpr int NUM_SAMPLES = 32;
 // For now, the max. number of samples is 32, so the sample cache size is fixed
 // to 64 (32 * 2).
+// AMD note: BLOCK_SIZE / warp_size determines num_warps. The WMMA kernel tiles
+// a 64x64 distance matrix into 4x4 blocks of 16x16 WMMA tiles. When
+// num_warps < 16 (e.g. BLOCK_SIZE=512 with warp_size=64 → 8 warps), each warp
+// handles multiple y-tiles via the c_frag[Y_TILES_PER_WARP] accumulator array.
 constexpr int BLOCK_SIZE                = 512;
 constexpr int MAX_NUM_BI_SAMPLES        = 64;
 constexpr int SKEWED_MAX_NUM_BI_SAMPLES = skew_dim<float>(MAX_NUM_BI_SAMPLES);
@@ -1041,17 +1045,26 @@ __launch_bounds__(BLOCK_SIZE)
   int lane_id             = threadIdx.x % raft::warp_size();
   constexpr int num_warps = BLOCK_SIZE / raft::warp_size();
 
-  // We have 4x4 wavefronts each used for the 16x16x16 MMA used to compute the partial dot products
-  // Block size is adjusted such that we always have 16 warps to maintain the above wave
-  // configuration.
-  int warp_id_y = warp_id / 4;
-  int warp_id_x = warp_id % 4;
+  // AMD adaptation: the 64x64 distance matrix is tiled into WMMA_TILES_Y x WMMA_TILES_X
+  // blocks of 16x16 WMMA tiles (4x4 = 16 tiles total). On NVIDIA with BLOCK_SIZE=512 and
+  // warp_size=32, num_warps=16 covers all 16 tiles (1 tile/warp). On AMD with warp_size=64,
+  // num_warps=8, so each warp handles Y_TILES_PER_WARP=2 tiles using multiple accumulators.
+  // If you change BLOCK_SIZE or the WMMA tile dimensions, update these accordingly.
+  constexpr int WMMA_TILES_X     = MAX_NUM_BI_SAMPLES / WMMA_N;     // 4
+  constexpr int WMMA_TILES_Y     = MAX_NUM_BI_SAMPLES / WMMA_M;     // 4
+  constexpr int Y_ROWS_PER_WARP  = num_warps / WMMA_TILES_X;        // NVIDIA: 4, AMD: 2
+  constexpr int Y_TILES_PER_WARP = WMMA_TILES_Y / Y_ROWS_PER_WARP;  // NVIDIA: 1, AMD: 2
+  static_assert(num_warps >= WMMA_TILES_X, "Need at least WMMA_TILES_X warps for column coverage");
+  static_assert(WMMA_TILES_Y % Y_ROWS_PER_WARP == 0, "Y tiles must divide evenly across warps");
+  int warp_id_x      = warp_id % WMMA_TILES_X;
+  int warp_id_y_base = warp_id / WMMA_TILES_X;
 
   wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> a_frag;
   wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::col_major> b_frag;
-  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> c_frag;
+  wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> c_frag[Y_TILES_PER_WARP];
   if (metric != cuvs::distance::DistanceType::BitwiseHamming) {
-    wmma::fill_fragment(c_frag, 0.0f);
+    for (int t = 0; t < Y_TILES_PER_WARP; t++)
+      wmma::fill_fragment(c_frag[t], 0.0f);
 
     for (int step = 0; step < raft::ceildiv(data_dim, TILE_COL_WIDTH); step++) {
       int num_load_elems = (step == raft::ceildiv(data_dim, TILE_COL_WIDTH) - 1)
@@ -1063,7 +1076,6 @@ __launch_bounds__(BLOCK_SIZE)
         if (idx < list_new_size) {
           size_t neighbor_id = new_neighbors[idx];
           size_t idx_in_data = neighbor_id * data_dim;
-          // converted to fp16 on-the-fly while loading
           load_vec(s_nv[idx],
                    data + idx_in_data + step * TILE_COL_WIDTH,
                    num_load_elems,
@@ -1075,19 +1087,25 @@ __launch_bounds__(BLOCK_SIZE)
 
       for (int i = 0; i < TILE_COL_WIDTH / WMMA_K; i++) {
         wmma::load_matrix_sync(
-          a_frag, s_nv[warp_id_y * WMMA_M] + i * WMMA_K, TILE_COL_WIDTH + APAD);
-        wmma::load_matrix_sync(
           b_frag, s_nv[warp_id_x * WMMA_N] + i * WMMA_K, TILE_COL_WIDTH + BPAD);
-        wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
+        for (int t = 0; t < Y_TILES_PER_WARP; t++) {
+          int warp_id_y = warp_id_y_base + t * Y_ROWS_PER_WARP;
+          wmma::load_matrix_sync(
+            a_frag, s_nv[warp_id_y * WMMA_M] + i * WMMA_K, TILE_COL_WIDTH + APAD);
+          wmma::mma_sync(c_frag[t], a_frag, b_frag, c_frag[t]);
+        }
         __syncthreads();
       }
     }
 
-    wmma::store_matrix_sync(
-      s_distances + warp_id_y * WMMA_M * SKEWED_MAX_NUM_BI_SAMPLES + warp_id_x * WMMA_N,
-      c_frag,
-      SKEWED_MAX_NUM_BI_SAMPLES,
-      wmma::mem_row_major);
+    for (int t = 0; t < Y_TILES_PER_WARP; t++) {
+      int warp_id_y = warp_id_y_base + t * Y_ROWS_PER_WARP;
+      wmma::store_matrix_sync(
+        s_distances + warp_id_y * WMMA_M * SKEWED_MAX_NUM_BI_SAMPLES + warp_id_x * WMMA_N,
+        c_frag[t],
+        SKEWED_MAX_NUM_BI_SAMPLES,
+        wmma::mem_row_major);
+    }
   }
   __syncthreads();
 
@@ -1117,7 +1135,8 @@ __launch_bounds__(BLOCK_SIZE)
   __syncthreads();
 
   if (metric != cuvs::distance::DistanceType::BitwiseHamming) {
-    wmma::fill_fragment(c_frag, 0.0f);
+    for (int t = 0; t < Y_TILES_PER_WARP; t++)
+      wmma::fill_fragment(c_frag[t], 0.0f);
     for (int step = 0; step < raft::ceildiv(data_dim, TILE_COL_WIDTH); step++) {
       int num_load_elems = (step == raft::ceildiv(data_dim, TILE_COL_WIDTH) - 1)
                              ? data_dim - step * TILE_COL_WIDTH
@@ -1154,19 +1173,25 @@ __launch_bounds__(BLOCK_SIZE)
 
       for (int i = 0; i < TILE_COL_WIDTH / WMMA_K; i++) {
         wmma::load_matrix_sync(
-          a_frag, s_nv[warp_id_y * WMMA_M] + i * WMMA_K, TILE_COL_WIDTH + APAD);
-        wmma::load_matrix_sync(
           b_frag, s_ov[warp_id_x * WMMA_N] + i * WMMA_K, TILE_COL_WIDTH + BPAD);
-        wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
+        for (int t = 0; t < Y_TILES_PER_WARP; t++) {
+          int warp_id_y = warp_id_y_base + t * Y_ROWS_PER_WARP;
+          wmma::load_matrix_sync(
+            a_frag, s_nv[warp_id_y * WMMA_M] + i * WMMA_K, TILE_COL_WIDTH + APAD);
+          wmma::mma_sync(c_frag[t], a_frag, b_frag, c_frag[t]);
+        }
         __syncthreads();
       }
     }
 
-    wmma::store_matrix_sync(
-      s_distances + warp_id_y * WMMA_M * SKEWED_MAX_NUM_BI_SAMPLES + warp_id_x * WMMA_N,
-      c_frag,
-      SKEWED_MAX_NUM_BI_SAMPLES,
-      wmma::mem_row_major);
+    for (int t = 0; t < Y_TILES_PER_WARP; t++) {
+      int warp_id_y = warp_id_y_base + t * Y_ROWS_PER_WARP;
+      wmma::store_matrix_sync(
+        s_distances + warp_id_y * WMMA_M * SKEWED_MAX_NUM_BI_SAMPLES + warp_id_x * WMMA_N,
+        c_frag[t],
+        SKEWED_MAX_NUM_BI_SAMPLES,
+        wmma::mem_row_major);
+    }
     __syncthreads();
   }
 
@@ -1535,6 +1560,9 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_
   bool use_simt = (std::is_same_v<input_t, float> && !use_fp16_dist) ||
                   build_config_.metric == cuvs::distance::DistanceType::L1;
 
+  // AMD adaptation: graph_width must be get_degree_on_device(res) (== warp_size, 64 on AMD),
+  // NOT the NVIDIA-only constant DEGREE_ON_DEVICE (== 32). The graph buffers are allocated
+  // with get_degree_on_device(res) columns; passing 32 here causes stride mismatches.
   auto launch_kernel = [&](auto* typed_ptr) {
     if (use_simt) {
       local_join_kernel_simt<<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),

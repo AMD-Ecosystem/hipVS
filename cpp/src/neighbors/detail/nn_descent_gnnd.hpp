@@ -39,6 +39,9 @@
 namespace cuvs::neighbors::nn_descent::detail {
 
 using DistData_t = float;
+// DEGREE_ON_DEVICE is the NVIDIA warp size (32). On AMD, the on-device graph
+// degree equals the AMD warp size (64). Always use get_degree_on_device(res)
+// at runtime — never pass this constant to kernel launches.
 constexpr int DEGREE_ON_DEVICE{32};
 constexpr int SEGMENT_SIZE{32};
 constexpr int counter_interval{100};
