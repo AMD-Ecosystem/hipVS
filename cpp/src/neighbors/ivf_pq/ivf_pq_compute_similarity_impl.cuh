@@ -510,7 +510,17 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
 
     // Get the theoretical maximum possible number of threads per block
     cudaFuncAttributes kernel_attrs;
+#ifdef __HIP_PLATFORM_AMD__
+    {
+      kernel_attrs        = {};
+      int max_threads_val = 0;
+      RAFT_CUDA_TRY(
+        hipFuncGetAttribute(&max_threads_val, HIP_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, kernel));
+      kernel_attrs.maxThreadsPerBlock = max_threads_val;
+    }
+#else
     RAFT_CUDA_TRY(cudaFuncGetAttributes(&kernel_attrs, reinterpret_cast<const void*>(kernel)));
+#endif
     uint32_t n_threads =
       raft::round_down_safe<uint32_t>(kernel_attrs.maxThreadsPerBlock, n_threads_gty);
 
