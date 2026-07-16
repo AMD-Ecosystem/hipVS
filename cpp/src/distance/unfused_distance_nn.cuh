@@ -229,12 +229,18 @@ void pairwise_distance_gemm(raft::resources const& handle,
       computeType = CUBLAS_COMPUTE_32F;
     }
   } else if constexpr (std::is_same_v<DataT, float>) {
-    xyType      = CUDA_R_32F;
-    zType       = CUDA_R_32F;
+    xyType = CUDA_R_32F;
+    zType  = CUDA_R_32F;
+#ifdef __HIP_PLATFORM_AMD__
+    // TF32 is an NVIDIA tensor-core feature; AMD GPUs lack TF32 hardware and
+    // hipBLAS returns HIPBLAS_STATUS_NOT_SUPPORTED for CUBLAS_COMPUTE_32F_FAST_TF32.
+    computeType = CUBLAS_COMPUTE_32F;
+#else
     computeType = CUBLAS_COMPUTE_32F_FAST_TF32;
     // Note: Alternative compute types that can be used include:
     // CUBLAS_COMPUTE_32F, CUBLAS_COMPUTE_32F_FAST_16F,
     // CUBLAS_COMPUTE_32F_FAST_16BF, CUBLAS_COMPUTE_32F_EMULATED_16BFX9
+#endif
   } else if constexpr (std::is_same_v<DataT, double>) {
     xyType      = CUDA_R_64F;
     zType       = CUDA_R_64F;
