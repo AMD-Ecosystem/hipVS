@@ -326,6 +326,7 @@ void deserialize(raft::resources const& res, std::istream& is, index<T, IdxT>* i
   bool has_dataset = content_map & 0x1u;
   if (has_dataset) {
     index_->update_dataset(res, cuvs::neighbors::detail::deserialize_dataset<int64_t>(res, is));
+    raft::resource::sync_stream(res);
   }
 
   bool has_source_indices = content_map & 0x2u;
