@@ -143,6 +143,9 @@ using UniversalGemmProblem =
                                         ck_tile::element_wise::PassThrough,
                                         ck_tile::element_wise::PassThrough,
                                         DataT,
+#if CUVS_CK_TILE_HAS_B_COMPUTE_DATA_TYPE
+                                        DataT,
+#endif
                                         ScalarVec,
                                         1,
                                         1>;

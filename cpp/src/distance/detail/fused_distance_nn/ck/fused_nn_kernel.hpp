@@ -135,6 +135,9 @@ using FusedNNUniversalGemmProblemT =
                                         ck_tile::element_wise::PassThrough,
                                         ck_tile::element_wise::PassThrough,
                                         float,
+#if CUVS_CK_TILE_HAS_B_COMPUTE_DATA_TYPE
+                                        float,
+#endif
                                         false,
                                         1,
                                         1>;

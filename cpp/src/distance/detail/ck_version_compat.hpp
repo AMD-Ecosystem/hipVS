@@ -45,3 +45,11 @@
 #else
 #define CUVS_CK_TILE_NEW_GEMM_API 0
 #endif
+
+// ROCm 7.14 added BComputeDataType_ to UniversalGemmPipelineProblem
+// (position 10, between AComputeDataType_ and FixedVectorSize_).
+#if ROCM_VERSION_MAJOR > 7 || (ROCM_VERSION_MAJOR == 7 && ROCM_VERSION_MINOR >= 14)
+#define CUVS_CK_TILE_HAS_B_COMPUTE_DATA_TYPE 1
+#else
+#define CUVS_CK_TILE_HAS_B_COMPUTE_DATA_TYPE 0
+#endif
