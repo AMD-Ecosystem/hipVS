@@ -140,12 +140,11 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
   const auto result_buffer_size_32 = raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
   const auto small_hash_size       = hashmap::get_size(small_hash_bitlen);
 
-  // Get dim and smem_ws_size directly from base descriptor
-  uint32_t dim                   = dataset_desc->args.dim;
-  uint32_t smem_ws_size_in_bytes = dataset_desc->smem_ws_size_in_bytes();
+  uint32_t dim = dataset_desc->args.dim;
 
   auto smem_desc =
     setup_workspace<DataT, IndexT, DistanceT>(dataset_desc, smem, queries_ptr, query_id);
+  const uint32_t smem_ws_size_in_bytes = smem_desc->smem_ws_size_in_bytes();
 
   auto* __restrict__ result_indices_buffer =
     reinterpret_cast<IndexT*>(smem + smem_ws_size_in_bytes);
@@ -205,8 +204,9 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
   while (1) {
     // sort
     if constexpr (TOPK_BY_BITONIC_SORT) {
-      assert(blockDim.x >= 64);
-      const bool bitonic_sort_and_full_multi_warps = (max_candidates > 128) ? true : false;
+      assert(blockDim.x >= raft::warp_size() * 2);
+      const bool bitonic_sort_and_full_multi_warps =
+        (max_candidates > raft::warp_size() * 4) ? true : false;
 
       // reset small-hash table.
       if ((iter + 1) % small_hash_reset_interval == 0) {
@@ -384,7 +384,8 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
 
       num_found_valid += new_position;
       for (std::uint32_t offset = (raft::warp_size() >> 1); offset > 0; offset >>= 1) {
-        const auto v = raft::shfl_xor(num_found_valid, offset, raft::warp_size(), __activemask());
+        const auto v =
+          __shfl_xor_sync(__activemask(), num_found_valid, offset, raft::warp_size());
         if ((threadIdx.x & offset) == 0) { num_found_valid = v; }
       }
 
@@ -603,9 +604,9 @@ __device__ void search_single_cta_p_impl(
       cuda::atomic_thread_fence(cuda::memory_order_acquire, cuda::thread_scope_system);
       worker_data = worker_data_local;
     }
-    if (threadIdx.x < raft::WarpSize) {
+    if (threadIdx.x < raft::warp_size()) {
       // Sync one warp and copy descriptor data
-      static_assert(job_desc_type::kBlobSize <= raft::WarpSize);
+      static_assert(job_desc_type::kBlobSize <= raft::warp_size());
       constexpr uint32_t kMaxJobsNum = 8192;
       job_ix                         = raft::shfl(job_ix, 0);
       if (threadIdx.x < job_desc_type::kBlobSize && job_ix < kMaxJobsNum) {

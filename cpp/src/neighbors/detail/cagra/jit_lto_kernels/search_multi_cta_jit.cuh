@@ -116,26 +116,26 @@ __device__ void search_kernel_jit(
   // Layout of result_buffer
   // +----------------+---------+---------------------------+
   // | internal_top_k | padding | neighbors of parent nodes |
-  // | <itopk_size>   | upto 32 | <graph_degree>            |
+  // | <itopk_size>   |         | <graph_degree>            |
   // +----------------+---------+---------------------------+
-  // |<---        result_buffer_size_32                 --->|
+  // |<---        result_buffer_size_64                 --->|
   const auto result_buffer_size    = itopk_size + graph_degree;
-  const auto result_buffer_size_32 = raft::round_up_safe<uint32_t>(result_buffer_size, 32);
-  assert(result_buffer_size_32 <= max_elements);
+  const auto result_buffer_size_64 = raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
+  assert(result_buffer_size_64 <= max_elements);
 
-  // Get dim and smem_ws_size_in_bytes directly from base descriptor
-  uint32_t dim                   = dataset_desc->args.dim;
-  uint32_t smem_ws_size_in_bytes = dataset_desc->smem_ws_size_in_bytes();
+  // Get dim from base descriptor; place search buffers after setup_workspace workspace.
+  uint32_t dim = dataset_desc->args.dim;
 
   auto smem_desc =
     setup_workspace<DataT, IndexT, DistanceT>(dataset_desc, smem, queries_ptr, query_id);
+  const uint32_t smem_ws_size_in_bytes = smem_desc->smem_ws_size_in_bytes();
 
   auto* __restrict__ result_indices_buffer =
     reinterpret_cast<INDEX_T*>(smem + smem_ws_size_in_bytes);
   auto* __restrict__ result_distances_buffer =
-    reinterpret_cast<DISTANCE_T*>(result_indices_buffer + result_buffer_size_32);
+    reinterpret_cast<DISTANCE_T*>(result_indices_buffer + result_buffer_size_64);
   auto* __restrict__ local_visited_hashmap_ptr =
-    reinterpret_cast<INDEX_T*>(result_distances_buffer + result_buffer_size_32);
+    reinterpret_cast<INDEX_T*>(result_distances_buffer + result_buffer_size_64);
   auto* __restrict__ parent_indices_buffer =
     reinterpret_cast<INDEX_T*>(local_visited_hashmap_ptr + hashmap::get_size(visited_hash_bitlen));
   auto* __restrict__ result_position = reinterpret_cast<int*>(parent_indices_buffer + 1);
@@ -146,7 +146,7 @@ __device__ void search_kernel_jit(
   constexpr INDEX_T invalid_index    = ~static_cast<INDEX_T>(0);
   constexpr INDEX_T index_msb_1_mask = utils::gen_index_msb_1_mask<INDEX_T>::value;
 
-  for (unsigned i = threadIdx.x; i < result_buffer_size_32; i += blockDim.x) {
+  for (unsigned i = threadIdx.x; i < result_buffer_size_64; i += blockDim.x) {
     result_indices_buffer[i]   = invalid_index;
     result_distances_buffer[i] = utils::get_max_value<DISTANCE_T>();
   }
@@ -188,26 +188,26 @@ __device__ void search_kernel_jit(
         // function (vs post-inlining, this impacts register pressure)
         if (max_elements <= 64) {
           topk_by_bitonic_sort_wrapper_64(
-            result_distances_buffer, result_indices_buffer, result_buffer_size_32);
+            result_distances_buffer, result_indices_buffer, result_buffer_size_64);
         } else if (max_elements <= 128) {
           topk_by_bitonic_sort_wrapper_128(
-            result_distances_buffer, result_indices_buffer, result_buffer_size_32);
+            result_distances_buffer, result_indices_buffer, result_buffer_size_64);
         } else {
           assert(max_elements <= 256);
           topk_by_bitonic_sort_wrapper_256(
-            result_distances_buffer, result_indices_buffer, result_buffer_size_32);
+            result_distances_buffer, result_indices_buffer, result_buffer_size_64);
         }
       } else {
         if (max_elements <= 64) {
           topk_by_bitonic_sort<64, INDEX_T>(
-            result_distances_buffer, result_indices_buffer, result_buffer_size_32);
+            result_distances_buffer, result_indices_buffer, result_buffer_size_64);
         } else if (max_elements <= 128) {
           topk_by_bitonic_sort<128, INDEX_T>(
-            result_distances_buffer, result_indices_buffer, result_buffer_size_32);
+            result_distances_buffer, result_indices_buffer, result_buffer_size_64);
         } else {
           assert(max_elements <= 256);
           topk_by_bitonic_sort<256, INDEX_T>(
-            result_distances_buffer, result_indices_buffer, result_buffer_size_32);
+            result_distances_buffer, result_indices_buffer, result_buffer_size_64);
         }
       }
     }
@@ -234,7 +234,7 @@ __device__ void search_kernel_jit(
     if ((parent_indices_buffer[0] == invalid_index) && (iter >= min_iteration)) { break; }
 
     _CLK_START();
-    for (unsigned i = threadIdx.x; i < result_buffer_size_32; i += blockDim.x) {
+    for (unsigned i = threadIdx.x; i < result_buffer_size_64; i += blockDim.x) {
       INDEX_T index = result_indices_buffer[i];
       if (index == invalid_index) { continue; }
       if ((i >= itopk_size) && (index & index_msb_1_mask)) {
@@ -250,7 +250,7 @@ __device__ void search_kernel_jit(
       }
     }
     // Initialize buffer for compute_distance_to_child_nodes.
-    if (threadIdx.x == blockDim.x - 1) { result_position[0] = result_buffer_size_32; }
+    if (threadIdx.x == blockDim.x - 1) { result_position[0] = result_buffer_size_64; }
     __syncthreads();
 
     // Compute the norms between child nodes and query node using JIT version
@@ -267,7 +267,7 @@ __device__ void search_kernel_jit(
                                                                      result_indices_buffer,
                                                                      1,
                                                                      result_position,
-                                                                     result_buffer_size_32);
+                                                                     result_buffer_size_64);
     __syncthreads();
 
     // Check the state of the nodes in the result buffer which were not updated
@@ -303,7 +303,7 @@ __device__ void search_kernel_jit(
   }
 
   // Filtering - use extern sample_filter function (linked via JIT LTO)
-  for (uint32_t i = threadIdx.x; i < result_buffer_size_32; i += blockDim.x) {
+  for (uint32_t i = threadIdx.x; i < result_buffer_size_64; i += blockDim.x) {
     INDEX_T index = result_indices_buffer[i];
     if (index == invalid_index) { continue; }
     index &= ~index_msb_1_mask;
@@ -319,7 +319,7 @@ __device__ void search_kernel_jit(
   // Output search results (1st warp only).
   if (threadIdx.x < raft::warp_size()) {
     uint32_t offset = 0;
-    for (uint32_t i = threadIdx.x; i < result_buffer_size_32; i += raft::warp_size()) {
+    for (uint32_t i = threadIdx.x; i < result_buffer_size_64; i += raft::warp_size()) {
       INDEX_T index = result_indices_buffer[i];
       bool is_valid = false;
       if (index != invalid_index) {
@@ -334,7 +334,7 @@ __device__ void search_kernel_jit(
           is_valid = true;
         }
       }
-      const bitmask_type mask = __ballot_sync(raft::LANE_MASK_ALL, is_valid);
+      const bitmask_type mask = __ballot_sync(__activemask(), is_valid);
       if (is_valid) {
         const auto j =
           offset + raft::__POPC(mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1));

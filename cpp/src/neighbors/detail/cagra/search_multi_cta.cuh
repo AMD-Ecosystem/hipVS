@@ -286,11 +286,13 @@ struct search
                      NULL,
                      stream);
     if (source_indices_ptr != nullptr) {
+      const INDEX_T n_rows = static_cast<INDEX_T>(graph.extent(0));
       raft::linalg::map(
         res,
         raft::make_device_matrix_view<OutputIndexT, int64_t>(topk_indices_ptr, num_queries, topk),
-        [source_indices_ptr] __device__(IndexT x) {
-          return static_cast<OutputIndexT>(source_indices_ptr[x]);
+        [source_indices_ptr, n_rows] __device__(IndexT x) {
+          return static_cast<OutputIndexT>(
+            (x < n_rows) ? source_indices_ptr[x] : static_cast<SourceIndexT>(x));
         },
         raft::make_device_matrix_view<const IndexT, int64_t>(
           output_indices_ptr, num_queries, topk));

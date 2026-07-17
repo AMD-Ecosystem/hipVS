@@ -262,7 +262,7 @@ __global__ void kern_fused_prune(KnnGraphView knn_graph,        // [graph_chunk_
   extern __shared__ unsigned char smem_buf[];
 
   cg::thread_block block         = cg::this_thread_block();
-  cg::thread_block_tile<32> warp = cg::tiled_partition<32>(block);
+  cg::thread_block_tile<raft::warp_size()> warp = cg::tiled_partition<raft::warp_size()>(block);
 
   const uint32_t wid     = threadIdx.x / raft::WarpSize;
   const uint32_t lane_id = threadIdx.x % raft::WarpSize;
@@ -382,8 +382,8 @@ template <typename T>
 __device__ unsigned int warp_pos_in_array(T val, const T* array, uint64_t num)
 {
   unsigned int ret       = num;
-  const uint32_t lane_id = threadIdx.x % 32;
-  for (uint64_t i = lane_id; i < num; i += 32) {
+  const uint32_t lane_id = threadIdx.x % raft::warp_size();
+  for (uint64_t i = lane_id; i < num; i += raft::warp_size()) {
     if (val == array[i]) {
       ret = i;
       break;
@@ -391,7 +391,7 @@ __device__ unsigned int warp_pos_in_array(T val, const T* array, uint64_t num)
   }
 
   cg::thread_block block         = cg::this_thread_block();
-  cg::thread_block_tile<32> warp = cg::tiled_partition<32>(block);
+  cg::thread_block_tile<raft::warp_size()> warp = cg::tiled_partition<raft::warp_size()>(block);
 #ifdef __HIP_PLATFORM_AMD__
   ret                            = cg_reduce_min(warp, ret);
 #else
@@ -936,8 +936,9 @@ void merge_graph_gpu(
   d_mst_graph.prefetch_next_batch();
   d_mst_graph_num_edges.prefetch_next_batch();
 
+  auto merge_warp_size = raft::host_warp_size(raft::resource::get_cuda_stream(res));
   const uint32_t num_warps = 4;
-  const dim3 threads_merge(raft::WarpSize * num_warps, 1, 1);
+  const dim3 threads_merge(merge_warp_size * num_warps, 1, 1);
   const dim3 blocks_merge(raft::ceildiv(batch_size, num_warps), 1, 1);
   const size_t merge_smem_size = num_warps * output_graph_degree * sizeof(IdxT);
   for (uint32_t i_batch = 0; i_batch < num_batch; i_batch++) {
@@ -1733,8 +1734,10 @@ void prune_graph_gpu(
 
   auto d_invalid_neighbor_list = raft::make_device_scalar<uint32_t>(res, 0u);
 
+  auto stream = raft::resource::get_cuda_stream(res);
+  auto warp_size = raft::host_warp_size(stream);
   const uint32_t num_warps = 4;
-  const dim3 threads_prune(raft::WarpSize * num_warps, 1, 1);
+  const dim3 threads_prune(warp_size * num_warps, 1, 1);
   const dim3 blocks_prune(raft::ceildiv(batch_size, num_warps), 1, 1);
   const size_t prune_smem_size = num_warps * knn_graph_degree * (sizeof(IdxT) + sizeof(uint32_t));
 

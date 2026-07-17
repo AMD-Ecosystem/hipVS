@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -837,8 +837,8 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_cta_11_core(uint32_t topk,
         if (thread_id < numSortThreads) {
 #pragma unroll
           for (int i = 0; i < numTopkPerThread; i++) {
-            float opp_key = __shfl_xor_sync(raft::LANE_MASK_ALL, my_keys[i], curr_mask);
-            ValT opp_val  = __shfl_xor_sync(raft::LANE_MASK_ALL, my_vals[i], curr_mask);
+            float opp_key = __shfl_xor_sync(__activemask(), my_keys[i], curr_mask);
+            ValT opp_val  = __shfl_xor_sync(__activemask(), my_vals[i], curr_mask);
             swap_if_needed<float, ValT>(my_keys[i], opp_key, my_vals[i], opp_val, ascending);
           }
         }

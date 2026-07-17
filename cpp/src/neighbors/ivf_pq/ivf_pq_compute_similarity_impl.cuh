@@ -491,7 +491,7 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
   occupancy_t selected_perf{};
   selected<OutT, LutT> selected_config;
   for (auto [launcher, smem_size_f, lut_is_in_shmem] : candidates) {
-    if (smem_size_f(raft::WarpSize) > dev_props.sharedMemPerBlockOptin) {
+    if (smem_size_f(dev_props.warpSize) > dev_props.sharedMemPerBlockOptin) {
       // Even a single block cannot fit into an SM due to shmem requirements. Skip the candidate.
       continue;
     }

@@ -148,7 +148,7 @@ RAFT_KERNEL pickup_next_parents_kernel(
           new_parent = 1;
         }
       }
-      const bitmask_type ballot_mask = __ballot_sync(raft::LANE_MASK_ALL, new_parent);
+      const bitmask_type ballot_mask = __ballot_sync(__activemask(), new_parent);
       if (new_parent) {
         const auto i =
           raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1)) +

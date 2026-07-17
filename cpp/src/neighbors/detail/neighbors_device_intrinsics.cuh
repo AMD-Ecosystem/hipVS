@@ -74,7 +74,7 @@ RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x) -> T
 {
 #pragma unroll
   for (uint32_t stride = TeamSize >> 1; stride > 0; stride >>= 1) {
-    x += raft::shfl_xor(x, stride, TeamSize, __activemask());
+    x += __shfl_xor_sync(__activemask(), x, stride, TeamSize);
   }
   return x;
 }
@@ -82,13 +82,16 @@ RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x) -> T
 template <typename T>
 RAFT_DEVICE_INLINE_FUNCTION auto team_sum(T x, uint32_t team_size_bitshift) -> T
 {
+  // HIP/AMD: raft::shfl_xor breaks single-CTA search convergence when only a subset of
+  // wavefront lanes participate; use the intrinsic directly (see hipVS issue #20).
+  const uint32_t team_width = raft::warp_size();
   switch (team_size_bitshift) {
-    case 6: x += raft::shfl_xor(x, 32, warp_size, __activemask()); [[fallthrough]];
-    case 5: x += raft::shfl_xor(x, 16, warp_size, __activemask()); [[fallthrough]];
-    case 4: x += raft::shfl_xor(x, 8, warp_size, __activemask()); [[fallthrough]];
-    case 3: x += raft::shfl_xor(x, 4, warp_size, __activemask()); [[fallthrough]];
-    case 2: x += raft::shfl_xor(x, 2, warp_size, __activemask()); [[fallthrough]];
-    case 1: x += raft::shfl_xor(x, 1, warp_size, __activemask()); [[fallthrough]];
+    case 6: x += __shfl_xor_sync(__activemask(), x, 32, team_width); [[fallthrough]];
+    case 5: x += __shfl_xor_sync(__activemask(), x, 16, team_width); [[fallthrough]];
+    case 4: x += __shfl_xor_sync(__activemask(), x, 8, team_width); [[fallthrough]];
+    case 3: x += __shfl_xor_sync(__activemask(), x, 4, team_width); [[fallthrough]];
+    case 2: x += __shfl_xor_sync(__activemask(), x, 2, team_width); [[fallthrough]];
+    case 1: x += __shfl_xor_sync(__activemask(), x, 1, team_width); [[fallthrough]];
     default: return x;
   }
 }

@@ -45,7 +45,7 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parent(
   INDEX_T* const hash_ptr,
   const uint32_t hash_bitlen)
 {
-  constexpr uint32_t itopk_size      = raft::WarpSize;
+  constexpr uint32_t itopk_size      = raft::warp_size();
   constexpr INDEX_T index_msb_1_mask = utils::gen_index_msb_1_mask<INDEX_T>::value;
   constexpr INDEX_T invalid_index    = ~static_cast<INDEX_T>(0);
 
@@ -66,9 +66,9 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parent(
       is_candidate = 1;
     }
 
-    const bitmask_type ballot_mask = __ballot_sync(raft::LANE_MASK_ALL, is_candidate);
+    const bitmask_type ballot_mask = __ballot_sync(__activemask(), is_candidate);
     const auto candidate_id =
-      raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1));
+      raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1U) << threadIdx.x) - 1));
     for (int k = 0; k < raft::__POPC(ballot_mask); k++) {
       int flag_done = 0;
       if (is_candidate && candidate_id == k) {
@@ -95,7 +95,7 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parent(
           is_invalid         = 1;
         }
       }
-      if (__any_sync(raft::LANE_MASK_ALL, (flag_done > 0))) { return; }
+      if (__any_sync(__activemask(), (flag_done > 0))) { return; }
     }
     if (i < itopk_size) {
       j = raft::warp_highest_active_lane(is_invalid);

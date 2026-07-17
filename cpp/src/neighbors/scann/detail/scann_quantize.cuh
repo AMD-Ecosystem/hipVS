@@ -28,6 +28,7 @@
 #include <raft/linalg/transpose.cuh>
 #include <raft/matrix/gather.cuh>
 #include <raft/matrix/init.cuh>
+#include <raft/util/warp_primitives.cuh>
 
 #include "scann_common.cuh"
 using namespace cuvs::neighbors;
@@ -183,11 +184,12 @@ __launch_bounds__(BlockSize) RAFT_KERNEL
                                         raft::device_vector_view<const float, IdxT> sq_norms,
                                         float noise_shaping_threshold)
 {
-  IdxT row_idx = raft::Pow2<32>::div(IdxT{threadIdx.x} + IdxT{BlockSize} * IdxT{blockIdx.x});
+  constexpr uint32_t kWarpSize = raft::warp_size();
+  IdxT row_idx = (IdxT{threadIdx.x} + IdxT{BlockSize} * IdxT{blockIdx.x}) / kWarpSize;
 
   if (row_idx >= dataset.extent(0)) { return; }
 
-  uint32_t lane_id = raft::Pow2<32>::mod(threadIdx.x);
+  uint32_t lane_id = threadIdx.x % kWarpSize;
 
   IdxT dim = dataset.extent(1);
 
@@ -198,7 +200,7 @@ __launch_bounds__(BlockSize) RAFT_KERNEL
   // < r, x >
   float residual_dot = 0.0;
 
-  for (int i = lane_id; i < dim; i += 32) {
+  for (int i = lane_id; i < dim; i += kWarpSize) {
     bf16_dataset(row_idx, i) = float_to_bfloat16(dataset(row_idx, i));
 
     float residual = dataset(row_idx, i) - bfloat16_to_float(bf16_dataset(row_idx, i));
@@ -206,8 +208,8 @@ __launch_bounds__(BlockSize) RAFT_KERNEL
   }
 
   // reduce  and broadcast residual_dot across warp
-  for (uint32_t offset = 16; offset > 0; offset >>= 1) {
-    residual_dot += raft::shfl_xor(residual_dot, offset, 32);
+  for (uint32_t offset = kWarpSize / 2; offset > 0; offset >>= 1) {
+    residual_dot += raft::shfl_xor(residual_dot, offset, kWarpSize);
   }
 
   constexpr uint32_t kMaxRounds = 10;
@@ -216,7 +218,7 @@ __launch_bounds__(BlockSize) RAFT_KERNEL
   for (int round = 0; round < kMaxRounds && round_changes; round++) {
     round_changes = false;
 
-    for (int i = lane_id; i < dim; i += 32) {
+    for (int i = lane_id; i < dim; i += kWarpSize) {
       // coaleseced reads of required data
       float original    = dataset(row_idx, i);
       int16_t quantized = bf16_dataset(row_idx, i);
@@ -243,8 +245,10 @@ __launch_bounds__(BlockSize) RAFT_KERNEL
 
       // Dim may not be divisible by 32
       // Only synchronize/shuffle for active threads
-      int active_threads = std::min<int>(32, dim - i + lane_id);
-      int mask           = (1 << active_threads) - 1;
+      int active_threads = std::min<int>(kWarpSize, dim - i + lane_id);
+      auto mask          = active_threads >= static_cast<int>(kWarpSize)
+                              ? ~static_cast<bitmask_type>(0)
+                              : (static_cast<bitmask_type>(1) << active_threads) - 1;
 
       // Update step for coordinate descent. Compute the cost_delta for
       // each thread, update the quantized value and residual_dot if applicable,
@@ -271,8 +275,8 @@ __launch_bounds__(BlockSize) RAFT_KERNEL
     }
 
     // reduce round_changes across warp
-    for (uint32_t offset = 16; offset > 0; offset >>= 1) {
-      round_changes |= raft::shfl_xor(round_changes, offset, 32);
+    for (uint32_t offset = kWarpSize / 2; offset > 0; offset >>= 1) {
+      round_changes |= raft::shfl_xor(round_changes, offset, kWarpSize);
     }
   }
 }
@@ -319,7 +323,8 @@ void quantize_bfloat16_noise_shaped(raft::resources const& res,
   constexpr int64_t kBlockSize = 256;
 
   dim3 threads(kBlockSize, 1, 1);
-  dim3 blocks(raft::div_rounding_up_safe<ix_t>(n_rows, kBlockSize / 32), 1, 1);
+  auto warp_size = raft::host_warp_size(stream);
+  dim3 blocks(raft::div_rounding_up_safe<ix_t>(n_rows, kBlockSize / warp_size), 1, 1);
 
   quantize_bfloat16_noise_shaped_kernel<kBlockSize, IdxT><<<blocks, threads, 0, stream>>>(
     dataset, bf16_dataset, raft::make_const_mdspan(norms.view()), noise_shaping_threshold);

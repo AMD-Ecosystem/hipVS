@@ -146,7 +146,7 @@ RAFT_DEVICE_INLINE_FUNCTION void pickup_next_parents(std::uint32_t* const termin
         new_parent = 1;
       }
     }
-    const bitmask_type ballot_mask = __ballot_sync(raft::LANE_MASK_ALL, new_parent);
+    const bitmask_type ballot_mask = __ballot_sync(__activemask(), new_parent);
     if (new_parent) {
       const auto i =
         raft::__POPC(ballot_mask & ((static_cast<bitmask_type>(1) << threadIdx.x) - 1)) +
@@ -201,7 +201,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_full(
       }
     }
   } else {
-    assert(blockDim.x >= 64);
+    assert(blockDim.x >= raft::warp_size() * 2);
     // Use two warps (64 threads)
     constexpr unsigned max_candidates_per_warp = (MAX_CANDIDATES + 1) / 2;
     static_assert(max_candidates_per_warp <= 128);
@@ -373,7 +373,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
     }
   } else {
     static_assert(MAX_ITOPK == 512);
-    assert(blockDim.x >= 64);
+    assert(blockDim.x >= raft::warp_size() * 2);
     // Use two warps (64 threads) or more
     constexpr unsigned max_itopk_per_warp = (MAX_ITOPK + 1) / 2;
     constexpr unsigned N = (max_itopk_per_warp + (raft::warp_size() - 1)) / raft::warp_size();
@@ -588,7 +588,7 @@ RAFT_DEVICE_INLINE_FUNCTION void topk_by_bitonic_sort_and_merge(
   static_assert(std::is_same_v<IdxT, uint32_t>);
   assert(max_itopk <= 512);
   assert(max_candidates <= 256);
-  assert(!MULTI_WARPS || blockDim.x >= 64);
+  assert(!MULTI_WARPS || blockDim.x >= raft::warp_size() * 2);
 
   // use a non-template wrapper function to avoid pre-inlining the topk_by_bitonic_sort_and_full
   // function (vs post-inlining, this impacts register pressure)
