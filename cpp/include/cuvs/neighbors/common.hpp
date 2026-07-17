@@ -323,6 +323,8 @@ auto make_strided_dataset(const raft::resources& res, const SrcT& src, uint32_t 
 /**
  * @brief Construct a strided matrix from any mdarray.
  *
+ * NOTE: sync_stream is required below because src is taken by rvalue reference
+ *
  * This function constructs an owning device matrix and copies the data.
  * When the data is copied, padding elements are filled with zeroes.
  *
@@ -386,6 +388,7 @@ auto make_strided_dataset(
                     src.extent(1),
                     src.extent(0),
                     raft::resource::get_cuda_stream(res));
+  raft::resource::sync_stream(res);
 
   return std::make_unique<out_owning_type>(std::move(out_array), out_layout);
 }

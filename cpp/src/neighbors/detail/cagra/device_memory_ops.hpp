@@ -2,12 +2,38 @@
  * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
+
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include <raft/core/detail/macros.hpp>
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <hip/hip_fp16.h>
+#include <rocprim/rocprim.hpp>
 #include "device_common_hip.hpp"
 
 namespace cuvs::neighbors::cagra::detail::device {
@@ -73,42 +99,62 @@ RAFT_DEVICE_INLINE_FUNCTION void sts(uint32_t addr, const half2& x)
   *shared_offset_to_flat<half2>(addr) = x;
 }
 
-RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint4& x, const uint4* addr) { x = *addr; }
+RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint4& x, const uint4* addr)
+{
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_cg>(const_cast<uint4*>(addr));
+}
 
-RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint4& x, const uint4* addr) { x = *addr; }
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint4& x, const uint4* addr)
+{
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<uint4*>(addr));
+}
 
-RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint32_t& x, const uint32_t* addr) { x = *addr; }
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(uint32_t& x, const uint32_t* addr)
+{
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<uint32_t*>(addr));
+}
 
-RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint32_t& x, const uint32_t* addr) { x = *addr; }
+RAFT_DEVICE_INLINE_FUNCTION void ldg_cg(uint32_t& x, const uint32_t* addr)
+{
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_cg>(const_cast<uint32_t*>(addr));
+}
 
-RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half& x, const half* addr) { x = *addr; }
-RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[1], const half* addr) { x[0] = *addr; }
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half& x, const half* addr)
+{
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+}
+RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[1], const half* addr)
+{
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+}
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[2], const half* addr)
 {
-  x[0] = addr[0];
-  x[1] = addr[1];
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+  x[1] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 1));
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[4], const half* addr)
 {
-  x[0] = addr[0];
-  x[1] = addr[1];
-  x[2] = addr[2];
-  x[3] = addr[3];
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr));
+  x[1] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 1));
+  x[2] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 2));
+  x[3] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half*>(addr + 3));
 }
 
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2& x, const half* addr)
 {
-  x = *reinterpret_cast<const half2*>(addr);
+  auto ptr = reinterpret_cast<const half2*>(addr);
+  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[1], const half* addr)
 {
-  x[0] = *reinterpret_cast<const half2*>(addr);
+  auto ptr = reinterpret_cast<const half2*>(addr);
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[2], const half* addr)
 {
-  auto* p = reinterpret_cast<const half2*>(addr);
-  x[0]    = p[0];
-  x[1]    = p[1];
+  auto ptr = reinterpret_cast<const half2*>(addr);
+  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
+  x[1] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr + 1));
 }
 
 }  // namespace cuvs::neighbors::cagra::detail::device
