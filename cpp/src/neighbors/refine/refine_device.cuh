@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include "../../core/nvtx.hpp"
@@ -87,9 +111,12 @@ void refine_device(
   // Offsets per probe for each query [n_queries] as n_probes = 1
   rmm::device_uvector<uint32_t> chunk_index(n_queries, raft::resource::get_cuda_stream(handle));
 
-  // we know that each cluster has exactly n_candidates entries
-  raft::matrix::fill(
-    handle, raft::make_device_vector_view(chunk_index.data(), n_queries), uint32_t(n_candidates));
+  // Use actual list sizes rather than assuming n_candidates: build_index_kernel skips invalid
+  // candidate indices, so the actual list size may be smaller than n_candidates.
+  raft::copy(chunk_index.data(),
+             refinement_index.list_sizes().data_handle(),
+             n_queries,
+             raft::resource::get_cuda_stream(handle));
 
   uint32_t* neighbors_uint32 = nullptr;
   if constexpr (sizeof(idx_t) == sizeof(uint32_t)) {

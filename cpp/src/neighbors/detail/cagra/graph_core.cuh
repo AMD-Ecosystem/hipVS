@@ -404,8 +404,9 @@ template <typename T>
 __device__ void warp_shift_array_one_right(uint32_t lane_id, T* array, uint64_t num)
 {
   if (num == 0) { return; }
-  for (auto chunk_end = static_cast<int64_t>(num); chunk_end >= 1; chunk_end -= 31) {
-    const int64_t chunk_start_lo = chunk_end - 31;
+  const int64_t chunk_step = raft::warp_size() - 1;
+  for (auto chunk_end = static_cast<int64_t>(num); chunk_end >= 1; chunk_end -= chunk_step) {
+    const int64_t chunk_start_lo = chunk_end - chunk_step;
     const int64_t chunk_start    = (chunk_start_lo > 0) ? chunk_start_lo : 0;
     const int64_t k              = chunk_start + static_cast<int64_t>(lane_id);
     T val{};
