@@ -1,165 +1,97 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
-/*
- * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
 
-use bindgen::callbacks::{EnumVariantValue, ParseCallbacks};
-use std::env;
-use std::io::BufRead;
-use std::path::PathBuf;
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
-/// HipToCuda implements the ParseCallbacks trait to rename all the hip* types to cuda* types
-/// in the generated bindings. This is needed because the rust code is written to use the CUDA
-/// runtime API's, but bindgen(which uses libclang) on the other hand is generating bindings
-/// for the HIP version as it sees past the preprocessor defines that convert the CUDA API to
-/// the HIP API in our C++ code.
-#[derive(Debug)]
-struct HipToCuda;
+mod cmake;
 
-/// Helper: change a leading "hip" to "cuda"
-fn rename(original: &str) -> Option<String> {
-    original
-        .strip_prefix("hip")
-        .map(|tail| format!("cuda{tail}"))
-}
+#[cfg(feature = "generate-bindings")]
+use std::path::{Path, PathBuf};
 
-impl ParseCallbacks for HipToCuda {
-    /// Rename types, functions, globals, etc.
-    fn item_name(&self, original: bindgen::callbacks::ItemInfo) -> Option<String> {
-        rename(original.name)
+#[cfg(feature = "generate-bindings")]
+fn generate_bindings(include_dir: &Path, include_dirs: &[PathBuf]) {
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set by Cargo"));
+    let stub_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("bindgen-stubs");
+
+    let mut builder = bindgen::Builder::default()
+        .header("cuvs_c_wrapper.h")
+        .must_use_type("cuvsError_t")
+        .allowlist_function("cuvs.*")
+        .allowlist_type("(cuvs|DL).*")
+        .rustified_enum("(cuvs|DL).*")
+        .blocklist_item("cuda.*")
+        .blocklist_item("CUstream_st")
+        .raw_line("use crate::{cudaDataType_t, cudaStream_t};")
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
+
+    // The stub dir provides a minimal cuda_runtime.h so bindgen can parse
+    // the cuVS C headers without a CUDA or ROCm toolkit.
+    builder = builder.clang_arg(format!("-I{}", stub_dir.display()));
+    builder = builder.clang_arg(format!("-I{}", include_dir.display()));
+
+    for include_dir in include_dirs {
+        builder = builder.clang_arg(format!("-I{}", include_dir.display()));
     }
 
-    /// Rename individual enum *variants* (needed for hipSuccess → cudaSuccess …).
-    fn enum_variant_name(
-        &self,
-        _enum_name: Option<&str>,
-        original: &str,
-        _variant_value: EnumVariantValue,
-    ) -> Option<String> {
-        rename(original)
-    }
+    builder
+        .generate()
+        .expect("bindgen failed to generate cuvs bindings")
+        .write_to_file(out_dir.join("cuvs_bindings.rs"))
+        .expect("failed to write cuvs_bindings.rs");
 }
 
 fn main() {
-    // build the cuvs c-api library with cmake, and link it into this crate
-    let cuvs_build = cmake::Config::new(".").build();
+    println!("cargo::rerun-if-changed=cmake.rs");
+    println!("cargo::rerun-if-changed=bindgen-stubs/cuda_runtime.h");
+    println!("cargo::rerun-if-env-changed=CMAKE_PREFIX_PATH");
+    println!("cargo::rerun-if-env-changed=CONDA_PREFIX");
+    println!("cargo::rerun-if-env-changed=LIBHIPVS_USE_PYTHON");
+    println!("cargo::rerun-if-env-changed=VIRTUAL_ENV");
+    println!("cargo::rerun-if-env-changed=DLPACK_INCLUDE_DIR");
 
-    println!(
-        "cargo:rustc-link-search=native={}/lib",
-        cuvs_build.display()
-    );
-    let rocm_root = env::var("ROCM_HOME")
-        .or_else(|_| env::var("ROCM_PATH"))
-        .unwrap_or_else(|_| "/opt/rocm".to_string());
-    println!("cargo:rustc-link-search=native={rocm_root}/lib");
-    println!("cargo:rustc-link-lib=dylib=cuvs_c");
-    println!("cargo:rustc-link-lib=dylib=amdhip64");
-
-    // we need some extra flags both to link against cuvs, and also to run bindgen
-    // specifically we need to:
-    //  * -I flags to set the include path to pick up cudaruntime.h during bindgen
-    //  * -rpath-link settings to link to libraft/libcuvs.so etc during the link
-    // Rather than redefine the logic to set all these things, lets pick up the values from
-    // the cuvs cmake build in its CMakeCache.txt and set from there
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-    let cmake_cache: Vec<String> = std::io::BufReader::new(
-        std::fs::File::open(format!("{}/build/CMakeCache.txt", out_path.display()))
-            .expect("Failed to open cuvs CMakeCache.txt"),
-    )
-    .lines()
-    .map(|x| x.expect("Couldn't parse line from CMakeCache.txt"))
-    .collect();
-    let cuvs_c_lib_path = PathBuf::from(
-        cmake_cache
-            .iter()
-            .find(|x| x.starts_with("CUVS_C_LIBRARY_SO_PATH:FILEPATH="))
-            .expect("failed to find CUVS_C_LIBRARY_SO_PATH in CMakeCache.txt")
-            .strip_prefix("CUVS_C_LIBRARY_SO_PATH:FILEPATH=")
-            .unwrap(),
-    );
-    let cuvs_lib_dir = cuvs_c_lib_path.parent().unwrap();
-    println!("cargo:rustc-link-search=native={}", cuvs_lib_dir.display());
-    let cmake_cxx_flags = cmake_cache
-        .iter()
-        .find(|x| x.starts_with("CMAKE_CXX_FLAGS:STRING="))
-        .expect("failed to find CMAKE_CXX_FLAGS in CMakeCache.txt")
-        .strip_prefix("CMAKE_CXX_FLAGS:STRING=")
-        .unwrap();
-
-    let cmake_linker_flags = cmake_cache
-        .iter()
-        .find(|x| x.starts_with("CMAKE_EXE_LINKER_FLAGS:STRING="))
-        .expect("failed to find CMAKE_EXE_LINKER_FLAGS in CMakeCache.txt")
-        .strip_prefix("CMAKE_EXE_LINKER_FLAGS:STRING=")
-        .unwrap();
-
-    // need to propagate the rpath-link settings to dependent crates =(
-    // (this will get added as DEP_CUVS_CMAKE_LINKER_ARGS in dependent crates)
-    println!("cargo:cmake_linker_flags={}", cmake_linker_flags);
-
-    // add the required rpath-link flags to the cargo build
-    for flag in cmake_linker_flags.split(' ') {
-        if flag.starts_with("-Wl,-rpath-link") {
-            println!("cargo:rustc-link-arg={}", flag);
-        }
+    if cfg!(feature = "doc-only") {
+        return;
     }
 
-    // run bindgen to automatically create rust bindings for the cuvs c-api
-    bindgen::Builder::default()
-        .header("cuvs_c_wrapper.h")
-        .clang_arg("-I../../c/include")
-        .clang_arg("-I../../cpp/include")
-        .clang_arg("-D__HIP_PLATFORM_AMD__") // Usually set by the cmake build or hipcc
-        .clang_arg("-D__HIP_ROCclr__=1") // Usually set by the cmake build or hipcc
-        .clang_arg(format!("-I{rocm_root}/include"))
-        // needed to find cudaruntime.h
-        .clang_args(cmake_cxx_flags.split(' '))
-        // include cuvs c headers and dlpack headers we copied
-        // into our staging location
-        .clang_arg(format!("-I{}/build/bindings/include/", out_path.display()))
-        // include dlpack from the cmake build dependencies
-        .clang_arg(format!(
-            "-I{}/include/",
-            cmake_cache
-                .iter()
-                .find(|x| x.starts_with("CPM_PACKAGE_dlpack_SOURCE_DIR:"))
-                .and_then(|x| x.split_once('='))
-                .map(|(_, v)| v)
-                .expect("failed to find CPM_PACKAGE_dlpack_SOURCE_DIR in CMakeCache.txt"),
-        ))
-        // add `must_use' declarations to functions returning cuvsError_t
-        // (so that if you don't check the error code a compile warning is
-        // generated)
-        .must_use_type("cuvsError_t")
-        // Only generate bindings for cuvs/cagra types and functions
-        .allowlist_type("(cuvs|bruteForce|cagra|DL).*")
-        .allowlist_function("(cuvs|bruteForce|cagra).*")
-        .rustified_enum("(cuvs|cagra|DL|DistanceType|codebook_gen|cudaDataType_t).*")
-        // also need some basic cuda mem functions for copying data
-        .allowlist_function("(hipMemcpyAsync|hipMemcpy)")
-        .rustified_enum("hipError_t")
-        .parse_callbacks(Box::new(HipToCuda))
-        .generate()
-        .expect("Unable to generate cagra_c bindings")
-        .write_to_file(out_path.join("cuvs_bindings.rs"))
-        .expect("Failed to write generated rust bindings");
+    let metadata = match cmake::locate_hipvs() {
+        Ok(metadata) => metadata,
+        Err(error) => {
+            eprintln!("error: {error}");
+            std::process::exit(1);
+        }
+    };
+
+    // Expose include path to downstream crates via DEP_HIPVS_INCLUDE.
+    println!("cargo::metadata=include={}", metadata.include_dir.display());
+    // Expose the directory containing libcuvs_c.so via DEP_HIPVS_LIB.
+    println!("cargo::metadata=lib={}", metadata.lib_dir.display());
+
+    // Link against the HIP runtime.
+    println!("cargo::rustc-link-search=native=/opt/rocm/lib");
+    println!("cargo::rustc-link-lib=dylib=amdhip64");
+
+    #[cfg(feature = "generate-bindings")]
+    generate_bindings(&metadata.include_dir, &metadata.bindgen_include_dirs);
 }

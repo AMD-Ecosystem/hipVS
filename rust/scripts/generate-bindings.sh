@@ -2,6 +2,28 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
+# MIT License
+#
+# Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 set -euo pipefail
 
 usage() {
@@ -10,8 +32,8 @@ Usage:
   rust/scripts/generate-bindings.sh
   rust/scripts/generate-bindings.sh --check
 
-Regenerate the cuvs-sys bindgen output and either:
-  - copy it into rust/cuvs-sys/src/bindings.rs (default), or
+Regenerate the hipvs-sys bindgen output and either:
+  - copy it into rust/hipvs-sys/src/bindings.rs (default), or
   - verify that the checked-in bindings.rs is up to date (--check)
 EOF
 }
@@ -88,7 +110,7 @@ fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 rust_dir="$(cd -- "${script_dir}/.." && pwd)"
-bindings_file="${rust_dir}/cuvs-sys/src/bindings.rs"
+bindings_file="${rust_dir}/hipvs-sys/src/bindings.rs"
 
 target_dir="$(
   cargo metadata \
@@ -104,17 +126,17 @@ if [[ -z "${target_dir}" ]]; then
 fi
 
 cargo clean \
-  -p cuvs-sys \
+  -p hipvs-sys \
   --manifest-path "${rust_dir}/Cargo.toml"
 
 cargo build \
-  -p cuvs-sys \
+  -p hipvs-sys \
   --features generate-bindings \
   --manifest-path "${rust_dir}/Cargo.toml"
 
 generated_file="$(
   find "${target_dir}/debug/build" \
-    -path '*/cuvs-sys-*/out/cuvs_bindings.rs' \
+    -path '*/hipvs-sys-*/out/cuvs_bindings.rs' \
     -printf '%T@ %p\n' \
   | sort -n \
   | tail -n 1 \
