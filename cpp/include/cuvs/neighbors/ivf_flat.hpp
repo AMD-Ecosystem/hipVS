@@ -4,7 +4,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -3176,12 +3176,29 @@ struct metric_interface {
 template <typename T, typename AccT, int V>
 __device__ __forceinline__ AccT squared_diff(point<T, AccT, V> x, point<T, AccT, V> y)
 {
-  if constexpr (std::is_same_v<T, uint8_t> && V > 1) {
-    auto diff = __vabsdiffu4(x.raw(), y.raw());
-    return __dp4a(diff, diff, AccT{0});
-  } else if constexpr (std::is_same_v<T, int8_t> && V > 1) {
-    auto diff = __vabsdiffs4(x.raw(), y.raw());
-    return __dp4a(diff, diff, uint32_t{0});
+  if constexpr ((std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) && V > 1) {
+#ifdef __HIP_PLATFORM_AMD__
+    AccT acc{0};
+    for (int i = 0; i < 4; ++i) {
+      int xi = std::is_same_v<T, int8_t>
+                 ? static_cast<int>(static_cast<int8_t>((x.raw() >> (i * 8)) & 0xFFu))
+                 : static_cast<int>((x.raw() >> (i * 8)) & 0xFFu);
+      int yi = std::is_same_v<T, int8_t>
+                 ? static_cast<int>(static_cast<int8_t>((y.raw() >> (i * 8)) & 0xFFu))
+                 : static_cast<int>((y.raw() >> (i * 8)) & 0xFFu);
+      AccT d = static_cast<AccT>(xi - yi);
+      acc += d * d;
+    }
+    return acc;
+#else
+    if constexpr (std::is_same_v<T, uint8_t>) {
+      auto diff = __vabsdiffu4(x.raw(), y.raw());
+      return __dp4a(diff, diff, AccT{0});
+    } else {
+      auto diff = __vabsdiffs4(x.raw(), y.raw());
+      return __dp4a(diff, diff, uint32_t{0});
+    }
+#endif
   } else {
     auto diff = x.raw() - y.raw();
     return diff * diff;
@@ -3192,12 +3209,27 @@ __device__ __forceinline__ AccT squared_diff(point<T, AccT, V> x, point<T, AccT,
 template <typename T, typename AccT, int V>
 __device__ __forceinline__ AccT abs_diff(point<T, AccT, V> x, point<T, AccT, V> y)
 {
-  if constexpr (std::is_same_v<T, uint8_t> && V > 1) {
-    auto diff = __vabsdiffu4(x.raw(), y.raw());
-    return diff;
-  } else if constexpr (std::is_same_v<T, int8_t> && V > 1) {
-    auto diff = __vabsdiffs4(x.raw(), y.raw());
-    return diff;
+  if constexpr ((std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) && V > 1) {
+#ifdef __HIP_PLATFORM_AMD__
+    uint32_t r = 0;
+    for (int i = 0; i < 4; ++i) {
+      int xi     = std::is_same_v<T, int8_t>
+                     ? static_cast<int>(static_cast<int8_t>((x.raw() >> (i * 8)) & 0xFFu))
+                     : static_cast<int>((x.raw() >> (i * 8)) & 0xFFu);
+      int yi     = std::is_same_v<T, int8_t>
+                     ? static_cast<int>(static_cast<int8_t>((y.raw() >> (i * 8)) & 0xFFu))
+                     : static_cast<int>((y.raw() >> (i * 8)) & 0xFFu);
+      unsigned d = static_cast<unsigned>(xi > yi ? xi - yi : yi - xi);
+      r |= (d & 0xFFu) << (i * 8);
+    }
+    return r;
+#else
+    if constexpr (std::is_same_v<T, uint8_t>) {
+      return __vabsdiffu4(x.raw(), y.raw());
+    } else {
+      return __vabsdiffs4(x.raw(), y.raw());
+    }
+#endif
   } else {
     auto a = x.raw();
     auto b = y.raw();
@@ -3210,7 +3242,21 @@ template <typename T, typename AccT, int V>
 __device__ __forceinline__ AccT dot_product(point<T, AccT, V> x, point<T, AccT, V> y)
 {
   if constexpr ((std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) && V > 1) {
+#ifdef __HIP_PLATFORM_AMD__
+    AccT acc = AccT{0};
+    for (int i = 0; i < 4; ++i) {
+      int xi = std::is_same_v<T, int8_t>
+                 ? static_cast<int>(static_cast<int8_t>((x.raw() >> (i * 8)) & 0xFFu))
+                 : static_cast<int>((x.raw() >> (i * 8)) & 0xFFu);
+      int yi = std::is_same_v<T, int8_t>
+                 ? static_cast<int>(static_cast<int8_t>((y.raw() >> (i * 8)) & 0xFFu))
+                 : static_cast<int>((y.raw() >> (i * 8)) & 0xFFu);
+      acc += static_cast<AccT>(xi) * static_cast<AccT>(yi);
+    }
+    return acc;
+#else
     return __dp4a(x.raw(), y.raw(), AccT{0});
+#endif
   } else {
     return x.raw() * y.raw();
   }
@@ -3483,8 +3529,12 @@ template <typename T> struct is_same<T, T> { static constexpr bool value = true;
 template <typename T, typename U> inline constexpr bool is_same_v = is_same<T, U>::value;
 }
 
-/* NVRTC sets __CUDACC_VER_*; CUDA 12.2 and earlier lack __dp4a in this UDF path. */
-#if defined(__CUDACC_VER_MAJOR__) && defined(__CUDACC_VER_MINOR__) && (__CUDACC_VER_MAJOR__ == 12) && (__CUDACC_VER_MINOR__ < 3)
+/* NVRTC sets __CUDACC_VER_*; CUDA 12.2 and earlier lack __dp4a in this UDF path.
+   hipRTC/comgr defines __AMDGCN__ when targeting AMD GPUs; __vabsdiffs4/__vabsdiffu4
+   are NVIDIA-specific intrinsics unavailable on HIP, so use the scalar fallback. */
+#if defined(__AMDGCN__) || defined(__HIP_PLATFORM_AMD__) || defined(__HIPCC__)
+#define CUVS_UDF_JIT_SCALAR_PACKED_BYTE_OPS 1
+#elif defined(__CUDACC_VER_MAJOR__) && defined(__CUDACC_VER_MINOR__) && (__CUDACC_VER_MAJOR__ == 12) && (__CUDACC_VER_MINOR__ < 3)
 #define CUVS_UDF_JIT_SCALAR_PACKED_BYTE_OPS 1
 #else
 #define CUVS_UDF_JIT_SCALAR_PACKED_BYTE_OPS 0
