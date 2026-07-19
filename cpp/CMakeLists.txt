@@ -220,10 +220,7 @@ include(cmake/modules/ConfigureHIP.cmake)
 rapids_cpm_init()
 
 if(NOT BUILD_CPU_ONLY)
-  # We must find CCCL ourselves before raft so that we get the right version.
-  # TODO(AMD/HIP): Use RAFT's get_cccl.cmake until an AMD cccl equivalent exists
-  # include(${rapids-cmake-dir}/cpm/cccl.cmake) rapids_cpm_cccl(BUILD_EXPORT_SET cuvs-exports
-  # INSTALL_EXPORT_SET cuvs-exports)
+  # We rely on hipRaft to bring in CCCL.
   include(cmake/thirdparty/get_raft.cmake)
   if(BUILD_CK_BACKEND)
     include(cmake/thirdparty/get_ck.cmake)
@@ -1213,9 +1210,9 @@ if(NOT BUILD_CPU_ONLY)
   )
 
   target_compile_definitions(
-    cuvs_objs PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-                      $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-                      $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
+    cuvs_objs
+    PRIVATE $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
+            $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED> $<$<BOOL:${BUILD_CK_BACKEND}>:CUVS_CK_ENABLED>
   )
 
   target_link_libraries(
@@ -1296,9 +1293,10 @@ if(NOT BUILD_CPU_ONLY)
               "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
     )
     target_compile_definitions(
-      cuvs PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
-                  $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
-                  $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
+      cuvs
+      PUBLIC $<$<BOOL:${BUILD_CAGRA_HNSWLIB}>:CUVS_BUILD_CAGRA_HNSWLIB>
+             $<$<BOOL:${CUVS_NVTX}>:NVTX_ENABLED>
+             $<$<BOOL:${CUVS_USE_ROCPROFSYS}>:CUVS_BENCH_USE_ROCPROFSYS>
     )
 
     find_package(hiprtc REQUIRED)
