@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include <cuvs/neighbors/ivf_flat.hpp>
@@ -703,9 +727,18 @@ __device__ float load_and_compute_dist_impl(AccT& dist,
                                             const uint32_t query_smem_elems)
 {
   using align_warp      = raft::Pow2<raft::WarpSize>;
+  using align_group     = raft::Pow2<kIndexGroupSize>;
   constexpr int kUnroll = raft::WarpSize / Veclen;
 
   const int lane_id = align_warp::mod(threadIdx.x);
+
+  // On wf32 (WarpSize=32, kIndexGroupSize=64), the caller has already set
+  // the data pointer to the correct interleaved group.  We must use the
+  // thread's offset within that 64-element group (not lane_id) to index
+  // into the interleaved data for shared-memory loads.
+  const uint32_t warp_id = threadIdx.x / raft::WarpSize;
+  const uint32_t vec_id  = warp_id * raft::WarpSize + lane_id;
+  const int load_idx     = static_cast<int>(align_group::mod(vec_id));
 
   // How many full warps needed to compute the distance (without remainder)
   const uint32_t full_warps_along_dim = align_warp::roundDown(dim);
@@ -714,7 +747,7 @@ __device__ float load_and_compute_dist_impl(AccT& dist,
   loadAndComputeDist<kUnroll, Veclen, T, AccT, ComputeNorm> lc(dist, norm_query, norm_dataset);
   for (int pos = 0; pos < shm_assisted_dim;
        pos += raft::WarpSize, data += kIndexGroupSize * raft::WarpSize) {
-    lc.runLoadShmemCompute(data, query_shared, lane_id, pos);
+    lc.runLoadShmemCompute(data, query_shared, load_idx, pos);
   }
 
   if (dim > query_smem_elems) {
@@ -729,7 +762,7 @@ __device__ float load_and_compute_dist_impl(AccT& dist,
     loadAndComputeDist<1, Veclen, T, AccT, ComputeNorm> lc(dist, norm_query, norm_dataset);
     for (int pos = full_warps_along_dim; pos < dim;
          pos += Veclen, data += kIndexGroupSize * Veclen) {
-      lc.runLoadShmemCompute(data, query_shared, lane_id, pos);
+      lc.runLoadShmemCompute(data, query_shared, load_idx, pos);
     }
   }
 

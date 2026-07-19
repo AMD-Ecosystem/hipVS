@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include "../ivf_common.cuh"
@@ -23,6 +47,7 @@
 #include <raft/core/logger.hpp>
 #include <raft/core/operators.hpp>
 #include <raft/util/cuda_rt_essentials.hpp>  // RAFT_CUDA_TRY
+#include <raft/util/cudart_utils.hpp>        // raft::host_warp_size
 #include <raft/util/pow2_utils.cuh>
 
 #include <rmm/cuda_stream_view.hpp>
@@ -181,15 +206,24 @@ void launch_kernel(const index<T, IdxT>& index,
   auto kernel_launcher = kernel_planner.get_launcher();
 
   const int max_query_smem  = 16384;
-  uint32_t query_smem_elems = std::min<int>(
-    max_query_smem / sizeof(T), raft::Pow2<Veclen * raft::WarpSize>::roundUp(index.dim()));
+  int warp_size             = raft::host_warp_size(stream);
+  uint32_t query_smem_elems = [&]() {
+    if (warp_size == 64) {
+      return std::min<int>(max_query_smem / sizeof(T),
+                           raft::Pow2<Veclen * 64>::roundUp(index.dim()));
+    } else {
+      RAFT_EXPECTS(warp_size == 32, "Invalid warp size: %d", warp_size);
+      return std::min<int>(max_query_smem / sizeof(T),
+                           raft::Pow2<Veclen * 32>::roundUp(index.dim()));
+    }
+  }();
   size_t smem_size = query_smem_elems * sizeof(T);
 
   if constexpr (Capacity > 0) {
-    constexpr int kSubwarpSize = std::min<int>(Capacity, raft::WarpSize);
+    int sub_warp_size = std::min<int>(Capacity, warp_size);
     auto block_merge_mem =
       raft::matrix::detail::select::warpsort::calc_smem_size_for_block_wide<float, IdxT>(
-        kThreadsPerBlock / kSubwarpSize, k);
+        kThreadsPerBlock / sub_warp_size, k);
     smem_size += std::max<int>(smem_size, block_merge_mem);
   }
 

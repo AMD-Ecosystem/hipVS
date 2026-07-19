@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include "../../../ivf_common.cuh"
@@ -147,6 +171,13 @@ __device__ __forceinline__ void interleaved_scan_impl(const uint32_t query_smem_
       }
 
       constexpr uint32_t kNumWarps = kThreadsPerBlock / raft::WarpSize;
+
+      // Interleaved group alignment helper for wf32 correctness:
+      // kIndexGroupSize is always 64, but WarpSize may be 32 (RDNA) or 64 (CDNA).
+      // When WarpSize < kIndexGroupSize, a single warp covers only part of an
+      // interleaved group, so we must remap vec_id to the correct group and offset.
+      using align_group = raft::Pow2<kIndexGroupSize>;
+
       // Every warp reads WarpSize vectors and computes the distances to them.
       // Then, the distances and corresponding ids are distributed among the threads,
       // and each thread adds one (id, dist) pair to the filtering queue.
@@ -155,12 +186,17 @@ __device__ __forceinline__ void interleaved_scan_impl(const uint32_t query_smem_
         AccT dist         = 0;
         AccT norm_query   = 0;
         AccT norm_dataset = 0;
-        // This is where this warp begins reading data (start position of an interleaved group)
-        const T* data = list_data_ptrs[list_id] + (group_id * kIndexGroupSize) * dim;
 
         // This is the vector a given lane/thread handles
         const uint32_t vec_id = group_id * raft::WarpSize + lane_id;
-        const bool valid      = vec_id < list_length && sample_filter<IdxT>(inds_ptrs,
+
+        // Derive which interleaved group this vector belongs to.
+        // This is critical for wf32 where WarpSize != kIndexGroupSize.
+        const uint32_t interleaved_group_id = align_group::div(vec_id);
+
+        // Data pointer for the correct interleaved group
+        const T* data    = list_data_ptrs[list_id] + (interleaved_group_id * kIndexGroupSize) * dim;
+        const bool valid = vec_id < list_length && sample_filter<IdxT>(inds_ptrs,
                                                                        queries_offset + blockIdx.y,
                                                                        list_id,
                                                                        vec_id,
