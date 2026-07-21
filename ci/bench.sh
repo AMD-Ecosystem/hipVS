@@ -25,6 +25,7 @@
 #
 # Required environment variables:
 #   PROJECT_ID, SRC_DIR, BUILD_DIR, INSTALL_DIR, ARTIFACTS_DIR
+#   CMAKE_INSTALL_PREFIX             -- install prefix used at build time (executables land in $CMAKE_INSTALL_PREFIX/bin/ann)
 #   HIPVS_BENCHMARK_DATASET          -- dataset name (e.g. sift-128-euclidean, test-data)
 #   HIPVS_BENCHMARK_ALGORITHMS       -- comma-separated algorithm list (e.g. cuvs_cagra)
 #   HIPVS_BENCHMARK_TOP_K            -- number of nearest neighbors (e.g. 64)
@@ -37,6 +38,7 @@ set -euxo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_helpers.sh"
 require_envs PROJECT_ID SRC_DIR BUILD_DIR INSTALL_DIR ARTIFACTS_DIR \
+    CMAKE_INSTALL_PREFIX \
     HIPVS_BENCHMARK_DATASET HIPVS_BENCHMARK_ALGORITHMS \
     HIPVS_BENCHMARK_TOP_K HIPVS_BENCHMARK_BATCH_SIZE \
     HIPVS_BENCHMARK_SEARCH_MODE HIPVS_BENCHMARK_CONFIG_GROUP
@@ -70,6 +72,7 @@ python -m cuvs_bench.run \
     --algorithms "${HIPVS_BENCHMARK_ALGORITHMS}" \
     --groups "${HIPVS_BENCHMARK_CONFIG_GROUP}" \
     --dataset-path "${RAPIDS_DATASET_ROOT_DIR}" \
+    --executable-dir "${CMAKE_INSTALL_PREFIX}/bin/ann" \
     -k "${HIPVS_BENCHMARK_TOP_K}" \
     --batch-size "${HIPVS_BENCHMARK_BATCH_SIZE}" \
     --search-mode "${HIPVS_BENCHMARK_SEARCH_MODE}" \
@@ -80,6 +83,7 @@ python -m cuvs_bench.run --data-export \
     --algorithms "${HIPVS_BENCHMARK_ALGORITHMS}" \
     --groups "${HIPVS_BENCHMARK_CONFIG_GROUP}" \
     --dataset-path "${RAPIDS_DATASET_ROOT_DIR}" \
+    --executable-dir "${CMAKE_INSTALL_PREFIX}/bin/ann" \
     -k "${HIPVS_BENCHMARK_TOP_K}" \
     --batch-size "${HIPVS_BENCHMARK_BATCH_SIZE}" \
     --search-mode "${HIPVS_BENCHMARK_SEARCH_MODE}"
