@@ -59,10 +59,17 @@ list<SpecT, SizeT, SpecExtraArgs...>::list(raft::resources const& res,
   : size{n_rows}, data{res}, indices{res}
 {
   const SizeT warp_size = raft::host_warp_size(raft::resource::get_device_id(res));
-  const SizeT align_max = spec.conservative_memory_allocation ? warp_size : SizeT{1024};
+  // On wave32 (RDNA), host_warp_size()=32. Some index types (e.g. IVF-SQ) interleave data in
+  // groups of kIndexGroupSize=64 and require device lists to be at least 64-row aligned.
+  // Use spec.align_min when present to enforce the minimum alignment regardless of warp size.
+  SizeT min_align = warp_size;
+  if constexpr (requires { spec.align_min; }) {
+    min_align = std::max(min_align, static_cast<SizeT>(spec.align_min));
+  }
+  const SizeT align_max = spec.conservative_memory_allocation ? min_align : SizeT{1024};
   SizeT capacity        = raft::round_up_safe<SizeT>(n_rows, align_max);
   if (n_rows < align_max) {
-    capacity = raft::bound_by_power_of_two<SizeT>(std::max<SizeT>(n_rows, warp_size));
+    capacity = raft::bound_by_power_of_two<SizeT>(std::max<SizeT>(n_rows, min_align));
     capacity = std::min<SizeT>(capacity, align_max);
   }
   try {
