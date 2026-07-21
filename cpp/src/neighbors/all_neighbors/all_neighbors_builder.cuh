@@ -238,7 +238,7 @@ struct all_neighbors_builder_ivfpq : public all_neighbors_builder<T, IdxT> {
                  raft::make_host_vector_view<const T>(refined_distances_h_view.data_handle(),
                                                       num_data_in_cluster * this->k));
 
-      remap_and_merge_subgraphs<T, IdxT, IdxT>(
+      remap_and_merge_subgraphs<T, IdxT, IdxT, true>(
         this->res,
         this->inverted_indices_d.value().view(),
         inverted_indices.value(),
@@ -440,7 +440,7 @@ struct all_neighbors_builder_nn_descent : public all_neighbors_builder<T, IdxT> 
                                   this->batch_distances_d.value().data_handle());
       }
 
-      remap_and_merge_subgraphs<T, IdxT, int, std::is_same_v<DistEpilogueT, ReachabilityPP>>(
+      remap_and_merge_subgraphs<T, IdxT, int, true>(
         this->res,
         this->inverted_indices_d.value().view(),
         inverted_indices.value(),
@@ -632,7 +632,7 @@ struct all_neighbors_builder_brute_force : public all_neighbors_builder<T, IdxT>
                  raft::make_device_vector_view<const IdxT>(
                    this->batch_neighbors_d.value().data_handle(), num_data_in_cluster * this->k));
 
-      remap_and_merge_subgraphs<T, IdxT, IdxT, std::is_same_v<DistEpilogueT, ReachabilityPP>>(
+      remap_and_merge_subgraphs<T, IdxT, IdxT, true>(
         this->res,
         this->inverted_indices_d.value().view(),
         inverted_indices.value(),
