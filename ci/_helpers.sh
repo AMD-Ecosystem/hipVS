@@ -67,7 +67,9 @@ setup_hipblaslt_tensile_libpath() {
     [ -d "${lib_root}" ] || return 0
 
     # Standard ROCm layout: the lazy index sits at the top level. Nothing to do.
-    if compgen -G "${lib_root}/TensileLibrary_lazy_*.dat" > /dev/null; then
+    # Match both *.dat (standard ROCm) and *.dat.zlib (TheRock compressed variant).
+    if compgen -G "${lib_root}/TensileLibrary_lazy_*.dat" > /dev/null ||
+       compgen -G "${lib_root}/TensileLibrary_lazy_*.dat.zlib" > /dev/null; then
         return 0
     fi
 
@@ -83,17 +85,24 @@ setup_hipblaslt_tensile_libpath() {
         arch="$(echo "${AMDGPU_TARGETS:-}" | tr ',;' '  ' | awk '{print $1}')"
     fi
 
-    if [ -n "${arch}" ] && compgen -G "${lib_root}/${arch}/TensileLibrary_lazy_*.dat" > /dev/null; then
+    _has_lazy_index() {
+        compgen -G "${1}TensileLibrary_lazy_*.dat" > /dev/null ||
+        compgen -G "${1}TensileLibrary_lazy_*.dat.zlib" > /dev/null
+    }
+
+    if [ -n "${arch}" ] && _has_lazy_index "${lib_root}/${arch}/"; then
         export HIPBLASLT_TENSILE_LIBPATH="${lib_root}/${arch}"
     else
         local dir
         for dir in "${lib_root}"/*/; do
-            if compgen -G "${dir}TensileLibrary_lazy_*.dat" > /dev/null; then
+            if _has_lazy_index "${dir}"; then
                 export HIPBLASLT_TENSILE_LIBPATH="${dir%/}"
                 break
             fi
         done
     fi
+
+    unset -f _has_lazy_index
 
     if [ -n "${HIPBLASLT_TENSILE_LIBPATH:-}" ]; then
         echo "Set HIPBLASLT_TENSILE_LIBPATH=${HIPBLASLT_TENSILE_LIBPATH} (TheRock hipBLASLt layout WAR)"
