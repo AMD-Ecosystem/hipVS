@@ -42,7 +42,9 @@ namespace cub = hipcub;
 #endif
 
 #include <raft/core/resource/cublas_handle.hpp>
+#include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resources.hpp>
+#include <raft/linalg/unary_op.cuh>
 
 namespace cuvs {
 namespace distance {
@@ -213,8 +215,42 @@ void pairwise_distance_gemm(raft::resources const& handle,
       zType       = CUDA_R_32I;
       computeType = CUBLAS_COMPUTE_32I;
     } else if constexpr (std::is_same_v<AccT, float>) {
+#ifdef __HIP_PLATFORM_AMD__
+      // hipBLAS does not support int8 inputs with COMPUTE_32F. Use COMPUTE_32I
+      // writing directly into z (reinterpreted as int32_t* — same size), then
+      // cast in-place to float. No extra allocation needed.
+      auto stream   = raft::resource::get_cuda_stream(handle);
+      auto cublas_h = raft::resource::get_cublas_handle(handle);
+      RAFT_CUBLAS_TRY(cublasSetStream(cublas_h, stream));
+      static_assert(sizeof(float) == sizeof(int32_t), "The reuse of the buffer depends on this");
+      auto* z_i32    = reinterpret_cast<int32_t*>(z);
+      int32_t alpha1 = 1, beta1 = 0;
+      RAFT_CUBLAS_TRY(cublasGemmEx(cublas_h,
+                                   CUBLAS_OP_T,
+                                   CUBLAS_OP_N,
+                                   N,
+                                   M,
+                                   K,
+                                   &alpha1,
+                                   y,
+                                   CUDA_R_8I,
+                                   K,
+                                   x,
+                                   CUDA_R_8I,
+                                   K,
+                                   &beta1,
+                                   z_i32,
+                                   CUDA_R_32I,
+                                   N,
+                                   CUBLAS_COMPUTE_32I,
+                                   CUBLAS_GEMM_DEFAULT));
+      raft::linalg::unaryOp(
+        z, z_i32, IdxT(M) * IdxT(N), [] __device__(int32_t v) { return float(v); }, stream);
+      return;
+#else
       zType       = CUDA_R_32F;
       computeType = CUBLAS_COMPUTE_32F;
+#endif
     }
   } else if constexpr (std::is_same_v<DataT, half>) {
     xyType = CUDA_R_16F;
