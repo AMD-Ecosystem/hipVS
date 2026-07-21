@@ -5,7 +5,7 @@
 
 // MIT License
 //
-// Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -351,6 +351,8 @@ void all_neighbors_graph(raft::resources const& res,
                          raft::host_matrix_view<uint32_t, int64_t, raft::row_major> neighbors,
                          cuvs::distance::DistanceType metric)
 {
+  // Nothing to build if the dataset has 0 or 1 rows (neighbor_size would be 0).
+  if (dataset.extent(0) <= 1 || neighbors.extent(1) == 0) { return; }
   // FIXME: choose better heuristic
   bool use_nn_decent = neighbors.size() < 1e7;
   if (use_nn_decent) {

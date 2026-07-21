@@ -1691,8 +1691,9 @@ void GNND<Data_t, Index_t>::build(Data_t* data,
         compute_l2_norms_kernel<<<batch.size(),
                                   raft::host_warp_size(stream),
                                   sizeof(float) *
-                                    raft::ceildiv(build_config_.dataset_dim,
-                                                  static_cast<size_t>(raft::host_warp_size(stream))) *
+                                    raft::ceildiv(
+                                      build_config_.dataset_dim,
+                                      static_cast<size_t>(raft::host_warp_size(stream))) *
                                     raft::host_warp_size(stream),
                                   stream>>>(
           batch.data(), build_config_.dataset_dim, l2_norms_.data_handle() + batch.offset());
