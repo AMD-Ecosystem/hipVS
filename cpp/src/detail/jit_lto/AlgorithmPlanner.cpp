@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #include <chrono>
 #include <iterator>
 #include <memory>
@@ -30,6 +54,21 @@
 std::string AlgorithmPlanner::get_fragments_key() const
 {
   std::string key = "";
+#ifdef __HIP_PLATFORM_AMD__
+  // On AMD, hipModuleLoadData loads the JIT-linked code object into the *current* device's
+  // context. The static cache is process-wide, so when multiple OMP threads call get_launcher()
+  // on different devices concurrently the first thread to build populates the cache with a module
+  // handle that is only valid on its device. Subsequent threads on other devices get the same
+  // cached hipFunction_t and fail with hipErrorInvalidDeviceFunction. Prefix the key with the
+  // device ordinal so every device gets its own compiled and loaded module.
+  // TODO(HIP): This is a HIP limitation — hipModule_t handles are device-context-specific, unlike
+  // NVIDIA's cudaLibrary_t which is device-independent. A cleaner long-term fix would be to either
+  // use hipModuleLoadDataEx with the multi-device context API (if/when ROCm exposes one), or
+  // restructure the cache to be per-device rather than patching the key here.
+  int device = 0;
+  (void)cudaGetDevice(&device);
+  key += "dev" + std::to_string(device) + ":";
+#endif
   for (const auto& fragment : this->fragments) {
     key += fragment->get_key();
   }
@@ -87,10 +126,10 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
     ir_opts.push_back(opt.c_str());
   }
 
-  size_t ir_opt_count                 = ir_opts.size();
-  hiprtcJIT_option options[]          = {hipJitOptionIRtoISAOptExt, hipJitOptionIRtoISAOptCountExt};
-  void* option_values[]               = {static_cast<void*>(ir_opts.data()),
-                                         reinterpret_cast<void*>(ir_opt_count)};
+  size_t ir_opt_count        = ir_opts.size();
+  hiprtcJIT_option options[] = {hipJitOptionIRtoISAOptExt, hipJitOptionIRtoISAOptCountExt};
+  void* option_values[]      = {static_cast<void*>(ir_opts.data()),
+                                reinterpret_cast<void*>(ir_opt_count)};
 
   hiprtcLinkState link_state;
   auto result = hiprtcLinkCreate(2, options, option_values, &link_state);
