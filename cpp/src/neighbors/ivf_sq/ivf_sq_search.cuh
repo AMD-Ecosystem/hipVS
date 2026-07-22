@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include "../../core/nvtx.hpp"
@@ -29,6 +53,7 @@
 #include <raft/linalg/unary_op.cuh>
 #include <raft/matrix/detail/select_warpsort.cuh>
 #include <raft/util/cuda_rt_essentials.hpp>
+#include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 
 #include <rmm/resource_ref.hpp>
@@ -63,8 +88,11 @@ size_t sq_scan_total_smem(uint32_t dim, uint32_t k)
 {
   size_t scan_smem = sq_scan_smem_size(dim);
   if constexpr (Capacity > 0) {
-    constexpr int kSubwarpSize = std::min<int>(Capacity, raft::WarpSize);
-    int num_subwarps           = kSqScanThreads / kSubwarpSize;
+    int dev_id;
+    RAFT_CUDA_TRY(cudaGetDevice(&dev_id));
+    int dev_warp_size = raft::host_warp_size(dev_id);
+    int kSubwarpSize  = std::min<int>(Capacity, dev_warp_size);
+    int num_subwarps  = kSqScanThreads / kSubwarpSize;
     size_t merge_smem =
       raft::matrix::detail::select::warpsort::calc_smem_size_for_block_wide<float, uint32_t>(
         num_subwarps, k);

@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include "device_functions.cuh"
@@ -108,16 +132,14 @@ __device__ __forceinline__ void ivf_sq_scan_impl(const uint8_t* const* data_ptrs
                                                  int64_t bitset_len,
                                                  int64_t original_nbits)
 {
-#ifdef __HIP_PLATFORM_AMD__
-  // On AMD, raft::WarpSize is a device constexpr (64 on CDNA); kIndexGroupSize
-  // is set to 64 to match.  RDNA (wave32) would need runtime dispatch — see
-  // hip-warp-size-host-device memory note.
-  static_assert(kIndexGroupSize == 64,
-                "AMD IVF-SQ requires kIndexGroupSize == 64 (CDNA wavefront)");
-#else
+#ifndef __HIP_PLATFORM_AMD__
   static_assert(kIndexGroupSize == raft::WarpSize,
                 "Warp-coalesced scan requires kIndexGroupSize == WarpSize");
 #endif
+  // On AMD, kIndexGroupSize == 64 always (fixed by the storage layout).
+  // On CDNA (wave64): WarpSize == 64 == kIndexGroupSize, one warp covers one group.
+  // On RDNA (wave32): WarpSize == 32 < kIndexGroupSize == 64, each warp covers
+  // half a group; the inner loop below handles this via row-based addressing.
 
   constexpr int BlockDim          = kSqScanThreads;
   constexpr bool kManageLocalTopK = (Capacity > 0);
@@ -193,9 +215,9 @@ __device__ __forceinline__ void ivf_sq_scan_impl(const uint8_t* const* data_ptrs
     uint32_t padded_dim    = raft::Pow2<veclen>::roundUp(dim);
     uint32_t n_dim_blocks  = padded_dim / veclen;
 
-    for (uint32_t group = warp_id * kIndexGroupSize; group < cluster_sz;
-         group += kWarpsPerBlock * kIndexGroupSize) {
-      const uint32_t row = group + lane_id;
+    for (uint32_t row_base = warp_id * raft::WarpSize; row_base < cluster_sz;
+         row_base += kWarpsPerBlock * raft::WarpSize) {
+      const uint32_t row = row_base + lane_id;
       const bool valid =
         (row < cluster_sz) &&
         sample_filter<int64_t>(
@@ -204,11 +226,20 @@ __device__ __forceinline__ void ivf_sq_scan_impl(const uint8_t* const* data_ptrs
       float dist      = 0.0f;
       float v_norm_sq = 0.0f;
 
-      const uint8_t* group_data = codes + size_t(group) * padded_dim;
+      // The IVF list data is stored in kIndexGroupSize-interleaved layout:
+      //   group g occupies bytes [g*padded_dim*kIndexGroupSize, (g+1)*padded_dim*kIndexGroupSize)
+      //   row r is in group g = r/kIndexGroupSize at lane l = r%kIndexGroupSize.
+      // When WarpSize == kIndexGroupSize one warp covers one group exactly.
+      // When WarpSize < kIndexGroupSize (RDNA wave32) each warp covers a half-group;
+      // row-based addressing handles both cases uniformly.
+      const uint32_t grp      = row / kIndexGroupSize;
+      const uint32_t grp_lane = row % kIndexGroupSize;
+      const uint8_t* row_codes =
+        codes + size_t(grp) * (padded_dim * kIndexGroupSize) + grp_lane * veclen;
 
       for (uint32_t bl = 0; bl < n_dim_blocks; bl++) {
         code_vec_t codes_local;
-        codes_local.load(group_data + bl * (veclen * kIndexGroupSize) + lane_id * veclen, 0);
+        codes_local.load(row_codes + bl * (veclen * kIndexGroupSize), 0);
 
         const uint32_t l = bl * veclen;
 #pragma unroll
