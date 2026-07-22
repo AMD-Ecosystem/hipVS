@@ -67,6 +67,7 @@ if [[ -n "${NORMALIZE_FLAG}" ]]; then
     echo "Using normalized dataset name: ${DATASET_NAME}"
 fi
 
+LD_LIBRARY_PATH="${CMAKE_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH:-}" \
 python -m cuvs_bench.run \
     --dataset "${DATASET_NAME}" \
     --algorithms "${HIPVS_BENCHMARK_ALGORITHMS}" \
@@ -78,6 +79,7 @@ python -m cuvs_bench.run \
     --search-mode "${HIPVS_BENCHMARK_SEARCH_MODE}" \
     --force
 
+LD_LIBRARY_PATH="${CMAKE_INSTALL_PREFIX}/lib:${LD_LIBRARY_PATH:-}" \
 python -m cuvs_bench.run --data-export \
     --dataset "${DATASET_NAME}" \
     --algorithms "${HIPVS_BENCHMARK_ALGORITHMS}" \
