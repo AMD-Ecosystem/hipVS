@@ -23,7 +23,7 @@
 
 .. meta::
    :description: hipVS documentation and API reference library
-   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS
+   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, AMD Data Science
 
 .. _build-hipvs:
 
@@ -31,7 +31,7 @@
 Building hipVS from source
 **************************
 
-hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the `https://github.com/ROCm-DS/hipVS <https://github.com/ROCm-DS/hipVS>`_ repository. To install hipVS for end users, see :doc:`Installing hipVS <./install>`.
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the `https://github.com/AMD-Ecosystem/hipVS <https://github.com/AMD-Ecosystem/hipVS>`_ repository. To install hipVS for end users, see :doc:`Installing hipVS <./install>`.
 
 See :ref:`sys-req` for information regarding supported operating systems, ROCm versions,
 and AMD GPUs before building and installing hipVS.
@@ -72,11 +72,11 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
      - Tested with 0.3.26
    * - **Additional Required Dependencies**
      -
-   * - **\*** `hipMM <https://github.com/ROCm-DS/hipMM>`_
+   * - **\*** `hipMM <https://github.com/AMD-Ecosystem/hipMM>`_
      - 4.0.0
    * - **\*** `hipCollections <https://github.com/ROCm/hipCollections>`_
      - 0.4.0
-   * - **\*** `hipRAFT <https://github.com/ROCm-DS/hipRAFT>`_
+   * - **\*** `hipRAFT <https://github.com/AMD-Ecosystem/hipRAFT>`_
      - 1.0.0
    * - **\*** `hipCUB <https://github.com/ROCm/hipCUB>`_
      - Version that comes bundled with ROCm ≥ 7.2.3
@@ -99,7 +99,7 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
 
 .. note::
 
-   ``*`` - If not found locally the CMake build system will attempt to download a compatible version using `ROCmDS-cmake <https://github.com/ROCm-DS/ROCmDS-cmake>`_.
+   ``*`` - If not found locally the CMake build system will attempt to download a compatible version using `ROCmDS-cmake <https://github.com/AMD-Ecosystem/ROCmDS-cmake>`_.
 
    ``**`` - The ``OpenMP`` toolchain is automatically installed as part of the standard ROCm installation and is available under ``/opt/rocm-{version}/llvm``.
 
@@ -163,7 +163,7 @@ Building and installing using build.sh
 
 A utility script ``<HIPVS_ROOT>/build.sh`` is provided and is the entry-point to building various components.
 
-``build.sh`` uses `ROCmDS-cmake <https://github.com/ROCm-DS/ROCmDS-cmake>`_, which will automatically download any dependencies that are not already installed.
+``build.sh`` uses `ROCmDS-cmake <https://github.com/AMD-Ecosystem/ROCmDS-cmake>`_, which will automatically download any dependencies that are not already installed.
 
 The following will download the required dependencies, build and install the hipVS CMake package to the configured CMake install prefix.
 
