@@ -23,7 +23,7 @@
 
 .. meta::
   :description: hipVS documentation and API reference library
-  :keywords: Nearest-Neighbors, Information-Retrieval, Similarity-Search, GPU, Distance, RAPIDS, ROCm-DS
+  :keywords: Nearest-Neighbors, Information-Retrieval, Similarity-Search, GPU, Distance, RAPIDS, AMD Data Science
 
 .. _hipvs-python:
 
