@@ -3,13 +3,13 @@
 myst:
   html_meta:
     "description": "hipVS documentation and API reference library"
-    "keywords": "Nearest-Neighbors, Information-Retrieval, Similarity-Search, GPU, Distance, RAPIDS, ROCm-DS"
+    "keywords": "Nearest-Neighbors, Information-Retrieval, Similarity-Search, GPU, Distance, RAPIDS, AMD Data Science"
 ---
 -->
 
 # Building hipVS from source
 
-hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/ROCm-DS/hipVS](https://github.com/ROCm-DS/hipVS) repository. To install hipVS for end users, see [Installing hipVS](./install.md).
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the [https://github.com/AMD-Ecosystem/hipVS](https://github.com/AMD-Ecosystem/hipVS) repository. To install hipVS for end users, see [Installing hipVS](./install.md).
 
 ## Tested GPUs
 
@@ -41,9 +41,9 @@ Install ROCm 7.0.2, or the minimum version supported by the GPUs listed above, a
 | [`SuiteSparse`](https://github.com/DrTimothyAldenDavis/SuiteSparse)                         | Tested with 7.6.1                            |
 | [`libopenblas-dev`](https://github.com/OpenMathLib/OpenBLAS)                                | Tested with 0.3.26                           |
 | **Additional Required Dependencies**                                                        |                                              |
-| **\***[`hipMM`](https://github.com/ROCm-DS/hipMM)                                           | 3.0.0                                        |
+| **\***[`hipMM`](https://github.com/AMD-Ecosystem/hipMM)                                           | 3.0.0                                        |
 | **\***[`hipCollections`](https://github.com/ROCm/hipCollections)                            | 0.3.0                                        |
-| **\***[`hipRAFT`](https://github.com/ROCm-DS/hipRAFT)                                       | 0.1.0                                        |
+| **\***[`hipRAFT`](https://github.com/AMD-Ecosystem/hipRAFT)                                       | 0.1.0                                        |
 | **\***[`hipCUB`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/hipcub)       | Version that comes bundled with ROCm ≥ 7.0.2 |
 | **\***[`rocThrust`](https://github.com/ROCm/rocm-libraries/tree/develop/projects/rocthrust) | Version that comes bundled with ROCm ≥ 7.0.2 |
 | **\*\***[`OpenMP`](https://www.openmp.org/)                                                 | Version that comes bundled with ROCm ≥ 7.0.2 |
@@ -54,7 +54,7 @@ Install ROCm 7.0.2, or the minimum version supported by the GPUs listed above, a
 | [`Googlebench`](https://github.com/google/benchmark)                                        | ≥ 1.13.0                                     |
 | [`Doxygen`](https://github.com/doxygen/doxygen)                                             | >=1.8.20                                     |
 
-> `*` - If not found locally the CMake build system will attempt to download a compatible version using [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake).
+> `*` - If not found locally the CMake build system will attempt to download a compatible version using [ROCmDS-cmake](https://github.com/AMD-Ecosystem/ROCmDS-cmake).
 >
 > `**` - The `OpenMP` toolchain is automatically installed as part of the standard ROCm installation and is available under `/opt/rocm-{version}/llvm`.
 
@@ -99,7 +99,7 @@ The core functionality of hipVS is implemented in HIP/C++ and its functionality 
 
 A utility script `<HIPVS_ROOT>/build.sh` is provided and is the entry-point to building various components.
 
-`build.sh` uses [ROCmDS-cmake](https://github.com/ROCm-DS/ROCmDS-cmake), which will automatically download any dependencies that are not already installed.
+`build.sh` uses [ROCmDS-cmake](https://github.com/AMD-Ecosystem/ROCmDS-cmake), which will automatically download any dependencies that are not already installed.
 
 The following will download the required dependencies, build and install the hipVS CMake package to the configured CMake install prefix.
 
