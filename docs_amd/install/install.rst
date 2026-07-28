@@ -23,7 +23,7 @@
 
 .. meta::
    :description: hipVS documentation and API reference library
-   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS
+   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, AMD Data Science
 
 ****************
 Installing hipVS
