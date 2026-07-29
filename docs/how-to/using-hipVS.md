@@ -1,7 +1,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="description" content="hipVS documentation and API reference library">
-  <meta name="keywords" content="Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS">
+  <meta name="keywords" content="Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, AMD Data Science">
 </head>
 
 # Using hipVS examples
