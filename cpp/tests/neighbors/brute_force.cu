@@ -330,10 +330,7 @@ class RandomBruteForceKNNTest : public ::testing::TestWithParam<RandomKNNInputs>
 
         int64_t c_index = trans_c ? i * params_.num_db_vecs + j : j * params_.num_queries + i;
 
-        // Guard against 0 * NaN/Inf: when beta == 0 the h_vals term is meant to
-        // drop out entirely, but h_vals is read from the uninitialized
-        // temp_distances buffer, so a leftover NaN/Inf would poison the result.
-        h_vals[c_index] = beta == DistT(0) ? alpha * sum : alpha * sum + beta * h_vals[c_index];
+        h_vals[c_index] = alpha * sum + beta * h_vals[c_index];
         if (params_.metric == cuvs::distance::DistanceType::L2Expanded) {
           h_vals[c_index] = DistT(-2.0) * h_vals[c_index] + norms_A + norms_B;
         } else if (params_.metric == cuvs::distance::DistanceType::L2SqrtExpanded) {
@@ -362,8 +359,11 @@ class RandomBruteForceKNNTest : public ::testing::TestWithParam<RandomKNNInputs>
     auto temp_dist = temp_distances.data();
     rmm::device_uvector<DistT> temp_row_major_dist(num_db_vecs * num_queries, stream_);
 
-    // temp_distances is uninitialized pool memory; zero it so a stale NaN/Inf
-    // bit pattern can't leak into the reference distances via cpu_distance.
+    // Required: temp_distances is uninitialized pool memory, and cpu_distance()
+    // reads it back as h_vals for the `beta * h_vals` accumulation term. Since
+    // 0.0 * NaN == NaN under IEEE-754, a stale NaN/Inf bit pattern from recycled
+    // pool memory survives the beta == 0 multiply and poisons the reference
+    // distances, causing intermittent -nan mismatches in the larger cases.
     RAFT_CUDA_TRY(
       cudaMemsetAsync(temp_distances.data(), 0, temp_distances.size() * sizeof(DistT), stream_));
 
