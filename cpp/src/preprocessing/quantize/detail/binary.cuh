@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 /*
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
@@ -34,16 +23,19 @@
 #pragma once
 
 #include <cuvs/preprocessing/quantize/binary.hpp>
+#include <raft/core/copy.cuh>
+#include <raft/core/device_mdspan.hpp>
+#include <raft/core/host_mdspan.hpp>
 #include <raft/core/operators.hpp>
+#include <raft/linalg/map.cuh>
 #include <raft/linalg/transpose.cuh>
-#include <raft/linalg/unary_op.cuh>
+#include <raft/matrix/init.cuh>
 #include <raft/matrix/sample_rows.cuh>
 #include <raft/random/rng.cuh>
 #include <raft/random/sample_without_replacement.cuh>
 #include <raft/stats/mean.cuh>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
-#include <thrust/system/omp/execution_policy.h>
 
 namespace cuvs::preprocessing::quantize::detail {
 
@@ -174,8 +166,7 @@ void mean_f16_in_f32(raft::resources const& res,
   auto mr = raft::resource::get_workspace_resource(res);
   auto f32_result_vec =
     raft::make_device_mdarray<float, int64_t>(res, mr, raft::make_extents<int64_t>(dataset_dim));
-  RAFT_CUDA_TRY(
-    cudaMemsetAsync(f32_result_vec.data_handle(), 0, sizeof(float) * dataset_dim, cuda_stream));
+  raft::matrix::fill(res, f32_result_vec.view(), float(0));
 
   constexpr uint32_t dataset_size_per_cta = 2048;
   constexpr uint32_t block_size           = 256;
@@ -352,18 +343,19 @@ auto train(raft::resources const& res,
   }
 
   if constexpr (std::is_same_v<T, compute_t>) {
-    raft::copy(quantizer.threshold.data_handle(),
-               host_threshold_vec.data(),
-               dataset_dim,
-               raft::resource::get_cuda_stream(res));
+    raft::copy(
+      res,
+      raft::make_device_vector_view(quantizer.threshold.data_handle(), (int64_t)dataset_dim),
+      raft::make_host_vector_view<const compute_t>(host_threshold_vec.data(),
+                                                   (int64_t)dataset_dim));
   } else {
     auto mr         = raft::resource::get_workspace_resource(res);
     auto casted_vec = raft::make_device_mdarray<compute_t, int64_t>(
       res, mr, raft::make_extents<int64_t>(dataset_dim));
-    raft::copy(casted_vec.data_handle(),
-               host_threshold_vec.data(),
-               dataset_dim,
-               raft::resource::get_cuda_stream(res));
+    raft::copy(res,
+               casted_vec.view(),
+               raft::make_host_vector_view<const compute_t>(host_threshold_vec.data(),
+                                                            (int64_t)dataset_dim));
     raft::linalg::map(res,
                       quantizer.threshold.view(),
                       raft::cast_op<T>{},
@@ -446,10 +438,10 @@ void transform(raft::resources const& res,
     threshold_ptr = threshold_vec.data_handle();
 
     if constexpr (std::is_same_v<compute_t, T>) {
-      raft::copy(threshold_ptr,
-                 quantizer.threshold.data_handle(),
-                 dataset_dim,
-                 raft::resource::get_cuda_stream(res));
+      raft::copy(res,
+                 raft::make_host_vector_view(threshold_ptr, (int64_t)dataset_dim),
+                 raft::make_device_vector_view<const T>(quantizer.threshold.data_handle(),
+                                                        (int64_t)dataset_dim));
     } else {
       auto mr         = raft::resource::get_workspace_resource(res);
       auto casted_vec = raft::make_device_mdarray<float, int64_t>(
@@ -459,13 +451,21 @@ void transform(raft::resources const& res,
                         raft::cast_op<compute_t>{},
                         raft::make_const_mdspan(quantizer.threshold.view()));
       raft::copy(
-        threshold_ptr, casted_vec.data_handle(), dataset_dim, raft::resource::get_cuda_stream(res));
+        res,
+        raft::make_host_vector_view(threshold_ptr, (int64_t)dataset_dim),
+        raft::make_device_vector_view<const float>(casted_vec.data_handle(), (int64_t)dataset_dim));
     }
+    // Populate the threshold_ptr on the host side before the host parallel loop.
+    raft::resource::sync_stream(res);
   }
 
 #pragma omp parallel for collapse(2)
   for (size_t i = 0; i < dataset_size; ++i) {
-    for (uint32_t out_j = 0; out_j < minimul_out_dim; ++out_j) {
+    for (uint32_t out_j = 0; out_j < out_dim; ++out_j) {
+      if (out_j >= minimul_out_dim) {
+        out(i, out_j) = 0;
+        continue;
+      }
       QuantI pack = 0;
       for (uint32_t pack_j = 0; pack_j < bits_per_pack; ++pack_j) {
         const uint32_t in_j = out_j * bits_per_pack + pack_j;

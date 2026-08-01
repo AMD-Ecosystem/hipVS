@@ -1,34 +1,43 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from d16f1b0d0 (1ffb3370f) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2024-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (1ffb3370f)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
 #include "common.cuh"
@@ -37,10 +46,9 @@
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_resources.hpp>
 #include <raft/random/make_blobs.cuh>
-#include <rmm/mr/device/device_memory_resource.hpp>
-#include <rmm/mr/device/pool_memory_resource.hpp>
+#include <rmm/mr/arena_memory_resource.hpp>
+#include <rmm/mr/device_memory_resource.hpp>
 
-#include <array>
 #include <chrono>
 #include <cstdint>
 #include <future>
@@ -170,30 +178,53 @@ void cagra_build_search_variants(raft::device_resources const& res,
        data in cuda streams.
   */
   auto search_async = [&res, &index](bool needs_sync,
+                                     size_t n_threads,
                                      const cagra::search_params& ps,
                                      raft::device_matrix_view<const float, int64_t> queries,
                                      raft::device_matrix_view<uint32_t, int64_t> neighbors,
                                      raft::device_matrix_view<float, int64_t> distances) {
-    auto work_size   = queries.extent(0);
-    using index_type = typeof(work_size);
     // Limit the maximum number of concurrent jobs
-    constexpr index_type kMaxJobs = 1000;
-    std::array<std::future<void>, kMaxJobs> futures;
-    for (index_type i = 0; i < work_size + kMaxJobs; i++) {
-      // wait for previous job in the same slot to finish
-      if (i >= kMaxJobs) { futures[i % kMaxJobs].wait(); }
-      // submit a new job
-      if (i < work_size) {
-        const auto row        = i;
-        futures[i % kMaxJobs] = std::async(std::launch::async, [&, row]() {
+// <<<<<<< OLD CODE from d16f1b0d0 (1ffb3370f) - COMMENTED OUT
+//     constexpr index_type kMaxJobs = 1000;
+//     std::array<std::future<void>, kMaxJobs> futures;
+//     for (index_type i = 0; i < work_size + kMaxJobs; i++) {
+//       // wait for previous job in the same slot to finish
+//       if (i >= kMaxJobs) { futures[i % kMaxJobs].wait(); }
+//       // submit a new job
+//       if (i < work_size) {
+//         const auto row        = i;
+//         futures[i % kMaxJobs] = std::async(std::launch::async, [&, row]() {
+//           cagra::search(res,
+//                         ps,
+//                         index,
+//                         slice_matrix(queries, row, 1),
+//                         slice_matrix(neighbors, row, 1),
+//                         slice_matrix(distances, row, 1));
+//         });
+//       }
+// =======
+    std::vector<std::future<void>> futures;
+    futures.reserve(n_threads);
+    for (size_t j = 0; j < n_threads; j++) {
+      futures.push_back(std::async(std::launch::async, [&, j]() {
+        auto work_size = static_cast<size_t>(queries.extent(0));
+        for (size_t i = j; i < work_size; i += n_threads) {
+          // Note, the standard implementation does not wait till the kernel is finished,
+          // so this loop may submit all jobs quickly and then wait for the stream to finish.
+          // This is not very realistic, because normally one waits to get the results back.
+          // The persistent implementation though does not return until the results are back.
           cagra::search(res,
                         ps,
                         index,
-                        slice_matrix(queries, row, 1),
-                        slice_matrix(neighbors, row, 1),
-                        slice_matrix(distances, row, 1));
-        });
-      }
+                        slice_matrix(queries, i, 1),
+                        slice_matrix(neighbors, i, 1),
+                        slice_matrix(distances, i, 1));
+        }
+      }));
+    }
+    for (auto& future : futures) {
+      future.wait();
+// >>>>>>> END NEW CODE (1ffb3370f)
     }
     /* See the remark for search_batch */
     if (needs_sync) { raft::resource::sync_stream(res); }
@@ -207,16 +238,32 @@ void cagra_build_search_variants(raft::device_resources const& res,
 
   // Try to handle the same amount of work in the async setting using the
   // standard implementation.
-  // (Warning: suboptimal - it uses a single stream for all async jobs)
-  time_it(
-    "standard/async A", search_async, true, search_params, queries_a, neighbors_a, distances_a);
-  time_it(
-    "standard/async B", search_async, true, search_params, queries_b, neighbors_b, distances_b);
+  auto n_threads = std::thread::hardware_concurrency();
+  time_it("standard/async A",
+          search_async,
+          true,
+          n_threads,
+          search_params,
+          queries_a,
+          neighbors_a,
+          distances_a);
+  time_it("standard/async B",
+          search_async,
+          true,
+          n_threads,
+          search_params,
+          queries_b,
+          neighbors_b,
+          distances_b);
 
   // Do the same using persistent kernel.
+  // We use much more threads to fully utilize the GPU;
+  // the internal logic tries to balance the idle time and the latency.
+  auto n_threads_persistent = n_threads * 16;
   time_it("persistent/async A",
           search_async,
           false,
+          n_threads_persistent,
           search_params_persistent,
           queries_a,
           neighbors_a,
@@ -224,6 +271,7 @@ void cagra_build_search_variants(raft::device_resources const& res,
   time_it("persistent/async B",
           search_async,
           false,
+          n_threads_persistent,
           search_params_persistent,
           queries_b,
           neighbors_b,
@@ -259,18 +307,26 @@ int main()
 {
   raft::device_resources res;
 
-  // Set pool memory resource with 1 GiB initial pool size. All allocations use
-  // the same pool.
-  rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource> pool_mr(
-    rmm::mr::get_current_device_resource(), 1024 * 1024 * 1024ull);
-  rmm::mr::set_current_device_resource(&pool_mr);
-
-  // Create input arrays.
+  // Parameters for the dataset and queries
   int64_t n_samples = 1000000;
   int64_t n_dim     = 128;
-  int64_t n_queries = 100000;
-  auto dataset      = raft::make_device_matrix<float, int64_t>(res, n_samples, n_dim);
-  auto queries      = raft::make_device_matrix<float, int64_t>(res, n_queries, n_dim);
+  int64_t n_queries = 300000;
+
+  // Calculate an upper bound on the memory size for everything
+  int64_t mem_size = (n_samples + n_queries) * sizeof(float) * n_dim * 2 + 1024ll * 1024ll * 1024ll;
+  // Using an arena memory resource globally.
+  // This is important because we run the async loop with a very large number of jobs,
+  // which would otherwise swamp a normal pool memory resource.
+  // (the non-persistent implementation would hang forever).
+  rmm::mr::arena_memory_resource<rmm::mr::device_memory_resource> mr(
+    rmm::mr::get_current_device_resource(), mem_size);
+  rmm::mr::set_current_device_resource(&mr);
+  std::cout << "GPU Arena memory resource size: " << mem_size / (1024ll * 1024ll) << " MiB"
+            << std::endl;
+
+  // Create input arrays.
+  auto dataset = raft::make_device_matrix<float, int64_t>(res, n_samples, n_dim);
+  auto queries = raft::make_device_matrix<float, int64_t>(res, n_queries, n_dim);
   generate_dataset(res, dataset.view(), queries.view());
 
   // run the interesting part of the program

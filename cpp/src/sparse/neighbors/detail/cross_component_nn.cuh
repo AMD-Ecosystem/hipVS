@@ -1,42 +1,53 @@
 /*
- * Copyright (c) 2018-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2018-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (27898589f)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 #pragma once
 
 #include "../../../distance/masked_nn.cuh"
 #include <cuvs/distance/distance.hpp>
 
+#include <raft/core/copy.cuh>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
+#include <raft/core/host_mdspan.hpp>
 #include <raft/core/kvp.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
@@ -54,22 +65,31 @@
 
 #include <rmm/device_uvector.hpp>
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#else
-#include <cub/cub.cuh>
-#endif
+// <<<<<<< OLD CODE from d138e4661 (2d26ea963) - COMMENTED OUT
+// // <<<<<<< OLD CODE from ca8ffe2de (a9d40ae8d) - COMMENTED OUT
+// // // <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// // // #ifdef __HIP_PLATFORM_AMD__
+// // // #include <hipcub/hipcub.hpp>
+// // // namespace cub = hipcub;
+// // // #else
+// // // #include <cub/cub.cuh>
+// // // #endif
+// // // =======
+// // // >>>>>>> END NEW CODE (27898589f)
+// // =======
+// =======
+#include <cuda/iterator>
+// >>>>>>> END NEW CODE (2d26ea963)
+#include <cuda/std/tuple>
+// >>>>>>> END NEW CODE (a9d40ae8d)
 #include <thrust/copy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/gather.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/scatter.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 #include <cstdint>
 #include <limits>
@@ -227,15 +247,15 @@ struct TupleComp {
   __host__ __device__ bool operator()(const one& t1, const two& t2)
   {
     // sort first by each sample's color,
-    if (thrust::get<0>(t1) < thrust::get<0>(t2)) return true;
-    if (thrust::get<0>(t1) > thrust::get<0>(t2)) return false;
+    if (cuda::std::get<0>(t1) < cuda::std::get<0>(t2)) return true;
+    if (cuda::std::get<0>(t1) > cuda::std::get<0>(t2)) return false;
 
     // then by the color of each sample's closest neighbor,
-    if (thrust::get<1>(t1) < thrust::get<1>(t2)) return true;
-    if (thrust::get<1>(t1) > thrust::get<1>(t2)) return false;
+    if (cuda::std::get<1>(t1) < cuda::std::get<1>(t2)) return true;
+    if (cuda::std::get<1>(t1) > cuda::std::get<1>(t2)) return false;
 
     // then sort by value in descending order
-    return thrust::get<2>(t1).value < thrust::get<2>(t2).value;
+    return cuda::std::get<2>(t1).value < cuda::std::get<2>(t2).value;
   }
 };
 
@@ -358,8 +378,10 @@ void perform_1nn(raft::resources const& handle,
     colors_group_idxs.data_handle() + 1, n_components);
 
   auto x_norm = raft::make_device_vector<value_t, value_idx>(handle, (value_idx)n_rows);
-  raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-    x_norm.data_handle(), X, n_cols, n_rows, stream);
+  raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+    handle,
+    raft::make_device_matrix_view<const value_t, value_idx, raft::row_major>(X, n_rows, n_cols),
+    x_norm.view());
 
   auto adj     = raft::make_device_matrix<bool, value_idx>(handle, row_batch_size, n_components);
   using OutT   = raft::KeyValuePair<value_idx, value_t>;
@@ -415,16 +437,17 @@ void perform_1nn(raft::resources const& handle,
   }
 
   // Transform the keys so that they correctly point to the unpermuted indices.
-  thrust::transform(exec_policy,
-                    kvp,
-                    kvp + n_rows,
-                    kvp,
-                    [sort_plan = sort_plan.data_handle()] __device__(OutT KVP) {
-                      OutT res;
-                      res.value = KVP.value;
-                      res.key   = sort_plan[KVP.key];
-                      return res;
-                    });
+  raft::linalg::map(
+    handle,
+    raft::make_device_vector_view<OutT, value_idx>(kvp, (value_idx)n_rows),
+    [sort_plan = sort_plan.data_handle()] __device__(OutT KVP) {
+      OutT res;
+      res.value = KVP.value;
+      res.key   = sort_plan[KVP.key];
+      return res;
+    },
+    raft::make_const_mdspan(
+      raft::make_device_vector_view<const OutT, value_idx>(kvp, (value_idx)n_rows)));
 
   // Undo permutation of the rows of X by scattering in place.
   raft::matrix::scatter(handle, X_mutable_view, sort_plan_const_view, (value_idx)col_batch_size);
@@ -443,7 +466,12 @@ void perform_1nn(raft::resources const& handle,
   raft::copy_async(kvp, tmp_kvp.data_handle(), n_rows, stream);
 
   LookupColorOp<value_idx, value_t> extract_colors_op(colors);
-  thrust::transform(exec_policy, kvp, kvp + n_rows, nn_colors, extract_colors_op);
+  raft::linalg::map(
+    handle,
+    raft::make_device_vector_view<value_idx, value_idx>(nn_colors, (value_idx)n_rows),
+    extract_colors_op,
+    raft::make_const_mdspan(
+      raft::make_device_vector_view<const OutT, value_idx>(kvp, (value_idx)n_rows)));
 }
 
 /**
@@ -466,13 +494,13 @@ void sort_by_color(raft::resources const& handle,
                    value_idx* src_indices,
                    size_t n_rows)
 {
-  auto exec_policy = raft::resource::get_thrust_policy(handle);
-  thrust::counting_iterator<value_idx> arg_sort_iter(0);
+  auto exec_policy   = raft::resource::get_thrust_policy(handle);
+  auto arg_sort_iter = cuda::make_counting_iterator<value_idx>(0);
   thrust::copy(exec_policy, arg_sort_iter, arg_sort_iter + n_rows, src_indices);
 
   auto keys = thrust::make_zip_iterator(
-    thrust::make_tuple(colors, nn_colors, (raft::KeyValuePair<value_idx, value_t>*)kvp));
-  auto vals = thrust::make_zip_iterator(thrust::make_tuple(src_indices));
+    cuda::std::make_tuple(colors, nn_colors, (raft::KeyValuePair<value_idx, value_t>*)kvp));
+  auto vals = thrust::make_zip_iterator(cuda::std::make_tuple(src_indices));
   // get all the colors in contiguous locations so we can map them to warps.
   thrust::sort_by_key(exec_policy, keys, keys + n_rows, vals, TupleComp());
 }
@@ -629,8 +657,15 @@ void cross_component_nn(
                          out_index.data());
 
   // compute final size
-  value_idx size = 0;
-  raft::update_host(&size, out_index.data() + (out_index.size() - 1), 1, stream);
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+//   value_idx size = 0;
+//   raft::update_host(&size, out_index.data() + (out_index.size() - 1), 1, stream);
+// =======
+  value_idx size_int = 0;
+  raft::copy(handle,
+             raft::make_host_scalar_view(&size_int),
+             raft::make_device_scalar_view(out_index.data() + (out_index.size() - 1)));
+// >>>>>>> END NEW CODE (844faff67)
   raft::resource::sync_stream(handle, stream);
 
   size++;

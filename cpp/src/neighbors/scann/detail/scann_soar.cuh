@@ -1,34 +1,43 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from 748fb2a0c (87897a95e) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (87897a95e)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
 #pragma once
@@ -42,29 +51,16 @@
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/error.hpp>
-#include <raft/core/host_device_accessor.hpp>
 #include <raft/core/host_mdarray.hpp>
-#include <raft/core/host_mdspan.hpp>
 #include <raft/core/operators.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
-#include <raft/linalg/add.cuh>
-#include <raft/linalg/coalesced_reduction.cuh>
-#include <raft/linalg/dot.cuh>
-#include <raft/linalg/gemm.hpp>
-#include <raft/linalg/gemv.cuh>
-#include <raft/linalg/linalg_types.hpp>
+#include <raft/linalg/gemm.cuh>
 #include <raft/linalg/map.cuh>
-#include <raft/linalg/matrix_vector.cuh>
 #include <raft/linalg/matrix_vector_op.cuh>
-#include <raft/linalg/multiply.cuh>
 #include <raft/linalg/normalize.cuh>
-#include <raft/linalg/power.cuh>
 #include <raft/linalg/reduce.cuh>
 #include <raft/linalg/transpose.cuh>
 #include <raft/matrix/argmin.cuh>
-#include <raft/matrix/copy.cuh>
-#include <raft/matrix/diagonal.cuh>
-#include <raft/matrix/init.cuh>
 
 /**
  * @brief Compute SOAR labels for each dataset vector
@@ -139,16 +135,13 @@ void compute_soar_labels(raft::resources const& dev_resources,
   auto centers_transpose =
     raft::make_device_matrix<T, int64_t>(dev_resources, centers.extent(1), centers.extent(0));
 
-  raft::linalg::reduce<true, true>(centers_norm.data_handle(),
-                                   centers.data_handle(),
-                                   centers.extent(1),
-                                   centers.extent(0),
-                                   0.0f,
-                                   raft::resource::get_cuda_stream(dev_resources),
-                                   false,
-                                   raft::sq_op(),
-                                   raft::add_op(),
-                                   raft::identity_op());
+  raft::linalg::reduce<raft::Apply::ALONG_ROWS>(dev_resources,
+                                                raft::make_const_mdspan(centers),
+                                                centers_norm.view(),
+                                                0.0f,
+                                                false,
+                                                raft::sq_op(),
+                                                raft::add_op());
 
   raft::linalg::transpose(dev_resources, centers, centers_transpose.view());
 
@@ -163,12 +156,12 @@ void compute_soar_labels(raft::resources const& dev_resources,
     raft::sub_op());
 
   raft::linalg::map(
-    dev_resources, raft::make_const_mdspan(soar_scores.view()), soar_scores.view(), raft::sq_op());
+    dev_resources, soar_scores.view(), raft::sq_op{}, raft::make_const_mdspan(soar_scores.view()));
 
   raft::linalg::map(dev_resources,
-                    raft::make_const_mdspan(soar_scores.view()),
                     soar_scores.view(),
-                    raft::mul_const_op<float>(lambda));
+                    raft::mul_const_op<float>(lambda),
+                    raft::make_const_mdspan(soar_scores.view()));
 
   auto nc_dataset = raft::make_device_matrix_view<float, int64_t>(
     const_cast<float*>(dataset.data_handle()), dataset.extent(0), dataset.extent(1));

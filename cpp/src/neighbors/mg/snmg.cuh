@@ -1,44 +1,58 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from 9f632f99e (321681706) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2024-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (321681706)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
 #pragma once
 
+#include <raft/core/copy.cuh>
+#include <raft/core/device_mdspan.hpp>
+#include <raft/core/host_mdspan.hpp>
 #include <raft/core/resource/multi_gpu.hpp>
 #include <raft/core/resource/nccl_comm.hpp>
 #include <raft/core/serialize.hpp>
 #include <raft/linalg/add.cuh>
+#include <raft/matrix/init.cuh>
 #include <raft/util/cuda_dev_essentials.cuh>
 
+#include "../../core/omp_wrapper.hpp"
 #include <cuvs/neighbors/cagra.hpp>
 #include <cuvs/neighbors/common.hpp>
 #include <cuvs/neighbors/ivf_flat.hpp>
@@ -59,10 +73,6 @@ void search(const raft::resources& handle,
             raft::device_matrix_view<float, int64_t, row_major> d_distances);
 }  // namespace cuvs::neighbors
 
-namespace cuvs::neighbors::snmg {
-void check_omp_threads(const int requirements);
-}  // namespace cuvs::neighbors::snmg
-
 namespace cuvs::neighbors::snmg::detail {
 using namespace cuvs::neighbors;
 using namespace raft;
@@ -73,6 +83,7 @@ void deserialize_and_distribute(const raft::resources& clique,
                                 mg_index<AnnIndexType, T, IdxT>& index,
                                 const std::string& filename)
 {
+  index.ann_interfaces_.reserve(index.num_ranks_);
   for (int rank = 0; rank < index.num_ranks_; rank++) {
     const raft::resources& dev_res = raft::resource::set_current_device_to_rank(clique, rank);
     auto& ann_if                   = index.ann_interfaces_.emplace_back();
@@ -104,6 +115,7 @@ void deserialize(const raft::resources& clique,
               raft::resource::get_num_ranks(clique));
   }
 
+  index.ann_interfaces_.reserve(index.num_ranks_);
   for (int rank = 0; rank < index.num_ranks_; rank++) {
     const raft::resources& dev_res = raft::resource::set_current_device_to_rank(clique, rank);
     auto& ann_if                   = index.ann_interfaces_.emplace_back();
@@ -124,13 +136,31 @@ void build(const raft::resources& clique,
     RAFT_LOG_DEBUG("REPLICATED BUILD: %d*%drows", index.num_ranks_, n_rows);
 
     index.ann_interfaces_.resize(index.num_ranks_);
-#pragma omp parallel for
+
+    // Enable nested parallelism
+    int saved_nested = cuvs::core::omp::get_nested();
+    cuvs::core::omp::set_nested(1);
+
+    int omp_threads      = cuvs::core::omp::get_max_threads();
+    int threads_per_rank = std::max(1, omp_threads / index.num_ranks_);
+
+    cuvs::core::omp::check_threads(index.num_ranks_);
+#pragma omp parallel for num_threads(index.num_ranks_)
     for (int rank = 0; rank < index.num_ranks_; rank++) {
+      // Set thread limit for this rank's nested OpenMP regions
+      cuvs::core::omp::set_num_threads(threads_per_rank);
+
       const raft::resources& dev_res = raft::resource::set_current_device_to_rank(clique, rank);
       auto& ann_if                   = index.ann_interfaces_[rank];
       cuvs::neighbors::build(dev_res, ann_if, index_params, index_dataset);
       resource::sync_stream(dev_res);
+
+      // Restore to allow full parallelism for potential future nested regions
+      cuvs::core::omp::set_num_threads(omp_threads);
     }
+
+    // Restore original OpenMP settings
+    cuvs::core::omp::set_nested(saved_nested);
   } else if (index.mode_ == SHARDED) {
     int64_t n_rows           = index_dataset.extent(0);
     int64_t n_cols           = index_dataset.extent(1);
@@ -139,8 +169,20 @@ void build(const raft::resources& clique,
     RAFT_LOG_DEBUG("SHARDED BUILD: %d*%drows", index.num_ranks_, n_rows_per_shard);
 
     index.ann_interfaces_.resize(index.num_ranks_);
-#pragma omp parallel for
+
+    // Enable nested parallelism
+    int saved_nested = cuvs::core::omp::get_nested();
+    cuvs::core::omp::set_nested(1);
+
+    int omp_threads      = cuvs::core::omp::get_max_threads();
+    int threads_per_rank = std::max(1, omp_threads / index.num_ranks_);
+
+    cuvs::core::omp::check_threads(index.num_ranks_);
+#pragma omp parallel for num_threads(index.num_ranks_)
     for (int rank = 0; rank < index.num_ranks_; rank++) {
+      // Set thread limit for this rank's nested OpenMP regions
+      cuvs::core::omp::set_num_threads(threads_per_rank);
+
       const raft::resources& dev_res  = raft::resource::set_current_device_to_rank(clique, rank);
       int64_t offset                  = rank * n_rows_per_shard;
       int64_t n_rows_of_current_shard = std::min(n_rows_per_shard, n_rows - offset);
@@ -150,7 +192,13 @@ void build(const raft::resources& clique,
       auto& ann_if = index.ann_interfaces_[rank];
       cuvs::neighbors::build(dev_res, ann_if, index_params, partition);
       resource::sync_stream(dev_res);
+
+      // Restore to allow full parallelism for potential future nested regions
+      cuvs::core::omp::set_num_threads(omp_threads);
     }
+
+    // Restore original OpenMP settings
+    cuvs::core::omp::set_nested(saved_nested);
   }
 }
 
@@ -179,21 +227,49 @@ void extend(const raft::resources& clique,
   if (index.mode_ == REPLICATED) {
     RAFT_LOG_DEBUG("REPLICATED EXTEND: %d*%drows", index.num_ranks_, n_rows);
 
-#pragma omp parallel for
+    // Enable nested parallelism
+    int saved_nested = cuvs::core::omp::get_nested();
+    cuvs::core::omp::set_nested(1);
+
+    int omp_threads      = cuvs::core::omp::get_max_threads();
+    int threads_per_rank = std::max(1, omp_threads / index.num_ranks_);
+
+    cuvs::core::omp::check_threads(index.num_ranks_);
+#pragma omp parallel for num_threads(index.num_ranks_)
     for (int rank = 0; rank < index.num_ranks_; rank++) {
+      // Set thread limit for this rank's nested OpenMP regions
+      cuvs::core::omp::set_num_threads(threads_per_rank);
+
       const raft::resources& dev_res = raft::resource::set_current_device_to_rank(clique, rank);
       auto& ann_if                   = index.ann_interfaces_[rank];
       cuvs::neighbors::extend(dev_res, ann_if, new_vectors, new_indices);
       resource::sync_stream(dev_res);
+
+      // Restore to allow full parallelism for potential future nested regions
+      cuvs::core::omp::set_num_threads(omp_threads);
     }
+
+    // Restore original OpenMP settings
+    cuvs::core::omp::set_nested(saved_nested);
   } else if (index.mode_ == SHARDED) {
     int64_t n_cols           = new_vectors.extent(1);
     int64_t n_rows_per_shard = raft::ceildiv(n_rows, (int64_t)index.num_ranks_);
 
     RAFT_LOG_DEBUG("SHARDED EXTEND: %d*%drows", index.num_ranks_, n_rows_per_shard);
 
-#pragma omp parallel for
+    // Enable nested parallelism
+    int saved_nested = cuvs::core::omp::get_nested();
+    cuvs::core::omp::set_nested(1);
+
+    int omp_threads      = cuvs::core::omp::get_max_threads();
+    int threads_per_rank = std::max(1, omp_threads / index.num_ranks_);
+
+    cuvs::core::omp::check_threads(index.num_ranks_);
+#pragma omp parallel for num_threads(index.num_ranks_)
     for (int rank = 0; rank < index.num_ranks_; rank++) {
+      // Set thread limit for this rank's nested OpenMP regions
+      cuvs::core::omp::set_num_threads(threads_per_rank);
+
       const raft::resources& dev_res  = raft::resource::set_current_device_to_rank(clique, rank);
       int64_t offset                  = rank * n_rows_per_shard;
       int64_t n_rows_of_current_shard = std::min(n_rows_per_shard, n_rows - offset);
@@ -210,7 +286,13 @@ void extend(const raft::resources& clique,
       auto& ann_if = index.ann_interfaces_[rank];
       cuvs::neighbors::extend(dev_res, ann_if, new_vectors_part, new_indices_part);
       resource::sync_stream(dev_res);
+
+      // Restore to allow full parallelism for potential future nested regions
+      cuvs::core::omp::set_num_threads(omp_threads);
     }
+
+    // Restore original OpenMP settings
+    cuvs::core::omp::set_nested(saved_nested);
   }
 }
 
@@ -248,7 +330,8 @@ void sharded_search_with_direct_merge(
       queries.data_handle() + query_offset, n_rows_of_current_batch, n_cols);
 
     const int& requirements = index.num_ranks_;
-    check_omp_threads(requirements);  // should use at least num_ranks_ threads to avoid NCCL hang
+    cuvs::core::omp::check_threads(
+      requirements);  // should use at least num_ranks_ threads to avoid NCCL hang
 #pragma omp parallel for num_threads(index.num_ranks_)
     for (int rank = 0; rank < index.num_ranks_; rank++) {
       const raft::resources& dev_res = raft::resource::set_current_device_to_rank(clique, rank);
@@ -327,10 +410,9 @@ void sharded_search_with_direct_merge(
 
     auto d_trans = raft::make_device_vector<searchIdxT>(root_handle_, index.num_ranks_);
 
-    raft::copy(d_trans.data_handle(),
-               h_trans.data(),
-               index.num_ranks_,
-               raft::resource::get_cuda_stream(root_handle_));
+    raft::copy(root_handle_,
+               d_trans.view(),
+               raft::make_host_vector_view<const searchIdxT>(h_trans.data(), index.num_ranks_));
 
     knn_merge_parts(root_handle_,
                     in_distances.view(),
@@ -339,14 +421,13 @@ void sharded_search_with_direct_merge(
                     out_neighbors.view(),
                     d_trans.view());
 
-    raft::copy(neighbors.data_handle() + output_offset,
-               out_neighbors.data_handle(),
-               part_size,
-               raft::resource::get_cuda_stream(root_handle_));
-    raft::copy(distances.data_handle() + output_offset,
-               out_distances.data_handle(),
-               part_size,
-               raft::resource::get_cuda_stream(root_handle_));
+    raft::copy(
+      root_handle_,
+      raft::make_host_vector_view(neighbors.data_handle() + output_offset, part_size),
+      raft::make_device_vector_view<const searchIdxT>(out_neighbors.data_handle(), part_size));
+    raft::copy(root_handle_,
+               raft::make_host_vector_view(distances.data_handle() + output_offset, part_size),
+               raft::make_device_vector_view<const float>(out_distances.data_handle(), part_size));
 
     resource::sync_stream(root_handle_);
   }
@@ -375,7 +456,8 @@ void sharded_search_with_tree_merge(
       queries.data_handle() + query_offset, n_rows_of_current_batch, n_cols);
 
     const int& requirements = index.num_ranks_;
-    check_omp_threads(requirements);  // should use at least num_ranks_ threads to avoid NCCL hang
+    cuvs::core::omp::check_threads(
+      requirements);  // should use at least num_ranks_ threads to avoid NCCL hang
 #pragma omp parallel for num_threads(index.num_ranks_)
     for (int rank = 0; rank < index.num_ranks_; rank++) {
       const raft::resources& dev_res = raft::resource::set_current_device_to_rank(clique, rank);
@@ -411,10 +493,14 @@ void sharded_search_with_tree_merge(
       }
 
       auto d_trans = raft::make_device_vector<searchIdxT>(dev_res, 2);
-      RAFT_CUDA_TRY(cudaMemsetAsync(d_trans.data_handle(),
-                                    0,
-                                    2 * sizeof(searchIdxT),
-                                    raft::resource::get_cuda_stream(dev_res)));
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+//       RAFT_CUDA_TRY(cudaMemsetAsync(d_trans.data_handle(),
+//                                     0,
+//                                     2 * sizeof(searchIdxT),
+//                                     raft::resource::get_cuda_stream(dev_res)));
+// =======
+      raft::matrix::fill(dev_res, d_trans.view(), searchIdxT(0));
+// >>>>>>> END NEW CODE (844faff67)
 
       int64_t remaining = index.num_ranks_;
       int64_t radix     = 2;
@@ -474,25 +560,26 @@ void sharded_search_with_tree_merge(
                           distances_merge_res.view(),
                           neighbors_merge_res.view(),
                           d_trans.view());
-          raft::copy(tmp_neighbors.data_handle(),
-                     neighbors_merge_res.data_handle(),
-                     part_size,
-                     raft::resource::get_cuda_stream(dev_res));
-          raft::copy(tmp_distances.data_handle(),
-                     distances_merge_res.data_handle(),
-                     part_size,
-                     raft::resource::get_cuda_stream(dev_res));
+          raft::copy(dev_res,
+                     raft::make_device_vector_view(tmp_neighbors.data_handle(), part_size),
+                     raft::make_device_vector_view<const searchIdxT>(
+                       neighbors_merge_res.data_handle(), part_size));
+          raft::copy(dev_res,
+                     raft::make_device_vector_view(tmp_distances.data_handle(), part_size),
+                     raft::make_device_vector_view<const float>(distances_merge_res.data_handle(),
+                                                                part_size));
 
           // If done, copy the final result
           if (remaining <= 1) {
-            raft::copy(neighbors.data_handle() + output_offset,
-                       tmp_neighbors.data_handle(),
-                       part_size,
-                       raft::resource::get_cuda_stream(dev_res));
-            raft::copy(distances.data_handle() + output_offset,
-                       tmp_distances.data_handle(),
-                       part_size,
-                       raft::resource::get_cuda_stream(dev_res));
+            raft::copy(
+              dev_res,
+              raft::make_host_vector_view(neighbors.data_handle() + output_offset, part_size),
+              raft::make_device_vector_view<const searchIdxT>(tmp_neighbors.data_handle(),
+                                                              part_size));
+            raft::copy(
+              dev_res,
+              raft::make_host_vector_view(distances.data_handle() + output_offset, part_size),
+              raft::make_device_vector_view<const float>(tmp_distances.data_handle(), part_size));
             resource::sync_stream(dev_res);
           }
         }
@@ -528,14 +615,16 @@ void run_search_batch(const raft::resources& clique,
   cuvs::neighbors::search(
     dev_res, ann_if, search_params, query_partition, d_neighbors.view(), d_distances.view());
 
-  raft::copy(neighbors.data_handle() + output_offset,
-             d_neighbors.data_handle(),
-             n_rows_of_current_batch * n_neighbors,
-             raft::resource::get_cuda_stream(dev_res));
-  raft::copy(distances.data_handle() + output_offset,
-             d_distances.data_handle(),
-             n_rows_of_current_batch * n_neighbors,
-             raft::resource::get_cuda_stream(dev_res));
+  raft::copy(dev_res,
+             raft::make_host_vector_view(neighbors.data_handle() + output_offset,
+                                         n_rows_of_current_batch * n_neighbors),
+             raft::make_device_vector_view<const searchIdxT>(
+               d_neighbors.data_handle(), n_rows_of_current_batch * n_neighbors));
+  raft::copy(dev_res,
+             raft::make_host_vector_view(distances.data_handle() + output_offset,
+                                         n_rows_of_current_batch * n_neighbors),
+             raft::make_device_vector_view<const float>(d_distances.data_handle(),
+                                                        n_rows_of_current_batch * n_neighbors));
 
   resource::sync_stream(dev_res);
 }
@@ -587,26 +676,31 @@ void search(const raft::resources& clique,
       RAFT_LOG_DEBUG(
         "REPLICATED SEARCH IN LOAD BALANCER MODE: %d*%drows", n_batches, n_rows_per_batch);
 
-#pragma omp parallel for
-      for (int64_t batch_idx = 0; batch_idx < n_batches; batch_idx++) {
-        int rank                        = batch_idx % index.num_ranks_;  // alternate GPUs
-        int64_t offset                  = batch_idx * n_rows_per_batch;
-        int64_t query_offset            = offset * n_cols;
-        int64_t output_offset           = offset * n_neighbors;
-        int64_t n_rows_of_current_batch = std::min(n_rows_per_batch, n_rows - offset);
+      cuvs::core::omp::check_threads(index.num_ranks_);
+// Each rank gets its own thread; that thread handles all batches for that rank sequentially.
+// This prevents concurrent access to the same GPU from multiple threads. (see
+// https://github.com/rapidsai/cuvs/issues/1720)
+#pragma omp parallel for num_threads(index.num_ranks_)
+      for (int rank = 0; rank < index.num_ranks_; rank++) {
+        for (int64_t batch_idx = rank; batch_idx < n_batches; batch_idx += index.num_ranks_) {
+          int64_t offset                  = batch_idx * n_rows_per_batch;
+          int64_t query_offset            = offset * n_cols;
+          int64_t output_offset           = offset * n_neighbors;
+          int64_t n_rows_of_current_batch = std::min(n_rows_per_batch, n_rows - offset);
 
-        run_search_batch(clique,
-                         index,
-                         rank,
-                         search_params,
-                         queries,
-                         neighbors,
-                         distances,
-                         query_offset,
-                         output_offset,
-                         n_rows_of_current_batch,
-                         n_cols,
-                         n_neighbors);
+          run_search_batch(clique,
+                           index,
+                           rank,
+                           search_params,
+                           queries,
+                           neighbors,
+                           distances,
+                           query_offset,
+                           output_offset,
+                           n_rows_of_current_batch,
+                           n_cols,
+                           n_neighbors);
+        }
       }
     } else if (search_mode == ROUND_ROBIN) {
       RAFT_LOG_DEBUG("REPLICATED SEARCH IN ROUND ROBIN MODE: %d*%drows", 1, n_rows);

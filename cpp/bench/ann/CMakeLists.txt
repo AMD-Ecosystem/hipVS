@@ -1,15 +1,8 @@
 # =============================================================================
-# Copyright (c) 2024-2025, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software distributed under the License
-# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under
-# the License.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 # =============================================================================
 # Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc. Permission is hereby granted,
 # free of charge, to any person obtaining a copy of this software and associated documentation files
@@ -75,7 +68,29 @@ option(CUVS_ANN_BENCH_USE_CUVS_IVF_BUILD "Include cuVS IVF build profiling bench
 
 find_package(Threads REQUIRED)
 
-set(CUVS_ANN_BENCH_USE_FAISS ON)
+# ----- FAISS use in Benchmarks ----
+get_cmake_property(_variableNames VARIABLES)
+
+set(CUVS_ANN_BENCH_USE_FAISS OFF)
+message(STATUS "Checking for FAISS use in benchmarks...")
+foreach(_varName ${_variableNames})
+  if(_varName MATCHES "CUVS_ANN_BENCH_USE_FAISS.+")
+    if(${_varName})
+      set(CUVS_ANN_BENCH_USE_FAISS ON)
+      message(STATUS "${_varName} is detected as ON.")
+      break()
+    endif()
+  endif()
+endforeach()
+
+if(CUVS_ANN_BENCH_USE_FAISS)
+  message(STATUS "CUVS_ANN_BENCH_USE_FAISS is switched ON")
+else()
+  message(STATUS "CUVS_ANN_BENCH_USE_FAISS is switched OFF")
+endif()
+
+# ----------------------------------
+
 set(CUVS_FAISS_ENABLE_GPU ON)
 set(CUVS_USE_FAISS_STATIC ON)
 
@@ -119,6 +134,7 @@ if(CUVS_ANN_BENCH_USE_HNSWLIB OR CUVS_ANN_BENCH_USE_CUVS_CAGRA_HNSWLIB)
 endif()
 
 include(cmake/thirdparty/get_nlohmann_json)
+include(cmake/thirdparty/get_sqlite)
 
 if(CUVS_ANN_BENCH_USE_GGNN)
   include(cmake/thirdparty/get_ggnn)
@@ -178,6 +194,7 @@ function(ConfigureAnnBench)
     ${BENCH_NAME}
     PRIVATE ${ConfigureAnnBench_LINKS}
             nlohmann_json::nlohmann_json
+            sqlite3
             Threads::Threads
             stdc++fs
             ${GPU_RUNTIME_LIB}
@@ -213,7 +230,12 @@ function(ConfigureAnnBench)
   target_compile_options(
     ${BENCH_NAME}
     PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${ConfigureAnnBench_CXXFLAGS}>"
-            "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
+#             "$<$<OR:$<COMPILE_LANGUAGE:CUDA>,$<COMPILE_LANGUAGE:HIP>>:${CUVS_GPU_FLAGS}>"
+# =======
+            "$<$<COMPILE_LANGUAGE:CUDA>:${CUVS_CUDA_FLAGS}>"
+            "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:${CUVS_DEBUG_CUDA_FLAGS}>"
+# >>>>>>> END NEW CODE (4f3afa378)
   )
 
   if(CUVS_ANN_BENCH_USE_${ConfigureAnnBench_NAME})
@@ -227,6 +249,7 @@ function(ConfigureAnnBench)
   target_include_directories(
     ${BENCH_NAME}
     PUBLIC "$<BUILD_INTERFACE:${CUVS_SOURCE_DIR}/include>"
+           "$<BUILD_INTERFACE:${CUVS_SOURCE_DIR}/../c/include>"
     PRIVATE ${ConfigureAnnBench_INCLUDES}
   )
 
@@ -407,7 +430,7 @@ if(CUVS_ANN_BENCH_SINGLE_EXE)
   target_include_directories(ANN_BENCH PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
   target_link_libraries(
-    ANN_BENCH PRIVATE raft::raft nlohmann_json::nlohmann_json benchmark::benchmark dl
+    ANN_BENCH PRIVATE raft::raft nlohmann_json::nlohmann_json sqlite3 benchmark::benchmark dl
                       $<$<TARGET_EXISTS:CUDA::nvtx3>:CUDA::nvtx3>
   )
   set_target_properties(

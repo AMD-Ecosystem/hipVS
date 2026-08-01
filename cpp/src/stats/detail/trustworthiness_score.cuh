@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <cuvs/distance/distance.hpp>
@@ -19,6 +8,7 @@
 
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/matrix/col_wise_sort.cuh>
+#include <raft/matrix/init.cuh>
 
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -192,7 +182,7 @@ double trustworthiness_score(const raft::resources& h,
     build_lookup_table<<<n_blocks, N_THREADS, 0, stream>>>(
       lookup_table.data(), X_ind.data(), n, work);
 
-    RAFT_CUDA_TRY(cudaMemsetAsync(t_dbuf.data(), 0, sizeof(double), stream));
+    raft::matrix::fill(h, raft::make_device_scalar_view(t_dbuf.data()), double(0));
 
     work     = curBatchSize * (n_neighbors + 1);
     n_blocks = raft::ceildiv(work, N_THREADS);

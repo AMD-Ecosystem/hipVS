@@ -1,34 +1,43 @@
 /*
- * Copyright (c) 2018-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2018-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2018-2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (844faff67)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
 #pragma once
@@ -43,9 +52,9 @@
 #include <raft/core/operators.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/linalg/gemm.cuh>
+#include <raft/linalg/map.cuh>
 #include <raft/linalg/norm.cuh>
 #include <raft/linalg/reduce.cuh>
-#include <raft/linalg/unary_op.cuh>
 #include <raft/util/cuda_dev_essentials.cuh>  // to_float
 
 #include <type_traits>
@@ -160,33 +169,78 @@ void distance_impl(raft::resources const& handle,
   // perhaps the use of stridedSummationKernel could be causing this,
   // need to investigate and fix.
   if (x == y && is_row_major) {
-    raft::linalg::reduce<true, true>(
-      x_norm, x, k, std::max(m, n), (AccT)0, stream, false, raft::identity_op(), raft::add_op());
+    raft::linalg::reduce<raft::Apply::ALONG_ROWS>(
+      handle,
+      raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(x, std::max(m, n), k),
+      raft::make_device_vector_view<AccT, IdxT>(x_norm, std::max(m, n)),
+      (AccT)0,
+      false,
+      raft::identity_op(),
+      raft::add_op());
     sq_x_norm += std::max(m, n);
     sq_y_norm = sq_x_norm;
-    raft::linalg::rowNorm<raft::linalg::L2Norm, true>(sq_x_norm, x, k, std::max(m, n), stream);
+    raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+      handle,
+      raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(x, std::max(m, n), k),
+      raft::make_device_vector_view(sq_x_norm, std::max(m, n)));
   } else {
     y_norm += m;
     if (is_row_major) {
-      raft::linalg::reduce<true, true>(
-        x_norm, x, k, m, (AccT)0, stream, false, raft::identity_op(), raft::add_op());
-      raft::linalg::reduce<true, true>(
-        y_norm, y, k, n, (AccT)0, stream, false, raft::identity_op(), raft::add_op());
+      raft::linalg::reduce<raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(x, m, k),
+        raft::make_device_vector_view<AccT, IdxT>(x_norm, m),
+        (AccT)0,
+        false,
+        raft::identity_op(),
+        raft::add_op());
+      raft::linalg::reduce<raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(y, n, k),
+        raft::make_device_vector_view<AccT, IdxT>(y_norm, n),
+        (AccT)0,
+        false,
+        raft::identity_op(),
+        raft::add_op());
     } else {
-      raft::linalg::reduce<false, true>(
-        x_norm, x, k, m, (AccT)0, stream, false, raft::identity_op(), raft::add_op());
-      raft::linalg::reduce<false, true>(
-        y_norm, y, k, n, (AccT)0, stream, false, raft::identity_op(), raft::add_op());
+      raft::linalg::reduce<raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::col_major>(x, m, k),
+        raft::make_device_vector_view<AccT, IdxT>(x_norm, m),
+        (AccT)0,
+        false,
+        raft::identity_op(),
+        raft::add_op());
+      raft::linalg::reduce<raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::col_major>(y, n, k),
+        raft::make_device_vector_view<AccT, IdxT>(y_norm, n),
+        (AccT)0,
+        false,
+        raft::identity_op(),
+        raft::add_op());
     }
 
     sq_x_norm += (m + n);
     sq_y_norm = sq_x_norm + m;
     if (is_row_major) {
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(sq_x_norm, x, k, m, stream);
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(sq_y_norm, y, k, n, stream);
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(x, m, k),
+        raft::make_device_vector_view(sq_x_norm, m));
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(y, n, k),
+        raft::make_device_vector_view(sq_y_norm, n));
     } else {
-      raft::linalg::rowNorm<raft::linalg::L2Norm, false>(sq_x_norm, x, k, m, stream);
-      raft::linalg::rowNorm<raft::linalg::L2Norm, false>(sq_y_norm, y, k, n, stream);
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::col_major>(x, m, k),
+        raft::make_device_vector_view(sq_x_norm, m));
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::col_major>(y, n, k),
+        raft::make_device_vector_view(sq_y_norm, n));
     }
   }
 
@@ -227,16 +281,35 @@ void distance_impl(raft::resources const& handle,
   // perhaps the use of stridedSummationKernel could be causing this,
   // need to investigate and fix.
   if (x == y && is_row_major) {
-    raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-      x_norm, x, k, std::max(m, n), stream, raft::sqrt_op{});
+    raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+      handle,
+      raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(x, std::max(m, n), k),
+      raft::make_device_vector_view(x_norm, std::max(m, n)),
+      raft::sqrt_op{});
   } else {
     y_norm += m;
     if (is_row_major) {
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(x_norm, x, k, m, stream, raft::sqrt_op{});
-      raft::linalg::rowNorm<raft::linalg::L2Norm, true>(y_norm, y, k, n, stream, raft::sqrt_op{});
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(x, m, k),
+        raft::make_device_vector_view(x_norm, m),
+        raft::sqrt_op{});
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::row_major>(y, n, k),
+        raft::make_device_vector_view(y_norm, n),
+        raft::sqrt_op{});
     } else {
-      raft::linalg::rowNorm<raft::linalg::L2Norm, false>(x_norm, x, k, m, stream, raft::sqrt_op{});
-      raft::linalg::rowNorm<raft::linalg::L2Norm, false>(y_norm, y, k, n, stream, raft::sqrt_op{});
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::col_major>(x, m, k),
+        raft::make_device_vector_view(x_norm, m),
+        raft::sqrt_op{});
+      raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+        handle,
+        raft::make_device_matrix_view<const DataT, IdxT, raft::col_major>(y, n, k),
+        raft::make_device_vector_view(y_norm, n),
+        raft::sqrt_op{});
     }
   }
 
@@ -315,29 +388,37 @@ void distance_impl(raft::resources const& handle,
                    bool is_row_major,
                    DataT)  // metric_arg unused
 {
-  cudaStream_t stream = raft::resource::get_cuda_stream(handle);
-
   // Check if arrays overlap
   const DataT* x_end  = x + m * k;
   const DataT* y_end  = y + n * k;
   bool arrays_overlap = (x < y_end) && (y < x_end);
 
-  const auto raft_sqrt = raft::linalg::unaryOp<DataT, raft::sqrt_op, IdxT>;
-  const auto raft_sq   = raft::linalg::unaryOp<DataT, raft::sq_op, IdxT>;
-
   if (!arrays_overlap) {
     // Arrays don't overlap: sqrt each array independently
-    raft_sqrt((DataT*)x, x, m * k, raft::sqrt_op{}, stream);
-    raft_sqrt((DataT*)y, y, n * k, raft::sqrt_op{}, stream);
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)x, m * k),
+      raft::sqrt_op{},
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(x, m * k)));
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)y, n * k),
+      raft::sqrt_op{},
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(y, n * k)));
   } else {
     // Arrays overlap: sqrt the union of both arrays exactly once
     const DataT* start = (x < y) ? x : y;
     const DataT* end   = (x_end > y_end) ? x_end : y_end;
     IdxT union_size    = end - start;
 
-    raft_sqrt((DataT*)start, start, union_size, raft::sqrt_op{}, stream);
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)start, union_size),
+      raft::sqrt_op{},
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(start, union_size)));
   }
 
+  cudaStream_t stream = raft::resource::get_cuda_stream(handle);
   // Calculate Hellinger distance
   ops::hellinger_distance_op<DataT, AccT, IdxT> distance_op{};
 
@@ -350,15 +431,27 @@ void distance_impl(raft::resources const& handle,
   // Restore arrays by squaring back
   if (!arrays_overlap) {
     // Arrays don't overlap: square each array independently
-    raft_sq((DataT*)x, x, m * k, raft::sq_op{}, stream);
-    raft_sq((DataT*)y, y, n * k, raft::sq_op{}, stream);
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)x, m * k),
+      raft::sq_op{},
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(x, m * k)));
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)y, n * k),
+      raft::sq_op{},
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(y, n * k)));
   } else {
     // Arrays overlap: square the union back
     const DataT* start = (x < y) ? x : y;
     const DataT* end   = (x_end > y_end) ? x_end : y_end;
     IdxT union_size    = end - start;
 
-    raft_sq((DataT*)start, start, union_size, raft::sq_op{}, stream);
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)start, union_size),
+      raft::sq_op{},
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(start, union_size)));
   }
 
   RAFT_CUDA_TRY(cudaGetLastError());
@@ -429,8 +522,11 @@ void distance_impl(raft::resources const& handle,
   };
 
   if (x != y) {
-    raft::linalg::unaryOp<DataT, decltype(unaryOp_lambda), IdxT>(
-      (DataT*)y, y, n * k, unaryOp_lambda, stream);
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)y, n * k),
+      unaryOp_lambda,
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(y, n * k)));
   }
 
   const OutT* x_norm = nullptr;
@@ -445,8 +541,11 @@ void distance_impl(raft::resources const& handle,
 
   if (x != y) {
     // Now reverse previous log (x) back to x using (e ^ log(x))
-    raft::linalg::unaryOp<DataT, decltype(unaryOp_lambda_reverse), IdxT>(
-      (DataT*)y, y, n * k, unaryOp_lambda_reverse, stream);
+    raft::linalg::map(
+      handle,
+      raft::make_device_vector_view<DataT, IdxT>((DataT*)y, n * k),
+      unaryOp_lambda_reverse,
+      raft::make_const_mdspan(raft::make_device_vector_view<const DataT, IdxT>(y, n * k)));
   }
 }
 

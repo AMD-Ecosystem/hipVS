@@ -1,34 +1,47 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from 748fb2a0c (87897a95e) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 3e22861b5 (872443e83) - COMMENTED OUT
+// // // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// // //  * Copyright (c) 2023-2024, NVIDIA CORPORATION.
+// // //  *
+// // //  * Licensed under the Apache License, Version 2.0 (the "License");
+// // //  * you may not use this file except in compliance with the License.
+// // //  * You may obtain a copy of the License at
+// // //  *
+// // //  *     http://www.apache.org/licenses/LICENSE-2.0
+// // //  *
+// // //  * Unless required by applicable law or agreed to in writing, software
+// // //  * distributed under the License is distributed on an "AS IS" BASIS,
+// // //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// // //  * See the License for the specific language governing permissions and
+// // //  * limitations under the License.
+// // //  *
+// // //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// // //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// // //  * of this software and associated documentation files (the "Software"), to deal
+// // //  * in the Software without restriction, including without limitation the rights
+// // //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// // //  * copies of the Software, and to permit persons to whom the Software is
+// // //  * furnished to do so, subject to the following conditions:
+// // //  * The above copyright notice and this permission notice shall be included in
+// // //  * all copies or substantial portions of the Software.
+// // //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// // //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// // //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// // //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// // //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// // //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// // //  * THE SOFTWARE.
+// // // =======
+// //  * SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+// // >>>>>>> END NEW CODE (872443e83)
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (87897a95e)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
 #pragma once
@@ -59,21 +72,24 @@
 #include <raft/matrix/init.cuh>
 #include <raft/sparse/convert/coo.cuh>
 #include <raft/sparse/convert/csr.cuh>
-#include <raft/sparse/distance/detail/utils.cuh>
-#include <raft/sparse/linalg/masked_matmul.hpp>
+#include <raft/sparse/linalg/masked_matmul.cuh>
 #include <raft/sparse/matrix/select_k.cuh>
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/cudart_utils.hpp>
 #include <raft/util/popc.cuh>
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hip/hip_fp16.h>
-#else
+// <<<<<<< OLD CODE from d138e4661 (2d26ea963) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hip/hip_fp16.h>
+// #else
+// =======
+#include <cuda/iterator>
+// >>>>>>> END NEW CODE (2d26ea963)
 #include <cuda_fp16.h>
 #endif
 #include <rmm/cuda_device.hpp>
 #include <rmm/device_uvector.hpp>
-#include <thrust/iterator/transform_iterator.h>
+#include <thrust/for_each.h>
 
 #include <cstdint>
 #include <iostream>
@@ -143,20 +159,33 @@ void tiled_brute_force_knn(const raft::resources& handle,
     // cosine needs the l2norm, where as l2 distances needs the squared norm
     if (metric == cuvs::distance::DistanceType::CosineExpanded) {
       if (!precomputed_search_norms) {
-        raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-          search_norms.data(), search, d, m, stream, raft::sqrt_op{});
+        raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+          handle,
+          raft::make_device_matrix_view<const ElementType, IndexType, raft::row_major>(
+            search, m, d),
+          raft::make_device_vector_view<DistanceT, IndexType>(search_norms.data(), m),
+          raft::sqrt_op{});
       }
       if (!precomputed_index_norms) {
-        raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-          index_norms.data(), index, d, n, stream, raft::sqrt_op{});
+        raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+          handle,
+          raft::make_device_matrix_view<const ElementType, IndexType, raft::row_major>(index, n, d),
+          raft::make_device_vector_view<DistanceT, IndexType>(index_norms.data(), n),
+          raft::sqrt_op{});
       }
     } else {
       if (!precomputed_search_norms) {
-        raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-          search_norms.data(), search, d, m, stream);
+        raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+          handle,
+          raft::make_device_matrix_view<const ElementType, IndexType, raft::row_major>(
+            search, m, d),
+          raft::make_device_vector_view<DistanceT, IndexType>(search_norms.data(), m));
       }
       if (!precomputed_index_norms) {
-        raft::linalg::rowNorm<raft::linalg::L2Norm, true>(index_norms.data(), index, d, n, stream);
+        raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+          handle,
+          raft::make_device_matrix_view<const ElementType, IndexType, raft::row_major>(index, n, d),
+          raft::make_device_vector_view<DistanceT, IndexType>(index_norms.data(), n));
       }
     }
     pairwise_metric = cuvs::distance::DistanceType::InnerProduct;
@@ -259,7 +288,7 @@ void tiled_brute_force_knn(const raft::resources& handle,
       }
 
       auto distances_ptr        = temp_distances.data();
-      auto count                = thrust::make_counting_iterator<IndexType>(0);
+      auto count                = cuda::make_counting_iterator<IndexType>(0);
       DistanceT masked_distance = select_min ? std::numeric_limits<DistanceT>::infinity()
                                              : std::numeric_limits<DistanceT>::lowest();
 
@@ -307,7 +336,7 @@ void tiled_brute_force_knn(const raft::resources& handle,
         DistanceT* out_distances      = temp_out_distances.data();
         IndexType* out_indices        = temp_out_indices.data();
 
-        auto count = thrust::make_counting_iterator<IndexType>(0);
+        auto count = cuda::make_counting_iterator<IndexType>(0);
         thrust::for_each(raft::resource::get_thrust_policy(handle),
                          count,
                          count + current_query_size * current_k,
@@ -407,7 +436,9 @@ void brute_force_knn_impl(
   rmm::device_uvector<IdxType> trans(0, userStream);
   if (id_ranges.size() > 0) {
     trans.resize(id_ranges.size(), userStream);
-    raft::update_device(trans.data(), id_ranges.data(), id_ranges.size(), userStream);
+    raft::copy(handle,
+               raft::make_device_vector_view(trans.data(), id_ranges.size()),
+               raft::make_host_vector_view(id_ranges.data(), id_ranges.size()));
   }
 
   rmm::device_uvector<DistType> all_D(0, userStream);
@@ -485,12 +516,12 @@ void brute_force_knn_impl(
           metric == cuvs::distance::DistanceType::LpUnexpanded) {
         DistType p = 0.5;  // standard l2
         if (metric == cuvs::distance::DistanceType::LpUnexpanded) p = 1.0 / metricArg;
-        raft::linalg::unaryOp<DistType>(
-          res_D,
-          res_D,
-          n * k,
+        raft::linalg::map(
+          handle,
+          raft::make_device_vector_view<DistType, int64_t>(res_D, n * k),
           [p] __device__(DistType input) { return powf(fabsf(input), p); },
-          stream);
+          raft::make_const_mdspan(
+            raft::make_device_vector_view<const DistType, int64_t>(res_D, n * k)));
       }
     } else {
       switch (metric) {
@@ -549,7 +580,7 @@ void brute_force_knn_impl(
       raft::make_device_matrix_view<const IdxType, int64_t>(out_I, n, input.size() * k),
       raft::make_device_matrix_view<DistType, int64_t>(res_D, n, k),
       raft::make_device_matrix_view<IdxType, int64_t>(res_I, n, k),
-      raft::make_device_vector_view<IdxType>(trans.data(), input.size()));
+      raft::make_device_vector_view<IdxType, int64_t>(trans.data(), input.size()));
   }
 };
 
@@ -712,24 +743,21 @@ void brute_force_search_filtered(
       if (metric == cuvs::distance::DistanceType::CosineExpanded) {
         if (!query_norms) {
           query_norms_ = raft::make_device_vector<DistanceT, IdxT>(res, n_queries);
-          raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-            (DistanceT*)(query_norms_->data_handle()),
-            queries.data_handle(),
-            dim,
-            n_queries,
-            stream,
+          raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+            res,
+            raft::make_device_matrix_view<const T, IdxT, raft::row_major>(
+              queries.data_handle(), n_queries, dim),
+            query_norms_->view(),
             raft::sqrt_op{});
         }
       } else {
         if (!query_norms) {
           query_norms_ = raft::make_device_vector<DistanceT, IdxT>(res, n_queries);
-          raft::linalg::rowNorm<raft::linalg::L2Norm, true>(
-            (DistanceT*)(query_norms_->data_handle()),
-            queries.data_handle(),
-            dim,
-            n_queries,
-            stream,
-            raft::identity_op{});
+          raft::linalg::norm<raft::linalg::L2Norm, raft::Apply::ALONG_ROWS>(
+            res,
+            raft::make_device_matrix_view<const T, IdxT, raft::row_major>(
+              queries.data_handle(), n_queries, dim),
+            query_norms_->view());
         }
       }
       cuvs::neighbors::detail::epilogue_on_csr(

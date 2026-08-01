@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -21,6 +10,7 @@
 #include <cuvs/neighbors/ivf_flat.hpp>
 #include <cuvs/neighbors/ivf_pq.hpp>
 #include <fstream>
+#include <raft/core/copy.cuh>
 #include <raft/core/device_resources.hpp>
 
 #include <fstream>
@@ -127,10 +117,7 @@ void search(const raft::resources& handle,
   int64_t n_rows = h_queries.extent(0);
   int64_t n_dims = h_queries.extent(1);
   auto d_queries = raft::make_device_matrix<T, int64_t, row_major>(handle, n_rows, n_dims);
-  raft::copy(d_queries.data_handle(),
-             h_queries.data_handle(),
-             n_rows * n_dims,
-             resource::get_cuda_stream(handle));
+  raft::copy(handle, d_queries.view(), h_queries);
   auto d_query_view = raft::make_const_mdspan(d_queries.view());
 
   search(handle, interface, search_params, d_query_view, d_neighbors, d_distances);

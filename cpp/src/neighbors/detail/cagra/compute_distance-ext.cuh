@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 /*
@@ -44,6 +33,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 float,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                8,
+                                                128,
+                                                float,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 8, 128, float, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            8,
                                            128,
@@ -74,6 +70,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 float,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                16,
+                                                256,
+                                                float,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 16, 256, float, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            16,
                                            256,
@@ -104,6 +107,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 float,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                32,
+                                                512,
+                                                float,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 32, 512, float, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            32,
                                            512,
@@ -134,6 +144,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 half,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                8,
+                                                128,
+                                                half,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 8, 128, half, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            8,
                                            128,
@@ -164,6 +181,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 half,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                16,
+                                                256,
+                                                half,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 16, 256, half, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            16,
                                            256,
@@ -194,6 +218,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 half,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                32,
+                                                512,
+                                                half,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 32, 512, half, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            32,
                                            512,
@@ -224,6 +255,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 int8_t,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                8,
+                                                128,
+                                                int8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 8, 128, int8_t, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            8,
                                            128,
@@ -254,6 +292,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 int8_t,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                16,
+                                                256,
+                                                int8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 16, 256, int8_t, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            16,
                                            256,
@@ -284,6 +329,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 int8_t,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                32,
+                                                512,
+                                                int8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 32, 512, int8_t, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            32,
                                            512,
@@ -314,6 +366,13 @@ extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
                                                 uint8_t,
                                                 uint32_t,
                                                 float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                8,
+                                                128,
+                                                uint8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1, 8, 128, uint8_t, uint32_t, float>;
 extern template struct vpq_descriptor_spec<DistanceType::L2Expanded,
                                            8,
                                            128,
@@ -339,6 +398,18 @@ extern template struct standard_descriptor_spec<DistanceType::L2Expanded,
                                                 uint32_t,
                                                 float>;
 extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
+                                                16,
+                                                256,
+                                                uint8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                16,
+                                                256,
+                                                uint8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1,
                                                 16,
                                                 256,
                                                 uint8_t,
@@ -369,6 +440,18 @@ extern template struct standard_descriptor_spec<DistanceType::L2Expanded,
                                                 uint32_t,
                                                 float>;
 extern template struct standard_descriptor_spec<DistanceType::InnerProduct,
+                                                32,
+                                                512,
+                                                uint8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::CosineExpanded,
+                                                32,
+                                                512,
+                                                uint8_t,
+                                                uint32_t,
+                                                float>;
+extern template struct standard_descriptor_spec<DistanceType::L1,
                                                 32,
                                                 512,
                                                 uint8_t,
@@ -414,50 +497,74 @@ extern template struct standard_descriptor_spec<DistanceType::BitwiseHamming,
 extern template struct instance_selector<
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::BitwiseHamming, 8, 128, uint8_t, uint32_t, float>,
@@ -467,50 +574,74 @@ extern template struct instance_selector<
 using descriptor_instances = instance_selector<
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, float, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, float, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, float, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, half, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, half, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, half, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, int8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, int8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, int8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 8, 128, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 8, 128, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 8, 128, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 8, 128, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 2, half, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 8, 128, 8, 4, half, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 16, 256, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 16, 256, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 16, 256, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 16, 256, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 2, half, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 16, 256, 8, 4, half, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::L2Expanded, 32, 512, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::InnerProduct, 32, 512, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::CosineExpanded, 32, 512, uint8_t, uint32_t, float>,
+  standard_descriptor_spec<DistanceType::L1, 32, 512, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 2, half, uint8_t, uint32_t, float>,
   vpq_descriptor_spec<DistanceType::L2Expanded, 32, 512, 8, 4, half, uint8_t, uint32_t, float>,
   standard_descriptor_spec<DistanceType::BitwiseHamming, 8, 128, uint8_t, uint32_t, float>,
@@ -520,15 +651,16 @@ using descriptor_instances = instance_selector<
 template <typename DataT, typename IndexT, typename DistanceT, typename DatasetT>
 auto dataset_descriptor_init(const cagra::search_params& params,
                              const DatasetT& dataset,
-                             cuvs::distance::DistanceType metric)
+                             cuvs::distance::DistanceType metric,
+                             const DistanceT* dataset_norms = nullptr)
   -> dataset_descriptor_host<DataT, IndexT, DistanceT>
 {
   auto [init, priority] =
-    descriptor_instances::select<DataT, IndexT, DistanceT>(params, dataset, metric);
+    descriptor_instances::select<DataT, IndexT, DistanceT>(params, dataset, metric, dataset_norms);
   if (init == nullptr || priority < 0) {
     RAFT_FAIL("No dataset descriptor instance compiled for this parameter combination.");
   }
-  return init(params, dataset, metric);
+  return init(params, dataset, metric, dataset_norms);
 }
 
 }  // namespace cuvs::neighbors::cagra::detail

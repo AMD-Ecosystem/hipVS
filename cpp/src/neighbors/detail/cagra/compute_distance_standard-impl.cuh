@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 /*
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
@@ -45,29 +34,36 @@
 namespace cuvs::neighbors::cagra::detail {
 namespace {
 template <typename DATA_T, typename DISTANCE_T, cuvs::distance::DistanceType Metric>
+  requires(Metric == cuvs::distance::DistanceType::L2Expanded)
 RAFT_DEVICE_INLINE_FUNCTION constexpr auto dist_op(DATA_T a, DATA_T b)
-  -> std::enable_if_t<Metric == cuvs::distance::DistanceType::L2Expanded, DISTANCE_T>
 {
   DISTANCE_T diff = a - b;
   return diff * diff;
 }
 
 template <typename DATA_T, typename DISTANCE_T, cuvs::distance::DistanceType Metric>
+  requires(Metric == cuvs::distance::DistanceType::InnerProduct ||
+           Metric == cuvs::distance::DistanceType::CosineExpanded)
 RAFT_DEVICE_INLINE_FUNCTION constexpr auto dist_op(DATA_T a, DATA_T b)
-  -> std::enable_if_t<Metric == cuvs::distance::DistanceType::InnerProduct, DISTANCE_T>
 {
   return -static_cast<DISTANCE_T>(a) * static_cast<DISTANCE_T>(b);
 }
 
 template <typename DATA_T, typename DISTANCE_T, cuvs::distance::DistanceType Metric>
+  requires(Metric == cuvs::distance::DistanceType::BitwiseHamming && std::is_integral_v<DATA_T>)
 RAFT_DEVICE_INLINE_FUNCTION constexpr auto dist_op(DATA_T a, DATA_T b)
-  -> std::enable_if_t<Metric == cuvs::distance::DistanceType::BitwiseHamming &&
-                        std::is_integral_v<DATA_T>,
-                      DISTANCE_T>
 {
   // mask the result of xor for the integer promotion
   const auto v = (a ^ b) & 0xffu;
   return __popc(v);
+}
+
+template <typename DATA_T, typename DISTANCE_T, cuvs::distance::DistanceType Metric>
+  requires(Metric == cuvs::distance::DistanceType::L1)
+RAFT_DEVICE_INLINE_FUNCTION constexpr auto dist_op(DATA_T a, DATA_T b)
+{
+  DISTANCE_T diff = a - b;
+  return raft::abs(diff);
 }
 }  // namespace
 
@@ -104,6 +100,17 @@ struct standard_dataset_descriptor_t : public dataset_descriptor_base_t<DataT, I
     return (const DATA_T*&)(args.extra_ptr1);
   }
 
+  static constexpr RAFT_INLINE_FUNCTION auto dataset_norms_ptr(const args_t& args) noexcept
+    -> const DISTANCE_T* const&
+  {
+    return (const DISTANCE_T* const&)(args.extra_ptr2);
+  }
+  static constexpr RAFT_INLINE_FUNCTION auto dataset_norms_ptr(args_t& args) noexcept
+    -> const DISTANCE_T*&
+  {
+    return (const DISTANCE_T*&)(args.extra_ptr2);
+  }
+
   static constexpr RAFT_INLINE_FUNCTION auto ld(const args_t& args) noexcept -> const uint32_t&
   {
     return args.extra_word1;
@@ -118,7 +125,8 @@ struct standard_dataset_descriptor_t : public dataset_descriptor_base_t<DataT, I
                                                   const DATA_T* ptr,
                                                   INDEX_T size,
                                                   uint32_t dim,
-                                                  uint32_t ld)
+                                                  uint32_t ld,
+                                                  const DISTANCE_T* dataset_norms = nullptr)
     : base_type(setup_workspace_impl,
                 compute_distance_impl,
                 size,
@@ -126,8 +134,9 @@ struct standard_dataset_descriptor_t : public dataset_descriptor_base_t<DataT, I
                 raft::Pow2<TeamSize>::Log2,
                 get_smem_ws_size_in_bytes(dim))
   {
-    standard_dataset_descriptor_t::ptr(args) = ptr;
-    standard_dataset_descriptor_t::ld(args)  = ld;
+    standard_dataset_descriptor_t::ptr(args)               = ptr;
+    standard_dataset_descriptor_t::ld(args)                = ld;
+    standard_dataset_descriptor_t::dataset_norms_ptr(args) = dataset_norms;
     static_assert(sizeof(*this) == sizeof(base_type));
     static_assert(alignof(standard_dataset_descriptor_t) == alignof(base_type));
   }
@@ -247,10 +256,18 @@ _RAFT_DEVICE __noinline__ auto compute_distance_standard(
   const typename DescriptorT::args_t args, const typename DescriptorT::INDEX_T dataset_index) ->
   typename DescriptorT::DISTANCE_T
 {
-  return compute_distance_standard_worker<DescriptorT>(
+  auto distance = compute_distance_standard_worker<DescriptorT>(
     DescriptorT::ptr(args) + (static_cast<std::uint64_t>(DescriptorT::ld(args)) * dataset_index),
     args.dim,
     args.smem_ws_ptr);
+
+  if constexpr (DescriptorT::kMetric == cuvs::distance::DistanceType::CosineExpanded) {
+    const auto* dataset_norms = DescriptorT::dataset_norms_ptr(args);
+    auto norm                 = dataset_norms[dataset_index];
+    if (norm > 0) { distance = distance / norm; }
+  }
+
+  return distance;
 }
 
 template <cuvs::distance::DistanceType Metric,
@@ -264,7 +281,8 @@ RAFT_KERNEL __launch_bounds__(1, 1)
                                           const DataT* ptr,
                                           IndexT size,
                                           uint32_t dim,
-                                          uint32_t ld)
+                                          uint32_t ld,
+                                          const DistanceT* dataset_norms = nullptr)
 {
   using desc_type =
     standard_dataset_descriptor_t<Metric, TeamSize, DatasetBlockDim, DataT, IndexT, DistanceT>;
@@ -276,7 +294,8 @@ RAFT_KERNEL __launch_bounds__(1, 1)
                       ptr,
                       size,
                       dim,
-                      ld);
+                      ld,
+                      dataset_norms);
 }
 
 template <cuvs::distance::DistanceType Metric,
@@ -287,12 +306,21 @@ template <cuvs::distance::DistanceType Metric,
           typename DistanceT>
 dataset_descriptor_host<DataT, IndexT, DistanceT>
 standard_descriptor_spec<Metric, TeamSize, DatasetBlockDim, DataT, IndexT, DistanceT>::init_(
-  const cagra::search_params& params, const DataT* ptr, IndexT size, uint32_t dim, uint32_t ld)
+  const cagra::search_params& params,
+  const DataT* ptr,
+  IndexT size,
+  uint32_t dim,
+  uint32_t ld,
+  const DistanceT* dataset_norms)
 {
   using desc_type =
     standard_dataset_descriptor_t<Metric, TeamSize, DatasetBlockDim, DataT, IndexT, DistanceT>;
   using base_type = typename desc_type::base_type;
-  desc_type dd_host{nullptr, nullptr, ptr, size, dim, ld};
+
+  RAFT_EXPECTS(Metric != cuvs::distance::DistanceType::CosineExpanded || dataset_norms != nullptr,
+               "Dataset norms must be provided for CosineExpanded metric");
+
+  desc_type dd_host{nullptr, nullptr, ptr, size, dim, ld, dataset_norms};
   return host_type{dd_host,
                    [=](dataset_descriptor_base_t<DataT, IndexT, DistanceT>* dev_ptr,
                        rmm::cuda_stream_view stream) {
@@ -302,7 +330,7 @@ standard_descriptor_spec<Metric, TeamSize, DatasetBlockDim, DataT, IndexT, Dista
                                                              DataT,
                                                              IndexT,
                                                              DistanceT>
-                       <<<1, 1, 0, stream>>>(dev_ptr, ptr, size, dim, ld);
+                       <<<1, 1, 0, stream>>>(dev_ptr, ptr, size, dim, ld, dataset_norms);
                      RAFT_CUDA_TRY(cudaPeekAtLastError());
                    }};
 }

@@ -1,0 +1,44 @@
+#c code owners
+c/                 @rapidsai/cuvs-c-codeowners
+examples/c/        @rapidsai/cuvs-c-codeowners
+
+#cpp code owners
+cpp/               @rapidsai/cuvs-cpp-codeowners
+examples/cpp/      @rapidsai/cuvs-cpp-codeowners
+
+
+#java code owners
+java/              @rapidsai/cuvs-java-codeowners
+examples/java/     @rapidsai/cuvs-java-codeowners
+
+#python code owners
+python/            @rapidsai/cuvs-python-codeowners
+
+#rust code owners
+rust/              @rapidsai/cuvs-rust-codeowners
+examples/rust/     @rapidsai/cuvs-rust-codeowners
+
+#docs code owners
+docs/              @rapidsai/cuvs-docs-codeowners
+
+#cmake code owners
+CMakeLists.txt                  @rapidsai/cuvs-cmake-codeowners
+**/cmake/                       @rapidsai/cuvs-cmake-codeowners
+*.cmake                         @rapidsai/cuvs-cmake-codeowners
+cpp/scripts/run-cmake-format.sh @rapidsai/cuvs-cmake-codeowners
+
+#CI code owners
+/.github/                @rapidsai/ci-codeowners
+/ci/                     @rapidsai/ci-codeowners
+/.shellcheckrc           @rapidsai/ci-codeowners
+
+#packaging code owners
+/.pre-commit-config.yaml @rapidsai/packaging-codeowners
+/.devcontainer/          @rapidsai/packaging-codeowners
+/conda/                  @rapidsai/packaging-codeowners
+dependencies.yaml        @rapidsai/packaging-codeowners
+/build.sh                @rapidsai/packaging-codeowners
+pyproject.toml           @rapidsai/packaging-codeowners
+python/setup.py          @rapidsai/packaging-codeowners
+build.sh                 @rapidsai/packaging-codeowners
+**/build.sh              @rapidsai/packaging-codeowners

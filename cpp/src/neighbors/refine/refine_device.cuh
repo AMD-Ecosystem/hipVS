@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2023-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -26,11 +15,10 @@
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/host_mdspan.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
-#include <raft/core/resource/thrust_policy.hpp>
 #include <raft/core/resources.hpp>
+#include <raft/linalg/map.cuh>
 #include <raft/matrix/detail/select_warpsort.cuh>
-
-#include <thrust/sequence.h>
+#include <raft/matrix/init.cuh>
 
 namespace cuvs::neighbors {
 
@@ -77,9 +65,9 @@ void refine_device(
   // - We run IVF flat search with n_probes=1 to select the best k elements of the candidates.
   rmm::device_uvector<uint32_t> fake_coarse_idx(n_queries, raft::resource::get_cuda_stream(handle));
 
-  thrust::sequence(raft::resource::get_thrust_policy(handle),
-                   fake_coarse_idx.data(),
-                   fake_coarse_idx.data() + n_queries);
+  raft::linalg::map_offset(handle,
+                           raft::make_device_vector_view(fake_coarse_idx.data(), n_queries),
+                           raft::cast_op<uint32_t>{});
 
   cuvs::neighbors::ivf_flat::index<data_t, int64_t> refinement_index(
     handle, metric, n_queries, false, true, dim);
@@ -99,10 +87,8 @@ void refine_device(
   rmm::device_uvector<uint32_t> chunk_index(n_queries, raft::resource::get_cuda_stream(handle));
 
   // we know that each cluster has exactly n_candidates entries
-  thrust::fill(raft::resource::get_thrust_policy(handle),
-               chunk_index.data(),
-               chunk_index.data() + n_queries,
-               uint32_t(n_candidates));
+  raft::matrix::fill(
+    handle, raft::make_device_vector_view(chunk_index.data(), n_queries), uint32_t(n_candidates));
 
   uint32_t* neighbors_uint32 = nullptr;
   if constexpr (sizeof(idx_t) == sizeof(uint32_t)) {

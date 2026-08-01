@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2023-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 /*
  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
@@ -41,7 +30,7 @@
 #include <raft/core/resource/cuda_stream.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/mr/device/device_memory_resource.hpp>
+#include <rmm/mr/device_memory_resource.hpp>
 
 namespace cuvs::neighbors {
 
@@ -86,6 +75,10 @@ RAFT_KERNEL naive_distance_kernel(EvalT* dist,
           if constexpr (std::is_same_v<uint8_t, DataT> || std::is_same_v<int8_t, DataT>) {
             acc += __popc(static_cast<uint32_t>(xv ^ yv) & 0xff);
           }
+        } break;
+        case cuvs::distance::DistanceType::L1: {
+          auto diff = static_cast<EvalT>(xv) - static_cast<EvalT>(yv);
+          acc += raft::abs(diff);
         } break;
         default: break;
       }

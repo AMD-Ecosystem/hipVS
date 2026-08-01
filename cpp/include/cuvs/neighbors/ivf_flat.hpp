@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 /*
@@ -1435,6 +1424,9 @@ void extend(raft::resources const& handle,
 
 /**
  * @brief Search ANN using the constructed index.
+ * This function JIT compiles the kernel for the very first usage, after which it maintains an
+ * in-memory and disk-based cache of the compiled kernels. We recommend running a warmup search
+ * before the actual searches to avoid the first-time JIT compilation overhead.
  *
  * See the [ivf_flat::build](#ivf_flat::build) documentation for a usage example.
  *
@@ -1476,6 +1468,9 @@ void search(raft::resources const& handle,
 
 /**
  * @brief Search ANN using the constructed index.
+ * This function JIT compiles the kernel for the very first usage, after which it maintains an
+ * in-memory and disk-based cache of the compiled kernels. We recommend running a warmup search
+ * before the actual searches to avoid the first-time JIT compilation overhead.
  *
  * See the [ivf_flat::build](#ivf_flat::build) documentation for a usage example.
  *
@@ -1516,6 +1511,9 @@ void search(raft::resources const& handle,
               cuvs::neighbors::filtering::none_sample_filter{});
 /**
  * @brief Search ANN using the constructed index.
+ * This function JIT compiles the kernel for the very first usage, after which it maintains an
+ * in-memory and disk-based cache of the compiled kernels. We recommend running a warmup search
+ * before the actual searches to avoid the first-time JIT compilation overhead.
  *
  * See the [ivf_flat::build](#ivf_flat::build) documentation for a usage example.
  *
@@ -1557,6 +1555,9 @@ void search(raft::resources const& handle,
 
 /**
  * @brief Search ANN using the constructed index.
+ * This function JIT compiles the kernel for the very first usage, after which it maintains an
+ * in-memory and disk-based cache of the compiled kernels. We recommend running a warmup search
+ * before the actual searches to avoid the first-time JIT compilation overhead.
  *
  * See the [ivf_flat::build](#ivf_flat::build) documentation for a usage example.
  *
@@ -2967,17 +2968,17 @@ void reset_index(const raft::resources& res, index<uint8_t, int64_t>* index);
  *   ivf_flat::index<uint8_t, int64_t> index(res, index_params, D);
  *   ivf_flat::helpers::reset_index(res, &index);
  *   // resize the first IVF list to hold 5 records
- *   auto spec = list_spec<uint32_t, uint8_t, int64_t>{
- *     index->dim(), index->conservative_memory_allocation()};
+ *   auto spec = list_spec<uint32_t, float, int64_t>{
+ *     index.dim(), index.conservative_memory_allocation()};
  *   uint32_t new_size = 5;
- *   ivf::resize_list(res, list, spec, new_size, 0);
+ *   ivf::resize_list(res, index.lists()[0], spec, new_size, 0);
  *   raft::update_device(index.list_sizes(), &new_size, 1, stream);
  *   // recompute the internal state of the index
  *   ivf_flat::helpers::recompute_internal_state(res, index);
  * @endcode
  *
  * @param[in] res raft resource
- * @param[inout] index pointer to IVF-PQ index
+ * @param[inout] index pointer to IVF-Flat index
  */
 void recompute_internal_state(const raft::resources& res, index<float, int64_t>* index);
 
@@ -2995,17 +2996,17 @@ void recompute_internal_state(const raft::resources& res, index<float, int64_t>*
  *   ivf_flat::index<uint8_t, int64_t> index(res, index_params, D);
  *   ivf_flat::helpers::reset_index(res, &index);
  *   // resize the first IVF list to hold 5 records
- *   auto spec = list_spec<uint32_t, uint8_t, int64_t>{
- *     index->dim(), index->conservative_memory_allocation()};
+ *   auto spec = list_spec<uint32_t, half, int64_t>{
+ *     index.dim(), index.conservative_memory_allocation()};
  *   uint32_t new_size = 5;
- *   ivf::resize_list(res, list, spec, new_size, 0);
+ *   ivf::resize_list(res, index.lists()[0], spec, new_size, 0);
  *   raft::update_device(index.list_sizes(), &new_size, 1, stream);
  *   // recompute the internal state of the index
  *   ivf_flat::helpers::recompute_internal_state(res, index);
  * @endcode
  *
  * @param[in] res raft resource
- * @param[inout] index pointer to IVF-PQ index
+ * @param[inout] index pointer to IVF-Flat index
  */
 void recompute_internal_state(const raft::resources& res, index<half, int64_t>* index);
 
@@ -3023,17 +3024,17 @@ void recompute_internal_state(const raft::resources& res, index<half, int64_t>* 
  *   ivf_flat::index<uint8_t, int64_t> index(res, index_params, D);
  *   ivf_flat::helpers::reset_index(res, &index);
  *   // resize the first IVF list to hold 5 records
- *   auto spec = list_spec<uint32_t, uint8_t, int64_t>{
- *     index->dim(), index->conservative_memory_allocation()};
+ *   auto spec = list_spec<uint32_t, int8_t, int64_t>{
+ *     index.dim(), index.conservative_memory_allocation()};
  *   uint32_t new_size = 5;
- *   ivf::resize_list(res, list, spec, new_size, 0);
+ *   ivf::resize_list(res, index.lists()[0], spec, new_size, 0);
  *   raft::update_device(index.list_sizes(), &new_size, 1, stream);
  *   // recompute the internal state of the index
  *   ivf_flat::helpers::recompute_internal_state(res, index);
  * @endcode
  *
  * @param[in] res raft resource
- * @param[inout] index pointer to IVF-PQ index
+ * @param[inout] index pointer to IVF-Flat index
  */
 void recompute_internal_state(const raft::resources& res, index<int8_t, int64_t>* index);
 
@@ -3052,9 +3053,9 @@ void recompute_internal_state(const raft::resources& res, index<int8_t, int64_t>
  *   ivf_flat::helpers::reset_index(res, &index);
  *   // resize the first IVF list to hold 5 records
  *   auto spec = list_spec<uint32_t, uint8_t, int64_t>{
- *     index->dim(), index->conservative_memory_allocation()};
+ *     index.dim(), index.conservative_memory_allocation()};
  *   uint32_t new_size = 5;
- *   ivf::resize_list(res, list, spec, new_size, 0);
+ *   ivf::resize_list(res, index.lists()[0], spec, new_size, 0);
  *   raft::update_device(index.list_sizes(), &new_size, 1, stream);
  *   // recompute the internal state of the index
  *   ivf_flat::helpers::recompute_internal_state(res, index);

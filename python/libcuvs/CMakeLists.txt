@@ -1,15 +1,8 @@
 # =============================================================================
-# Copyright (c) 2025, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software distributed under the License
-# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under
-# the License.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 # =============================================================================
 # Modifications Copyright (c) 2025 Advanced Micro Devices, Inc. Permission is hereby granted, free
 # of charge, to any person obtaining a copy of this software and associated documentation files (the
@@ -59,8 +52,16 @@ endif()
 unset(cuvs_FOUND)
 
 # --- CUDA --- #
-set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
-set(CUDA_STATIC_MATH_LIBRARIES OFF) # No static linking with HIP, HIP must be installed
+# <<<<<<< OLD CODE from da6788457 (e5a866411) - COMMENTED OUT
+# # <<<<<<< OLD CODE from 01965cb27 (87c96911a) - COMMENTED OUT
+# # set(CUDA_STATIC_RUNTIME OFF) # No static linking with HIP, HIP must be installed
+# # set(CUDA_STATIC_MATH_LIBRARIES OFF) # No static linking with HIP, HIP must be installed
+# # =======
+# =======
+set(CUDA_STATIC_RUNTIME ON)
+# >>>>>>> END NEW CODE (e5a866411)
+set(CUDA_STATIC_MATH_LIBRARIES OFF)
+# >>>>>>> END NEW CODE (87c96911a)
 
 # --- RAFT ---#
 set(CUVS_STATIC_RAPIDS_LIBRARIES OFF)

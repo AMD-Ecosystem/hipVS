@@ -1,15 +1,8 @@
 # =============================================================================
-# Copyright (c) 2018-2025, NVIDIA CORPORATION.
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-# in compliance with the License. You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software distributed under the License
-# is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-# or implied. See the License for the specific language governing permissions and limitations under
-# the License.
+# cmake-format: off
+# SPDX-FileCopyrightText: Copyright (c) 2018-2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
 # =============================================================================
 #
 # Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
@@ -38,6 +31,11 @@ if(DISABLE_DEPRECATION_WARNINGS)
   )
 endif()
 
+if(DISABLE_OPENMP)
+  list(APPEND CUVS_CXX_FLAGS -Wno-unknown-pragmas)
+  list(APPEND CUVS_CUDA_FLAGS -Xcompiler=-Wno-unknown-pragmas)
+endif()
+
 # Be very strict when compiling with GCC as host compiler (and thus more lenient when compiling with
 # clang)
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -54,11 +52,14 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   endif()
 endif()
 
-# Allow invalid CUDA kernels in the short term
-if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8.0)
-  list(APPEND CUVS_GPU_FLAGS -static-global-template-stub=false)
-endif()
-
+# <<<<<<< OLD CODE from 2aca99707 (cffd0318c) - COMMENTED OUT
+# # Allow invalid CUDA kernels in the short term
+# if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 12.8.0)
+#   list(APPEND CUVS_GPU_FLAGS -static-global-template-stub=false)
+# endif()
+#
+# =======
+# >>>>>>> END NEW CODE (cffd0318c)
 if(CUDA_LOG_COMPILE_TIME)
   list(APPEND CUVS_GPU_FLAGS "--time=nvcc_compile_log.csv")
 endif()
@@ -91,8 +92,13 @@ if(OpenMP_FOUND)
 endif()
 
 # Debug options
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-  message(VERBOSE "cuVS: Building with debugging flags")
-  list(APPEND CUVS_GPU_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
-  list(APPEND CUVS_GPU_FLAGS -Xptxas --suppress-stack-size-warning)
-endif()
+# <<<<<<< OLD CODE from f05125116 (4f3afa378) - COMMENTED OUT
+# if(CMAKE_BUILD_TYPE MATCHES Debug)
+#   message(VERBOSE "cuVS: Building with debugging flags")
+#   list(APPEND CUVS_GPU_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
+#   list(APPEND CUVS_GPU_FLAGS -Xptxas --suppress-stack-size-warning)
+# endif()
+# =======
+list(APPEND CUVS_DEBUG_CUDA_FLAGS -G -Xcompiler=-rdynamic --maxrregcount=64)
+list(APPEND CUVS_DEBUG_CUDA_FLAGS -Xptxas --suppress-stack-size-warning)
+# >>>>>>> END NEW CODE (4f3afa378)

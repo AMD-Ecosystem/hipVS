@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "kmeans.cuh"
@@ -22,16 +11,36 @@ namespace cuvs::cluster::kmeans {
 void cluster_cost(const raft::resources& handle,
                   raft::device_matrix_view<const float, int> X,
                   raft::device_matrix_view<const float, int> centroids,
-                  raft::host_scalar_view<float> cost)
+                  raft::host_scalar_view<float> cost,
+                  std::optional<raft::device_vector_view<const float, int>> sample_weight)
 {
-  cuvs::cluster::kmeans::cluster_cost<float, int>(handle, X, centroids, cost);
+  cuvs::cluster::kmeans::cluster_cost<float, int>(handle, X, centroids, cost, sample_weight);
 }
 
 void cluster_cost(const raft::resources& handle,
                   raft::device_matrix_view<const double, int> X,
                   raft::device_matrix_view<const double, int> centroids,
-                  raft::host_scalar_view<double> cost)
+                  raft::host_scalar_view<double> cost,
+                  std::optional<raft::device_vector_view<const double, int>> sample_weight)
 {
-  cuvs::cluster::kmeans::cluster_cost<double, int>(handle, X, centroids, cost);
+  cuvs::cluster::kmeans::cluster_cost<double, int>(handle, X, centroids, cost, sample_weight);
+}
+
+void cluster_cost(const raft::resources& handle,
+                  raft::device_matrix_view<const float, int64_t> X,
+                  raft::device_matrix_view<const float, int64_t> centroids,
+                  raft::host_scalar_view<float> cost,
+                  std::optional<raft::device_vector_view<const float, int64_t>> sample_weight)
+{
+  cuvs::cluster::kmeans::cluster_cost<float, int64_t>(handle, X, centroids, cost, sample_weight);
+}
+
+void cluster_cost(const raft::resources& handle,
+                  raft::device_matrix_view<const double, int64_t> X,
+                  raft::device_matrix_view<const double, int64_t> centroids,
+                  raft::host_scalar_view<double> cost,
+                  std::optional<raft::device_vector_view<const double, int64_t>> sample_weight)
+{
+  cuvs::cluster::kmeans::cluster_cost<double, int64_t>(handle, X, centroids, cost, sample_weight);
 }
 }  // namespace cuvs::cluster::kmeans

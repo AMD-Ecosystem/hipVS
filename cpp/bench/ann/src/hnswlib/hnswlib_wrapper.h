@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
@@ -180,8 +169,12 @@ void hnsw_lib<T>::set_search_param(const search_param_base& param_, const void* 
   auto param     = dynamic_cast<const search_param&>(param_);
   appr_alg_->ef_ = param.ef;
   num_threads_   = param.num_threads;
-  // bench_mode_ = param.metric_objective;
-  bench_mode_ = Mode::kLatency;  // TODO(achirkin): pass the benchmark mode in the algo parameters
+  if (cuvs::bench::benchmark_n_threads > 1) {
+    bench_mode_  = Mode::kThroughput;
+    num_threads_ = 1;  // Prevent nested parallelism (gbench threads + batch threads).
+  } else {
+    bench_mode_ = Mode::kLatency;
+  }
 
   // Create a pool if multiple query threads have been set and the pool hasn't been created already
   bool create_pool = (bench_mode_ == Mode::kLatency && num_threads_ > 1 && !thread_pool_);
@@ -192,6 +185,11 @@ template <typename T>
 void hnsw_lib<T>::search(
   const T* query, int batch_size, int k, algo_base::index_type* indices, float* distances) const
 {
+  if (batch_size == 1) {
+    get_search_knn_results(query, k, indices, distances);
+    return;
+  }
+
   auto f = [&](int i) {
     // hnsw can only handle a single vector at a time.
     get_search_knn_results(query + i * dim_, k, indices + i * k, distances + i * k);

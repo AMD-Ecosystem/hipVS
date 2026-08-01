@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -22,16 +11,25 @@
 #include "registers_types.cuh"  // DistFunc
 #include <cuvs/neighbors/ball_cover.hpp>
 
+#include "../detail/faiss_select/key_value_block_select.cuh"
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
-#include <raft/linalg/unary_op.cuh>
-#include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
-#include <raft/util/bitwise_operations.hpp>
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// #include <raft/linalg/unary_op.cuh>
+// // <<<<<<< OLD CODE from 5d2d0bb8a (29339f2bd) - COMMENTED OUT
+// // #include <raft/neighbors/detail/faiss_select/key_value_block_select.cuh>
+// // #include <raft/util/bitwise_operations.hpp>
+// // =======
+// // >>>>>>> END NEW CODE (29339f2bd)
+// =======
+#include <raft/linalg/map.cuh>
+#include <raft/matrix/init.cuh>
+// >>>>>>> END NEW CODE (844faff67)
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/warp_primitives.cuh>
 
-#include <thrust/count.h>
-#include <thrust/fill.h>
+#include <cuda/functional>
+#include <thrust/reduce.h>
 #include <thrust/scan.h>
 
 #include <limits.h>
@@ -179,7 +177,7 @@ RAFT_KERNEL compute_final_dists_registers(const value_t* X_reordered,
     local_x_ptr[j] = x_ptr[j];
   }
 
-  using namespace raft::neighbors::detail::faiss_select;
+  using namespace cuvs::neighbors::detail::faiss_select;
   KeyValueBlockSelect<value_t, value_idx, false, Comparator<value_t>, warp_q, thread_q, tpb> heap(
     std::numeric_limits<value_t>::max(),
     std::numeric_limits<value_t>::max(),
@@ -339,7 +337,7 @@ RAFT_KERNEL block_rbc_kernel_registers(const value_t* X_reordered,
   }
 
   // Each warp works on 1 R
-  using namespace raft::neighbors::detail::faiss_select;
+  using namespace cuvs::neighbors::detail::faiss_select;
   KeyValueBlockSelect<value_t, value_idx, false, Comparator<value_t>, warp_q, thread_q, tpb> heap(
     std::numeric_limits<value_t>::max(),
     std::numeric_limits<value_t>::max(),
@@ -1162,8 +1160,9 @@ void rbc_low_dim_pass_two(raft::resources const& handle,
 
   rmm::device_uvector<std::uint32_t> bitset(bitset_size * n_query_rows,
                                             raft::resource::get_cuda_stream(handle));
-  thrust::fill(
-    raft::resource::get_thrust_policy(handle), bitset.data(), bitset.data() + bitset.size(), 0);
+  raft::matrix::fill(handle,
+                     raft::make_device_vector_view<std::uint32_t>(bitset.data(), bitset.size()),
+                     std::uint32_t(0));
 
   perform_post_filter_registers<value_idx, value_t, std::uint32_t, 128>
     <<<n_query_rows,
@@ -1482,18 +1481,16 @@ void rbc_eps_pass(raft::resources const& handle,
                                         vd_ptr,
                                         vd_ptr + n_query_rows,
                                         (value_idx)0,
-                                        thrust::maximum<value_idx>());
+                                        cuda::maximum<value_idx>());
 
     if (actual_max > max_k_in) {
       // ceil vd to max_k
-      raft::linalg::unaryOp(
-        vd_ptr,
-        vd_ptr,
-        n_query_rows,
-        [max_k_in] __device__(value_idx vd_count) {
-          return vd_count > max_k_in ? max_k_in : vd_count;
-        },
-        raft::resource::get_cuda_stream(handle));
+      raft::linalg::map(handle,
+                        raft::make_device_vector_view<const value_idx>(vd_ptr, n_query_rows),
+                        raft::make_device_vector_view<value_idx>(vd_ptr, n_query_rows),
+                        [max_k_in] __device__(value_idx vd_count) {
+                          return vd_count > max_k_in ? max_k_in : vd_count;
+                        });
     }
 
     thrust::exclusive_scan(raft::resource::get_thrust_policy(handle),

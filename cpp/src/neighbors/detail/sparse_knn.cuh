@@ -1,25 +1,16 @@
 /*
- * Copyright (c) 2020-2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
 #include "../../distance/sparse_distance.cuh"
 #include <cuvs/distance/distance.hpp>
 
+#include <raft/core/copy.cuh>
+#include <raft/core/device_mdspan.hpp>
+#include <raft/core/host_mdspan.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
-#include <raft/linalg/unary_op.cuh>
 
 #include <cuvs/neighbors/knn_merge_parts.hpp>
 #include <cuvs/selection/select_k.hpp>
@@ -297,25 +288,26 @@ class sparse_knn_t {
         }
 
         // copy merged output back into merge buffer partition for next iteration
-        raft::copy_async<value_idx>(merge_buffer_indices.data(),
-                                    indices_merge_buffer_tmp_ptr,
-                                    batch_rows * k,
-                                    raft::resource::get_cuda_stream(handle));
-        raft::copy_async<value_t>(merge_buffer_dists.data(),
-                                  dists_merge_buffer_tmp_ptr,
-                                  batch_rows * k,
-                                  raft::resource::get_cuda_stream(handle));
+        raft::copy(handle,
+                   raft::make_device_vector_view(merge_buffer_indices.data(), batch_rows * k),
+                   raft::make_const_mdspan(
+                     raft::make_device_vector_view(indices_merge_buffer_tmp_ptr, batch_rows * k)));
+        raft::copy(handle,
+                   raft::make_device_vector_view(merge_buffer_dists.data(), batch_rows * k),
+                   raft::make_const_mdspan(
+                     raft::make_device_vector_view(dists_merge_buffer_tmp_ptr, batch_rows * k)));
       }
 
       // Copy final merged batch to output array
-      raft::copy_async<value_idx>(output_indices + (rows_processed * k),
-                                  merge_buffer_indices.data(),
-                                  query_batcher.batch_rows() * k,
-                                  raft::resource::get_cuda_stream(handle));
-      raft::copy_async<value_t>(output_dists + (rows_processed * k),
-                                merge_buffer_dists.data(),
-                                query_batcher.batch_rows() * k,
-                                raft::resource::get_cuda_stream(handle));
+      auto batch_len = query_batcher.batch_rows() * k;
+      raft::copy(handle,
+                 raft::make_device_vector_view(output_indices + (rows_processed * k), batch_len),
+                 raft::make_const_mdspan(
+                   raft::make_device_vector_view(merge_buffer_indices.data(), batch_len)));
+      raft::copy(handle,
+                 raft::make_device_vector_view(output_dists + (rows_processed * k), batch_len),
+                 raft::make_const_mdspan(
+                   raft::make_device_vector_view(merge_buffer_dists.data(), batch_len)));
 
       rows_processed += query_batcher.batch_rows();
     }
@@ -335,8 +327,9 @@ class sparse_knn_t {
     id_ranges.push_back(idx_batcher.batch_start());
 
     rmm::device_uvector<value_idx> trans(id_ranges.size(), raft::resource::get_cuda_stream(handle));
-    raft::update_device(
-      trans.data(), id_ranges.data(), id_ranges.size(), raft::resource::get_cuda_stream(handle));
+    raft::copy(handle,
+               raft::make_device_vector_view(trans.data(), id_ranges.size()),
+               raft::make_host_vector_view(id_ranges.data(), id_ranges.size()));
 
     // combine merge buffers only if there's more than 1 partition to combine
     auto rows = query_batcher.batch_rows();
@@ -346,7 +339,7 @@ class sparse_knn_t {
       raft::make_device_matrix_view<const value_idx, int64_t>(merge_buffer_indices, rows, 2 * k),
       raft::make_device_matrix_view<value_t, int64_t>(out_dists, rows, k),
       raft::make_device_matrix_view<value_idx, int64_t>(out_indices, rows, k),
-      raft::make_device_vector_view<value_idx>(trans.data(), id_ranges.size()));
+      raft::make_device_vector_view<value_idx, int64_t>(trans.data(), id_ranges.size()));
   }
 
   void perform_k_selection(csr_batcher_t<value_idx, value_t> idx_batcher,

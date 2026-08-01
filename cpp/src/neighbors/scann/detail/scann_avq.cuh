@@ -1,43 +1,58 @@
 /*
- * Copyright (c) 2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (27898589f)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#else
-#include <cub/cub.cuh>
-#endif
-
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hipcub/hipcub.hpp>
+// namespace cub = hipcub;
+// #else
+// #include <cub/cub.cuh>
+// #endif
+//
+// =======
+#include <cub/device/device_histogram.cuh>
+#include <cub/device/device_reduce.cuh>
+#include <cub/device/device_scan.cuh>
+// >>>>>>> END NEW CODE (27898589f)
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/error.hpp>
@@ -46,13 +61,9 @@ namespace cub = hipcub;
 #include <raft/core/host_mdspan.hpp>
 #include <raft/core/operators.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
-#include <raft/linalg/add.cuh>
-#include <raft/linalg/coalesced_reduction.cuh>
 #include <raft/linalg/detail/cublas_wrappers.hpp>
 #include <raft/linalg/detail/cusolver_wrappers.hpp>
 #include <raft/linalg/dot.cuh>
-#include <raft/linalg/gemm.cuh>
-#include <raft/linalg/gemv.cuh>
 #include <raft/linalg/linalg_types.hpp>
 #include <raft/linalg/map.cuh>
 #include <raft/linalg/matrix_vector.cuh>
@@ -62,7 +73,6 @@ namespace cub = hipcub;
 #include <raft/linalg/power.cuh>
 #include <raft/linalg/reduce.cuh>
 #include <raft/linalg/transpose.cuh>
-#include <raft/matrix/argmin.cuh>
 #include <raft/matrix/copy.cuh>
 #include <raft/matrix/diagonal.cuh>
 #include <raft/matrix/init.cuh>
@@ -295,16 +305,11 @@ void compute_avq_centroid(raft::resources const& dev_resources,
     x_eta_1.view(),
     raft::mul_op());
 
-  raft::linalg::reduce<true, false>(avq_centroid.data_handle(),
-                                    raft::make_const_mdspan(x_eta_1.view()).data_handle(),
-                                    x_eta_1.extent(1),
-                                    x_eta_1.extent(0),
-                                    0.0f,
-                                    raft::resource::get_cuda_stream(dev_resources),
-                                    false,
-                                    raft::identity_op(),
-                                    raft::add_op(),
-                                    raft::identity_op());
+  raft::linalg::reduce<raft::Apply::ALONG_COLUMNS>(
+    dev_resources,
+    raft::make_const_mdspan(x_eta_1.view()),
+    raft::make_device_vector_view<float, int64_t>(avq_centroid.data_handle(), x_eta_1.extent(1)),
+    0.0f);
 
   // scale x
   // skipping zero elements in the vector should be ok, since they are norms
@@ -357,16 +362,8 @@ void compute_avq_centroid(raft::resources const& dev_resources,
 
   auto dots = raft::make_device_vector<float, int64_t>(dev_resources, x.extent(1));
 
-  raft::linalg::reduce<true, false>(dots.data_handle(),
-                                    raft::make_const_mdspan(x).data_handle(),
-                                    x.extent(1),
-                                    x.extent(0),
-                                    0.0f,
-                                    raft::resource::get_cuda_stream(dev_resources),
-                                    false,
-                                    raft::identity_op(),
-                                    raft::add_op(),
-                                    raft::identity_op());
+  raft::linalg::reduce<raft::Apply::ALONG_COLUMNS>(
+    dev_resources, raft::make_const_mdspan(x), dots.view(), 0.0f);
 
   raft::linalg::dot(dev_resources,
                     raft::make_const_mdspan(dots.view()),
@@ -392,31 +389,33 @@ void rescale_avq_centroids(raft::resources const& dev_resources,
 
   sum_reduce_vector(dev_resources, rescale_num_v, rescale_num.view());
 
-  raft::linalg::map_offset(dev_resources,
-                           raft::make_const_mdspan(rescale_denom_v),
-                           rescale_denom_v,
-                           [cluster_sizes, dataset_size] __device__(size_t i, float x) {
-                             uint32_t cluster_size = i + 1 < cluster_sizes.extent(0)
-                                                       ? cluster_sizes[i + 1] - cluster_sizes[i]
-                                                       : dataset_size - cluster_sizes[i];
+  raft::linalg::map_offset(
+    dev_resources,
+    rescale_denom_v,
+    [cluster_sizes, dataset_size] __device__(size_t i, float x) {
+      uint32_t cluster_size = i + 1 < cluster_sizes.extent(0)
+                                ? cluster_sizes[i + 1] - cluster_sizes[i]
+                                : dataset_size - cluster_sizes[i];
 
-                             return x * cluster_size;
-                           });
+      return x * cluster_size;
+    },
+    raft::make_const_mdspan(rescale_denom_v));
 
   sum_reduce_vector(dev_resources, rescale_denom_v, rescale_denom.view());
 
   auto rescale_num_ptr   = rescale_num.data_handle();
   auto rescale_denom_ptr = rescale_denom.data_handle();
 
-  raft::linalg::map_offset(dev_resources,
-                           raft::make_const_mdspan(centroids),
-                           centroids,
-                           [rescale_num_ptr, rescale_denom_ptr] __device__(size_t i, float x) {
-                             // should probably check the denominator is nonzero
-                             float rescale = (*rescale_num_ptr) / (*rescale_denom_ptr);
+  raft::linalg::map_offset(
+    dev_resources,
+    centroids,
+    [rescale_num_ptr, rescale_denom_ptr] __device__(size_t i, float x) {
+      // should probably check the denominator is nonzero
+      float rescale = (*rescale_num_ptr) / (*rescale_denom_ptr);
 
-                             return x * rescale;
-                           });
+      return x * rescale;
+    },
+    raft::make_const_mdspan(centroids));
 }
 
 /**
@@ -441,8 +440,8 @@ class cluster_loader {
   raft::device_matrix<T, int64_t> d_cluster_buf_;
   raft::device_matrix<T, int64_t> d_cluster_copy_buf_;
   const T* dataset_ptr_;
-  raft::host_vector_view<const LabelT> h_cluster_offsets_;
-  raft::device_vector_view<const LabelT> cluster_ids_;
+  raft::host_vector_view<const LabelT, int64_t> h_cluster_offsets_;
+  raft::device_vector_view<const LabelT, int64_t> cluster_ids_;
   cudaStream_t stream_;
   int64_t dim_;
   int64_t n_rows_;
@@ -465,8 +464,8 @@ class cluster_loader {
                  int64_t n_rows,
                  int64_t max_cluster_size,
                  int64_t h_buf_size,
-                 raft::host_vector_view<LabelT> h_cluster_offsets,
-                 raft::device_vector_view<LabelT> cluster_ids,
+                 raft::host_vector_view<LabelT, int64_t> h_cluster_offsets,
+                 raft::device_vector_view<LabelT, int64_t> cluster_ids,
                  bool needs_copy,
                  cudaStream_t stream)
     : dim_(dim),
@@ -486,8 +485,8 @@ class cluster_loader {
  public:
   cluster_loader(raft::resources const& res,
                  raft::device_matrix_view<const T, int64_t> dataset_view,
-                 raft::host_vector_view<LabelT> h_cluster_offsets,
-                 raft::device_vector_view<LabelT> cluster_ids,
+                 raft::host_vector_view<LabelT, int64_t> h_cluster_offsets,
+                 raft::device_vector_view<LabelT, int64_t> cluster_ids,
                  int64_t max_cluster_size,
                  cudaStream_t stream)
     : cluster_loader(res,
@@ -506,8 +505,8 @@ class cluster_loader {
 
   cluster_loader(raft::resources const& res,
                  raft::host_matrix_view<const T, int64_t> dataset_view,
-                 raft::host_vector_view<LabelT> h_cluster_offsets,
-                 raft::device_vector_view<LabelT> cluster_ids,
+                 raft::host_vector_view<LabelT, int64_t> h_cluster_offsets,
+                 raft::device_vector_view<LabelT, int64_t> cluster_ids,
                  int64_t max_cluster_size,
                  cudaStream_t stream)
     : cluster_loader(res,
@@ -566,18 +565,22 @@ class cluster_loader {
       raft::make_device_matrix_view<float, int64_t>(d_cluster_copy_buf_.data_handle(), size, dim_);
 
     if (needs_copy_) {
+      // For prefetching to overlap with other gpu work
+      // we need to schedule copies on the provided copy stream stream_
+      auto copy_res = raft::resources(res);
+      raft::resource::set_cuda_stream(copy_res, stream_);
+
       // htod
       auto h_cluster_ids =
         raft::make_pinned_vector_view<LabelT, int64_t>(cluster_ids_buf_.data_handle(), size);
 
-      raft::copy(
-        h_cluster_ids.data_handle(), cluster_ids.data_handle(), cluster_ids.size(), stream_);
+      raft::copy(copy_res, h_cluster_ids, cluster_ids);
       raft::resource::sync_stream(res, stream_);
 
       auto pinned_cluster = raft::make_pinned_matrix_view<T, int64_t>(
         cluster_buf_.data_handle(), cluster_vectors.extent(0), cluster_vectors.extent(1));
 
-      int n_threads = std::min<int>(omp_get_max_threads(), 32);
+      int n_threads = std::min<int>(cuvs::core::omp::get_max_threads(), 32);
 #pragma omp parallel for num_threads(n_threads)
       for (int i = 0; i < h_cluster_ids.extent(0); i++) {
         memcpy(pinned_cluster.data_handle() + i * pinned_cluster.extent(1),
@@ -585,12 +588,8 @@ class cluster_loader {
                sizeof(T) * dim_);
       }
 
-      raft::copy(cluster_vectors.data_handle(),
-                 pinned_cluster.data_handle(),
-                 pinned_cluster.size(),
-                 stream_);
+      raft::copy(copy_res, cluster_vectors, raft::make_const_mdspan(pinned_cluster));
       raft::resource::sync_stream(res, stream_);
-
     } else {
       // dtod
       auto dataset_view =
@@ -623,10 +622,10 @@ class cluster_loader {
  * @param eta the weight for the parallel component of the residual in the avq update
  */
 template <typename T,
-          typename IdxT     = int64_t,
-          typename LabelT   = uint32_t,
-          typename Accessor = raft::host_device_accessor<std::experimental::default_accessor<T>,
-                                                         raft::memory_type::host>>
+          typename IdxT   = int64_t,
+          typename LabelT = uint32_t,
+          typename Accessor =
+            raft::host_device_accessor<cuda::std::default_accessor<T>, raft::memory_type::host>>
 void apply_avq(raft::resources const& res,
                raft::mdspan<const T, raft::matrix_extent<IdxT>, raft::row_major, Accessor> dataset,
                raft::device_matrix_view<T, IdxT> centroids_view,
@@ -644,8 +643,7 @@ void apply_avq(raft::resources const& res,
   compute_cluster_offsets(res, labels_view, cluster_offsets.view(), max_cluster_size);
   auto h_cluster_offsets = raft::make_host_vector<uint32_t, int64_t>(cluster_offsets.extent(0));
 
-  raft::copy(
-    h_cluster_offsets.data_handle(), cluster_offsets.data_handle(), cluster_offsets.size(), stream);
+  raft::copy(res, h_cluster_offsets.view(), raft::make_const_mdspan(cluster_offsets.view()));
 
   dim3 block(32, 1, 1);
   dim3 grid((dataset.extent(0) + block.x - 1) / block.x, 1, 1);

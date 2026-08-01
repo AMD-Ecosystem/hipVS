@@ -1,47 +1,60 @@
 /*
- * Copyright (c) 2023-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from 873dedaf6 (0871eb3fb) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2023-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (0871eb3fb)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 #pragma once
 
 #include "utils.hpp"
 
+#include <raft/core/copy.cuh>
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/host_device_accessor.hpp>
+#include <raft/core/host_mdspan.hpp>
 #include <raft/core/mdspan.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resources.hpp>
+#include <raft/matrix/init.cuh>
 
 // TODO: This shouldn't be invoking anything from spatial/knn
 #include "../../../core/nvtx.hpp"
+#include "../../../core/omp_wrapper.hpp"
 #include "../ann_utils.cuh"
 
 #include <raft/util/bitonic_sort.cuh>
@@ -54,7 +67,6 @@
 #endif
 
 #include <float.h>
-#include <omp.h>
 #include <sys/time.h>
 
 #include <climits>
@@ -137,6 +149,14 @@ __global__ void kern_sort(const DATA_T* const dataset,  // [dataset_chunk_size, 
                        dataset[d + static_cast<uint64_t>(dataset_dim) * dstNode]);
         dist += diff * diff;
       }
+    } else if (metric == cuvs::distance::DistanceType::L1) {
+      for (int d = lane_id; d < dataset_dim; d += raft::WarpSize) {
+        float diff = cuvs::spatial::knn::detail::utils::mapping<float>{}(
+                       dataset[d + static_cast<uint64_t>(dataset_dim) * srcNode]) -
+                     cuvs::spatial::knn::detail::utils::mapping<float>{}(
+                       dataset[d + static_cast<uint64_t>(dataset_dim) * dstNode]);
+        dist += raft::abs(diff);
+      }
     } else if (metric == cuvs::distance::DistanceType::BitwiseHamming) {
       if constexpr (std::is_integral_v<DATA_T>) {
         for (int d = lane_id; d < dataset_dim; d += raft::WarpSize) {
@@ -198,15 +218,16 @@ __global__ void kern_prune(const IdxT* const knn_graph,  // [graph_chunk_size, g
   uint64_t* const num_retain = stats;
   uint64_t* const num_full   = stats + 1;
 
-  const uint64_t nid = blockIdx.x + (batch_size * batch_id);
-  if (nid >= graph_size) { return; }
+  const uint64_t iA = blockIdx.x + (batch_size * batch_id);
+  if (iA >= graph_size) { return; }
   for (uint32_t k = threadIdx.x; k < graph_degree; k += blockDim.x) {
     smem_num_detour[k] = 0;
+    if (knn_graph[k + ((uint64_t)graph_degree * iA)] == iA) {
+      // Lower the priority of self-edge
+      smem_num_detour[k] = graph_degree;
+    }
   }
   __syncthreads();
-
-  const uint64_t iA = nid;
-  if (iA >= graph_size) { return; }
 
   // count number of detours (A->D->B)
   for (uint32_t kAD = 0; kAD < graph_degree - 1; kAD++) {
@@ -516,13 +537,12 @@ void shift_array(T* array, uint64_t num)
 }
 }  // namespace
 
-template <
-  typename DataT,
-  typename IdxT       = uint32_t,
-  typename d_accessor = raft::host_device_accessor<std::experimental::default_accessor<DataT>,
-                                                   raft::memory_type::device>,
-  typename g_accessor =
-    raft::host_device_accessor<std::experimental::default_accessor<IdxT>, raft::memory_type::host>>
+template <typename DataT,
+          typename IdxT       = uint32_t,
+          typename d_accessor = raft::host_device_accessor<cuda::std::default_accessor<DataT>,
+                                                           raft::memory_type::device>,
+          typename g_accessor =
+            raft::host_device_accessor<cuda::std::default_accessor<IdxT>, raft::memory_type::host>>
 void sort_knn_graph(
   raft::resources const& res,
   const cuvs::distance::DistanceType metric,
@@ -535,8 +555,9 @@ void sort_knn_graph(
     metric == cuvs::distance::DistanceType::InnerProduct ||
       metric == cuvs::distance::DistanceType::CosineExpanded ||
       metric == cuvs::distance::DistanceType::L2Expanded ||
-      metric == cuvs::distance::DistanceType::BitwiseHamming,
-    "Unsupported metric. Only InnerProduct, CosineExpanded, L2Expanded and BitwiseHamming are "
+      metric == cuvs::distance::DistanceType::BitwiseHamming ||
+      metric == cuvs::distance::DistanceType::L1,
+    "Unsupported metric. Only InnerProduct, CosineExpanded, L2Expanded, BitwiseHamming and L1 are "
     "supported");
   const uint64_t dataset_size = dataset.extent(0);
   const uint64_t dataset_dim  = dataset.extent(1);
@@ -559,15 +580,9 @@ void sort_knn_graph(
 
   auto d_dataset = raft::make_device_mdarray<DataT>(
     res, large_tmp_mr, raft::make_extents<int64_t>(dataset_size, dataset_dim));
-  raft::copy(d_dataset.data_handle(),
-             dataset_ptr,
-             dataset_size * dataset_dim,
-             raft::resource::get_cuda_stream(res));
+  raft::copy(res, d_dataset.view(), dataset);
 
-  raft::copy(d_input_graph.data_handle(),
-             input_graph_ptr,
-             graph_size * input_graph_degree,
-             raft::resource::get_cuda_stream(res));
+  raft::copy(res, d_input_graph.view(), knn_graph);
 
   void (*kernel_sort)(const DataT* const,
                       const IdxT,
@@ -645,10 +660,7 @@ void sort_knn_graph(
     metric);
   raft::resource::sync_stream(res);
   RAFT_LOG_DEBUG(".");
-  raft::copy(input_graph_ptr,
-             d_input_graph.data_handle(),
-             graph_size * input_graph_degree,
-             raft::resource::get_cuda_stream(res));
+  raft::copy(res, knn_graph, raft::make_const_mdspan(d_input_graph.view()));
   RAFT_LOG_DEBUG("\n");
 
   const double time_sort_end = cur_time();
@@ -852,31 +864,17 @@ void mst_optimization(raft::resources const& res,
   auto d_stats_ptr         = d_stats.data_handle();
 
   if (use_gpu) {
-    raft::copy(d_mst_graph_ptr,
-               mst_graph_ptr,
-               (size_t)graph_size * mst_graph_degree,
-               raft::resource::get_cuda_stream(res));
-    raft::copy(d_outgoing_num_edges_ptr,
-               outgoing_num_edges_ptr,
-               (size_t)graph_size,
-               raft::resource::get_cuda_stream(res));
-    raft::copy(d_incoming_num_edges_ptr,
-               incoming_num_edges_ptr,
-               (size_t)graph_size,
-               raft::resource::get_cuda_stream(res));
-    raft::copy(d_outgoing_max_edges_ptr,
-               outgoing_max_edges_ptr,
-               (size_t)graph_size,
-               raft::resource::get_cuda_stream(res));
-    raft::copy(d_incoming_max_edges_ptr,
-               incoming_max_edges_ptr,
-               (size_t)graph_size,
-               raft::resource::get_cuda_stream(res));
-    raft::copy(d_label_ptr, label_ptr, (size_t)graph_size, raft::resource::get_cuda_stream(res));
-    raft::copy(d_cluster_size_ptr,
-               cluster_size_ptr,
-               (size_t)graph_size,
-               raft::resource::get_cuda_stream(res));
+    raft::copy(res, d_mst_graph.view(), raft::make_const_mdspan(mst_graph.view()));
+    raft::copy(
+      res, d_outgoing_num_edges.view(), raft::make_const_mdspan(outgoing_num_edges.view()));
+    raft::copy(
+      res, d_incoming_num_edges.view(), raft::make_const_mdspan(incoming_num_edges.view()));
+    raft::copy(
+      res, d_outgoing_max_edges.view(), raft::make_const_mdspan(outgoing_max_edges.view()));
+    raft::copy(
+      res, d_incoming_max_edges.view(), raft::make_const_mdspan(incoming_max_edges.view()));
+    raft::copy(res, d_label.view(), raft::make_const_mdspan(label.view()));
+    raft::copy(res, d_cluster_size.view(), raft::make_const_mdspan(cluster_size.view()));
   }
 
   IdxT num_clusters     = 0;
@@ -893,11 +891,8 @@ void mst_optimization(raft::resources const& res,
       // If the number of clusters does not converge to 1, then edges are
       // made from all nodes not belonging to the main cluster to any node
       // in the main cluster.
-      raft::copy(cluster_size_ptr,
-                 d_cluster_size_ptr,
-                 (size_t)graph_size,
-                 raft::resource::get_cuda_stream(res));
-      raft::copy(label_ptr, d_label_ptr, (size_t)graph_size, raft::resource::get_cuda_stream(res));
+      raft::copy(res, cluster_size.view(), raft::make_const_mdspan(d_cluster_size.view()));
+      raft::copy(res, label.view(), raft::make_const_mdspan(d_label.view()));
       raft::resource::sync_stream(res);
       uint32_t main_cluster_label = graph_size;
 #pragma omp parallel for reduction(min : main_cluster_label)
@@ -928,15 +923,12 @@ void mst_optimization(raft::resources const& res,
     // 2. Update MST graph
     //  * Try to add candidate edges to MST graph
     if (use_gpu) {
-      raft::copy(d_candidate_edges_ptr,
-                 candidate_edges_ptr,
-                 graph_size,
-                 raft::resource::get_cuda_stream(res));
+      raft::copy(res, d_candidate_edges.view(), raft::make_const_mdspan(candidate_edges.view()));
       stats_ptr[0] = 0;
       stats_ptr[1] = num_direct;
       stats_ptr[2] = num_alternate;
       stats_ptr[3] = num_failure;
-      raft::copy(d_stats_ptr, stats_ptr, 4, raft::resource::get_cuda_stream(res));
+      raft::copy(res, d_stats.view(), raft::make_const_mdspan(stats.view()));
 
       constexpr uint64_t n_threads = 256;
       const dim3 threads(n_threads, 1, 1);
@@ -953,7 +945,7 @@ void mst_optimization(raft::resources const& res,
         mst_graph_degree,
         d_stats_ptr);
 
-      raft::copy(stats_ptr, d_stats_ptr, 4, raft::resource::get_cuda_stream(res));
+      raft::copy(res, stats.view(), raft::make_const_mdspan(d_stats.view()));
       raft::resource::sync_stream(res);
       num_direct    = stats_ptr[1];
       num_alternate = stats_ptr[2];
@@ -980,7 +972,9 @@ void mst_optimization(raft::resources const& res,
       flag_update = 0;
       if (use_gpu) {
         stats_ptr[0] = flag_update;
-        raft::copy(d_stats_ptr, stats_ptr, 1, raft::resource::get_cuda_stream(res));
+        raft::copy(res,
+                   raft::make_device_vector_view(d_stats_ptr, int64_t(1)),
+                   raft::make_host_vector_view(stats_ptr, int64_t(1)));
 
         constexpr uint64_t n_threads = 256;
         const dim3 threads(n_threads, 1, 1);
@@ -988,7 +982,9 @@ void mst_optimization(raft::resources const& res,
         kern_mst_opt_labeling<<<blocks, threads, 0, raft::resource::get_cuda_stream(res)>>>(
           d_label_ptr, d_mst_graph_ptr, graph_size, mst_graph_degree, d_stats_ptr);
 
-        raft::copy(stats_ptr, d_stats_ptr, 1, raft::resource::get_cuda_stream(res));
+        raft::copy(res,
+                   raft::make_host_vector_view(stats_ptr, int64_t(1)),
+                   raft::make_device_vector_view(d_stats_ptr, int64_t(1)));
         raft::resource::sync_stream(res);
         flag_update = stats_ptr[0];
       } else {
@@ -1010,7 +1006,9 @@ void mst_optimization(raft::resources const& res,
     num_clusters = 0;
     if (use_gpu) {
       stats_ptr[0] = num_clusters;
-      raft::copy(d_stats_ptr, stats_ptr, 1, raft::resource::get_cuda_stream(res));
+      raft::copy(res,
+                 raft::make_device_vector_view(d_stats_ptr, int64_t(1)),
+                 raft::make_host_vector_view(stats_ptr, int64_t(1)));
 
       constexpr uint64_t n_threads = 256;
       const dim3 threads(n_threads, 1, 1);
@@ -1018,7 +1016,9 @@ void mst_optimization(raft::resources const& res,
       kern_mst_opt_cluster_size<<<blocks, threads, 0, raft::resource::get_cuda_stream(res)>>>(
         d_cluster_size_ptr, d_label_ptr, graph_size, d_stats_ptr);
 
-      raft::copy(stats_ptr, d_stats_ptr, 1, raft::resource::get_cuda_stream(res));
+      raft::copy(res,
+                 raft::make_host_vector_view(stats_ptr, int64_t(1)),
+                 raft::make_device_vector_view(d_stats_ptr, int64_t(1)));
       raft::resource::sync_stream(res);
       num_clusters = stats_ptr[0];
     } else {
@@ -1049,7 +1049,7 @@ void mst_optimization(raft::resources const& res,
       stats_ptr[1] = cluster_size_max;
       stats_ptr[2] = total_outgoing_edges;
       stats_ptr[3] = total_incoming_edges;
-      raft::copy(d_stats_ptr, stats_ptr, 4, raft::resource::get_cuda_stream(res));
+      raft::copy(res, d_stats.view(), raft::make_const_mdspan(stats.view()));
 
       constexpr uint64_t n_threads = 256;
       const dim3 threads(n_threads, 1, 1);
@@ -1064,7 +1064,7 @@ void mst_optimization(raft::resources const& res,
         mst_graph_degree,
         d_stats_ptr);
 
-      raft::copy(stats_ptr, d_stats_ptr, 4, raft::resource::get_cuda_stream(res));
+      raft::copy(res, stats.view(), raft::make_const_mdspan(d_stats.view()));
       raft::resource::sync_stream(res);
       cluster_size_min     = stats_ptr[0];
       cluster_size_max     = stats_ptr[1];
@@ -1128,10 +1128,7 @@ void mst_optimization(raft::resources const& res,
 
   // The edges that make up the MST are stored as edges in the output graph.
   if (use_gpu) {
-    raft::copy(mst_graph_ptr,
-               d_mst_graph_ptr,
-               (size_t)graph_size * mst_graph_degree,
-               raft::resource::get_cuda_stream(res));
+    raft::copy(res, mst_graph.view(), raft::make_const_mdspan(d_mst_graph.view()));
     raft::resource::sync_stream(res);
   }
 #pragma omp parallel for
@@ -1213,10 +1210,9 @@ void count_2hop_detours(raft::host_matrix_view<IdxT, int64_t, raft::row_major> k
   }
 }
 
-template <
-  typename IdxT = uint32_t,
-  typename g_accessor =
-    raft::host_device_accessor<std::experimental::default_accessor<IdxT>, raft::memory_type::host>>
+template <typename IdxT = uint32_t,
+          typename g_accessor =
+            raft::host_device_accessor<cuda::std::default_accessor<IdxT>, raft::memory_type::host>>
 void optimize(
   raft::resources const& res,
   raft::mdspan<IdxT, raft::matrix_extent<int64_t>, raft::row_major, g_accessor> knn_graph,
@@ -1291,11 +1287,12 @@ void optimize(
     bool _use_gpu = use_gpu;
     if (_use_gpu) {
       try {
-        auto d_detour_count =
-          raft::make_device_matrix<uint8_t, int64_t>(res, graph_size, knn_graph_degree);
-        auto d_num_no_detour_edges = raft::make_device_vector<uint32_t, int64_t>(res, graph_size);
-        auto d_input_graph =
-          raft::make_device_matrix<IdxT, int64_t>(res, graph_size, knn_graph_degree);
+        auto d_detour_count = raft::make_device_mdarray<uint8_t>(
+          res, large_tmp_mr, raft::make_extents<int64_t>(graph_size, knn_graph_degree));
+        auto d_num_no_detour_edges = raft::make_device_mdarray<uint32_t>(
+          res, large_tmp_mr, raft::make_extents<int64_t>(graph_size));
+        auto d_input_graph = raft::make_device_mdarray<IdxT>(
+          res, large_tmp_mr, raft::make_extents<int64_t>(graph_size, knn_graph_degree));
       } catch (std::bad_alloc& e) {
         RAFT_LOG_DEBUG("Insufficient memory for 2-hop node counting on GPU");
         _use_gpu = false;
@@ -1315,17 +1312,11 @@ void optimize(
       auto d_detour_count                       = raft::make_device_mdarray<uint8_t>(
         res, large_tmp_mr, raft::make_extents<int64_t>(graph_size, knn_graph_degree));
 
-      RAFT_CUDA_TRY(cudaMemsetAsync(d_detour_count.data_handle(),
-                                    0xff,
-                                    graph_size * knn_graph_degree * sizeof(uint8_t),
-                                    raft::resource::get_cuda_stream(res)));
+      raft::matrix::fill(res, d_detour_count.view(), uint8_t(0xff));
 
       auto d_num_no_detour_edges = raft::make_device_mdarray<uint32_t>(
         res, large_tmp_mr, raft::make_extents<int64_t>(graph_size));
-      RAFT_CUDA_TRY(cudaMemsetAsync(d_num_no_detour_edges.data_handle(),
-                                    0x00,
-                                    graph_size * sizeof(uint32_t),
-                                    raft::resource::get_cuda_stream(res)));
+      raft::matrix::fill(res, d_num_no_detour_edges.view(), uint32_t(0));
 
       auto dev_stats  = raft::make_device_vector<uint64_t>(res, 2);
       auto host_stats = raft::make_host_vector<uint64_t>(2);
@@ -1353,7 +1344,11 @@ void optimize(
       const dim3 threads_prune(raft::host_warp_size(stream), 1, 1);
       const dim3 blocks_prune(batch_size, 1, 1);
 
-      RAFT_CUDA_TRY(cudaMemsetAsync(dev_stats.data_handle(), 0, sizeof(uint64_t) * 2, stream));
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+//       RAFT_CUDA_TRY(cudaMemsetAsync(dev_stats.data_handle(), 0, sizeof(uint64_t) * 2, stream));
+// =======
+      raft::matrix::fill(res, dev_stats.view(), uint64_t(0));
+// >>>>>>> END NEW CODE (844faff67)
 
       for (uint32_t i_batch = 0; i_batch < num_batch; i_batch++) {
         kern_prune<MAX_DEGREE, IdxT>
@@ -1374,13 +1369,9 @@ void optimize(
       raft::resource::sync_stream(res);
       RAFT_LOG_DEBUG("\n");
 
-      raft::copy(detour_count.data_handle(),
-                 d_detour_count.data_handle(),
-                 detour_count.size(),
-                 raft::resource::get_cuda_stream(res));
+      raft::copy(res, detour_count.view(), raft::make_const_mdspan(d_detour_count.view()));
 
-      raft::copy(
-        host_stats.data_handle(), dev_stats.data_handle(), 2, raft::resource::get_cuda_stream(res));
+      raft::copy(res, host_stats.view(), raft::make_const_mdspan(dev_stats.view()));
       num_keep = host_stats.data_handle()[0];
       num_full = host_stats.data_handle()[1];
 
@@ -1466,7 +1457,7 @@ void optimize(
       "overflows occur during the norm computation between the dataset vectors.");
 
     const double time_prune_end = cur_time();
-    RAFT_LOG_DEBUG("# Pruning time: %.1lf sec", time_prune_end - time_prune_start);
+    RAFT_LOG_DEBUG("# Pruning time: %.1lf ms", (time_prune_end - time_prune_start) * 1000.0);
   }
 
   auto rev_graph       = raft::make_host_matrix<IdxT, int64_t>(graph_size, output_graph_degree);
@@ -1481,17 +1472,14 @@ void optimize(
     const double time_make_start = cur_time();
 
     device_matrix_view_from_host<IdxT, int64_t> d_rev_graph(res, rev_graph.view());
-    RAFT_CUDA_TRY(cudaMemsetAsync(d_rev_graph.data_handle(),
-                                  0xff,
-                                  graph_size * output_graph_degree * sizeof(IdxT),
-                                  raft::resource::get_cuda_stream(res)));
+    raft::matrix::fill(res,
+                       raft::make_device_vector_view<IdxT, int64_t>(
+                         d_rev_graph.data_handle(), graph_size * output_graph_degree),
+                       IdxT(-1));
 
     auto d_rev_graph_count = raft::make_device_mdarray<uint32_t>(
       res, large_tmp_mr, raft::make_extents<int64_t>(graph_size));
-    RAFT_CUDA_TRY(cudaMemsetAsync(d_rev_graph_count.data_handle(),
-                                  0x00,
-                                  graph_size * sizeof(uint32_t),
-                                  raft::resource::get_cuda_stream(res)));
+    raft::matrix::fill(res, d_rev_graph_count.view(), uint32_t(0));
 
     auto dest_nodes = raft::make_host_vector<IdxT, int64_t>(graph_size);
     auto d_dest_nodes =
@@ -1505,10 +1493,7 @@ void optimize(
       }
       raft::resource::sync_stream(res);
 
-      raft::copy(d_dest_nodes.data_handle(),
-                 dest_nodes.data_handle(),
-                 graph_size,
-                 raft::resource::get_cuda_stream(res));
+      raft::copy(res, d_dest_nodes.view(), raft::make_const_mdspan(dest_nodes.view()));
 
       dim3 threads(256, 1, 1);
       dim3 blocks(1024, 1, 1);
@@ -1525,18 +1510,13 @@ void optimize(
     RAFT_LOG_DEBUG("\n");
 
     if (d_rev_graph.allocated_memory()) {
-      raft::copy(rev_graph.data_handle(),
-                 d_rev_graph.data_handle(),
-                 graph_size * output_graph_degree,
-                 raft::resource::get_cuda_stream(res));
+      raft::copy(res, rev_graph.view(), raft::make_const_mdspan(d_rev_graph.view()));
     }
-    raft::copy(rev_graph_count.data_handle(),
-               d_rev_graph_count.data_handle(),
-               graph_size,
-               raft::resource::get_cuda_stream(res));
+    raft::copy(res, rev_graph_count.view(), raft::make_const_mdspan(d_rev_graph_count.view()));
 
     const double time_make_end = cur_time();
-    RAFT_LOG_DEBUG("# Making reverse graph time: %.1lf sec", time_make_end - time_make_start);
+    RAFT_LOG_DEBUG("# Making reverse graph time: %.1lf ms",
+                   (time_make_end - time_make_start) * 1000.0);
   }
 
   {
@@ -1623,7 +1603,8 @@ void optimize(
                  "many MST optimization edges.");
 
     const double time_replace_end = cur_time();
-    RAFT_LOG_DEBUG("# Replacing edges time: %.1lf sec", time_replace_end - time_replace_start);
+    RAFT_LOG_DEBUG("# Replacing edges time: %.1lf ms",
+                   (time_replace_end - time_replace_start) * 1000.0);
 
     /* stats */
     uint64_t num_replaced_edges = 0;

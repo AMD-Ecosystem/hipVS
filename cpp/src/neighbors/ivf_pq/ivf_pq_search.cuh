@@ -1,34 +1,43 @@
 /*
- * Copyright (c) 2022-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from a3e2fb115 (a9a30b1b9) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2022-2025, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2022-2025, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (a9a30b1b9)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
 #pragma once
@@ -43,7 +52,6 @@
 #include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/ivf_pq.hpp>
 #include <cuvs/selection/select_k.hpp>
-#include <raft/core/cudart_utils.hpp>
 #include <raft/core/device_mdarray.hpp>
 #include <raft/core/logger.hpp>
 #include <raft/core/operators.hpp>
@@ -57,26 +65,30 @@
 #include <raft/linalg/matrix_vector_op.cuh>
 #include <raft/linalg/norm_types.hpp>
 #include <raft/linalg/normalize.cuh>
-#include <raft/linalg/unary_op.cuh>
 #include <raft/matrix/detail/select_warpsort.cuh>
 #include <raft/matrix/select_k.cuh>
 #include <raft/util/cache.hpp>
 #include <raft/util/cuda_utils.cuh>
+#include <raft/util/cudart_utils.hpp>
 #include <raft/util/device_atomics.cuh>
 #include <raft/util/pow2_utils.cuh>
 #include <raft/util/vectorized.cuh>
 
 #include <rmm/cuda_stream_view.hpp>
-#include <rmm/mr/device/per_device_resource.hpp>
+#include <rmm/mr/per_device_resource.hpp>
 
-#ifdef __HIP_PLATFORM_AMD__
-#include <hipcub/hipcub.hpp>
-namespace cub = hipcub;
-#include <hip/hip_fp16.h>
-#include <raft/util/device_loads_stores_hip.cuh>
-#include <rocm-core/rocm_version.h>
-#else
-#include <cub/cub.cuh>
+// <<<<<<< OLD CODE from ebad74f5f (27898589f) - COMMENTED OUT
+// #ifdef __HIP_PLATFORM_AMD__
+// #include <hipcub/hipcub.hpp>
+// namespace cub = hipcub;
+// #include <hip/hip_fp16.h>
+// #include <raft/util/device_loads_stores_hip.cuh>
+// #include <rocm-core/rocm_version.h>
+// #else
+// #include <cub/cub.cuh>
+// =======
+#include <cub/device/device_radix_sort.cuh>
+// >>>>>>> END NEW CODE (27898589f)
 #include <cuda_fp16.h>
 #include <raft/util/device_loads_stores.cuh>
 #endif
@@ -678,14 +690,14 @@ void ivfpq_search_worker(raft::resources const& handle,
     num_samples_vector);
 
   // Postprocessing
-  ivf::detail::postprocess_distances(distances,
+  ivf::detail::postprocess_distances(handle,
+                                     distances,
                                      topk_dists.data(),
                                      index.metric(),
                                      n_queries,
                                      topK,
                                      scaling_factor,
-                                     index.metric() != distance::DistanceType::CosineExpanded,
-                                     stream);
+                                     index.metric() != distance::DistanceType::CosineExpanded);
   ivf::detail::postprocess_neighbors(neighbors,
                                      neighbors_uint32,
                                      index.inds_ptrs().data_handle(),
@@ -832,21 +844,35 @@ inline auto get_max_coarse_batch_size(raft::resources const& res,
                                       const search_params& params,
                                       uint32_t n_probes,
                                       uint32_t n_lists,
-                                      uint32_t n_queries) -> uint32_t
+                                      uint32_t n_queries,
+                                      uint32_t dim_ext,
+                                      uint32_t rot_dim) -> uint32_t
 {
-  size_t data_size = 4;
+  size_t gemm_elem_size;
+  size_t qc_elem_size;
   switch (params.coarse_search_dtype) {
-    case CUDA_R_32F: data_size = 4; break;
-    case CUDA_R_16F: data_size = 2; break;
-    case CUDA_R_8I: data_size = 1; break;
+    case CUDA_R_32F:
+      gemm_elem_size = 4;
+      qc_elem_size   = 4;
+      break;
+    case CUDA_R_16F:
+      gemm_elem_size = 2;
+      qc_elem_size   = 2;
+      break;
+    case CUDA_R_8I:
+      gemm_elem_size = 1;
+      qc_elem_size   = 4;
+      break;
     default: RAFT_FAIL("Unexpected coarse_search_dtype (%d)", int(params.coarse_search_dtype));
   }
-  // How much data we allocate for coarse GEMM.
-  // This is NOT all memory we need, as a rule of thumb max it out to half of the workspace.
-  // We don't reach this limit by default, but only when we increase the max_internal_batch_size by
-  // a lot.
-  auto bytes_per_query = static_cast<size_t>(n_probes + n_lists) * data_size;
-  auto max_per_ws      = raft::resource::get_workspace_free_bytes(res) / bytes_per_query;
+  // Persistent allocations that live for the entire search call.
+  auto persistent_per_query = static_cast<size_t>(dim_ext) * gemm_elem_size +
+                              static_cast<size_t>(rot_dim) * sizeof(float) +
+                              static_cast<size_t>(n_probes) * sizeof(uint32_t);
+  // Transient allocations during coarse search (select_clusters): qc_distances + cluster_dists.
+  auto transient_per_query = static_cast<size_t>(n_lists + n_probes) * qc_elem_size;
+  auto total_per_query     = persistent_per_query + transient_per_query;
+  auto max_per_ws          = raft::resource::get_workspace_free_bytes(res) / total_per_query;
   return std::max<uint32_t>(
     1,
     std::min<uint32_t>(max_per_ws / 2,
@@ -871,7 +897,7 @@ inline auto get_centers(const raft::resources& res, const index<IdxT>& index)
   if constexpr (std::is_same_v<T, int8_t>) { return index.centers_int8(res); }
 }
 
-/** See raft::spatial::knn::ivf_pq::search docs */
+/** See cuvs::spatial::knn::ivf_pq::search docs */
 template <typename T,
           typename IdxT,
           typename IvfSampleFilterT = cuvs::neighbors::filtering::none_sample_filter>
@@ -888,12 +914,6 @@ inline void search(raft::resources const& handle,
   static_assert(std::is_same_v<T, float> || std::is_same_v<T, half> || std::is_same_v<T, uint8_t> ||
                   std::is_same_v<T, int8_t>,
                 "Unsupported element type.");
-  if (index.metric() == distance::DistanceType::CosineExpanded) {
-    if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>)
-      RAFT_FAIL(
-        "CosineExpanded distance metric is currently not supported for uint8_t and int8_t data "
-        "type");
-  }
   raft::common::nvtx::range<cuvs::common::nvtx::domain::cuvs> fun_scope(
     "ivf_pq::search(n_queries = %u, n_probes = %u, k = %u, dim = %zu)",
     n_queries,
@@ -915,6 +935,9 @@ inline void search(raft::resources const& handle,
     static_cast<uint64_t>(index.size()));
   RAFT_EXPECTS(params.n_probes > 0,
                "n_probes (number of clusters to probe in the search) must be positive.");
+  RAFT_EXPECTS(index.codes_layout() == list_layout::INTERLEAVED,
+               "IVF-PQ search requires INTERLEAVED codes layout. FLAT layout is not supported for "
+               "GPU search.");
 
   switch (utils::check_pointer_residency(queries, neighbors, distances)) {
     case utils::pointer_residency::device_only:
@@ -943,8 +966,8 @@ inline void search(raft::resources const& handle,
 
   // Maximum number of query vectors to search at the same time.
   // Number of queries in the outer loop, which includes query transform and coarse search.
-  const auto max_bs_outer =
-    get_max_coarse_batch_size(handle, params, n_probes, index.n_lists(), n_queries);
+  const auto max_bs_outer = get_max_coarse_batch_size(
+    handle, params, n_probes, index.n_lists(), n_queries, dim_ext, index.rot_dim());
   // Number of queries in the inner loop, which includes the fine search;
   // This is usually smaller than the outer loop when the non-fused kernel has to keep intermediate
   // results in the device memory.

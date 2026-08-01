@@ -1,52 +1,60 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+// // <<<<<<< OLD CODE from 543ce1ffa (5a0ba144f) - COMMENTED OUT
+// //  * Copyright (c) 2024, NVIDIA CORPORATION.
+// //  *
+// //  * Licensed under the Apache License, Version 2.0 (the "License");
+// //  * you may not use this file except in compliance with the License.
+// //  * You may obtain a copy of the License at
+// //  *
+// //  *     http://www.apache.org/licenses/LICENSE-2.0
+// //  *
+// //  * Unless required by applicable law or agreed to in writing, software
+// //  * distributed under the License is distributed on an "AS IS" BASIS,
+// //  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// //  * See the License for the specific language governing permissions and
+// //  * limitations under the License.
+// //  *
+// //  * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+// //  * Permission is hereby granted, free of charge, to any person obtaining a copy
+// //  * of this software and associated documentation files (the "Software"), to deal
+// //  * in the Software without restriction, including without limitation the rights
+// //  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// //  * copies of the Software, and to permit persons to whom the Software is
+// //  * furnished to do so, subject to the following conditions:
+// //  * The above copyright notice and this permission notice shall be included in
+// //  * all copies or substantial portions of the Software.
+// //  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// //  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// //  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// //  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// //  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// //  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// //  * THE SOFTWARE.
+// // =======
+//  * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+// =======
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+// >>>>>>> END NEW CODE (844faff67)
+ * SPDX-License-Identifier: Apache-2.0
+// >>>>>>> END NEW CODE (5a0ba144f)
  */
 
 #pragma once
 
 #include "../silhouette_score.cuh"
 
+#include <raft/core/device_mdspan.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/cuda_stream_pool.hpp>
-#include <raft/core/resource/thrust_policy.hpp>
+#include <raft/linalg/map.cuh>
+#include <raft/linalg/reduce.cuh>
+#include <raft/matrix/init.cuh>
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/device_atomics.cuh>
 
+#include <raft/core/device_mdarray.hpp>
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
-
-#include <thrust/device_vector.h>
-#include <thrust/fill.h>
-#include <thrust/reduce.h>
 
 namespace cuvs {
 namespace stats {
@@ -213,7 +221,6 @@ value_t silhouette_score(
   rmm::device_uvector<value_idx> cluster_counts = get_cluster_counts(handle, y, n_rows, n_labels);
 
   auto stream = raft::resource::get_cuda_stream(handle);
-  auto policy = raft::resource::get_thrust_policy(handle);
 
   auto b_size = n_rows * n_labels;
 
@@ -231,9 +238,16 @@ value_t silhouette_score(
     a_ptr = scores;
   }
 
-  thrust::fill(policy, a_ptr, a_ptr + n_rows, 0);
-  auto const warp_size = raft::host_warp_size(stream);
-  dim3 block_size(std::min(n_rows, warp_size), std::min(n_labels, warp_size));
+// <<<<<<< OLD CODE from 2416821c9 (844faff67) - COMMENTED OUT
+//   thrust::fill(policy, a_ptr, a_ptr + n_rows, 0);
+//   auto const warp_size = raft::host_warp_size(stream);
+//   dim3 block_size(std::min(n_rows, warp_size), std::min(n_labels, warp_size));
+// =======
+  raft::matrix::fill(
+    handle, raft::make_device_vector_view<value_t, value_idx>(a_ptr, n_rows), value_t(0));
+
+  dim3 block_size(std::min(n_rows, 32), std::min(n_labels, 32));
+// >>>>>>> END NEW CODE (844faff67)
   dim3 grid_size(raft::ceildiv(n_rows, (value_idx)block_size.x),
                  raft::ceildiv(n_labels, (label_idx)block_size.y));
   detail::fill_b_kernel<<<grid_size, block_size, 0, stream>>>(
@@ -276,23 +290,33 @@ value_t silhouette_score(
   raft::resource::sync_stream_pool(handle);
 
   // calculating row-wise minimum in b
-  // this prim only supports int indices for now
-  raft::linalg::reduce<true, true, value_t, value_t, value_idx, raft::identity_op, raft::min_op>(
-    b_ptr,
-    b_ptr,
-    n_labels,
-    n_rows,
+  raft::linalg::reduce<raft::Apply::ALONG_ROWS>(
+    handle,
+    raft::make_device_matrix_view<const value_t, value_idx, raft::row_major>(
+      b_ptr, n_rows, n_labels),
+    raft::make_device_vector_view<value_t, value_idx>(b_ptr, n_rows),
     std::numeric_limits<value_t>::max(),
-    stream,
     false,
     raft::identity_op(),
     raft::min_op());
 
   // calculating the silhouette score per sample
-  raft::linalg::binaryOp<value_t, cuvs::stats::detail::SilOp<value_t>, value_t, value_idx>(
-    a_ptr, a_ptr, b_ptr, n_rows, cuvs::stats::detail::SilOp<value_t>(), stream);
+  raft::linalg::map(
+    handle,
+    raft::make_device_vector_view<value_t, value_idx>(a_ptr, n_rows),
+    cuvs::stats::detail::SilOp<value_t>(),
+    raft::make_const_mdspan(raft::make_device_vector_view<const value_t, value_idx>(a_ptr, n_rows)),
+    raft::make_const_mdspan(
+      raft::make_device_vector_view<const value_t, value_idx>(b_ptr, n_rows)));
 
-  return thrust::reduce(policy, a_ptr, a_ptr + n_rows, value_t(0)) / n_rows;
+  auto sum = raft::make_device_vector<value_t, value_idx>(handle, 1);
+  raft::linalg::reduce<raft::Apply::ALONG_COLUMNS>(
+    handle,
+    raft::make_device_matrix_view<const value_t, value_idx, raft::row_major>(a_ptr, n_rows, 1),
+    sum.view(),
+    value_t(0));
+  raft::resource::sync_stream(handle);
+  return sum(0) / n_rows;
 }
 
 }  // namespace detail

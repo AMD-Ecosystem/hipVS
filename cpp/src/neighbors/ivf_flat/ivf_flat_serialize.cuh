@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2023-2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -21,6 +10,7 @@
 #include <cuvs/neighbors/common.hpp>
 #include <cuvs/neighbors/ivf_flat.hpp>
 
+#include <raft/core/copy.cuh>
 #include <raft/core/detail/mdspan_numpy_serializer.hpp>
 #include <raft/core/mdarray.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
@@ -75,10 +65,7 @@ void serialize(raft::resources const& handle, std::ostream& os, const index<T, I
     serialize_scalar(handle, os, has_norms);
   }
   auto sizes_host = raft::make_host_vector<uint32_t, uint32_t>(index_.list_sizes().extent(0));
-  raft::copy(sizes_host.data_handle(),
-             index_.list_sizes().data_handle(),
-             sizes_host.size(),
-             raft::resource::get_cuda_stream(handle));
+  raft::copy(handle, sizes_host.view(), index_.list_sizes());
   raft::resource::sync_stream(handle);
   serialize_mdspan(handle, os, sizes_host.view());
 

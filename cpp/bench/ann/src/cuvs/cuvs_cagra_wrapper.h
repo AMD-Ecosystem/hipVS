@@ -1,30 +1,19 @@
 /*
- * Copyright (c) 2023-2025, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include "../../../../src/neighbors/detail/cagra/utils.hpp"
 #include "../common/ann_types.hpp"
 #include "../common/cuda_huge_page_resource.hpp"
-#include "../common/cuda_pinned_resource.hpp"
 #include "cuvs_ann_bench_utils.h"
+#include <rmm/mr/pinned_host_memory_resource.hpp>
 
 #include <cuvs/distance/distance.hpp>
 #include <cuvs/neighbors/cagra.hpp>
 #include <cuvs/neighbors/common.hpp>
-#include <cuvs/neighbors/composite/merge.hpp>
+#include <cuvs/neighbors/composite/index.hpp>
 #include <cuvs/neighbors/dynamic_batching.hpp>
 #include <cuvs/neighbors/ivf_pq.hpp>
 #include <cuvs/neighbors/nn_descent.hpp>
@@ -33,8 +22,6 @@
 #include <raft/core/logger.hpp>
 #include <raft/core/operators.hpp>
 #include <raft/linalg/unary_op.cuh>
-// #include <raft/neighbors/dataset.hpp>
-// #include <raft/neighbors/detail/cagra/cagra_build.cuh>
 #include <raft/util/cudart_utils.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -153,7 +140,7 @@ class cuvs_cagra : public algo<T>, public algo_gpu {
  private:
   // handle_ must go first to make sure it dies last and all memory allocated in pool
   configured_raft_resources handle_{};
-  raft::mr::cuda_pinned_resource mr_pinned_;
+  rmm::mr::pinned_host_memory_resource mr_pinned_;
   raft::mr::cuda_huge_page_resource mr_huge_page_;
   AllocatorType graph_mem_{AllocatorType::kDevice};
   AllocatorType dataset_mem_{AllocatorType::kDevice};
@@ -234,9 +221,6 @@ void cuvs_cagra<T, IdxT>::build(const T* dataset, size_t nrow)
       sub_indices_.push_back(std::move(sub_index_shared));
     }
     if (index_params_.merge_type == CagraMergeType::kPhysical) {
-      cuvs::neighbors::cagra::merge_params merge_params{params};
-      merge_params.merge_strategy = cuvs::neighbors::MergeStrategy::MERGE_STRATEGY_PHYSICAL;
-
       std::vector<cuvs::neighbors::cagra::index<T, IdxT>*> indices;
       indices.reserve(sub_indices_.size());
       for (auto& ptr : sub_indices_) {
@@ -244,7 +228,7 @@ void cuvs_cagra<T, IdxT>::build(const T* dataset, size_t nrow)
       }
 
       index_ = std::make_shared<cuvs::neighbors::cagra::index<T, IdxT>>(
-        std::move(cuvs::neighbors::cagra::merge(handle_, merge_params, indices)));
+        std::move(cuvs::neighbors::cagra::merge(handle_, params, indices)));
     }
   }
 }
@@ -469,33 +453,21 @@ void cuvs_cagra<T, IdxT>::search_base(
     } else {
       if (index_params_.merge_type == CagraMergeType::kLogical) {
         // TODO: index merge must happen outside of search, otherwise what are we benchmarking?
-        cuvs::neighbors::cagra::merge_params merge_params{cuvs::neighbors::cagra::index_params{}};
-        merge_params.merge_strategy = cuvs::neighbors::MergeStrategy::MERGE_STRATEGY_LOGICAL;
-
-        // Create wrapped indices for composite merge
-        std::vector<std::shared_ptr<cuvs::neighbors::IndexWrapper<T, IdxT, algo_base::index_type>>>
-          wrapped_indices;
-        wrapped_indices.reserve(sub_indices_.size());
+        std::vector<cuvs::neighbors::cagra::index<T, IdxT>*> cagra_indices;
+        cagra_indices.reserve(sub_indices_.size());
         for (auto& ptr : sub_indices_) {
-          auto index_wrapper =
-            cuvs::neighbors::cagra::make_index_wrapper<T, IdxT, algo_base::index_type>(ptr.get());
-          wrapped_indices.push_back(index_wrapper);
+          cagra_indices.push_back(ptr.get());
         }
 
         raft::resources composite_handle(handle_);
-        size_t n_streams = wrapped_indices.size();
+        size_t n_streams = cagra_indices.size();
         raft::resource::set_cuda_stream_pool(composite_handle,
                                              std::make_shared<rmm::cuda_stream_pool>(n_streams));
 
-        auto merged_index =
-          cuvs::neighbors::composite::merge(composite_handle, merge_params, wrapped_indices);
-        cuvs::neighbors::filtering::none_sample_filter empty_filter;
-        merged_index->search(composite_handle,
-                             search_params_,
-                             queries_view,
-                             neighbors_view,
-                             distances_view,
-                             empty_filter);
+        cuvs::neighbors::composite::composite_index<T, IdxT, algo_base::index_type> composite(
+          cagra_indices);
+        composite.search(
+          composite_handle, search_params_, queries_view, neighbors_view, distances_view);
       }
     }
   }

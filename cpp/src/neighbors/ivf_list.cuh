@@ -1,17 +1,6 @@
 /*
- * Copyright (c) 2024, NVIDIA CORPORATION.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #pragma once
@@ -19,19 +8,21 @@
 #include <cuvs/neighbors/common.hpp>
 #include <cuvs/neighbors/ivf_pq.hpp>
 
+#include <raft/core/copy.cuh>
 #include <raft/core/device_mdarray.hpp>
+#include <raft/core/device_mdspan.hpp>
 #include <raft/core/error.hpp>
 #include <raft/core/host_mdarray.hpp>
+#include <raft/core/host_mdspan.hpp>
 #include <raft/core/mdspan.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
 #include <raft/core/resources.hpp>
 #include <raft/core/serialize.hpp>
+#include <raft/matrix/init.cuh>
 #include <raft/util/integer_utils.hpp>
 
 #include "ivf_common.cuh"
-
-#include <thrust/fill.h>
 
 #include <atomic>
 #include <fstream>
@@ -69,10 +60,7 @@ list<SpecT, SizeT, SpecExtraArgs...>::list(raft::resources const& res,
       e.what());
   }
   // Fill the index buffer with a pre-defined marker for easier debugging
-  thrust::fill_n(raft::resource::get_thrust_policy(res),
-                 indices.data_handle(),
-                 indices.size(),
-                 ivf::kInvalidRecord<index_type>);
+  raft::matrix::fill(res, indices.view(), ivf::kInvalidRecord<index_type>);
 }
 
 template <typename ListT>
@@ -107,14 +95,12 @@ void resize_list(raft::resources const& res,
                                                  raft::row_major,
                                                  false,
                                                  true>(new_list->data.data_handle(), copied_data_extents);
-    raft::copy(copied_view.data_handle(),
-               orig_list->data.data_handle(),
-               copied_view.size(),
-               raft::resource::get_cuda_stream(res));
-    raft::copy(new_list->indices.data_handle(),
-               orig_list->indices.data_handle(),
-               old_used_size,
-               raft::resource::get_cuda_stream(res));
+    raft::copy(res,
+               raft::make_device_vector_view(copied_view.data_handle(), copied_view.size()),
+               raft::make_device_vector_view(orig_list->data.data_handle(), copied_view.size()));
+    raft::copy(res,
+               raft::make_device_vector_view(new_list->indices.data_handle(), old_used_size),
+               raft::make_device_vector_view(orig_list->indices.data_handle(), old_used_size));
   }
   // swap the shared pointer content with the new list
   new_list.swap(orig_list);
@@ -137,14 +123,12 @@ enable_if_valid_list_t<ListT> serialize_list(const raft::resources& handle,
     raft::make_host_mdarray<typename ListT::value_type, size_type, raft::row_major>(data_extents);
   auto inds_array = raft::make_host_mdarray<typename ListT::index_type, size_type, raft::row_major>(
     raft::make_extents<size_type>(size));
-  raft::copy(data_array.data_handle(),
-             ld.data.data_handle(),
-             data_array.size(),
-             raft::resource::get_cuda_stream(handle));
-  raft::copy(inds_array.data_handle(),
-             ld.indices.data_handle(),
-             inds_array.size(),
-             raft::resource::get_cuda_stream(handle));
+  raft::copy(handle,
+             raft::make_host_vector_view(data_array.data_handle(), data_array.size()),
+             raft::make_device_vector_view(ld.data.data_handle(), data_array.size()));
+  raft::copy(handle,
+             raft::make_host_vector_view(inds_array.data_handle(), inds_array.size()),
+             raft::make_device_vector_view(ld.indices.data_handle(), inds_array.size()));
   raft::resource::sync_stream(handle);
   raft::serialize_mdspan(handle, os, data_array.view());
   raft::serialize_mdspan(handle, os, inds_array.view());
@@ -182,15 +166,13 @@ enable_if_valid_list_t<ListT> deserialize_list(const raft::resources& handle,
     raft::make_extents<size_type>(size));
   raft::deserialize_mdspan(handle, is, data_array.view());
   raft::deserialize_mdspan(handle, is, inds_array.view());
-  raft::copy(ld->data.data_handle(),
-             data_array.data_handle(),
-             data_array.size(),
-             raft::resource::get_cuda_stream(handle));
+  raft::copy(handle,
+             raft::make_device_vector_view(ld->data.data_handle(), data_array.size()),
+             raft::make_host_vector_view(data_array.data_handle(), data_array.size()));
   // NB: copying exactly 'size' indices to leave the rest 'kInvalidRecord' intact.
-  raft::copy(ld->indices.data_handle(),
-             inds_array.data_handle(),
-             size,
-             raft::resource::get_cuda_stream(handle));
+  raft::copy(handle,
+             raft::make_device_vector_view(ld->indices.data_handle(), size),
+             raft::make_host_vector_view(inds_array.data_handle(), size));
   // Make sure the data is copied from host to device before the host arrays get out of the scope.
   raft::resource::sync_stream(handle);
 }
