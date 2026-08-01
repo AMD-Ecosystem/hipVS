@@ -65,9 +65,6 @@
 #ifndef cudaDevAttrComputeCapabilityMinor
 #define cudaDevAttrComputeCapabilityMinor hipDeviceAttributeComputeCapabilityMinor
 #endif
-// NOTE(HIP/AMD): hipDeviceAttributeHostRegisterReadOnlySupported does not exist as a
-// hipDeviceAttribute_t enum value in ROCm 7.x (only as a hipDeviceProp_t field).
-// Intentionally not defined; libhipcxx attributes.h guards the specialization on its presence.
 #ifndef cudaDevAttrL2CacheSize
 #define cudaDevAttrL2CacheSize hipDeviceAttributeL2CacheSize
 #endif

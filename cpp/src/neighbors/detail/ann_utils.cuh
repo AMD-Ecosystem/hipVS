@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -144,6 +144,9 @@ struct with_mapped_memory_t {
     int dev_id, readonly_supported;
     RAFT_CUDA_TRY(cudaGetDevice(&dev_id));
 #ifdef __HIP_PLATFORM_AMD__
+    // NOTE(HIP/AMD): hipDeviceAttributeHostRegisterReadOnlySupported does not exist as a
+    // hipDeviceAttribute_t enum value in ROCm 7.x (only as a hipDeviceProp_t field).
+    // Intentionally not defined; libhipcxx attributes.h guards the specialization on its presence.
     readonly_supported = false;
 #else
     RAFT_CUDA_TRY(cudaDeviceGetAttribute(
