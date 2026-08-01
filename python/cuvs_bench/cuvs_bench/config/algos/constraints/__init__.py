@@ -29,11 +29,51 @@
 #                                 Utilities                                   #
 ###############################################################################
 
+import functools
+import warnings
+
 dtype_sizes = {
     "float": 4,
     "fp8": 1,
     "half": 2,
 }
+
+DEFAULT_SMEM = 49152  # 48 KiB fallback when hip-python is unavailable
+# Empirical gfx90a constants (see search_single_cta.cuh::set_params, topk_by_radix.cuh):
+# - dataset descriptor smem overhead: ~436 B measured, rounded up to 512 B for safety
+# - kernel static smem footprint: 15-17 KiB inferred from failure point; 16 KiB used
+_DATASET_DESC_OVERHEAD = 512
+_STATIC_SMEM_ESTIMATE = 16384
+
+
+@functools.lru_cache(maxsize=None)
+def _smem_per_block(device: int = 0) -> int:
+    try:
+        from hip import hip as hipp
+        err, props = hipp.hipGetDeviceProperties(device)
+        if err == 0:
+            return props.sharedMemPerBlock
+    except Exception:
+        pass
+    return DEFAULT_SMEM
+
+
+@functools.lru_cache(maxsize=None)
+def _cagra_dynamic_smem_limit(device: int = 0) -> int:
+    # Deduct kernel static smem; cannot call hipFuncGetAttribute without kernel pointer.
+    return max(0, _smem_per_block(device) - _STATIC_SMEM_ESTIMATE)
+
+
+def _cagra_single_cta_smem(itopk: int, search_width: int, graph_degree: int) -> int:
+    # Mirrors search_single_cta.cuh::set_params() — INDEX_T=uint32, DISTANCE_T=float.
+    # Assumes no sample filter and small_hash_bitlen=0 (default search path).
+    num_itopk_candidates = search_width * graph_degree
+    result_buffer_size_64 = (itopk + num_itopk_candidates + 63) & ~63
+    base_smem = _DATASET_DESC_OVERHEAD + 8 * result_buffer_size_64 + 4 * search_width + 16
+    if num_itopk_candidates > 256:
+        max_itopk = 256 if itopk <= 256 else 512
+        return base_smem + (max_itopk * 2 + 2048 + 8) * 4
+    return base_smem
 
 
 ###############################################################################
@@ -74,24 +114,23 @@ def cuvs_cagra_search(params, build_params, k, batch_size):
         if params["itopk"] > 512:
             return False
 
-    # Constrain search_width * graph_degree (== num_itopk_candidates) to keep the
-    # single-CTA search kernel's dynamic shared memory within the device LDS limit.
-    #
-    # The dynamic smem requirement (see search_single_cta.cuh::set_params) scales with:
-    #   result_buffer_size = itopk_size + search_width * graph_degree
-    # and, once num_itopk_candidates > 256, also includes the radix-sort topk buffer.
-    # On AMD GPUs the per-block LDS is 64 KiB (gfx90a: sharedMemPerBlock == 65536).
-    # At num_itopk_candidates == 2048 the result buffer + radix buffer + dataset
-    # workspace exceed 64 KiB and cudaFuncSetAttribute(MaxDynamicSharedMemorySize)
-    # fails at launch. Empirically num_itopk_candidates <= 1024 stays within budget
-    # across itopk in {128, 256, 512}, while 2048 overflows.
-    #
-    # (1024 also keeps block_size within max_block_size (1024) for the radix path.)
-    if "search_width" in params and "graph_degree" in build_params:
-        num_itopk_candidates = (
-            params["search_width"] * build_params["graph_degree"]
-        )
-        if num_itopk_candidates > 1024:
+    # Reject configs whose estimated single-CTA kernel smem exceeds the device LDS limit.
+    # _cagra_single_cta_smem mirrors search_single_cta.cuh::set_params(); sharedMemPerBlock
+    # is queried at runtime so the constraint adapts to the device automatically.
+    if "search_width" in params and "graph_degree" in build_params and "itopk" in params:
+        itopk = params["itopk"]
+        search_width = params["search_width"]
+        graph_degree = build_params["graph_degree"]
+        estimated_smem = _cagra_single_cta_smem(itopk, search_width, graph_degree)
+        smem_limit = _cagra_dynamic_smem_limit()
+        if estimated_smem > smem_limit:
+            warnings.warn(
+                f"CAGRA search config dropped: estimated smem {estimated_smem} B "
+                f"> limit {smem_limit} B "
+                f"(itopk={itopk}, search_width={search_width}, graph_degree={graph_degree}). "
+                f"Reduce search_width or graph_degree.",
+                stacklevel=2,
+            )
             return False
 
     return True
