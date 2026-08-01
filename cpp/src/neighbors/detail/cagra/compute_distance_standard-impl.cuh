@@ -232,6 +232,9 @@ RAFT_DEVICE_INLINE_FUNCTION auto compute_distance_standard_worker(
     for (uint32_t e = 0; e < reg_nelem; e++) {
       const uint32_t k = e * (kTeamSize * vlen) + elem_offset;
       if (k >= dim) break;
+// TODO: (HIP/AMD) See internal issue #169. CAGRA distance computation
+// produces incorrect recall for int8/uint8 data with CosineExpanded metric
+// when the inner vlen loop in compute_distance_standard_worker is unrolled by the compiler.
 #pragma nounroll
       for (uint32_t v = 0; v < vlen; v++) {
         // Note this loop can go above the dataset_dim for padded arrays. This is not a problem
