@@ -66,9 +66,10 @@ fn main() {
         "cargo:rustc-link-search=native={}/lib",
         cuvs_build.display()
     );
-    println!(
-        "cargo:rustc-link-search=native=/opt/rocm/lib" // Assume that ROCm is installed in /opt/rocm
-    );
+    let rocm_root = env::var("ROCM_HOME")
+        .or_else(|_| env::var("ROCM_PATH"))
+        .unwrap_or_else(|_| "/opt/rocm".to_string());
+    println!("cargo:rustc-link-search=native={rocm_root}/lib");
     println!("cargo:rustc-link-lib=dylib=cuvs_c");
     println!("cargo:rustc-link-lib=dylib=amdhip64");
 
@@ -129,7 +130,7 @@ fn main() {
         .clang_arg("-I../../cpp/include")
         .clang_arg("-D__HIP_PLATFORM_AMD__") // Usually set by the cmake build or hipcc
         .clang_arg("-D__HIP_ROCclr__=1") // Usually set by the cmake build or hipcc
-        .clang_arg("-I/opt/rocm/include") // Assume that ROCm is installed in /opt/rocm
+        .clang_arg(format!("-I{rocm_root}/include"))
         // needed to find cudaruntime.h
         .clang_args(cmake_cxx_flags.split(' '))
         // include cuvs c headers and dlpack headers we copied
