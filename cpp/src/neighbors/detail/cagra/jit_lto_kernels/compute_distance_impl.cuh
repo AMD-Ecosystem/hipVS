@@ -74,7 +74,8 @@ RAFT_DEVICE_INLINE_FUNCTION auto compute_distance_standard_worker_impl(
     for (uint32_t e = 0; e < reg_nelem; e++) {
       const uint32_t k = e * (kTeamSize * vlen) + elem_offset;
       if (k >= dim) break;
-// TODO(HIP/AMD):  On gfx942, loop unrolling here causes a miscompilation. Needs further investigation
+// TODO(HIP/AMD):  On gfx942, loop unrolling here causes a miscompilation. Needs further
+// investigation
 #pragma nounroll
       for (uint32_t v = 0; v < vlen; v++) {
         QUERY_T d;

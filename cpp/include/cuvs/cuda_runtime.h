@@ -359,10 +359,7 @@ using cudaLibrary_t = hipModule_t;
 // when the kernel handle is a hipFunction_t (module-loaded JIT kernel).
 #ifdef __cplusplus
 #ifndef cudaFuncSetAttribute
-inline hipError_t cudaFuncSetAttribute(hipFunction_t, hipFuncAttribute, int)
-{
-  return hipSuccess;
-}
+inline hipError_t cudaFuncSetAttribute(hipFunction_t, hipFuncAttribute, int) { return hipSuccess; }
 inline hipError_t cudaFuncSetAttribute(const void* func, hipFuncAttribute attr, int value)
 {
   return hipFuncSetAttribute(func, attr, value);
@@ -377,8 +374,10 @@ inline hipError_t cudaKernelSetAttributeForDevice(hipFunction_t, hipFuncAttribut
 // hipOccupancyMaxActiveBlocksPerMultiprocessor takes const void* (host function
 // pointer).  For JIT-loaded hipFunction_t, route to the hipModule variant.
 // Declared after the macro so the name resolves via ADL, not the macro.
-inline hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(
-  int* numBlocks, hipFunction_t f, int blockSize, size_t dynSharedMemPerBlk)
+inline hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(int* numBlocks,
+                                                               hipFunction_t f,
+                                                               int blockSize,
+                                                               size_t dynSharedMemPerBlk)
 {
   return hipModuleOccupancyMaxActiveBlocksPerMultiprocessor(
     numBlocks, f, blockSize, dynSharedMemPerBlk);

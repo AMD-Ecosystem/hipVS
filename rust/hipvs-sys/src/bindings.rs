@@ -49,7 +49,7 @@ pub enum DLDeviceType {
     kDLExtDev = 12,
     #[doc = " \\brief CUDA managed/unified memory allocated by cudaMallocManaged"]
     kDLCUDAManaged = 13,
-    #[doc = " \\brief Unified shared memory allocated on a oneAPI non-partititioned\n device. Call to oneAPI runtime is required to determine the device\n type, the USM allocation type and the sycl context it is bound to.\n"]
+    #[doc = " \\brief Unified shared memory allocated on a oneAPI non-partitioned\n device. Call to oneAPI runtime is required to determine the device\n type, the USM allocation type and the sycl context it is bound to.\n"]
     kDLOneAPI = 14,
     #[doc = " \\brief GPU support for next generation WebGPU standard."]
     kDLWebGPU = 15,
@@ -115,7 +115,7 @@ const _: () = {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct DLTensor {
-    #[doc = " \\brief The data pointer points to the allocated data. This will be CUDA\n device pointer or cl_mem handle in OpenCL. It may be opaque on some device\n types. This pointer is always aligned to 256 bytes as in CUDA. The\n `byte_offset` field should be used to point to the beginning of the data.\n\n Note that as of Nov 2021, multiply libraries (CuPy, PyTorch, TensorFlow,\n TVM, perhaps others) do not adhere to this 256 byte aligment requirement\n on CPU/CUDA/ROCm, and always use `byte_offset=0`.  This must be fixed\n (after which this note will be updated); at the moment it is recommended\n to not rely on the data pointer being correctly aligned.\n\n For given DLTensor, the size of memory required to store the contents of\n data is calculated as follows:\n\n \\code{.c}\n static inline size_t GetDataSize(const DLTensor* t) {\n   size_t size = 1;\n   for (tvm_index_t i = 0; i < t->ndim; ++i) {\n     size *= t->shape[i];\n   }\n   size *= (t->dtype.bits * t->dtype.lanes + 7) / 8;\n   return size;\n }\n \\endcode"]
+    #[doc = " \\brief The data pointer points to the allocated data. This will be CUDA\n device pointer or cl_mem handle in OpenCL. It may be opaque on some device\n types. This pointer is always aligned to 256 bytes as in CUDA. The\n `byte_offset` field should be used to point to the beginning of the data.\n\n Note that as of Nov 2021, multiply libraries (CuPy, PyTorch, TensorFlow,\n TVM, perhaps others) do not adhere to this 256 byte alignment requirement\n on CPU/CUDA/ROCm, and always use `byte_offset=0`.  This must be fixed\n (after which this note will be updated); at the moment it is recommended\n to not rely on the data pointer being correctly alignned.\n\n For given DLTensor, the size of memory required to store the contents of\n data is calculated as follows:\n\n \\code{.c}\n static inline size_t GetDataSize(const DLTensor* t) {\n   size_t size = 1;\n   for (tvm_index_t i = 0; i < t->ndim; ++i) {\n     size *= t->shape[i];\n   }\n   size *= (t->dtype.bits * t->dtype.lanes + 7) / 8;\n   return size;\n }\n \\endcode"]
     pub data: *mut ::std::os::raw::c_void,
     #[doc = " \\brief The device of the tensor"]
     pub device: DLDevice,

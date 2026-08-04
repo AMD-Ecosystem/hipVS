@@ -100,7 +100,7 @@ void transform_batch(raft::resources const& res,
 
   // Launch kernel to transform the code output
   constexpr uint32_t kBlockSize  = 256;
-  const uint32_t warp_size = raft::host_warp_size(raft::resource::get_cuda_stream(res));
+  const uint32_t warp_size       = raft::host_warp_size(raft::resource::get_cuda_stream(res));
   const uint32_t threads_per_vec = std::min<uint32_t>(warp_size, index.pq_book_size());
   dim3 blocks(raft::div_rounding_up_safe<IdxT>(n_rows, kBlockSize / threads_per_vec), 1, 1);
   dim3 threads(kBlockSize, 1, 1);

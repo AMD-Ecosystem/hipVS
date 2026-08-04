@@ -32,9 +32,9 @@
 #include <raft/core/detail/macros.hpp>
 
 #ifdef __HIP_PLATFORM_AMD__
+#include "device_common_hip.hpp"
 #include <hip/hip_fp16.h>
 #include <rocprim/rocprim.hpp>
-#include "device_common_hip.hpp"
 
 namespace cuvs::neighbors::cagra::detail::device {
 
@@ -143,17 +143,17 @@ RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half (&x)[4], const half* addr)
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2& x, const half* addr)
 {
   auto ptr = reinterpret_cast<const half2*>(addr);
-  x = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
+  x        = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[1], const half* addr)
 {
   auto ptr = reinterpret_cast<const half2*>(addr);
-  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
+  x[0]     = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
 }
 RAFT_DEVICE_INLINE_FUNCTION void ldg_ca(half2 (&x)[2], const half* addr)
 {
   auto ptr = reinterpret_cast<const half2*>(addr);
-  x[0] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
+  x[0]     = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr));
   x[1] = rocprim::thread_load<rocprim::cache_load_modifier::load_ca>(const_cast<half2*>(ptr + 1));
 }
 

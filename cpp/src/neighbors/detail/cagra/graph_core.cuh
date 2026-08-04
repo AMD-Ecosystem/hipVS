@@ -32,7 +32,6 @@
  */
 #pragma once
 
-
 #include "utils.hpp"
 
 #include <raft/core/copy.cuh>
@@ -261,7 +260,7 @@ __global__ void kern_fused_prune(KnnGraphView knn_graph,        // [graph_chunk_
 
   extern __shared__ unsigned char smem_buf[];
 
-  cg::thread_block block         = cg::this_thread_block();
+  cg::thread_block block                        = cg::this_thread_block();
   cg::thread_block_tile<raft::warp_size()> warp = cg::tiled_partition<raft::warp_size()>(block);
 
   const uint32_t wid     = threadIdx.x / raft::WarpSize;
@@ -354,12 +353,12 @@ __global__ void kern_fused_prune(KnnGraphView knn_graph,        // [graph_chunk_
 
     uint32_t local_min_with_tag = (local_min << 16) | ((uint32_t)local_idx);
 #ifdef __HIP_PLATFORM_AMD__
-    uint32_t warp_min_with_tag  = cg_reduce_min(warp, local_min_with_tag);
+    uint32_t warp_min_with_tag = cg_reduce_min(warp, local_min_with_tag);
 #else
-    uint32_t warp_min_with_tag  = cg::reduce(warp, local_min_with_tag, cg::less<uint32_t>());
+    uint32_t warp_min_with_tag = cg::reduce(warp, local_min_with_tag, cg::less<uint32_t>());
 #endif
-    uint32_t warp_min_count     = warp_min_with_tag >> 16;
-    uint32_t warp_local_idx     = warp_min_with_tag & 0xffff;
+    uint32_t warp_min_count = warp_min_with_tag >> 16;
+    uint32_t warp_local_idx = warp_min_with_tag & 0xffff;
 
     if (warp_min_count == maxval16 || warp_local_idx == maxval16) {
       if (lane_id == 0) { atomicExch(d_invalid_neighbor_list, 1u); }
@@ -390,12 +389,12 @@ __device__ unsigned int warp_pos_in_array(T val, const T* array, uint64_t num)
     }
   }
 
-  cg::thread_block block         = cg::this_thread_block();
+  cg::thread_block block                        = cg::this_thread_block();
   cg::thread_block_tile<raft::warp_size()> warp = cg::tiled_partition<raft::warp_size()>(block);
 #ifdef __HIP_PLATFORM_AMD__
-  ret                            = cg_reduce_min(warp, ret);
+  ret = cg_reduce_min(warp, ret);
 #else
-  ret                            = cg::reduce(warp, ret, cg::less<unsigned int>());
+  ret = cg::reduce(warp, ret, cg::less<unsigned int>());
 #endif
   return ret;
 }
@@ -937,7 +936,7 @@ void merge_graph_gpu(
   d_mst_graph.prefetch_next_batch();
   d_mst_graph_num_edges.prefetch_next_batch();
 
-  auto merge_warp_size = raft::host_warp_size(raft::resource::get_cuda_stream(res));
+  auto merge_warp_size     = raft::host_warp_size(raft::resource::get_cuda_stream(res));
   const uint32_t num_warps = 4;
   const dim3 threads_merge(merge_warp_size * num_warps, 1, 1);
   const dim3 blocks_merge(raft::ceildiv(batch_size, num_warps), 1, 1);
@@ -1735,8 +1734,8 @@ void prune_graph_gpu(
 
   auto d_invalid_neighbor_list = raft::make_device_scalar<uint32_t>(res, 0u);
 
-  auto stream = raft::resource::get_cuda_stream(res);
-  auto warp_size = raft::host_warp_size(stream);
+  auto stream              = raft::resource::get_cuda_stream(res);
+  auto warp_size           = raft::host_warp_size(stream);
   const uint32_t num_warps = 4;
   const dim3 threads_prune(warp_size * num_warps, 1, 1);
   const dim3 blocks_prune(raft::ceildiv(batch_size, num_warps), 1, 1);

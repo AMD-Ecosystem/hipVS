@@ -136,9 +136,10 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
   extern __shared__ uint8_t smem[];
 
   // Layout of result_buffer
-  const auto result_buffer_size    = internal_topk + (search_width * graph_degree);
-  const auto result_buffer_size_32 = raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
-  const auto small_hash_size       = hashmap::get_size(small_hash_bitlen);
+  const auto result_buffer_size = internal_topk + (search_width * graph_degree);
+  const auto result_buffer_size_32 =
+    raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
+  const auto small_hash_size = hashmap::get_size(small_hash_bitlen);
 
   uint32_t dim = dataset_desc->args.dim;
 
@@ -384,8 +385,7 @@ RAFT_DEVICE_INLINE_FUNCTION void search_core(
 
       num_found_valid += new_position;
       for (std::uint32_t offset = (raft::warp_size() >> 1); offset > 0; offset >>= 1) {
-        const auto v =
-          __shfl_xor_sync(__activemask(), num_found_valid, offset, raft::warp_size());
+        const auto v = __shfl_xor_sync(__activemask(), num_found_valid, offset, raft::warp_size());
         if ((threadIdx.x & offset) == 0) { num_found_valid = v; }
       }
 

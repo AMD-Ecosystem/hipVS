@@ -68,9 +68,7 @@ fn hipvs_package_not_found_error() -> anyhow::Error {
     )
 }
 
-fn hipvs_incompatible_version_error(
-    candidates: &[cmake_package::Considered],
-) -> anyhow::Error {
+fn hipvs_incompatible_version_error(candidates: &[cmake_package::Considered]) -> anyhow::Error {
     let considered = candidates
         .iter()
         .map(|candidate| format!("- {} (version: {})", candidate.config, candidate.version))
@@ -111,9 +109,7 @@ fn find_target(
     })
 }
 
-fn find_cuvs_package(
-    python_package_dir: Option<&Path>,
-) -> Result<cmake_package::CMakePackage> {
+fn find_cuvs_package(python_package_dir: Option<&Path>) -> Result<cmake_package::CMakePackage> {
     let mut package = find_package("cuvs")
         .components([CUVS_COMPONENT.to_owned()])
         .define("CMAKE_FIND_PACKAGE_PREFER_CONFIG", "TRUE");
@@ -164,9 +160,7 @@ fn find_dlpack_include_dirs() -> Result<Vec<PathBuf>> {
 /// Run CMake `find_package(cuvs)` and extract the include and library directories.
 /// Calls `CMakeTarget::link()` to emit the full set of cargo link directives,
 /// preserving all link libraries, directories, and options from the CMake target.
-pub(crate) fn try_find_cuvs_package(
-    python_package_dir: Option<&Path>,
-) -> Result<CuvsMetadata> {
+pub(crate) fn try_find_cuvs_package(python_package_dir: Option<&Path>) -> Result<CuvsMetadata> {
     let package = find_cuvs_package(python_package_dir)?;
     let target = find_target(&package, CUVS_C_API_TARGET)?;
 
@@ -179,10 +173,7 @@ pub(crate) fn try_find_cuvs_package(
     #[cfg(feature = "generate-bindings")]
     let bindgen_include_dirs: Vec<_> = {
         let dlpack_dirs = find_dlpack_include_dirs()?;
-        dlpack_dirs
-            .into_iter()
-            .filter(|dir| dir != &include_dir)
-            .collect()
+        dlpack_dirs.into_iter().filter(|dir| dir != &include_dir).collect()
     };
 
     let lib_dir = target

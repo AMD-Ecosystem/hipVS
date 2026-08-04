@@ -247,8 +247,8 @@ __launch_bounds__(BlockSize) RAFT_KERNEL
       // Only synchronize/shuffle for active threads
       int active_threads = std::min<int>(kWarpSize, dim - i + lane_id);
       auto mask          = active_threads >= static_cast<int>(kWarpSize)
-                              ? ~static_cast<bitmask_type>(0)
-                              : (static_cast<bitmask_type>(1) << active_threads) - 1;
+                             ? ~static_cast<bitmask_type>(0)
+                             : (static_cast<bitmask_type>(1) << active_threads) - 1;
 
       // Update step for coordinate descent. Compute the cost_delta for
       // each thread, update the quantized value and residual_dot if applicable,

@@ -51,7 +51,7 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies: [types-cachetools]
-        args: ["--config-file=pyproject.toml", "python/cuvs/cuvs", "cpp/cmake/modules", "cpp/tests/python", "ci/checks"]
+        args: ["--config-file=pyproject.toml", "python/cuvs/cuvs", "cpp/cmake/modules", "cpp/tests/python", "cpp/scripts"]
         pass_filenames: false
   - repo: https://github.com/PyCQA/pydocstyle
     rev: 6.1.1
@@ -133,7 +133,7 @@ repos:
         language: rust
       - id: clang-format-with-cmake-placeholders
         name: clang-format-with-cmake-placeholders
-        entry: python3 ci/checks/clang_format_with_cmake_placeholders.py
+        entry: python3 cpp/scripts/clang_format_with_cmake_placeholders.py
         language: python
         additional_dependencies: [clang_format==20.1.8]
         files: |

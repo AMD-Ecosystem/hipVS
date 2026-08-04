@@ -116,10 +116,7 @@ mod tests {
 
     #[test]
     fn test_vamana() {
-        let build_params = IndexParams::new()
-            .unwrap()
-            .set_graph_degree(64)
-            .set_visited_size(128);
+        let build_params = IndexParams::new().unwrap().set_graph_degree(64).set_visited_size(128);
 
         let res = Resources::new().unwrap();
 

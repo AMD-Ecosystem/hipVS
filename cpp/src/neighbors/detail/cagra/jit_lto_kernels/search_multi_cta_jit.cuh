@@ -119,8 +119,9 @@ __device__ void search_kernel_jit(
   // | <itopk_size>   |         | <graph_degree>            |
   // +----------------+---------+---------------------------+
   // |<---        result_buffer_size_64                 --->|
-  const auto result_buffer_size    = itopk_size + graph_degree;
-  const auto result_buffer_size_64 = raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
+  const auto result_buffer_size = itopk_size + graph_degree;
+  const auto result_buffer_size_64 =
+    raft::round_up_safe<uint32_t>(result_buffer_size, raft::warp_size());
   assert(result_buffer_size_64 <= max_elements);
 
   // Get dim from base descriptor; place search buffers after setup_workspace workspace.

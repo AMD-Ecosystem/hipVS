@@ -1,8 +1,31 @@
 # =============================================================================
 # cmake-format: off
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
-# Modifications Copyright (c) 2026, Advanced Micro Devices, Inc.
 # SPDX-License-Identifier: Apache-2.0
+# cmake-format: on
+# =============================================================================
+# cmake-format: off
+# MIT License
+#
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 # cmake-format: on
 # =============================================================================
 
@@ -10,9 +33,9 @@ include_guard(GLOBAL)
 
 include(${CMAKE_CURRENT_LIST_DIR}/compute_matrix_product.cmake)
 
-# Write the bin2c-replacement CMake script once at configure time.  Invoked at
-# build time via  cmake -P <script> -DINPUT_FILE=... -DOUTPUT_FILE=...
-# Produces:  static const uint8_t embedded_fatbin[] = { 0xNN, ... };
+# Write the bin2c-replacement CMake script once at configure time.  Invoked at build time via  cmake
+# -P <script> -DINPUT_FILE=... -DOUTPUT_FILE=... Produces:  static const uint8_t embedded_fatbin[] =
+# { 0xNN, ... };
 set(_bin2c_script "${CMAKE_CURRENT_BINARY_DIR}/_embed_bitcode.cmake")
 file(
   WRITE "${_bin2c_script}"
@@ -50,13 +73,15 @@ function(add_jit_lto_kernel kernel_target)
     endif()
   endforeach()
 
-  # Create a helper target to resolve transitive include directories from all
-  # linked dependencies (rmm, raft, CCCL, etc.).  We never build this target;
-  # we only read its INCLUDE_DIRECTORIES property at generation time.
+  # Create a helper target to resolve transitive include directories from all linked dependencies
+  # (rmm, raft, CCCL, etc.).  We never build this target; we only read its INCLUDE_DIRECTORIES
+  # property at generation time.
   if(NOT TARGET _jit_lto_include_resolver)
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/_jit_lto_stub.cpp" "")
-    add_library(_jit_lto_include_resolver OBJECT EXCLUDE_FROM_ALL
-                "${CMAKE_CURRENT_BINARY_DIR}/_jit_lto_stub.cpp")
+    add_library(
+      _jit_lto_include_resolver OBJECT EXCLUDE_FROM_ALL
+                                       "${CMAKE_CURRENT_BINARY_DIR}/_jit_lto_stub.cpp"
+    )
     target_link_libraries(_jit_lto_include_resolver PRIVATE jit_lto_kernel_usage_requirements)
   endif()
 
@@ -64,21 +89,11 @@ function(add_jit_lto_kernel kernel_target)
   add_custom_command(
     OUTPUT "${bc_file}"
     COMMAND
-      "${HIPCC}"
-      -x hip
-      -emit-llvm
-      -fgpu-rdc
-      -c
-      --cuda-device-only
-      -include hip/hip_runtime.h
-      -std=c++20
-      -fPIC
-      -D__HIP_PLATFORM_AMD__
-      ${_filtered_opts}
+      "${HIPCC}" -x hip -emit-llvm -fgpu-rdc -c --cuda-device-only -include hip/hip_runtime.h
+      -std=c++20 -fPIC -D__HIP_PLATFORM_AMD__ ${_filtered_opts}
       "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,INCLUDE_DIRECTORIES>,PREPEND,-I>"
       "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,COMPILE_DEFINITIONS>,PREPEND,-D>"
-      -o "${bc_file}"
-      "${_JIT_LTO_KERNEL_FILE}"
+      -o "${bc_file}" "${_JIT_LTO_KERNEL_FILE}"
     DEPENDS "${_JIT_LTO_KERNEL_FILE}"
     COMMENT "Compiling JIT bitcode: ${kernel_target}"
     COMMAND_EXPAND_LISTS
@@ -87,11 +102,8 @@ function(add_jit_lto_kernel kernel_target)
   # Step 2: embed .bc → C header via CMake script
   add_custom_command(
     OUTPUT "${_JIT_LTO_FATBIN_HEADER_FILE}"
-    COMMAND
-      "${CMAKE_COMMAND}"
-      "-DINPUT_FILE=${bc_file}"
-      "-DOUTPUT_FILE=${_JIT_LTO_FATBIN_HEADER_FILE}"
-      -P "${_bin2c_script}"
+    COMMAND "${CMAKE_COMMAND}" "-DINPUT_FILE=${bc_file}"
+            "-DOUTPUT_FILE=${_JIT_LTO_FATBIN_HEADER_FILE}" -P "${_bin2c_script}"
     DEPENDS "${bc_file}"
     COMMENT "Embedding bitcode: ${kernel_target}"
   )
@@ -152,8 +164,7 @@ function(generate_jit_lto_kernels source_list_var)
     HIPCC
     NAMES hipcc
     PATHS /opt/rocm/bin ENV ROCM_PATH
-    PATH_SUFFIXES bin
-    REQUIRED
+    PATH_SUFFIXES bin REQUIRED
   )
 
   if(_JIT_LTO_MATRIX_JSON_FILE)

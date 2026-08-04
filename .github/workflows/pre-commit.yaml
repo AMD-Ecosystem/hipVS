@@ -1,6 +1,6 @@
 # MIT License
 #
-# Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+# Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,14 +28,18 @@ on:
       - amd-integration
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     runs-on: self-hosted
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           clean: true  # Run git clean -ffdx and git reset --hard HEAD before checkout
+          persist-credentials: false
 
       - name: Set up virtual environment
         run: |

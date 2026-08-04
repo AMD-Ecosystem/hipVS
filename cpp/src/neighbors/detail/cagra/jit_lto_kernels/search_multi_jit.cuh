@@ -83,7 +83,7 @@ __device__ void random_pickup_kernel_jit(
   const INDEX_T seed_index_limit = graph_size > 0 ? graph_size : dataset_size;
   const auto args_load           = smem_desc->args.load();
 
-  INDEX_T best_index_team_local      = utils::get_max_value<INDEX_T>();
+  INDEX_T best_index_team_local    = utils::get_max_value<INDEX_T>();
   DISTANCE_T best_norm2_team_local = utils::get_max_value<DISTANCE_T>();
   for (unsigned i = 0; i < num_distilation; i++) {
     INDEX_T seed_index;

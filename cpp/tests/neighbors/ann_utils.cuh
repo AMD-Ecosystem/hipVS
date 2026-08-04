@@ -341,7 +341,8 @@ auto eval_distances(raft::resources const& handle,
     if (!devArrMatch(distances + i * k,
                      naive_dist.data_handle(),
                      naive_dist.size(),
-                     CompareApprox<float>(eps), stream)) {
+                     CompareApprox<float>(eps),
+                     stream)) {
       std::cout << n_rows << "x" << n_cols << ", " << k << std::endl;
       std::cout << "query " << i << std::endl;
       raft::print_vector(" indices", neighbors + i * k, k, std::cout);
