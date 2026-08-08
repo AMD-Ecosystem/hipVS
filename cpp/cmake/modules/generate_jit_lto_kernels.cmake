@@ -7,7 +7,7 @@
 # cmake-format: off
 # MIT License
 #
-# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -33,28 +33,7 @@ include_guard(GLOBAL)
 
 include(${CMAKE_CURRENT_LIST_DIR}/compute_matrix_product.cmake)
 
-# Write the bin2c-replacement CMake script once at configure time.  Invoked at build time via  cmake
-# -P <script> -DINPUT_FILE=... -DOUTPUT_FILE=... Produces:  static const uint8_t embedded_fatbin[] =
-# { 0xNN, ... };
-set(_bin2c_script "${CMAKE_CURRENT_BINARY_DIR}/_embed_bitcode.cmake")
-file(
-  WRITE "${_bin2c_script}"
-  [=[
-file(READ "${INPUT_FILE}" _hex HEX)
-string(LENGTH "${_hex}" _hex_len)
-set(_c_hex "")
-math(EXPR _last "${_hex_len} - 2")
-if(_last GREATER_EQUAL 0)
-  foreach(_i RANGE 0 ${_last} 2)
-    string(SUBSTRING "${_hex}" ${_i} 2 _byte)
-    string(APPEND _c_hex "0x${_byte},")
-  endforeach()
-endif()
-file(WRITE "${OUTPUT_FILE}"
-  "static const uint8_t embedded_fatbin[] = {\n${_c_hex}\n};\n"
-)
-]=]
-)
+set(_embed_bitcode_script "${CMAKE_CURRENT_LIST_DIR}/embed_bitcode.py")
 
 function(add_jit_lto_kernel kernel_target)
   set(options)
@@ -99,13 +78,14 @@ function(add_jit_lto_kernel kernel_target)
     COMMAND_EXPAND_LISTS
   )
 
-  # Step 2: embed .bc → C header via CMake script
+  # Step 2: embed .bc → C header
   add_custom_command(
     OUTPUT "${_JIT_LTO_FATBIN_HEADER_FILE}"
-    COMMAND "${CMAKE_COMMAND}" "-DINPUT_FILE=${bc_file}"
-            "-DOUTPUT_FILE=${_JIT_LTO_FATBIN_HEADER_FILE}" -P "${_bin2c_script}"
-    DEPENDS "${bc_file}"
+    COMMAND "${Python3_EXECUTABLE}" "${_embed_bitcode_script}" "${bc_file}"
+            "${_JIT_LTO_FATBIN_HEADER_FILE}"
+    DEPENDS "${bc_file}" "${_embed_bitcode_script}"
     COMMENT "Embedding bitcode: ${kernel_target}"
+    VERBATIM
   )
 endfunction()
 
@@ -159,6 +139,8 @@ function(generate_jit_lto_kernels source_list_var)
   set(multi_value KERNEL_LINK_LIBRARIES FRAGMENT_TAG_HEADER_FILES KERNEL_EXTRA_COMPILE_OPTIONS)
 
   cmake_parse_arguments(_JIT_LTO "${options}" "${one_value}" "${multi_value}" ${ARGN})
+
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
   find_program(
     HIPCC
