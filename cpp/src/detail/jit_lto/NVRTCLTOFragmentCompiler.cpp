@@ -3,6 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include <cuvs/detail/jit_lto/NVRTCLTOFragmentCompiler.hpp>
 
 #include <mutex>
@@ -12,19 +34,11 @@
 
 #ifdef __HIP_PLATFORM_AMD__
 #include <cuvs/cuda_runtime.h>
-#include <hip/hiprtc.h>
-
-#define HIPRTC_SAFE_CALL(_call)                                                  \
-  {                                                                              \
-    hiprtcResult result = _call;                                                 \
-    std::string error_string =                                                   \
-      std::string("hiprtc error: ") + std::string(hiprtcGetErrorString(result)); \
-    RAFT_EXPECTS(result == HIPRTC_SUCCESS, "%s", error_string.c_str());          \
-  }
-
+#include <cuvs/nvrtc.h>
 #else
 #include "cuda.h"
 #include <nvrtc.h>
+#endif
 
 #define NVRTC_SAFE_CALL(_call)                                                 \
   {                                                                            \
@@ -33,7 +47,6 @@
       std::string("nvrtc error: ") + std::string(nvrtcGetErrorString(result)); \
     RAFT_EXPECTS(result == NVRTC_SUCCESS, "%s", error_string.c_str());         \
   }
-#endif
 
 NVRTCLTOFragmentCompiler::NVRTCLTOFragmentCompiler()
 {
@@ -92,45 +105,6 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
     return std::make_unique<UDFFatbinFragment>(key, it->second);
   }
 
-#ifdef __HIP_PLATFORM_AMD__
-  hiprtcProgram prog;
-  HIPRTC_SAFE_CALL(
-    hiprtcCreateProgram(&prog, code.c_str(), "hiprtc_lto_fragment", 0, nullptr, nullptr));
-
-  std::vector<const char*> opts;
-  opts.reserve(this->standard_compile_opts.size());
-  for (const auto& opt : this->standard_compile_opts) {
-    opts.push_back(opt.c_str());
-  }
-
-  hiprtcResult compileResult =
-    hiprtcCompileProgram(prog, static_cast<int>(opts.size()), opts.data());
-
-  try {
-    if (compileResult != HIPRTC_SUCCESS) {
-      size_t log_size;
-      HIPRTC_SAFE_CALL(hiprtcGetProgramLogSize(prog, &log_size));
-      std::unique_ptr<char[]> log{new char[log_size]};
-      HIPRTC_SAFE_CALL(hiprtcGetProgramLog(prog, log.get()));
-      RAFT_FAIL("hiprtc compile error log: \n%s", log.get());
-    }
-  } catch (...) {
-    HIPRTC_SAFE_CALL(hiprtcDestroyProgram(&prog));
-    throw;
-  }
-
-  std::size_t bitcodeSize;
-  HIPRTC_SAFE_CALL(hiprtcGetBitcodeSize(prog, &bitcodeSize));
-
-  std::vector<uint8_t> bitcode(bitcodeSize);
-  HIPRTC_SAFE_CALL(hiprtcGetBitcode(prog, reinterpret_cast<char*>(bitcode.data())));
-
-  HIPRTC_SAFE_CALL(hiprtcDestroyProgram(&prog));
-
-  cache[key] = std::move(bitcode);
-  return std::make_unique<UDFFatbinFragment>(key, cache[key]);
-
-#else
   nvrtcProgram prog;
   NVRTC_SAFE_CALL(
     nvrtcCreateProgram(&prog, code.c_str(), "nvrtc_lto_fragment", 0, nullptr, nullptr));
@@ -171,7 +145,6 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
 
   cache[key] = std::move(lto_ir);
   return std::make_unique<UDFFatbinFragment>(key, cache[key]);
-#endif
 }
 
 NVRTCLTOFragmentCompiler& nvrtc_compiler()

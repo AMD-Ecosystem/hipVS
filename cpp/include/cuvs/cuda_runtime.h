@@ -410,3 +410,10 @@ inline hipError_t hipOccupancyMaxActiveBlocksPerMultiprocessor(int* numBlocks,
 #ifndef cudaLaunchCooperativeKernel
 #define cudaLaunchCooperativeKernel hipLaunchCooperativeKernel
 #endif
+// JIT module/library APIs.  cudaLibrary_t is aliased to hipModule_t above, so the
+// library-unload entry point maps 1-1 to hipModuleUnload.  The load path
+// (cudaLibraryLoadData vs hipModuleLoadData) and the JIT linker (nvJitLink vs
+// hiprtc) have no 1-1 equivalents and are handled explicitly at their call sites.
+#ifndef cudaLibraryUnload
+#define cudaLibraryUnload hipModuleUnload
+#endif

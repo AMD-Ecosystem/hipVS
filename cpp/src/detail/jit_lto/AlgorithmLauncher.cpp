@@ -35,11 +35,7 @@ AlgorithmLauncher::AlgorithmLauncher(cudaKernel_t k, cudaLibrary_t lib) : kernel
 
 AlgorithmLauncher::~AlgorithmLauncher()
 {
-#ifdef __HIP_PLATFORM_AMD__
-  if (library != nullptr) { (void)hipModuleUnload(library); }
-#else
   if (library != nullptr) { (void)cudaLibraryUnload(library); }
-#endif
 }
 
 AlgorithmLauncher::AlgorithmLauncher(AlgorithmLauncher&& other) noexcept
@@ -52,11 +48,7 @@ AlgorithmLauncher::AlgorithmLauncher(AlgorithmLauncher&& other) noexcept
 AlgorithmLauncher& AlgorithmLauncher::operator=(AlgorithmLauncher&& other) noexcept
 {
   if (this != &other) {
-#ifdef __HIP_PLATFORM_AMD__
-    if (library != nullptr) { (void)hipModuleUnload(library); }
-#else
-    if (library != nullptr) { cudaLibraryUnload(library); }
-#endif
+    if (library != nullptr) { (void)cudaLibraryUnload(library); }
     kernel        = other.kernel;
     library       = other.library;
     other.kernel  = nullptr;
