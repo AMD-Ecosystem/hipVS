@@ -48,6 +48,35 @@
     RAFT_EXPECTS(result == NVRTC_SUCCESS, "%s", error_string.c_str());         \
   }
 
+namespace {
+
+// RAII wrapper that owns an nvrtcProgram and guarantees nvrtcDestroyProgram
+// is called on any exit path (normal return or exception).
+class NVRTCProgram {
+ public:
+  NVRTCProgram(std::string const& code, char const* name)
+  {
+    NVRTC_SAFE_CALL(nvrtcCreateProgram(&prog_, code.c_str(), name, 0, nullptr, nullptr));
+  }
+
+  ~NVRTCProgram()
+  {
+    if (prog_ != nullptr) { nvrtcDestroyProgram(&prog_); }
+  }
+
+  NVRTCProgram(NVRTCProgram const&)            = delete;
+  NVRTCProgram& operator=(NVRTCProgram const&) = delete;
+  NVRTCProgram(NVRTCProgram&&)                 = delete;
+  NVRTCProgram& operator=(NVRTCProgram&&)      = delete;
+
+  nvrtcProgram get() const { return prog_; }
+
+ private:
+  nvrtcProgram prog_ = nullptr;
+};
+
+}  // namespace
+
 NVRTCLTOFragmentCompiler::NVRTCLTOFragmentCompiler()
 {
 #ifdef __HIP_PLATFORM_AMD__
@@ -105,9 +134,8 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
     return std::make_unique<UDFFatbinFragment>(key, it->second);
   }
 
-  nvrtcProgram prog;
-  NVRTC_SAFE_CALL(
-    nvrtcCreateProgram(&prog, code.c_str(), "nvrtc_lto_fragment", 0, nullptr, nullptr));
+  NVRTCProgram program(code, "nvrtc_lto_fragment");
+  nvrtcProgram prog = program.get();
 
   // Convert std::vector<std::string> to std::vector<const char*> for nvrtc API
   std::vector<const char*> opts;
@@ -120,18 +148,13 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
                                                   opts.size(),   // numOptions
                                                   opts.data());  // options
 
-  try {
-    if (compileResult != NVRTC_SUCCESS) {
-      // Obtain compilation log from the program.
-      size_t log_size;
-      NVRTC_SAFE_CALL(nvrtcGetProgramLogSize(prog, &log_size));
-      std::unique_ptr<char[]> log{new char[log_size]};
-      NVRTC_SAFE_CALL(nvrtcGetProgramLog(prog, log.get()));
-      RAFT_FAIL("nvrtc compile error log: \n%s", log.get());
-    }
-  } catch (...) {
-    NVRTC_SAFE_CALL(nvrtcDestroyProgram(&prog));
-    throw;
+  if (compileResult != NVRTC_SUCCESS) {
+    // Obtain compilation log from the program.
+    size_t log_size;
+    NVRTC_SAFE_CALL(nvrtcGetProgramLogSize(prog, &log_size));
+    std::unique_ptr<char[]> log{new char[log_size]};
+    NVRTC_SAFE_CALL(nvrtcGetProgramLog(prog, log.get()));
+    RAFT_FAIL("nvrtc compile error log: \n%s", log.get());
   }
 
   // Obtain generated LTO IR from the program.
@@ -140,8 +163,6 @@ std::unique_ptr<UDFFatbinFragment> NVRTCLTOFragmentCompiler::compile(std::string
 
   std::vector<uint8_t> lto_ir(ltoIRSize);
   NVRTC_SAFE_CALL(nvrtcGetLTOIR(prog, reinterpret_cast<char*>(lto_ir.data())));
-
-  NVRTC_SAFE_CALL(nvrtcDestroyProgram(&prog));
 
   cache[key] = std::move(lto_ir);
   return std::make_unique<UDFFatbinFragment>(key, cache[key]);
