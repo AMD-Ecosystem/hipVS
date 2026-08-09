@@ -70,8 +70,6 @@ endif()
 # list(APPEND CUVS_GPU_FLAGS --expt-extended-lambda --expt-relaxed-constexpr)
 list(APPEND CUVS_CXX_FLAGS "-DCUDA_API_PER_THREAD_DEFAULT_STREAM")
 list(APPEND CUVS_GPU_FLAGS "-DCUDA_API_PER_THREAD_DEFAULT_STREAM")
-# make sure we produce smallest binary size list(APPEND CUVS_GPU_FLAGS -Xfatbin=-compress-all)
-
 # Option to enable line info in CUDA device compilation to allow introspection when profiling /
 # memchecking
 if(CUDA_ENABLE_LINEINFO)
