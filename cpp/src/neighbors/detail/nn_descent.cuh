@@ -1560,9 +1560,9 @@ void GNND<Data_t, Index_t>::local_join(cudaStream_t stream, DistEpilogue_t dist_
   bool use_simt = (std::is_same_v<input_t, float> && !use_fp16_dist) ||
                   build_config_.metric == cuvs::distance::DistanceType::L1;
 
-  // AMD adaptation: graph_width must be get_degree_on_device(res) (== warp_size, 64 on AMD),
-  // NOT the NVIDIA-only constant DEGREE_ON_DEVICE (== 32). The graph buffers are allocated
-  // with get_degree_on_device(res) columns; passing 32 here causes stride mismatches.
+  // The kernel's graph_width argument must match the column count the graph/dists buffers were
+  // allocated with, which is get_degree_on_device(res) (the device warp size). Using any other
+  // value here mismatches the buffer stride and corrupts indexing into the buffers.
   auto launch_kernel = [&](auto* typed_ptr) {
     if (use_simt) {
       local_join_kernel_simt<<<nrow_, BLOCK_SIZE, 0, stream>>>(graph_.h_graph_new.data_handle(),
