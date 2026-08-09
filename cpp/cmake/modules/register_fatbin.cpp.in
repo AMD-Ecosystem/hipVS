@@ -3,10 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "@fatbin_header_file@"
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #include <cuvs/detail/jit_lto/FragmentEntry.hpp>
 
 @fragment_tag_header_files@
+
+// One embedded bitcode blob per GPU architecture family (see ArchFamily). Each
+// header defines a uniquely named array; families not built produce nullptr / 0
+// slots in the tables below (initializers are emitted in ArchFamily enum order).
+@fatbin_family_includes@
 
 namespace {
 
@@ -16,7 +42,11 @@ using fragment_entry = StaticFatbinFragmentEntry<fragment_tag>;
 }  // namespace
 
 template <>
-const uint8_t* const fragment_entry::data = embedded_fatbin;
+const uint8_t* const fragment_entry::data[kNumArchFamilies] = {
+@fatbin_data_initializer@
+};
 
 template <>
-const size_t fragment_entry::length = sizeof(embedded_fatbin);
+const size_t fragment_entry::length[kNumArchFamilies] = {
+@fatbin_length_initializer@
+};

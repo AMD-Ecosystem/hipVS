@@ -35,7 +35,7 @@ ARGS=$*
 # scripts, and that this script resides in the repo dir!
 REPODIR=$(cd "$(dirname "$0")"; pwd)
 
-VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --allgpuarch --no-shared-libs --show_depr_warn -h --cpu-only"
+VALIDARGS="clean libcuvs python rust docs tests package examples bench-ann --uninstall  -v -g -n --allgpuarch --native-jit-lto --no-shared-libs --show_depr_warn -h --cpu-only"
 HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<tool>] [--limit-bench-ann=<targets>] [--limit-tests=<targets>] [--gpu-arch=\"arch\"]
  where <target> is:
    clean            - remove all existing build artifacts and configuration (start over)
@@ -59,6 +59,9 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    --limit-bench-ann           - semicolon-separated list of ann benchmark executables to compute (e.g. HNSWLIB_ANN_BENCH;RAFT_IVF_PQ_ANN_BENCH)
    --allgpuarch                - build for all supported GPU architectures
    --gpu-arch=\"<arch>\"       - build for specific GPU architectures (e.g. \"gfx90a;gfx942\")
+   --native-jit-lto            - only pre-compile JIT-LTO bitcode for the target arch's GPU family
+                                 (faster dev build; the resulting library is NOT portable across
+                                 GPU families). Default builds all families for a portable library.
    --no-shared-libs            - build without shared libraries
    --show_depr_warn            - show cmake deprecation warnings
    --run-java-tests            - run Java tests after building
@@ -291,6 +294,12 @@ if hasArg -g; then
     BUILD_TYPE=Debug
 fi
 
+if hasArg --native-jit-lto; then
+    CUVS_JIT_LTO_NATIVE_FAMILY_ONLY=ON
+else
+    CUVS_JIT_LTO_NATIVE_FAMILY_ONLY=OFF
+fi
+
 if hasArg tests || (( NUMARGS == 0 )); then
     BUILD_TESTS=ON
     CMAKE_TARGET+=("${TEST_TARGETS}")
@@ -390,6 +399,7 @@ if (( NUMARGS == 0 )) || hasArg libcuvs || hasArg docs || hasArg tests || hasArg
           -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
           -DCMAKE_HIP_ARCHITECTURES="${HIPVS_CMAKE_HIP_ARCHITECTURES}" \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+          -DCUVS_JIT_LTO_NATIVE_FAMILY_ONLY=${CUVS_JIT_LTO_NATIVE_FAMILY_ONLY} \
           -DBUILD_C_LIBRARY=${COMPILE_LIBRARY} \
           -DDISABLE_DEPRECATION_WARNINGS=${DISABLE_DEPRECATION_WARNINGS} \
           -DBUILD_TESTS=${BUILD_TESTS} \

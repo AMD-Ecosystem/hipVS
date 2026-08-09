@@ -73,18 +73,22 @@ RAFT_DEVICE_INLINE_FUNCTION auto compute_distance_standard_worker_impl(
 #pragma unroll
     for (uint32_t e = 0; e < reg_nelem; e++) {
       const uint32_t k = e * (kTeamSize * vlen) + elem_offset;
-      if (k >= dim) break;
+      // Use a guard instead of `break` so the forced full unroll above sees a purely
+      // compile-time trip count. `k` is monotonic in `e`, so this is equivalent to the
+      // previous early-exit: once k >= dim the remaining unrolled iterations are empty.
+      if (k < dim) {
 // TODO(HIP/AMD):  On gfx942, loop unrolling here causes a miscompilation. Needs further
 // investigation
 #pragma nounroll
-      for (uint32_t v = 0; v < vlen; v++) {
-        QUERY_T d;
-        device::lds(
-          d,
-          query_smem_ptr +
-            sizeof(QUERY_T) * device::swizzling<kDatasetBlockDim, vlen * kTeamSize>(k + v));
-        r += dist_op<QUERY_T, DISTANCE_T>(
-          d, cuvs::spatial::knn::detail::utils::mapping<QUERY_T>{}(data[e][v]));
+        for (uint32_t v = 0; v < vlen; v++) {
+          QUERY_T d;
+          device::lds(
+            d,
+            query_smem_ptr +
+              sizeof(QUERY_T) * device::swizzling<kDatasetBlockDim, vlen * kTeamSize>(k + v));
+          r += dist_op<QUERY_T, DISTANCE_T>(
+            d, cuvs::spatial::knn::detail::utils::mapping<QUERY_T>{}(data[e][v]));
+        }
       }
     }
   }

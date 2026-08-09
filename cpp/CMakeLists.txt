@@ -402,6 +402,68 @@ if(NOT BUILD_CPU_ONLY)
   # Generate interleaved scan kernel files at build time
   include(cmake/modules/generate_jit_lto_kernels.cmake)
 
+  # GPU architecture families for which JIT-LTO bitcode fragments are pre-compiled (one "generic"
+  # bitcode per family, specialized to the exact device at runtime). Devices outside the built
+  # families hard-error at runtime. Valid values:
+  # gfx9-generic;gfx9-4-generic;gfx11-generic;gfx12-generic
+  #
+  # The default is the full portable set: one binary that runs across all supported GPU families.
+  # Building all four families multiplies the JIT bitcode compile count (~4x) and dominates build
+  # time, so developers can opt into a faster build that only covers the target architecture's
+  # family via CUVS_JIT_LTO_NATIVE_FAMILY_ONLY=ON (wired to build.sh's --native-jit-lto).
+  set(_cuvs_jit_lto_all_families "gfx9-generic;gfx9-4-generic;gfx11-generic;gfx12-generic")
+
+  option(
+    CUVS_JIT_LTO_NATIVE_FAMILY_ONLY
+    "Only pre-compile JIT-LTO bitcode for the family/families implied by \
+CMAKE_HIP_ARCHITECTURES (faster dev build; not portable across GPU families)."
+    OFF
+  )
+
+  if(CUVS_JIT_LTO_NATIVE_FAMILY_ONLY)
+    set(_cuvs_jit_lto_default_families "")
+    foreach(_arch IN LISTS CMAKE_HIP_ARCHITECTURES)
+      if(_arch STREQUAL "NATIVE"
+         OR _arch STREQUAL "RAPIDS"
+         OR _arch STREQUAL "ALL"
+         OR _arch STREQUAL ""
+      )
+        # Can't resolve a specific family from a meta-arch at configure time; fall back to the full
+        # set so the build stays correct.
+        message(
+          WARNING
+            "cuVS JIT-LTO: CUVS_JIT_LTO_NATIVE_FAMILY_ONLY is set but HIP arch '${_arch}' is not a \
+concrete gfx target; building the full family set instead."
+        )
+        set(_cuvs_jit_lto_default_families "${_cuvs_jit_lto_all_families}")
+        break()
+      endif()
+      cuvs_jit_lto_arch_to_family(_fam "${_arch}")
+      if(_fam)
+        list(APPEND _cuvs_jit_lto_default_families "${_fam}")
+      else()
+        message(
+          WARNING "cuVS JIT-LTO: target HIP arch '${_arch}' maps to no supported bitcode family; \
+building the full family set instead. Set CUVS_JIT_LTO_ARCH_FAMILIES to override."
+        )
+        set(_cuvs_jit_lto_default_families "${_cuvs_jit_lto_all_families}")
+        break()
+      endif()
+    endforeach()
+    if(NOT _cuvs_jit_lto_default_families)
+      set(_cuvs_jit_lto_default_families "${_cuvs_jit_lto_all_families}")
+    endif()
+    list(REMOVE_DUPLICATES _cuvs_jit_lto_default_families)
+  else()
+    set(_cuvs_jit_lto_default_families "${_cuvs_jit_lto_all_families}")
+  endif()
+
+  set(CUVS_JIT_LTO_ARCH_FAMILIES
+      "${_cuvs_jit_lto_default_families}"
+      CACHE STRING "GPU architecture families to pre-compile JIT-LTO bitcode fragments for."
+  )
+  message(STATUS "cuVS JIT-LTO bitcode families: ${CUVS_JIT_LTO_ARCH_FAMILIES}")
+
   add_library(jit_lto_kernel_usage_requirements INTERFACE)
   target_include_directories(
     jit_lto_kernel_usage_requirements

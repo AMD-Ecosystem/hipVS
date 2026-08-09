@@ -3,10 +3,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <typeinfo>
 #include <vector>
@@ -19,6 +42,28 @@
 
 #include "nvjitlink_checker.hpp"
 
+#ifdef __HIP_PLATFORM_AMD__
+// GPU architecture families for which a distinct JIT-LTO bitcode fragment is
+// pre-compiled at build time (one bitcode per family "generic" target). At
+// runtime the live device's gfx arch is mapped to one of these families and the
+// matching fragment is selected before linking; the hiprtc link step then
+// specializes the generic bitcode to the exact device via --offload-arch.
+//
+// The order of these enumerators is significant: it must match the order of the
+// per-family data/length tables emitted by register_fatbin.cpp.in.
+enum class ArchFamily : int {
+  Gfx9 = 0,  // gfx9-generic   (gfx900/902/904/906/908/909/90a/90c, ...)
+  Gfx9_4,    // gfx9-4-generic (gfx940/941/942/950)
+  Gfx11,     // gfx11-generic  (gfx11xx / gfx115x)
+  Gfx12,     // gfx12-generic  (gfx12xx)
+  Count
+};
+
+inline constexpr int kNumArchFamilies = static_cast<int>(ArchFamily::Count);
+
+inline constexpr int arch_family_index(ArchFamily family) { return static_cast<int>(family); }
+#endif
+
 struct FragmentEntry {
   virtual ~FragmentEntry() = default;
 
@@ -29,6 +74,13 @@ struct FragmentEntry {
 #endif
 
   virtual const char* get_key() const = 0;
+
+#ifdef __HIP_PLATFORM_AMD__
+  // Select which pre-compiled per-family bitcode this fragment should expose via
+  // get_data()/get_length(). No-op for fragments that are not family-specific
+  // (e.g. runtime-compiled UDF fragments).
+  virtual void set_arch_family(ArchFamily) {}
+#endif
 };
 
 struct FatbinFragmentEntry : FragmentEntry {
@@ -47,6 +99,39 @@ struct FatbinFragmentEntry : FragmentEntry {
 
 template <typename FragmentTag>
 struct StaticFatbinFragmentEntry final : FatbinFragmentEntry {
+#ifdef __HIP_PLATFORM_AMD__
+  const uint8_t* get_data() const override
+  {
+    const int idx    = arch_family_index(selected_family_);
+    const uint8_t* p = StaticFatbinFragmentEntry<FragmentTag>::data[idx];
+    if (p == nullptr) {
+      throw std::runtime_error(
+        std::string("No JIT-LTO bitcode fragment was built for the selected GPU architecture "
+                    "family (fragment key: ") +
+        get_key() + "). Rebuild libcuvs with this family enabled in CUVS_JIT_LTO_ARCH_FAMILIES.");
+    }
+    return p;
+  }
+
+  size_t get_length() const override
+  {
+    return StaticFatbinFragmentEntry<FragmentTag>::length[arch_family_index(selected_family_)];
+  }
+
+  void set_arch_family(ArchFamily family) override { selected_family_ = family; }
+
+  const char* get_key() const override
+  {
+    return typeid(StaticFatbinFragmentEntry<FragmentTag>).name();
+  }
+
+  // One entry per ArchFamily (see enum order). Unbuilt families are nullptr / 0.
+  static const uint8_t* const data[kNumArchFamilies];
+  static const size_t length[kNumArchFamilies];
+
+ private:
+  ArchFamily selected_family_ = ArchFamily::Gfx11;
+#else
   const uint8_t* get_data() const override { return StaticFatbinFragmentEntry<FragmentTag>::data; }
 
   size_t get_length() const override { return StaticFatbinFragmentEntry<FragmentTag>::length; }
@@ -58,6 +143,7 @@ struct StaticFatbinFragmentEntry final : FatbinFragmentEntry {
 
   static const uint8_t* const data;
   static const size_t length;
+#endif
 };
 
 struct UDFFatbinFragment final : FatbinFragmentEntry {

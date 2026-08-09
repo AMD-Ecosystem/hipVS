@@ -28,12 +28,17 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", type=Path)
     parser.add_argument("output_file", type=Path)
+    parser.add_argument(
+        "--symbol",
+        default="embedded_fatbin",
+        help="Name of the generated C array symbol.",
+    )
     args = parser.parse_args()
 
     embedded = "".join(
         f"0x{byte:02x}," for byte in args.input_file.read_bytes()
     )
-    output = f"static const uint8_t embedded_fatbin[] = {{\n{embedded}\n}};\n"
+    output = f"static const uint8_t {args.symbol}[] = {{\n{embedded}\n}};\n"
     args.output_file.write_bytes(output.encode("ascii"))
 
 

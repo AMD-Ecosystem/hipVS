@@ -35,14 +35,43 @@ include(${CMAKE_CURRENT_LIST_DIR}/compute_matrix_product.cmake)
 
 set(_embed_bitcode_script "${CMAKE_CURRENT_LIST_DIR}/embed_bitcode.py")
 
+# GPU architecture families, in the exact order of the ArchFamily enum in
+# cpp/include/cuvs/detail/jit_lto/FragmentEntry.hpp. Each family is compiled to a single "generic"
+# bitcode fragment that is specialized to the exact device at runtime. Families listed in
+# CUVS_JIT_LTO_ARCH_FAMILIES are actually built; the rest leave nullptr / 0 slots in the generated
+# per-tag tables and hard-error at runtime if such a device is used.
+set(_JIT_LTO_ALL_FAMILY_ARCHES "gfx9-generic;gfx9-4-generic;gfx11-generic;gfx12-generic")
+set(_JIT_LTO_ALL_FAMILY_SUFFIXES "gfx9_generic;gfx9_4_generic;gfx11_generic;gfx12_generic")
+
+# Map a concrete gfx architecture name (e.g. "gfx1151", possibly with a ":sramecc" suffix) to the
+# JIT-LTO bitcode family generic it belongs to. Mirrors the runtime mapping in
+# cpp/src/detail/jit_lto/AlgorithmPlanner.cpp. Sets <out_var> to the family arch (e.g.
+# "gfx11-generic") or to "" if the arch is not covered by any built family (e.g. gfx10 / RDNA1-2).
+function(cuvs_jit_lto_arch_to_family out_var arch)
+  # Strip feature suffix ("gfx1151:sramecc+" -> "gfx1151").
+  string(REGEX REPLACE ":.*$" "" _a "${arch}")
+  set(_family "")
+  if(_a MATCHES "^gfx(94[0-9]|950)")
+    set(_family "gfx9-4-generic")
+  elseif(_a MATCHES "^gfx9")
+    set(_family "gfx9-generic")
+  elseif(_a MATCHES "^gfx11")
+    set(_family "gfx11-generic")
+  elseif(_a MATCHES "^gfx12")
+    set(_family "gfx12-generic")
+  endif()
+  set(${out_var}
+      "${_family}"
+      PARENT_SCOPE
+  )
+endfunction()
+
 function(add_jit_lto_kernel kernel_target)
   set(options)
-  set(one_value KERNEL_FILE FATBIN_HEADER_FILE)
+  set(one_value KERNEL_FILE)
   set(multi_value LINK_LIBRARIES)
 
   cmake_parse_arguments(_JIT_LTO "${options}" "${one_value}" "${multi_value}" ${ARGN})
-
-  set(bc_file "${_JIT_LTO_KERNEL_FILE}.bc")
 
   # Create a helper target to resolve transitive include directories from all linked dependencies
   # (rmm, raft, CCCL, etc.).  We never build this target; we only read its INCLUDE_DIRECTORIES
@@ -56,29 +85,50 @@ function(add_jit_lto_kernel kernel_target)
     target_link_libraries(_jit_lto_include_resolver PRIVATE jit_lto_kernel_usage_requirements)
   endif()
 
-  # Step 1: compile .cu → LLVM bitcode via hipcc
-  add_custom_command(
-    OUTPUT "${bc_file}"
-    COMMAND
-      "${CMAKE_HIP_COMPILER}" -x hip -emit-llvm -fgpu-rdc -c --cuda-device-only -include
-      hip/hip_runtime.h -std=c++20 -fPIC -D__HIP_PLATFORM_AMD__
-      "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,INCLUDE_DIRECTORIES>,PREPEND,-I>"
-      "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,COMPILE_DEFINITIONS>,PREPEND,-D>"
-      -o "${bc_file}" "${_JIT_LTO_KERNEL_FILE}"
-    DEPENDS "${_JIT_LTO_KERNEL_FILE}"
-    COMMENT "Compiling JIT bitcode: ${kernel_target}"
-    COMMAND_EXPAND_LISTS
-  )
+  # Match the optimization/assert configuration of the main library so the pre-compiled bitcode
+  # makes the same (arch-correct) preprocessor decisions, e.g. libhipcxx TSC clock-rate selection
+  # guarded by NDEBUG.
+  set(_jit_lto_config_flags -O3 -DNDEBUG)
 
-  # Step 2: embed .bc → C header
-  add_custom_command(
-    OUTPUT "${_JIT_LTO_FATBIN_HEADER_FILE}"
-    COMMAND "${Python3_EXECUTABLE}" "${_embed_bitcode_script}" "${bc_file}"
-            "${_JIT_LTO_FATBIN_HEADER_FILE}"
-    DEPENDS "${bc_file}" "${_embed_bitcode_script}"
-    COMMENT "Embedding bitcode: ${kernel_target}"
-    VERBATIM
+  # Build one bitcode + embedded header per *enabled* family. Each enabled family produces its own
+  # .bc and a header defining a uniquely named symbol; the generated register_fatbin.cpp then
+  # #includes all enabled family headers and assembles the per-family lookup tables.
+  foreach(_family_arch _family_suffix IN ZIP_LISTS _JIT_LTO_ALL_FAMILY_ARCHES
+                       _JIT_LTO_ALL_FAMILY_SUFFIXES
   )
+    if(NOT "${_family_arch}" IN_LIST CUVS_JIT_LTO_ARCH_FAMILIES)
+      continue()
+    endif()
+
+    set(_bc_file "${_JIT_LTO_KERNEL_FILE}.${_family_suffix}.bc")
+    set(_family_header "${_JIT_LTO_KERNEL_FILE}.${_family_suffix}.h")
+    set(_family_symbol "embedded_fatbin_${_family_suffix}")
+
+    # Step 1: compile .cu → LLVM bitcode via hipcc for this family generic arch.
+    add_custom_command(
+      OUTPUT "${_bc_file}"
+      COMMAND
+        "${CMAKE_HIP_COMPILER}" -x hip -emit-llvm -fgpu-rdc -c --cuda-device-only
+        "--offload-arch=${_family_arch}" ${_jit_lto_config_flags} -include hip/hip_runtime.h
+        -std=c++20 -fPIC -D__HIP_PLATFORM_AMD__
+        "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,INCLUDE_DIRECTORIES>,PREPEND,-I>"
+        "$<LIST:TRANSFORM,$<TARGET_PROPERTY:_jit_lto_include_resolver,COMPILE_DEFINITIONS>,PREPEND,-D>"
+        -o "${_bc_file}" "${_JIT_LTO_KERNEL_FILE}"
+      DEPENDS "${_JIT_LTO_KERNEL_FILE}"
+      COMMENT "Compiling JIT bitcode (${_family_arch}): ${kernel_target}"
+      COMMAND_EXPAND_LISTS
+    )
+
+    # Step 2: embed .bc → C header with a family-unique symbol name.
+    add_custom_command(
+      OUTPUT "${_family_header}"
+      COMMAND "${Python3_EXECUTABLE}" "${_embed_bitcode_script}" "${_bc_file}" "${_family_header}"
+              "--symbol" "${_family_symbol}"
+      DEPENDS "${_bc_file}" "${_embed_bitcode_script}"
+      COMMENT "Embedding bitcode (${_family_arch}): ${kernel_target}"
+      VERBATIM
+    )
+  endforeach()
 endfunction()
 
 function(process_jit_lto_matrix_entry source_list_var)
@@ -104,18 +154,41 @@ function(process_jit_lto_matrix_entry source_list_var)
 
   set(kernel_file "${_JIT_LTO_OUTPUT_DIRECTORY}/${kernel_name}_kernel.cu")
   set(kernel_target "${kernel_name}_kernel")
-  set(fatbin_header_file "${_JIT_LTO_OUTPUT_DIRECTORY}/${kernel_name}_fatbin.h")
   set(fatbin_file "${_JIT_LTO_OUTPUT_DIRECTORY}/${kernel_name}_fatbin.cpp")
   configure_file("${_JIT_LTO_KERNEL_INPUT_FILE}" "${kernel_file}" @ONLY)
+
+  # Build the per-family template substitutions for register_fatbin.cpp.in. The data/length
+  # initializers must list *every* ArchFamily slot in enum order: enabled families reference their
+  # embedded symbol, disabled ones are nullptr / 0 (and hard-error at runtime if such a device is
+  # used).
+  set(fatbin_family_includes "")
+  set(fatbin_data_initializer "")
+  set(fatbin_length_initializer "")
+  set(family_header_files "")
+  foreach(_family_arch _family_suffix IN ZIP_LISTS _JIT_LTO_ALL_FAMILY_ARCHES
+                       _JIT_LTO_ALL_FAMILY_SUFFIXES
+  )
+    if("${_family_arch}" IN_LIST CUVS_JIT_LTO_ARCH_FAMILIES)
+      set(_family_header "${kernel_file}.${_family_suffix}.h")
+      set(_family_symbol "embedded_fatbin_${_family_suffix}")
+      string(APPEND fatbin_family_includes "#include \"${_family_header}\"\n")
+      string(APPEND fatbin_data_initializer "  ${_family_symbol},\n")
+      string(APPEND fatbin_length_initializer "  sizeof(${_family_symbol}),\n")
+      list(APPEND family_header_files "${_family_header}")
+    else()
+      string(APPEND fatbin_data_initializer "  nullptr,\n")
+      string(APPEND fatbin_length_initializer "  0,\n")
+    endif()
+  endforeach()
+
   configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/register_fatbin.cpp.in" "${fatbin_file}" @ONLY)
 
   add_jit_lto_kernel(
     ${kernel_target}
     KERNEL_FILE "${kernel_file}"
-    FATBIN_HEADER_FILE "${fatbin_header_file}"
     LINK_LIBRARIES ${_JIT_LTO_KERNEL_LINK_LIBRARIES}
   )
-  list(APPEND ${source_list_var} "${fatbin_header_file}" "${fatbin_file}")
+  list(APPEND ${source_list_var} ${family_header_files} "${fatbin_file}")
   set(${source_list_var}
       "${${source_list_var}}"
       PARENT_SCOPE

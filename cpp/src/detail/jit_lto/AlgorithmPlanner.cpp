@@ -83,6 +83,36 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::read_cache(std::string cons
   return nullptr;
 }
 
+#ifdef __HIP_PLATFORM_AMD__
+namespace {
+
+// Map a concrete gfx architecture name (colon-stripped, e.g. "gfx1151") to the
+// pre-compiled bitcode family. Throws if the device is not covered by any family
+// that this library was built with. Keep in sync with the CUVS_JIT_LTO_ARCH_FAMILIES
+// list in cpp/CMakeLists.txt and the ArchFamily enum in FragmentEntry.hpp.
+ArchFamily arch_family_from_gcn_arch(std::string const& gcn_arch)
+{
+  const auto starts_with = [&](const char* prefix) { return gcn_arch.rfind(prefix, 0) == 0; };
+
+  // gfx9-4 family (CDNA3/CDNA "MI300"-class): must be checked before generic gfx9.
+  if (starts_with("gfx94") || starts_with("gfx950")) { return ArchFamily::Gfx9_4; }
+  // gfx9 family (Vega / CDNA1 / CDNA2).
+  if (starts_with("gfx9")) { return ArchFamily::Gfx9; }
+  // gfx11 family (RDNA3 / RDNA3.5).
+  if (starts_with("gfx11")) { return ArchFamily::Gfx11; }
+  // gfx12 family (RDNA4).
+  if (starts_with("gfx12")) { return ArchFamily::Gfx12; }
+
+  RAFT_FAIL(
+    "No JIT-LTO bitcode fragment family is available for GPU architecture '%s'. This build of "
+    "libcuvs only supports the gfx9, gfx9-4, gfx11 and gfx12 families. Rebuild with the required "
+    "family added to CUVS_JIT_LTO_ARCH_FAMILIES.",
+    gcn_arch.c_str());
+}
+
+}  // namespace
+#endif
+
 std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::get_launcher()
 {
   auto& launchers = jit_cache_.launchers;
@@ -115,10 +145,17 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   RAFT_CUDA_TRY(cudaGetDeviceProperties(&prop, device));
 
   std::string gcn_arch(prop.gcnArchName);
-  auto colon_pos = gcn_arch.find(':');
+  const auto colon_pos = gcn_arch.find(':');
   if (colon_pos != std::string::npos) { gcn_arch = gcn_arch.substr(0, colon_pos); }
 
-  std::string arch_opt = "--offload-arch=" + gcn_arch;
+  // Select the pre-compiled bitcode fragment matching this device's family. The
+  // hiprtc link below then specializes that (generic) bitcode to the exact arch.
+  const ArchFamily family = arch_family_from_gcn_arch(gcn_arch);
+  for (const auto& frag : this->fragments) {
+    frag->set_arch_family(family);
+  }
+
+  const std::string arch_opt = "--offload-arch=" + gcn_arch;
 
   std::vector<const char*> ir_opts;
   ir_opts.push_back(arch_opt.c_str());
@@ -126,7 +163,7 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
     ir_opts.push_back(opt.c_str());
   }
 
-  size_t ir_opt_count        = ir_opts.size();
+  const size_t ir_opt_count  = ir_opts.size();
   hiprtcJIT_option options[] = {hipJitOptionIRtoISAOptExt, hipJitOptionIRtoISAOptCountExt};
   void* option_values[]      = {static_cast<void*>(ir_opts.data()),
                                 reinterpret_cast<void*>(ir_opt_count)};
@@ -145,8 +182,8 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   check_hiprtc_link_result(result);
 
   // bin_out is only valid until hiprtcLinkDestroy — copy it
-  std::vector<char> code_object(static_cast<char*>(bin_out),
-                                static_cast<char*>(bin_out) + bin_size);
+  const std::vector<char> code_object(static_cast<char*>(bin_out),
+                                      static_cast<char*>(bin_out) + bin_size);
 
   result = hiprtcLinkDestroy(link_state);
   RAFT_EXPECTS(result == HIPRTC_SUCCESS, "hiprtcLinkDestroy failed");
