@@ -83,7 +83,10 @@ namespace cuvs::neighbors::cagra::detail::graph {
 template <typename T, unsigned TileSize, typename ParentCGTy>
 __device__ T cg_reduce_min(const cg::thread_block_tile<TileSize, ParentCGTy>& tile, T val)
 {
-  for (unsigned offset = tile.size() / 2; offset > 0; offset /= 2) {
+  // TileSize is a template parameter (constexpr), so the loop bound is known at
+  // compile time and the loop can be fully unrolled.
+#pragma unroll
+  for (unsigned offset = TileSize / 2; offset > 0; offset /= 2) {
     T other = tile.shfl_xor(val, offset);
     if (other < val) { val = other; }
   }
