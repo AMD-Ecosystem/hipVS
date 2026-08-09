@@ -54,7 +54,6 @@
 std::string AlgorithmPlanner::get_fragments_key() const
 {
   std::string key = "";
-#ifdef __HIP_PLATFORM_AMD__
   // On AMD, hipModuleLoadData loads the JIT-linked code object into the *current* device's
   // context. The static cache is process-wide, so when multiple OMP threads call get_launcher()
   // on different devices concurrently the first thread to build populates the cache with a module
@@ -68,7 +67,6 @@ std::string AlgorithmPlanner::get_fragments_key() const
   int device = 0;
   (void)cudaGetDevice(&device);
   key += "dev" + std::to_string(device) + ":";
-#endif
   for (const auto& fragment : this->fragments) {
     key += fragment->get_key();
   }
