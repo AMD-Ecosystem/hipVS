@@ -159,9 +159,11 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
 
   std::vector<const char*> ir_opts;
   ir_opts.push_back(arch_opt.c_str());
-  for (auto const& opt : linktime_extra_options) {
-    ir_opts.push_back(opt.c_str());
-  }
+  // Optimize the fully-linked module during IR->ISA lowering. Fragments are compiled
+  // -fgpu-rdc, so their symbols stay external and cross-fragment inlining/optimization
+  // is deferred to this link step; -O3 here is what actually performs that link-time
+  // optimization (the AMD analog of nvJitLink's -lto doing optimization at link).
+  ir_opts.push_back("-O3");
 
   const size_t ir_opt_count  = ir_opts.size();
   hiprtcJIT_option options[] = {hipJitOptionIRtoISAOptExt, hipJitOptionIRtoISAOptCountExt};
@@ -209,12 +211,9 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   // Load the generated LTO IR and link them together
   nvJitLinkHandle handle;
   std::vector<const char*> lopts;
-  lopts.reserve(2 + linktime_extra_options.size());
+  lopts.reserve(2);
   lopts.push_back("-lto");
   lopts.push_back(archs.c_str());
-  for (auto const& opt : linktime_extra_options) {
-    lopts.push_back(opt.c_str());
-  }
   auto result = nvJitLinkCreate(&handle, static_cast<unsigned int>(lopts.size()), lopts.data());
   check_nvjitlink_result(handle, result);
 
