@@ -325,13 +325,19 @@ struct search_plan_impl : public search_plan_impl_base {
         //
         const auto max_visited_nodes = itopk_size + (search_width * graph_degree * 1);
         unsigned min_bitlen          = 8;  // 256
-        // On AMD GPUs (warp_size=64), the LDS (shared memory) is limited to 64KB.
-        // We need to account for other shared memory usage when determining max_bitlen.
-        // Estimate: result_buffer (~itopk + search_width*graph_degree)*8 + radix_sort(~10KB) +
-        // dataset_ws To be safe on AMD, limit small hash to leave room for other smem usage.
-        // We're being conservative with a limit to avoid exceeding 64KB LDS
-        // With max_bitlen=11, hash table is 2K entries = 8KB, leaving ~50KB for other uses
-        const unsigned max_bitlen = (warp_size == 64) ? 11 : 13;
+        // On AMD GPUs the LDS (shared memory) is limited to 64KB per workgroup, and the
+        // small hash competes for it with the rest of the single-CTA kernel's dynamic smem:
+        // result_buffer (~itopk + search_width*graph_degree)*8 + radix_sort(~10KB) + dataset_ws.
+        // With max_bitlen=11 the hash table is 2K entries = 8KB, leaving ~50KB for other uses.
+        //
+        // This limit is deliberately NOT relaxed on wave32. It previously read
+        // `(warp_size == 64) ? 11 : 13`, which let gfx11 allocate a 8K-entry / 32KB table.
+        // Combined with the result and radix buffers that overruns the 64KB LDS budget for
+        // every config with 2048 < itopk + search_width*graph_degree <= 4096 -- observed as
+        // 40 hipErrorInvalidValue failures in the CAGRA ANN benchmark on gfx1100, and
+        // reachable from the public cagra::search API (e.g. itopk=64, search_width=64,
+        // graph_degree=32). The LDS budget does not grow on wave32, so neither should this.
+        const unsigned max_bitlen = 11;
 
         if (min_bitlen < hashmap_min_bitlen) { min_bitlen = hashmap_min_bitlen; }
         hash_bitlen = min_bitlen;
