@@ -33,6 +33,8 @@
  */
 #pragma once
 
+#include <cstdlib>  // getenv (AMD IVF-PQ blockDim prefer)
+
 #include "../ivf_common.cuh"                       // dummy_block_sort_t
 #include "../sample_filter.cuh"                    // none_sample_filter
 #include <cuvs/distance/distance.hpp>              // cuvs::distance::DistanceType
@@ -890,6 +892,9 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
       continue;
     }
 
+    // Cap before auto-shrink (used by AMD prefer-512 below).
+    const uint32_t n_threads_cap = n_threads;
+
     {
       // Try to reduce the number of threads to increase occupancy and data locality
       auto n_threads_tmp = n_threads_min;
@@ -932,6 +937,36 @@ auto compute_similarity_select(const cudaDeviceProp& dev_props,
         }
       }
     }
+
+#if defined(__HIP_PLATFORM_AMD__)
+    {
+      // DXC gfx1100 PoC: prefer blockDim=512 for IVF-PQ compute_similarity.
+      // Measured +28–36% search QPS vs stock auto-shrink on RX 7900 XTX
+      // (ann-harness results/lib_bench/LAUNCH_KNOBS.md, 2026-08-14); recall flat.
+      // Env HIPVS_IVF_PQ_BLOCK_THREADS (patch 0005) still overrides when set.
+      const char* env_bt = std::getenv("HIPVS_IVF_PQ_BLOCK_THREADS");
+      const bool env_overrides = (env_bt != nullptr && env_bt[0] != '\0');
+      constexpr uint32_t kAmdIvfPqPreferThreads = 512u;
+      if (!env_overrides && kAmdIvfPqPreferThreads >= n_threads_gty &&
+          kAmdIvfPqPreferThreads <= n_threads_cap) {
+        auto smem_pref = smem_size_f(kAmdIvfPqPreferThreads);
+        cudaError_t st_pref =
+          cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_pref);
+        if (st_pref == cudaSuccess) {
+          occupancy_t<OutT, LutT, IvfSampleFilterT> pref(
+            smem_pref, kAmdIvfPqPreferThreads, kernel, dev_props);
+          if (pref.blocks_per_sm > 0) {
+            n_threads = kAmdIvfPqPreferThreads;
+            smem_size = smem_pref;
+            cur       = pref;
+          }
+        } else {
+          RAFT_EXPECTS(st_pref == cudaGetLastError(),
+                       "Tried to reset the expected cuda error code, but it didn't match the expectation");
+        }
+      }
+    }
+#endif
 
     {
       if (selected_perf.occupancy <= 0.0  // no candidate yet
