@@ -44,18 +44,28 @@
 
 #ifdef __HIP_PLATFORM_AMD__
 // GPU architecture families for which a distinct JIT-LTO bitcode fragment is
-// pre-compiled at build time (one bitcode per family "generic" target). At
-// runtime the live device's gfx arch is mapped to one of these families and the
-// matching fragment is selected before linking; the hiprtc link step then
-// specializes the generic bitcode to the exact device via --offload-arch.
+// pre-compiled at build time. At runtime the live device's gfx arch is mapped to
+// one of these families and the matching fragment is selected before linking.
+//
+// Most families are LLVM gfxN-generic targets, which one bitcode can serve for
+// every documented member of that family. gfx90a (MI200) is the exception: LLVM
+// provides no generic target covering it (gfx9-generic is documented as
+// gfx900/902/904/906/909/90c only), so that slot holds concrete gfx90a bitcode.
+//
+// The fragment must already target the live device, or a generic the device is a
+// documented member of. The hiprtc link step is passed --offload-arch=<device>,
+// but that only re-stamps the code object's EF_AMDGPU_MACH -- LLVM drives codegen
+// from the per-function "target-cpu"/"target-features" attributes frozen into the
+// bitcode at build time, so the link cannot retarget a mismatched fragment.
 //
 // The order of these enumerators is significant: it must match the order of the
-// per-family data/length tables emitted by register_fatbin.cpp.in.
+// per-family data/length tables emitted by register_fatbin.cpp.in, and the
+// _JIT_LTO_ALL_FAMILY_ARCHES list in generate_jit_lto_kernels.cmake.
 enum class ArchFamily : int {
-  Gfx9 = 0,  // gfx9-generic   (gfx900/902/904/906/908/909/90a/90c, ...)
-  Gfx9_4,    // gfx9-4-generic (gfx940/941/942/950)
-  Gfx11,     // gfx11-generic  (gfx11xx / gfx115x)
-  Gfx12,     // gfx12-generic  (gfx12xx)
+  Gfx90a = 0,  // gfx90a         (concrete; MI200)
+  Gfx9_4,      // gfx9-4-generic (gfx942 MI300 / gfx950 MI350)
+  Gfx11,       // gfx11-generic  (gfx11xx / gfx115x)
+  Gfx12,       // gfx12-generic  (gfx12xx)
   Count
 };
 
@@ -102,8 +112,7 @@ struct StaticFatbinFragmentEntry final : FatbinFragmentEntry {
 #ifdef __HIP_PLATFORM_AMD__
   const uint8_t* get_data() const override
   {
-    const int idx    = arch_family_index(selected_family_);
-    const uint8_t* p = StaticFatbinFragmentEntry<FragmentTag>::data[idx];
+    const uint8_t* p = StaticFatbinFragmentEntry<FragmentTag>::data[checked_family_index()];
     if (p == nullptr) {
       throw std::runtime_error(
         std::string("No JIT-LTO bitcode fragment was built for the selected GPU architecture "
@@ -115,7 +124,7 @@ struct StaticFatbinFragmentEntry final : FatbinFragmentEntry {
 
   size_t get_length() const override
   {
-    return StaticFatbinFragmentEntry<FragmentTag>::length[arch_family_index(selected_family_)];
+    return StaticFatbinFragmentEntry<FragmentTag>::length[checked_family_index()];
   }
 
   void set_arch_family(ArchFamily family) override { selected_family_ = family; }
@@ -130,7 +139,21 @@ struct StaticFatbinFragmentEntry final : FatbinFragmentEntry {
   static const size_t length[kNumArchFamilies];
 
  private:
-  ArchFamily selected_family_ = ArchFamily::Gfx11;
+  // Fail loudly rather than silently linking some other family's bitcode if a caller ever reaches
+  // get_data()/get_length() without going through set_arch_family() first.
+  int checked_family_index() const
+  {
+    if (selected_family_ == ArchFamily::Count) {
+      throw std::runtime_error(
+        std::string("JIT-LTO fragment used before its GPU architecture family was selected "
+                    "(fragment key: ") +
+        get_key() + ").");
+    }
+    return arch_family_index(selected_family_);
+  }
+
+  // No default family: AlgorithmPlanner::build() must call set_arch_family() before linking.
+  ArchFamily selected_family_ = ArchFamily::Count;
 #else
   const uint8_t* get_data() const override { return StaticFatbinFragmentEntry<FragmentTag>::data; }
 

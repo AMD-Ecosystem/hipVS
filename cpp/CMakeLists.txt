@@ -402,21 +402,25 @@ if(NOT BUILD_CPU_ONLY)
   # Generate interleaved scan kernel files at build time
   include(cmake/modules/generate_jit_lto_kernels.cmake)
 
-  # GPU architecture families for which JIT-LTO bitcode fragments are pre-compiled (one "generic"
-  # bitcode per family, specialized to the exact device at runtime). Devices outside the built
-  # families hard-error at runtime. Valid values:
-  # gfx9-generic;gfx9-4-generic;gfx11-generic;gfx12-generic
+  # GPU architecture targets for which JIT-LTO bitcode fragments are pre-compiled. Devices outside
+  # the built set hard-error at runtime. Valid values:
+  # gfx90a;gfx9-4-generic;gfx11-generic;gfx12-generic
   #
-  # The default is the full portable set: one binary that runs across all supported GPU families.
-  # Building all four families multiplies the JIT bitcode compile count (~4x) and dominates build
-  # time, so developers can opt into a faster build that only covers the target architecture's
-  # family via CUVS_JIT_LTO_NATIVE_FAMILY_ONLY=ON (wired to build.sh's --native-jit-lto).
-  set(_cuvs_jit_lto_all_families "gfx9-generic;gfx9-4-generic;gfx11-generic;gfx12-generic")
+  # Most entries are LLVM gfxN-generic targets, so one bitcode serves every member of that family.
+  # gfx90a (MI200) is concrete because LLVM provides no generic target that covers it -- see the
+  # notes in cmake/modules/generate_jit_lto_kernels.cmake. Together this set covers MI200, MI300
+  # (gfx942), MI350 (gfx950), RDNA3 and RDNA4.
+  #
+  # The default is the full portable set: one binary that runs across all supported GPUs. Building
+  # all four targets multiplies the JIT bitcode compile count (~4x) and dominates build time, so
+  # developers can opt into a faster build covering only the target architecture via
+  # CUVS_JIT_LTO_NATIVE_FAMILY_ONLY=ON (wired to build.sh's --native-jit-lto).
+  set(_cuvs_jit_lto_all_families "gfx90a;gfx9-4-generic;gfx11-generic;gfx12-generic")
 
   option(
     CUVS_JIT_LTO_NATIVE_FAMILY_ONLY
-    "Only pre-compile JIT-LTO bitcode for the family/families implied by \
-CMAKE_HIP_ARCHITECTURES (faster dev build; not portable across GPU families)."
+    "Only pre-compile JIT-LTO bitcode for the target(s) implied by CMAKE_HIP_ARCHITECTURES \
+(faster dev build; not portable across GPU families)."
     OFF
   )
 
@@ -443,8 +447,8 @@ concrete gfx target; building the full family set instead."
         list(APPEND _cuvs_jit_lto_default_families "${_fam}")
       else()
         message(
-          WARNING "cuVS JIT-LTO: target HIP arch '${_arch}' maps to no supported bitcode family; \
-building the full family set instead. Set CUVS_JIT_LTO_ARCH_FAMILIES to override."
+          WARNING "cuVS JIT-LTO: target HIP arch '${_arch}' maps to no supported bitcode target; \
+building the full set instead. Set CUVS_JIT_LTO_ARCH_FAMILIES to override."
         )
         set(_cuvs_jit_lto_default_families "${_cuvs_jit_lto_all_families}")
         break()
@@ -460,9 +464,9 @@ building the full family set instead. Set CUVS_JIT_LTO_ARCH_FAMILIES to override
 
   set(CUVS_JIT_LTO_ARCH_FAMILIES
       "${_cuvs_jit_lto_default_families}"
-      CACHE STRING "GPU architecture families to pre-compile JIT-LTO bitcode fragments for."
+      CACHE STRING "GPU architecture targets to pre-compile JIT-LTO bitcode fragments for."
   )
-  message(STATUS "cuVS JIT-LTO bitcode families: ${CUVS_JIT_LTO_ARCH_FAMILIES}")
+  message(STATUS "cuVS JIT-LTO bitcode targets: ${CUVS_JIT_LTO_ARCH_FAMILIES}")
 
   add_library(jit_lto_kernel_usage_requirements INTERFACE)
   target_include_directories(

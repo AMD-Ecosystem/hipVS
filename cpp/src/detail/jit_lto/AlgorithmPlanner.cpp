@@ -28,6 +28,7 @@
 // clang-format on
 
 #include <chrono>
+#include <initializer_list>
 #include <iterator>
 #include <memory>
 #include <mutex>
@@ -86,25 +87,51 @@ namespace {
 
 // Map a concrete gfx architecture name (colon-stripped, e.g. "gfx1151") to the
 // pre-compiled bitcode family. Throws if the device is not covered by any family
-// that this library was built with. Keep in sync with the CUVS_JIT_LTO_ARCH_FAMILIES
-// list in cpp/CMakeLists.txt and the ArchFamily enum in FragmentEntry.hpp.
+// that this library was built with. Keep in sync with cuvs_jit_lto_arch_to_family()
+// in cpp/cmake/modules/generate_jit_lto_kernels.cmake and the ArchFamily enum in
+// FragmentEntry.hpp.
+//
+// Matching is by exact arch name, never by "gfx11"-style prefix. A generic target is only valid
+// for the member set LLVM documents for it (AMDGPU Generic Processors table in
+// https://llvm.org/docs/AMDGPUUsage.html), and gfx prefixes cut across those sets:
+//
+//   * gfx9-generic  covers gfx900/902/904/906/909/90c only -- gfx908 and gfx90a are excluded, so
+//     gfx90a (MI200) gets concrete bitcode and there is no catch-all "gfx9" case.
+//   * gfx11-7-generic (gfx1170/1171/1172) is a separate family from gfx11-generic, and
+//     gfx12-5-generic (gfx1250/1251) a separate family from gfx12-generic. A "gfx11"/"gfx12"
+//     prefix match would route those parts into a generic they are not members of.
+//
+// Getting this wrong is silent: the code object's target-ID feature bits end up disagreeing with
+// the device, and ROCr refuses to load it -- which surfaces only as hipErrorNotFound from
+// hipModuleGetFunction. Erroring out on an unrecognised arch is the safe default; add new members
+// here (and to cuvs_jit_lto_arch_to_family in generate_jit_lto_kernels.cmake) as ROCm gains them.
 ArchFamily arch_family_from_gcn_arch(std::string const& gcn_arch)
 {
-  const auto starts_with = [&](const char* prefix) { return gcn_arch.rfind(prefix, 0) == 0; };
+  const auto in = [&](std::initializer_list<const char*> archs) {
+    for (const char* a : archs) {
+      if (gcn_arch == a) { return true; }
+    }
+    return false;
+  };
 
-  // gfx9-4 family (CDNA3/CDNA "MI300"-class): must be checked before generic gfx9.
-  if (starts_with("gfx94") || starts_with("gfx950")) { return ArchFamily::Gfx9_4; }
-  // gfx9 family (Vega / CDNA1 / CDNA2).
-  if (starts_with("gfx9")) { return ArchFamily::Gfx9; }
-  // gfx11 family (RDNA3 / RDNA3.5).
-  if (starts_with("gfx11")) { return ArchFamily::Gfx11; }
-  // gfx12 family (RDNA4).
-  if (starts_with("gfx12")) { return ArchFamily::Gfx12; }
+  // MI200 (CDNA2). Concrete bitcode: no LLVM generic target covers gfx90a.
+  if (gcn_arch == "gfx90a") { return ArchFamily::Gfx90a; }
+  // gfx9-4-generic: MI300 (gfx942) / MI350, MI355 (gfx950).
+  if (in({"gfx942", "gfx950"})) { return ArchFamily::Gfx9_4; }
+  // gfx11-generic (RDNA3 / RDNA3.5): gfx1100-gfx1103 and gfx1150-gfx1153.
+  // Excludes gfx117x, which belongs to the separate gfx11-7-generic family.
+  if (in({"gfx1100", "gfx1101", "gfx1102", "gfx1103"}) ||
+      in({"gfx1150", "gfx1151", "gfx1152", "gfx1153"})) {
+    return ArchFamily::Gfx11;
+  }
+  // gfx12-generic (RDNA4). Excludes gfx125x, which is gfx12-5-generic.
+  if (in({"gfx1200", "gfx1201"})) { return ArchFamily::Gfx12; }
 
   RAFT_FAIL(
-    "No JIT-LTO bitcode fragment family is available for GPU architecture '%s'. This build of "
-    "libcuvs only supports the gfx9, gfx9-4, gfx11 and gfx12 families. Rebuild with the required "
-    "family added to CUVS_JIT_LTO_ARCH_FAMILIES.",
+    "No JIT-LTO bitcode fragment is available for GPU architecture '%s'. This build of libcuvs "
+    "supports MI200 (gfx90a), MI300 (gfx942), MI350/MI355 (gfx950), gfx11-generic "
+    "(gfx1100-gfx1103, gfx1150-gfx1153) and gfx12-generic (gfx1200, gfx1201). Rebuild with the "
+    "required target added to CUVS_JIT_LTO_ARCH_FAMILIES.",
     gcn_arch.c_str());
 }
 
@@ -146,8 +173,11 @@ std::shared_ptr<AlgorithmLauncher> AlgorithmPlanner::build()
   const auto colon_pos = gcn_arch.find(':');
   if (colon_pos != std::string::npos) { gcn_arch = gcn_arch.substr(0, colon_pos); }
 
-  // Select the pre-compiled bitcode fragment matching this device's family. The
-  // hiprtc link below then specializes that (generic) bitcode to the exact arch.
+  // Select the pre-compiled bitcode fragment matching this device. This choice has to be right:
+  // the --offload-arch passed to hiprtcLink below only re-stamps the resulting code object's
+  // EF_AMDGPU_MACH, it does NOT retarget the bitcode. LLVM resolves each function's subtarget
+  // from the "target-cpu"/"target-features" attributes frozen in at -emit-llvm time, so those
+  // attributes -- not --offload-arch -- decide the ISA and the target-ID feature bits.
   const ArchFamily family = arch_family_from_gcn_arch(gcn_arch);
   for (const auto& frag : this->fragments) {
     frag->set_arch_family(family);

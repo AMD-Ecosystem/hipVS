@@ -59,9 +59,10 @@ HELP="$0 [<target> ...] [<flag> ...] [--cmake-args=\"<args>\"] [--cache-tool=<to
    --limit-bench-ann           - semicolon-separated list of ann benchmark executables to compute (e.g. HNSWLIB_ANN_BENCH;RAFT_IVF_PQ_ANN_BENCH)
    --allgpuarch                - build for all supported GPU architectures
    --gpu-arch=\"<arch>\"       - build for specific GPU architectures (e.g. \"gfx90a;gfx942\")
-   --native-jit-lto            - only pre-compile JIT-LTO bitcode for the target arch's GPU family
-                                 (faster dev build; the resulting library is NOT portable across
-                                 GPU families). Default builds all families for a portable library.
+   --native-jit-lto            - only pre-compile JIT-LTO bitcode for the target(s) implied by the
+                                 build's GPU arch (faster dev build; the resulting library is NOT
+                                 portable across GPU families). Default builds all targets for a
+                                 portable library.
    --no-shared-libs            - build without shared libraries
    --show_depr_warn            - show cmake deprecation warnings
    --run-java-tests            - run Java tests after building

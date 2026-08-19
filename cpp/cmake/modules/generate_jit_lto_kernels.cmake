@@ -35,29 +35,52 @@ include(${CMAKE_CURRENT_LIST_DIR}/compute_matrix_product.cmake)
 
 set(_embed_bitcode_script "${CMAKE_CURRENT_LIST_DIR}/embed_bitcode.py")
 
-# GPU architecture families, in the exact order of the ArchFamily enum in
-# cpp/include/cuvs/detail/jit_lto/FragmentEntry.hpp. Each family is compiled to a single "generic"
-# bitcode fragment that is specialized to the exact device at runtime. Families listed in
-# CUVS_JIT_LTO_ARCH_FAMILIES are actually built; the rest leave nullptr / 0 slots in the generated
-# per-tag tables and hard-error at runtime if such a device is used.
-set(_JIT_LTO_ALL_FAMILY_ARCHES "gfx9-generic;gfx9-4-generic;gfx11-generic;gfx12-generic")
-set(_JIT_LTO_ALL_FAMILY_SUFFIXES "gfx9_generic;gfx9_4_generic;gfx11_generic;gfx12_generic")
+# JIT-LTO bitcode targets, in the exact order of the ArchFamily enum in
+# cpp/include/cuvs/detail/jit_lto/FragmentEntry.hpp. Targets listed in CUVS_JIT_LTO_ARCH_FAMILIES
+# are actually built; the rest leave nullptr / 0 slots in the generated per-tag tables and
+# hard-error at runtime if such a device is used.
+#
+# Most entries are LLVM gfxN-generic targets, which hold codegen at a family's common feature subset
+# so one bitcode serves every member of that family. Two constraints govern this list:
+#
+# 1. A generic target is only valid for the member set LLVM documents for it (see
+#    https://llvm.org/docs/AMDGPUUsage.html). gfx9-generic covers gfx900/902/904/906/909/90c only --
+#    gfx908 and gfx90a are deliberately excluded, and gfx90a (MI200) therefore needs a *concrete*
+#    bitcode target. gfx9-generic itself covers no hardware cuVS supports, so it is not built at all.
+# 2. The runtime relink cannot repair a wrong choice here. hiprtcLink is passed --offload-arch=<live
+#    device>, but that only re-stamps the code object's EF_AMDGPU_MACH; LLVM drives codegen from the
+#    per-function "target-cpu"/"target-features" attributes frozen into the bitcode at -emit-llvm
+#    time. Picking a target the device is not a member of yields an object whose target-ID feature
+#    bits disagree with the device (e.g. gfx9-generic has no sramecc, so the object claims
+#    sramecc-unsupported against a gfx90a:sramecc+ MI200) and ROCr refuses to load it -- surfacing as
+#    hipErrorNotFound from hipModuleGetFunction.
+set(_JIT_LTO_ALL_FAMILY_ARCHES "gfx90a;gfx9-4-generic;gfx11-generic;gfx12-generic")
+set(_JIT_LTO_ALL_FAMILY_SUFFIXES "gfx90a;gfx9_4_generic;gfx11_generic;gfx12_generic")
 
 # Map a concrete gfx architecture name (e.g. "gfx1151", possibly with a ":sramecc" suffix) to the
-# JIT-LTO bitcode family generic it belongs to. Mirrors the runtime mapping in
-# cpp/src/detail/jit_lto/AlgorithmPlanner.cpp. Sets <out_var> to the family arch (e.g.
-# "gfx11-generic") or to "" if the arch is not covered by any built family (e.g. gfx10 / RDNA1-2).
+# JIT-LTO bitcode target that covers it. Mirrors arch_family_from_gcn_arch() in
+# cpp/src/detail/jit_lto/AlgorithmPlanner.cpp -- keep the two in sync. Sets <out_var> to that target
+# (e.g. "gfx11-generic") or to "" if no built target covers the arch.
+#
+# Membership is matched exactly, never by gfx prefix: gfx11-7-generic (gfx117x) and gfx12-5-generic
+# (gfx125x) are separate families from gfx11-generic / gfx12-generic, so a prefix match would
+# silently pick a generic the part is not a member of. Neither of those two families is built here
+# -- this ROCm ships no device library for them.
 function(cuvs_jit_lto_arch_to_family out_var arch)
   # Strip feature suffix ("gfx1151:sramecc+" -> "gfx1151").
   string(REGEX REPLACE ":.*$" "" _a "${arch}")
   set(_family "")
-  if(_a MATCHES "^gfx(94[0-9]|950)")
+  if(_a STREQUAL "gfx90a")
+    # MI200. No LLVM generic target covers gfx90a, so this slot is a concrete arch.
+    set(_family "gfx90a")
+  elseif(_a MATCHES "^gfx(942|950)$")
+    # MI300 (gfx942) / MI350, MI355 (gfx950).
     set(_family "gfx9-4-generic")
-  elseif(_a MATCHES "^gfx9")
-    set(_family "gfx9-generic")
-  elseif(_a MATCHES "^gfx11")
+  elseif(_a MATCHES "^gfx(110[0-3]|115[0-3])$")
+    # RDNA3 / RDNA3.5.
     set(_family "gfx11-generic")
-  elseif(_a MATCHES "^gfx12")
+  elseif(_a MATCHES "^gfx120[01]$")
+    # RDNA4.
     set(_family "gfx12-generic")
   endif()
   set(${out_var}
@@ -104,7 +127,7 @@ function(add_jit_lto_kernel kernel_target)
     set(_family_header "${_JIT_LTO_KERNEL_FILE}.${_family_suffix}.h")
     set(_family_symbol "embedded_fatbin_${_family_suffix}")
 
-    # Step 1: compile .cu → LLVM bitcode via hipcc for this family generic arch.
+    # Step 1: compile .cu → LLVM bitcode for this bitcode target (family generic or concrete arch).
     add_custom_command(
       OUTPUT "${_bc_file}"
       COMMAND
