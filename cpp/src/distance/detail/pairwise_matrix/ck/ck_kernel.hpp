@@ -78,25 +78,37 @@ struct GemmDistanceConfig {
   static constexpr auto Scheduler               = ck_tile::GemmPipelineScheduler::Intrawave;
 };
 
-using GemmShape = ck_tile::TileGemmShape<
-  ck_tile::
-    sequence<GemmDistanceConfig::M_Tile, GemmDistanceConfig::N_Tile, GemmDistanceConfig::K_Tile>,
-  ck_tile::
-    sequence<GemmDistanceConfig::M_Warp, GemmDistanceConfig::N_Warp, GemmDistanceConfig::K_Warp>,
-  ck_tile::sequence<GemmDistanceConfig::M_Warp_Tile,
-                    GemmDistanceConfig::N_Warp_Tile,
-                    GemmDistanceConfig::K_Warp_Tile>>;
+// [RDNA3 shape-adaptive] Larger 128x128 (4x2 warps) tile for compute-bound large D
+// (D >= ~192; up to +19% on gfx1100). Small D keeps the 64x64 config above.
+// N is enlarged via NRepeat (N_Warp stays 2) because the CShuffle read-back
+// distribution asserts X0*Y1==warp_size, which fails if N_Warp is increased.
+struct GemmDistanceConfigLarge {
+  static constexpr ck_tile::index_t M_Tile      = 128;
+  static constexpr ck_tile::index_t N_Tile      = 128;
+  static constexpr ck_tile::index_t K_Tile      = 32;
+  static constexpr ck_tile::index_t M_Warp      = 4;
+  static constexpr ck_tile::index_t N_Warp      = 2;
+  static constexpr ck_tile::index_t K_Warp      = 1;
+  static constexpr ck_tile::index_t M_Warp_Tile = 16;
+  static constexpr ck_tile::index_t N_Warp_Tile = 16;
+  static constexpr ck_tile::index_t K_Warp_Tile = 16;
+  static constexpr bool DoubleSmemBuffer        = false;
+  static constexpr auto Scheduler               = ck_tile::GemmPipelineScheduler::Intrawave;
+};
 
-// Values for TilePartitionerGroupNum and TilePartitionerM01 are taken from
-// https://github.com/ROCm/rocm-libraries/blob/rocm-7.2.0/projects/composablekernel/example/ck_tile/19_gemm_multi_d/gemm_multi_d_fp16.cpp#L53-L54.
-/// Number of big groups for spatial workgroup partitioning. Groups workgroups spatially to
-/// improve cache utilization (grouped rows of column-vectors WGP pattern, tuned for gfx94x).
+template <typename Cfg>
+using GemmShapeT = ck_tile::TileGemmShape<
+  ck_tile::sequence<Cfg::M_Tile, Cfg::N_Tile, Cfg::K_Tile>,
+  ck_tile::sequence<Cfg::M_Warp, Cfg::N_Warp, Cfg::K_Warp>,
+  ck_tile::sequence<Cfg::M_Warp_Tile, Cfg::N_Warp_Tile, Cfg::K_Warp_Tile>>;
+
+// TilePartitioner group/M01 taken from CK 19_gemm_multi_d (tuned for gfx94x).
 static constexpr ck_tile::index_t TilePartitionerGroupNum = 8;
-/// Number of groups in the M dimension within spatially local workgroup processors.
-static constexpr ck_tile::index_t TilePartitionerM01 = 4;
+static constexpr ck_tile::index_t TilePartitionerM01      = 4;
 
-using TilePartitioner = ck_tile::
-  GemmSpatiallyLocalTilePartitioner<GemmShape, TilePartitionerGroupNum, TilePartitionerM01>;
+template <typename Cfg>
+using TilePartitionerT = ck_tile::
+  GemmSpatiallyLocalTilePartitioner<GemmShapeT<Cfg>, TilePartitionerGroupNum, TilePartitionerM01>;
 
 template <typename InputLayoutT>
 struct InputLayoutTraits;
@@ -113,12 +125,14 @@ struct InputLayoutTraits<ck_tile::tensor_layout::gemm::ColumnMajor> {
   using B_Layout = ck_tile::tensor_layout::gemm::RowMajor;
 };
 
-template <typename DataT, typename InputLayout = ck_tile::tensor_layout::gemm::RowMajor>
+template <typename DataT,
+          typename InputLayout = ck_tile::tensor_layout::gemm::RowMajor,
+          typename Cfg         = GemmDistanceConfig>
 using GemmUniversalTraits =
   ck_tile::TileGemmUniversalTraits<true,
                                    true,
                                    true,
-                                   GemmDistanceConfig::DoubleSmemBuffer,
+                                   Cfg::DoubleSmemBuffer,
                                    typename InputLayoutTraits<InputLayout>::A_Layout,
                                    typename InputLayoutTraits<InputLayout>::B_Layout,
                                    ck_tile::tensor_layout::gemm::RowMajor>;
@@ -126,14 +140,15 @@ using GemmUniversalTraits =
 template <typename DataT,
           typename DistT,
           typename InputLayout = ck_tile::tensor_layout::gemm::RowMajor,
-          bool ScalarVec       = false>
+          bool ScalarVec       = false,
+          typename Cfg         = GemmDistanceConfig>
 using UniversalGemmProblem =
   ck_tile::UniversalGemmPipelineProblem<DataT,
                                         DataT,
                                         DistT,
-                                        GemmShape,
-                                        GemmUniversalTraits<DataT, InputLayout>,
-                                        GemmDistanceConfig::Scheduler,
+                                        GemmShapeT<Cfg>,
+                                        GemmUniversalTraits<DataT, InputLayout, Cfg>,
+                                        Cfg::Scheduler,
                                         true,
                                         ck_tile::TailNumber::Full,
                                         ck_tile::element_wise::PassThrough,
@@ -143,9 +158,10 @@ using UniversalGemmProblem =
                                         1,
                                         1>;
 
-template <typename DataT, typename DistT, typename InputLayout, bool ScalarVec = false>
+template <typename DataT, typename DistT, typename InputLayout, bool ScalarVec = false,
+          typename Cfg = GemmDistanceConfig>
 using DistanceGemmPipeline =
-  ck_tile::GemmPipelineAgBgCrCompV3<UniversalGemmProblem<DataT, DistT, InputLayout, ScalarVec>>;
+  ck_tile::GemmPipelineAgBgCrCompV3<UniversalGemmProblem<DataT, DistT, InputLayout, ScalarVec, Cfg>>;
 
 // --- Kernel and epilogue ---
 
@@ -188,26 +204,28 @@ struct PairwiseDistanceCkKernelArgs {
 };
 
 // Convenience alias binding DataT/DistT/ScalarVec to the GemmShape-derived epilogue problem.
-template <typename DataT, typename DistT, bool ScalarVec>
+template <typename DataT, typename DistT, bool ScalarVec, typename Cfg = GemmDistanceConfig>
 using EpilogueProblemFor =
   PairwiseDistanceCkEpilogueProblem<float,
                                     DistT,
                                     DataT,
-                                    GemmShape::kM,
-                                    GemmShape::kN,
-                                    GemmShape::BlockWarps::at(ck_tile::number<0>{}),
-                                    GemmShape::BlockWarps::at(ck_tile::number<1>{}),
-                                    GemmShape::WarpTile::at(ck_tile::number<0>{}),
-                                    GemmShape::WarpTile::at(ck_tile::number<1>{}),
-                                    GemmShape::WarpTile::at(ck_tile::number<2>{}),
+                                    GemmShapeT<Cfg>::kM,
+                                    GemmShapeT<Cfg>::kN,
+                                    GemmShapeT<Cfg>::BlockWarps::at(ck_tile::number<0>{}),
+                                    GemmShapeT<Cfg>::BlockWarps::at(ck_tile::number<1>{}),
+                                    GemmShapeT<Cfg>::WarpTile::at(ck_tile::number<0>{}),
+                                    GemmShapeT<Cfg>::WarpTile::at(ck_tile::number<1>{}),
+                                    GemmShapeT<Cfg>::WarpTile::at(ck_tile::number<2>{}),
                                     ScalarVec,
                                     1,
                                     1>;
 
 // Pairwise distance CK kernel: ElementWiseOp(e, c, norm_x, norm_y).
-template <typename DataT, typename DistT, typename Layout, bool ScalarVec, typename ElementWiseOp>
+template <typename DataT, typename DistT, typename Layout, bool ScalarVec, typename ElementWiseOp,
+          typename Cfg = GemmDistanceConfig>
 struct PairwiseDistanceCkKernel {
-  using GemmPipeline  = DistanceGemmPipeline<DataT, DistT, Layout, ScalarVec>;
+  using TilePartitioner = TilePartitionerT<Cfg>;
+  using GemmPipeline  = DistanceGemmPipeline<DataT, DistT, Layout, ScalarVec, Cfg>;
   using DummyEpilogue = PairwiseDistanceCkDummyEpilogue<DataT, DistT, ScalarVec>;
   using HelperKernel  = ck_tile::UniversalGemmKernel<TilePartitioner, GemmPipeline, DummyEpilogue>;
 
@@ -217,7 +235,7 @@ struct PairwiseDistanceCkKernel {
   using KernelArgs = PairwiseDistanceCkKernelArgs<DataT, DistT>;
 
   using EpilogueType =
-    PairwiseDistanceCkEpilogue<EpilogueProblemFor<DataT, DistT, ScalarVec>, ElementWiseOp>;
+    PairwiseDistanceCkEpilogue<EpilogueProblemFor<DataT, DistT, ScalarVec, Cfg>, ElementWiseOp>;
 
   static constexpr ck_tile::index_t kBlockSize = HelperKernel::kBlockSize;
 

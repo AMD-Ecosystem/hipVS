@@ -252,6 +252,15 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
                                                 ck_tile::tensor_layout::gemm::RowMajor,
                                                 true,
                                                 EpilogueOp>;
+    // [RDNA3 shape-adaptive] Larger 128x128 tile for compute-bound large D (fp16/bf16
+    // only; WMMA). Crossover to the 64x64 default measured at ~D=192 on gfx1100.
+    static constexpr ck_tile::index_t kCkLargeTileMinK = 192;
+    using FastKernelLarge = PairwiseDistanceCkKernel<CkDataT, OutT,
+                                                     ck_tile::tensor_layout::gemm::RowMajor,
+                                                     false, EpilogueOp, GemmDistanceConfigLarge>;
+    using SafeKernelLarge = PairwiseDistanceCkKernel<CkDataT, OutT,
+                                                     ck_tile::tensor_layout::gemm::RowMajor,
+                                                     true, EpilogueOp, GemmDistanceConfigLarge>;
     // On gfx950, CK tile's WarpGemmDispatcher lacks float specializations for the
     // ColumnMajor transpose-read path (requires Double AttrNumAccess which only has
     // fp16/bf16 specializations). Guard with if constexpr to prevent instantiation.
@@ -331,15 +340,32 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
     }
 
     if (ck_params.is_row_major) {
-      dispatch_batched_pairwise_distance_ck_gemm<FastKernel, SafeKernel>(
-        ck_params,
-        mb_max,
-        nb_max,
-        s,
-        [&](int64_t off) { return ck_params.x + off * ck_params.ldx; },
-        [&](int64_t off) { return ck_params.y + off * ck_params.ldy; },
-        [&](int64_t off) { return ck_params.x_norm + off; },
-        [&](int64_t off) { return ck_params.y_norm + off; });
+      bool ck_large_used = false;
+      if constexpr (sizeof(CkDataT) == 2) {  // fp16/bf16 use the WMMA shape-adaptive path
+        if (static_cast<int64_t>(ck_params.k) >= kCkLargeTileMinK) {
+          dispatch_batched_pairwise_distance_ck_gemm<FastKernelLarge, SafeKernelLarge>(
+            ck_params,
+            mb_max,
+            nb_max,
+            s,
+            [&](int64_t off) { return ck_params.x + off * ck_params.ldx; },
+            [&](int64_t off) { return ck_params.y + off * ck_params.ldy; },
+            [&](int64_t off) { return ck_params.x_norm + off; },
+            [&](int64_t off) { return ck_params.y_norm + off; });
+          ck_large_used = true;
+        }
+      }
+      if (!ck_large_used) {
+        dispatch_batched_pairwise_distance_ck_gemm<FastKernel, SafeKernel>(
+          ck_params,
+          mb_max,
+          nb_max,
+          s,
+          [&](int64_t off) { return ck_params.x + off * ck_params.ldx; },
+          [&](int64_t off) { return ck_params.y + off * ck_params.ldy; },
+          [&](int64_t off) { return ck_params.x_norm + off; },
+          [&](int64_t off) { return ck_params.y_norm + off; });
+      }
     } else if constexpr (col_major_ck_supported) {
       // Column-major: SafeKernelCol (ScalarVec=true) has CK tile compatibility issues.
       // Use FastKernelCol only; when it fails for a batch, fall back to SM60 for the whole op.
