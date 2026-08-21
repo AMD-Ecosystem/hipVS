@@ -76,6 +76,7 @@ namespace cuvs::distance::detail {
 // [CShuffleEpilogue] Problem struct; we omit DsDataType, DsLayout, NumDTensor (no D tensors)
 template <typename AccDataType_,
           typename ODataType_,
+          typename GemmInputType_,
           ck_tile::index_t kM_,
           ck_tile::index_t kN_,
           ck_tile::index_t MWave_,
@@ -89,6 +90,12 @@ template <typename AccDataType_,
 struct PairwiseDistanceCkEpilogueProblem {
   using AccDataType = ck_tile::remove_cvref_t<AccDataType_>;
   using ODataType   = ck_tile::remove_cvref_t<ODataType_>;
+  // [gfx11/RDNA3 FIX] GEMM input type (half/float) selects the warp-gemm whose C
+  // tile-distribution matches the pipeline accumulator. ODataType (=output float)
+  // picked the float MFMA warp-gemm (wave64, 4 elem/thread); the pipeline uses the
+  // fp16 WMMA warp-gemm (wave32, 8 elem/thread interleaved). The mismatch made the
+  // CShuffle copy only 4 of 8 C registers, dropping half the output rows.
+  using GemmInputType = ck_tile::remove_cvref_t<GemmInputType_>;
 
   // [CShuffleEpilogue] Same layout constants
   static constexpr ck_tile::index_t kBlockSize  = MWave_ * NWave_ * ck_tile::get_warp_size();
@@ -136,8 +143,8 @@ struct PairwiseDistanceCkEpilogue {
     ck_tile::memory_operation_enum::set;
 
   // [CShuffleEpilogue] WG, CWarpDstr, CWarpTensor (isCTransposed=false for RowMajor)
-  using ATypeToUse = ODataType;
-  using BTypeToUse = ODataType;
+  using ATypeToUse = ck_tile::remove_cvref_t<typename Problem::GemmInputType>;
+  using BTypeToUse = ck_tile::remove_cvref_t<typename Problem::GemmInputType>;
   using WG         = ck_tile::WarpGemmDispatcher<ATypeToUse,
                                                  BTypeToUse,
                                                  AccDataType,
