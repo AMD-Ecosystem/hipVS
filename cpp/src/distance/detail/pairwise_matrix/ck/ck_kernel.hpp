@@ -192,6 +192,7 @@ template <typename DataT, typename DistT, bool ScalarVec>
 using EpilogueProblemFor =
   PairwiseDistanceCkEpilogueProblem<float,
                                     DistT,
+                                    DataT,
                                     GemmShape::kM,
                                     GemmShape::kN,
                                     GemmShape::BlockWarps::at(ck_tile::number<0>{}),
