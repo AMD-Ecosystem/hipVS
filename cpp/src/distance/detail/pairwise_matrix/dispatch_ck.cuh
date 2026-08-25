@@ -323,8 +323,10 @@ void pairwise_matrix_ck_dispatch_internal(OpT distance_op,
     // [BUG-A FIX] Guard on the EFFECTIVE per-batch output size (min(max, actual)),
     // not the theoretical max batch (which always exceeds 4GB and made the CK path
     // unreachable dead code for every problem). Use the real dims that get launched.
-    const uint64_t eff_mb = static_cast<uint64_t>(std::min(mb_max, static_cast<int64_t>(ck_params.m)));
-    const uint64_t eff_nb = static_cast<uint64_t>(std::min(nb_max, static_cast<int64_t>(ck_params.n)));
+    const uint64_t eff_mb =
+      static_cast<uint64_t>(std::min(mb_max, static_cast<int64_t>(ck_params.m)));
+    const uint64_t eff_nb =
+      static_cast<uint64_t>(std::min(nb_max, static_cast<int64_t>(ck_params.n)));
     if (eff_mb * eff_nb * sizeof(OutT) >= kBufferDescriptorMaxBytes) {
       pairwise_matrix_sm60_dispatch(distance_op, params, compat_range, stream);
       return;
