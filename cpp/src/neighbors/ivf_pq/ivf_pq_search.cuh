@@ -332,15 +332,17 @@ void select_clusters(raft::resources const& handle,
 
   using dist_type = half;
 #ifdef __HIP_PLATFORM_AMD__
-#if ROCM_VERSION_MAJOR <= 7
+#if ROCM_VERSION_MAJOR <= 10
+  // hipblaslt still does not support a half scale/compute type for alpha/beta as of ROCm 10:
+  // hipblaslt.h defines HIPBLASLT_COMPUTE_TYPE_INVALID as hipblasComputeType_t(0), which is
+  // HIPBLAS_COMPUTE_16F, i.e. 16-bit compute is used as the "invalid" sentinel. Use float
+  // alpha/beta so raft selects the (float, half, half, half) 32F-compute matmul.
   float alpha;
   float beta;
 #else
-  // hipblaslt does not support half types for alpha/beta as of ROCm 7; re-evaluate for later ROCm
-  // versions
   static_assert(false,
-                "As of ROCm 7, hipblaslt does not support half types for alpha and beta. "
-                "Check that this is still the case for ROCm > 7.")
+                "As of ROCm 10, hipblaslt does not support half types for alpha and beta. "
+                "Check that this is still the case for ROCm > 10.");
 #endif
 #else
   dist_type alpha;
