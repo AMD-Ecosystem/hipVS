@@ -21,4 +21,5 @@
 # SOFTWARE.
 
 from __future__ import annotations
-__all__: list[str] = list()
+from . import pca
+__all__: list = ['pca']

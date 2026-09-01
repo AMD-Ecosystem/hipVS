@@ -28,20 +28,19 @@ def _check_input_array(cai, exp_dt, exp_rows = None, exp_cols = None, exp_row_ma
 def _check_memory_location(array_like, expected_host = True, name = 'array'):
     """
     
-        Check if array is in expected memory location for multi-GPU operations.
+    Check if array is in expected memory location for multi-GPU operations.
     
-        Parameters
-        ----------
-        array_like : array-like
-            Array to check memory location of
-        expected_host : bool, default=True
-            If True, expects host memory. If False, expects device memory.
-        name : str
-            Name of the array for error messages
+    Parameters
+    ----------
+    array_like : array-like
+        Array to check memory location of
+    expected_host : bool, default=True
+        If True, expects host memory. If False, expects device memory.
+    name : str
+        Name of the array for error messages
     
-        Raises
-        ------
-        ValueError
-            If array is not in expected memory location
-        
+    Raises
+    ------
+    ValueError
+        If array is not in expected memory location
     """

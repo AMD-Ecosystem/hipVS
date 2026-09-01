@@ -27,7 +27,6 @@ __all__: list[str] = ['DeviceResources', 'auto_sync_resources', 'functools']
 def auto_sync_resources(f):
     """
     
-        This is identical to auto_sync_handle except for the proposed name change.
-        
+    This is identical to auto_sync_handle except for the proposed name change.
     """
 _resources_param_string: str = "handle : Optional RAFT resource handle for reusing CUDA resources.\n        If a handle isn't supplied, CUDA resources will be\n        allocated inside this function and synchronized before the\n        function exits. If a handle is supplied, you will need to\n        explicitly synchronize yourself by calling `handle.sync()`\n        before accessing the output."

@@ -30,5 +30,5 @@ def dl_data_type_to_numpy(dtype):
     
     Converts a DLDataType dtype to a numpy dtype 
     """
-__pyx_capi__: dict  # value = {'dlpack_c': <capsule object "DLManagedTensor *(PyObject *)" at 0x7f66b95e87b0>}
+__pyx_capi__: dict  # value = {'dlpack_c': <capsule object "DLManagedTensor *(PyObject *)" at 0x7f084cec2bb0>}
 __test__: dict = {}
