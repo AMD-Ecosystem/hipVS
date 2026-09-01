@@ -23,7 +23,7 @@
 
 .. meta::
    :description: hipVS documentation and API reference library
-   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS
+   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, AMD Data Science
 
 .. _build-hipvs:
 
@@ -39,7 +39,7 @@ and AMD GPUs before building and installing hipVS.
 Dependencies
 ============
 
-Install ROCm 7.2.4 and verify that the ``rocminfo`` and ``hipcc`` commands are available in your ``PATH``.
+Install ROCm 10.0.0 and verify that the ``rocminfo`` and ``hipcc`` commands are available in your ``PATH``.
 hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP compiler tool-chain, and a GPU driver that matches your ROCm version.
 
 .. list-table::
@@ -53,15 +53,15 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
    * - `ninja <https://ninja-build.org/>`_
      - ≥ 1.11.1
    * - `hipsolver <https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - `hipblas <https://rocm.docs.amd.com/projects/hipBLAS/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - `hipblaslt <https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - `hiprand <https://rocm.docs.amd.com/projects/hipRAND/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - `hipsparse <https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - `libblas-dev <https://www.netlib.org/lapack/>`_
      - Tested with 3.12.0
    * - `liblapack-dev <https://www.netlib.org/lapack/>`_
@@ -73,21 +73,21 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
    * - **Additional Required Dependencies**
      -
    * - **\*** `hipMM <https://github.com/ROCm-DS/hipMM>`_
-     - 4.0.0
+     - 5.0.0
    * - **\*** `hipCollections <https://github.com/ROCm/hipCollections>`_
      - 0.4.0
    * - **\*** `hipRAFT <https://github.com/ROCm-DS/hipRAFT>`_
-     - 1.0.0
+     - 2.0.0
    * - **\*** `hipCUB <https://github.com/ROCm/hipCUB>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - **\*** `rocThrust <https://github.com/ROCm/rocThrust>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - **\*\*** `OpenMP <https://www.openmp.org/>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - **Optional Dependencies**
      -
    * - `RCCL <https://github.com/ROCm/rccl>`_
-     - Version that comes bundled with ROCm ≥ 7.2.3
+     - Version that comes bundled with ROCm ≥ 10.0.0
    * - `UCX <https://github.com/openucx/ucx>`_
      - ≥ 1.18.0
    * - `Googletest <https://github.com/google/googletest>`_

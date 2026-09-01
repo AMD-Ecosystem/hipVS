@@ -23,7 +23,7 @@
 
 .. meta::
   :description: hipVS documentation and API reference library
-  :keywords: Nearest-Neighbors, Information-Retrieval, Similarity-Search, GPU, Distance, RAPIDS, ROCm-DS
+  :keywords: Nearest-Neighbors, Information-Retrieval, Similarity-Search, GPU, Distance, RAPIDS, AMD Data Science
 
 .. _sys-req:
 
@@ -33,7 +33,7 @@ System requirements
 
 This topic lists the system requirements for using hipVS.
 
-* ROCm version: `7.2.3 <https://rocm.docs.amd.com/projects/install-on-linux/en/docs-7.2.3/>`__
+* ROCm version: `10.0.0 <https://rocm.docs.amd.com/projects/install-on-linux/en/docs-10.0.0/>`__
 * Operating Systems: Ubuntu 24.04 and 22.04
 * AMD Instinct GPUs:
 

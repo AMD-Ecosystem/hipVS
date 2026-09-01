@@ -1,7 +1,7 @@
 ..
     MIT License
 
-    Modifications Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
+    Modifications Copyright (C) 2025-2026 Advanced Micro Devices, Inc. All rights reserved.
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
 
 .. meta::
    :description: hipVS documentation and API reference library
-   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, ROCm-DS
+   :keywords: Machine-Learning, Vector Search, Primitives,GPU, RAPIDS, AMD Data Science
 
 Using hipVS examples
 =====================
