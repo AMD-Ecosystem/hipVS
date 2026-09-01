@@ -32,6 +32,11 @@ template <typename math_t>
 using csr_input_matrix_view_t = raft::device_csr_matrix_view<const math_t, int, int, int>;
 
 /**
+ * @defgroup distance_grammian_cpp Gram matrix kernels
+ * @{
+ */
+
+/**
  * Base class for general Gram matrices
  * A Gram matrix is the Hermitian matrix of inner probucts G_ik = <x_i, x_k>
  * Here, the  inner product is evaluated for all elements from vectors sets X1,
@@ -661,6 +666,9 @@ class RBFKernel : public GramMatrixBase<math_t> {
                                int ld2,
                                int ld_out);
 };
+/**
+ * @}
+ */
 }  // namespace kernels
 }  // namespace distance
 }  // namespace CUVS_EXPORT cuvs

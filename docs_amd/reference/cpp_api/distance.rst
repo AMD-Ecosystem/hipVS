@@ -53,3 +53,9 @@ namespace *cuvs::distance*
     :project: cuvs
     :members:
     :content-only:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+
+   distance_grammian.rst

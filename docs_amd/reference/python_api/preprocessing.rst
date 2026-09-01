@@ -62,3 +62,17 @@ Scalar Quantizer
 .. autoapifunction:: cuvs.preprocessing.quantize.scalar.transform
 
 .. autoapifunction:: cuvs.preprocessing.quantize.scalar.inverse_transform
+
+Principal Component Analysis
+#############################
+
+.. autoapiclass:: cuvs.preprocessing.pca.Params
+    :members:
+
+.. autoapifunction:: cuvs.preprocessing.pca.fit
+
+.. autoapifunction:: cuvs.preprocessing.pca.fit_transform
+
+.. autoapifunction:: cuvs.preprocessing.pca.transform
+
+.. autoapifunction:: cuvs.preprocessing.pca.inverse_transform

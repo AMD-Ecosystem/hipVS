@@ -40,3 +40,4 @@ hipVS C++ API documentation
    cpp_api/preprocessing.rst
    cpp_api/selection.rst
    cpp_api/stats.rst
+   cpp_api/util.rst

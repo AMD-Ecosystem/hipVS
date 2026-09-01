@@ -37,6 +37,10 @@ struct index_state;
 }  // namespace detail
 
 /**
+ * @defgroup tiered_index_cpp_index Tiered Index
+ * @{
+ */
+/**
  * @brief Tiered Index class
  */
 template <typename UpstreamT>
@@ -54,7 +58,14 @@ struct index : cuvs::neighbors::index {
   /** Dimensionality of the data. */
   int64_t dim() const noexcept;
 };
+/**
+ * @}
+ */
 
+/**
+ * @defgroup tiered_index_cpp_index_params Tiered Index build parameters
+ * @{
+ */
 template <typename upstream_index_params_type>
 struct index_params : upstream_index_params_type {
   /** The minimum number of rows necessary in the index to create an
@@ -65,7 +76,14 @@ struct index_params : upstream_index_params_type {
   of rows in the incremental (bfknn) portion is above min_ann_rows */
   bool create_ann_index_on_extend = false;
 };
+/**
+ * @}
+ */
 
+/**
+ * @defgroup tiered_index_cpp_index_build Tiered Index build
+ * @{
+ */
 /**
  * @brief Build the index from the dataset for efficient search.
  *
@@ -100,7 +118,14 @@ auto build(raft::resources const& res,
            const index_params<ivf_pq::index_params>& index_params,
            raft::device_matrix_view<const float, int64_t, raft::row_major> dataset)
   -> tiered_index::index<ivf_pq::typed_index<float, int64_t>>;
+/**
+ * @}
+ */
 
+/**
+ * @defgroup tiered_index_cpp_index_extend Tiered Index extend
+ * @{
+ */
 /**
  * @brief Extend the index with the new data.
  *
@@ -133,6 +158,14 @@ void extend(raft::resources const& res,
             raft::device_matrix_view<const float, int64_t, raft::row_major> new_vectors,
             tiered_index::index<ivf_pq::typed_index<float, int64_t>>* idx);
 /**
+ * @}
+ */
+
+/**
+ * @defgroup tiered_index_cpp_index_compact Tiered Index compact
+ * @{
+ */
+/**
  * @brief Compact the index
  *
  * This function takes any data that has been added incrementally, and ensures that it
@@ -149,7 +182,14 @@ void compact(raft::resources const& res, tiered_index::index<ivf_flat::index<flo
 /** @copydoc compact */
 void compact(raft::resources const& res,
              tiered_index::index<ivf_pq::typed_index<float, int64_t>>* idx);
+/**
+ * @}
+ */
 
+/**
+ * @defgroup tiered_index_cpp_index_search Tiered Index search
+ * @{
+ */
 /**
  * @brief Search the tiered_index
  *
@@ -192,7 +232,14 @@ void search(raft::resources const& res,
             raft::device_matrix_view<float, int64_t, raft::row_major> distances,
             const cuvs::neighbors::filtering::base_filter& sample_filter =
               cuvs::neighbors::filtering::none_sample_filter{});
+/**
+ * @}
+ */
 
+/**
+ * @defgroup tiered_index_cpp_index_merge Tiered Index merge
+ * @{
+ */
 /** @brief Merge multiple tiered indices into a single index.
  *
  * This function merges multiple tiered indices into one, combining both the datasets and graph
@@ -221,6 +268,9 @@ auto merge(raft::resources const& res,
            const index_params<ivf_pq::index_params>& index_params,
            const std::vector<tiered_index::index<ivf_pq::typed_index<float, int64_t>>*>& indices)
   -> tiered_index::index<ivf_pq::typed_index<float, int64_t>>;
+/**
+ * @}
+ */
 
 }  // namespace tiered_index
 }  // namespace neighbors

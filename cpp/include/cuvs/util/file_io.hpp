@@ -26,6 +26,12 @@
 
 namespace CUVS_EXPORT cuvs {
 namespace util {
+
+/**
+ * @defgroup util_cpp_file_io File I/O utilities
+ * @{
+ */
+
 /**
  * @brief Streambuf that reads from a POSIX file descriptor
  */
@@ -302,6 +308,10 @@ class buffered_ofstream {
   std::ostream* os_;
   size_t pos_;
 };
+
+/**
+ * @}
+ */
 
 }  // namespace util
 }  // namespace CUVS_EXPORT cuvs

@@ -38,6 +38,7 @@ Nearest Neighbors
    neighbors_hnsw.rst
    neighbors_ivf_flat.rst
    neighbors_ivf_pq.rst
+   neighbors_tiered_index.rst
    neighbors_vamana.rst
    neighbors_multi_gpu.rst
    neighbors_nn_decent.rst
