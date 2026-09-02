@@ -31,7 +31,7 @@
 Building hipVS from source
 **************************
 
-hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the `https://github.com/ROCm-DS/hipVS <https://github.com/ROCm-DS/hipVS>`_ repository. To install hipVS for end users, see :doc:`Installing hipVS <./install>`.
+hipVS currently provides C++, C, Python and Rust APIs. The following instructions provide steps to build and test hipVS from source files provided in the `https://github.com/AMD-Ecosystem/hipVS <https://github.com/AMD-Ecosystem/hipVS>`_ repository. To install hipVS for end users, see :doc:`Installing hipVS <./install>`.
 
 See :ref:`sys-req` for information regarding supported operating systems, ROCm versions,
 and AMD GPUs before building and installing hipVS.
