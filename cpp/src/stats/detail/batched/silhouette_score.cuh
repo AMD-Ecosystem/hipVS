@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -37,6 +37,7 @@
 
 #include <raft/core/resource/cuda_stream.hpp>
 #include <raft/core/resource/cuda_stream_pool.hpp>
+#include <raft/core/resource/device_properties.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
 #include <raft/util/cuda_utils.cuh>
 #include <raft/util/device_atomics.cuh>
@@ -47,6 +48,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/fill.h>
 #include <thrust/reduce.h>
+
+#include <algorithm>
 
 namespace cuvs {
 namespace stats {
@@ -187,7 +190,19 @@ void compute_chunked_a_b(raft::resources const& handle,
                          cudaStream_t stream)
 {
   auto const warp_size = raft::host_warp_size(stream);
-  dim3 block_size(std::min(dist_rows, warp_size), std::min(dist_cols, warp_size));
+
+  // A (warp_size, warp_size) block is 32 x 32 = 1024 threads on NVIDIA, which is
+  // exactly maxThreadsPerBlock -- there is no headroom for a wider wavefront. On
+  // a 64-wide AMD wavefront the same expression asks for 64 x 64 = 4096 threads
+  // and the launch is rejected with hipErrorInvalidConfiguration. Cap the y
+  // extent so the block stays within the device limit. The kernel indexes purely
+  // off threadIdx/blockIdx and uses no warp-level primitives, so a block that is
+  // not square is fine.
+  auto const max_threads = raft::resource::get_device_properties(handle).maxThreadsPerBlock;
+  auto const block_x     = std::max(1, std::min(dist_rows, warp_size));
+  auto const block_y     = std::min({dist_cols, warp_size, max_threads / block_x});
+
+  dim3 block_size(block_x, block_y);
   dim3 grid_size(raft::ceildiv(dist_rows, (value_idx)block_size.x),
                  raft::ceildiv(dist_cols, (value_idx)block_size.y));
 
@@ -233,7 +248,16 @@ value_t silhouette_score(
 
   thrust::fill(policy, a_ptr, a_ptr + n_rows, 0);
   auto const warp_size = raft::host_warp_size(stream);
-  dim3 block_size(std::min(n_rows, warp_size), std::min(n_labels, warp_size));
+
+  // Same 1024-thread cap as in compute_chunked_a_b above. This launch happens to
+  // stay legal on AMD whenever n_labels < 17, since the y extent is clamped to
+  // the label count rather than to warp_size, but it is over the limit for wider
+  // label sets -- clamp it on the same terms.
+  auto const max_threads = raft::resource::get_device_properties(handle).maxThreadsPerBlock;
+  auto const block_x     = std::max(1, std::min(n_rows, warp_size));
+  auto const block_y     = std::min({n_labels, warp_size, max_threads / block_x});
+
+  dim3 block_size(block_x, block_y);
   dim3 grid_size(raft::ceildiv(n_rows, (value_idx)block_size.x),
                  raft::ceildiv(n_labels, (label_idx)block_size.y));
   detail::fill_b_kernel<<<grid_size, block_size, 0, stream>>>(

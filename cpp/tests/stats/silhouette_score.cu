@@ -15,7 +15,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -237,7 +237,26 @@ const std::vector<silhouetteScoreParam> inputs = {
   {11, 2, 5, cuvs::distance::DistanceType::L2Expanded, 3, 0.00001},
   {40, 2, 8, cuvs::distance::DistanceType::L2Expanded, 10, 0.00001},
   {12, 7, 3, cuvs::distance::DistanceType::CosineExpanded, 8, 0.00001},
-  {7, 5, 5, cuvs::distance::DistanceType::L1, 2, 0.00001}};
+  {7, 5, 5, cuvs::distance::DistanceType::L1, 2, 0.00001},
+  // HIP/AMD: The three cases below guard compute_chunked_a_b's and
+  // fill_b_kernel's block-size clamping (silhouette_score.cuh) against the
+  // 64-wide AMD wavefront. Both kernels used to size a block as
+  // min(extent, warp_size) per dimension, which is safe at warp_size == 32
+  // (32 x 32 == 1024 threads, exactly maxThreadsPerBlock) but launches an
+  // illegal >1024-thread block at warp_size == 64 whenever both extents
+  // reach the wavefront width. On NVIDIA these are ordinary correctness
+  // checks; on AMD (warp_size 64) they fail with hipErrorInvalidConfiguration
+  // without the clamp.
+  // dist_rows == dist_cols == chunk == 70 exceeds a 64-wide wavefront in
+  // compute_chunked_a_b while nLabels stays small enough to keep
+  // fill_b_kernel's block legal either way.
+  {70, 3, 3, cuvs::distance::DistanceType::L2Expanded, 70, 0.00001},
+  // nLabels == 20 exceeds fill_b_kernel's legal block on a 64-wide wavefront
+  // while chunk == 32 keeps compute_chunked_a_b's block legal either way.
+  {96, 4, 20, cuvs::distance::DistanceType::L2Expanded, 32, 0.00001},
+  // nRows == chunk == 80 and nLabels == 24 push both kernels over the limit
+  // on a 64-wide wavefront at the same time.
+  {80, 3, 24, cuvs::distance::DistanceType::L2Expanded, 80, 0.00001}};
 
 // writing the test suite
 typedef silhouetteScoreTest<int, double> silhouetteScoreTestClass;
