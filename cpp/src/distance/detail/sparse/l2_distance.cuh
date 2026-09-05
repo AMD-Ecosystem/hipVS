@@ -310,8 +310,16 @@ class l2_sqrt_expanded_distances_t : public l2_expanded_distances_t<value_idx, v
       out_dists,
       this->config_->a_nrows * this->config_->b_nrows,
       [] __device__(value_t input) {
-        int neg = input < 0 ? -1 : 1;
-        return raft::sqrt(abs(input) * neg);
+        // The expanded form ||a||^2 + ||b||^2 - 2*a.b cancels catastrophically when a and b
+        // are equal or nearly so: the true result is 0 but the computed one carries the
+        // rounding error of the norms, which is O(||a||^2 * eps) and may be negative. For
+        // 64-feature blobs that residual reaches ~1e-3, so it survives the |val| >= 1e-4
+        // instability filter in compute_euclidean_warp_kernel and arrives here negative.
+        // Feeding that to sqrt() yields NaN -- every point's self-distance becomes NaN, which
+        // then propagates into anything built on the kNN graph. Rectify to zero instead, the
+        // same way the Hellinger epilogue below does.
+        bool rectifier = input > 0;
+        return raft::sqrt(rectifier * input);
       },
       raft::resource::get_cuda_stream(this->config_->handle));
   }

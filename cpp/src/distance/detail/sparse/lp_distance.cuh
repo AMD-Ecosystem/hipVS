@@ -152,8 +152,12 @@ class l2_sqrt_unexpanded_distances_t : public l2_unexpanded_distances_t<value_id
       out_dists,
       n,
       [] __device__(value_t input) {
-        int neg = input < 0 ? -1 : 1;
-        return raft::sqrt(abs(input) * neg);
+        // Same rectifier as the expanded epilogue in l2_distance.cuh. The unexpanded form
+        // accumulates (a-b)^2 and so should never go negative, but the idiom this replaces
+        // fed negatives straight into sqrt() and returned NaN, which is never the answer we
+        // want for a squared distance.
+        bool rectifier = input > 0;
+        return raft::sqrt(rectifier * input);
       },
       raft::resource::get_cuda_stream(this->config_->handle));
   }
