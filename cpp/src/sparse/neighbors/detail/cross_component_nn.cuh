@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -219,8 +219,8 @@ struct MutualReachabilityFixConnectivitiesRedOp {
 
 /**
  * Assumes 3-iterator tuple containing COO rows, cols, and
- * a cub keyvalue pair object. Sorts the 3 arrays in
- * ascending order: row->col->keyvaluepair
+ * a distance. Sorts the 3 arrays in
+ * ascending order: row->col->distance
  */
 struct TupleComp {
   template <typename one, typename two>
@@ -234,8 +234,8 @@ struct TupleComp {
     if (thrust::get<1>(t1) < thrust::get<1>(t2)) return true;
     if (thrust::get<1>(t1) > thrust::get<1>(t2)) return false;
 
-    // then sort by value in descending order
-    return thrust::get<2>(t1).value < thrust::get<2>(t2).value;
+    // then sort by distance
+    return thrust::get<2>(t1) < thrust::get<2>(t2);
   }
 };
 
@@ -466,15 +466,50 @@ void sort_by_color(raft::resources const& handle,
                    value_idx* src_indices,
                    size_t n_rows)
 {
+  auto stream      = raft::resource::get_cuda_stream(handle);
   auto exec_policy = raft::resource::get_thrust_policy(handle);
+  using KVP        = raft::KeyValuePair<value_idx, value_t>;
+
   thrust::counting_iterator<value_idx> arg_sort_iter(0);
   thrust::copy(exec_policy, arg_sort_iter, arg_sort_iter + n_rows, src_indices);
 
-  auto keys = thrust::make_zip_iterator(
-    thrust::make_tuple(colors, nn_colors, (raft::KeyValuePair<value_idx, value_t>*)kvp));
+  /**
+   * NOTE(HIP/AMD): the tie-break distance is pulled out into a plain array
+   * instead of being read through the KeyValuePair inside the sorted tuple.
+   *
+   * rocThrust miscompiles `sort_by_key` over a zip_iterator for some tuple
+   * element types: the result is not a permutation of the input (elements are
+   * duplicated and lost) and is not even ordered. It is not a strict-weak-
+   * ordering violation -- it reproduces with finite, non-NaN inputs and a valid
+   * comparator, with no RMM, RAFT or concurrency involved. Observed on gfx90a /
+   * ROCm 7.2.4 for n >= 1024, at -O0 and -O3 but not -O1/-O2.
+   *
+   * The trigger is narrow but not characterised: zip(int, int, KeyValuePair
+   * <int,float>) is affected while zip(int, int, int2) -- identical size,
+   * alignment and tuple layout -- is not, and plain `double`/`long long`
+   * payloads are also affected. Rather than reason from a theory of the bug,
+   * the shape used here (zip of int, int, float, carrying an int) was measured
+   * clean over colors {2,4,16} x seeds 1-4 x n up to 250k, and is marginally
+   * faster than the original. See SortByColorTest, which fails without this.
+   *
+   * This is a rocThrust defect and should be fixed there; remove this once it
+   * is. Any other zip_iterator sort carrying a struct is suspect for the same
+   * reason -- elsewhere it would silently return wrong answers rather than
+   * fault.
+   */
+  rmm::device_uvector<value_t> distances(n_rows, stream);
+  thrust::transform(
+    exec_policy, kvp, kvp + n_rows, distances.data(), [] __device__(KVP p) { return p.value; });
+
+  auto keys = thrust::make_zip_iterator(thrust::make_tuple(colors, nn_colors, distances.data()));
   auto vals = thrust::make_zip_iterator(thrust::make_tuple(src_indices));
   // get all the colors in contiguous locations so we can map them to warps.
   thrust::sort_by_key(exec_policy, keys, keys + n_rows, vals, TupleComp());
+
+  // kvp was left out of the sort, so apply the resulting permutation to it here.
+  rmm::device_uvector<KVP> tmp_kvp(n_rows, stream);
+  thrust::gather(exec_policy, src_indices, src_indices + n_rows, kvp, tmp_kvp.data());
+  raft::copy_async(kvp, tmp_kvp.data(), n_rows, stream);
 }
 
 template <typename value_idx, typename value_t>

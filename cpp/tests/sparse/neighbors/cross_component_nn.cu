@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -66,6 +66,11 @@ namespace cub = hipcub;
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstring>
+#include <random>
+#include <string>
+#include <tuple>
 #include <vector>
 
 namespace cuvs {
@@ -965,6 +970,152 @@ TEST_P(ConnectComponentsEdgesTestF_Int, Result) { EXPECT_TRUE(true); }
 INSTANTIATE_TEST_CASE_P(ConnectComponentsEdgesTest,
                         ConnectComponentsEdgesTestF_Int,
                         ::testing::ValuesIn(mr_fix_conn_inputsf2));
+
+/**
+ * Unit test for detail::sort_by_color.
+ *
+ * The contract is: src_indices ends up holding the permutation of [0, n_row)
+ * that orders the rows by (color, nn_color, kvp.value), and that same
+ * permutation is applied to colors, nn_colors and kvp, with each KeyValuePair
+ * moved as a whole.
+ *
+ * This is a regression test for a rocThrust defect in which sort_by_key over a
+ * zip_iterator carrying a KeyValuePair returns neither a permutation of its
+ * input nor a sorted result. It only appears for n_row >= 1024, so the small
+ * cases below are not sufficient on their own. Downstream the damage is
+ * indirect: min_components_by_color copies kvp.key into the column array of the
+ * output COO, symmetrize turns columns into rows, and the degree kernel then
+ * indexes out of bounds -- so a corrupt key surfaces as a fault several stages
+ * away from the sort that produced it. Checking the permutation here catches it
+ * at the source.
+ */
+struct SortByColorInputs {
+  size_t n_row;
+  int n_colors;
+  unsigned seed;
+};
+
+class SortByColorTestF_Int : public ::testing::TestWithParam<SortByColorInputs> {};
+
+TEST_P(SortByColorTestF_Int, PermutesRowsWithoutCorruptingKvp)
+{
+  using value_idx = int;
+  using value_t   = float;
+  using KVP       = raft::KeyValuePair<value_idx, value_t>;
+
+  auto params        = GetParam();
+  const size_t n_row = params.n_row;
+
+  raft::resources handle;
+  auto stream = raft::resource::get_cuda_stream(handle);
+
+  /**
+   * Draw colors from a small set so there are many ties on the first two sort
+   * keys and the kvp.value tie-break is actually exercised. Keys are always
+   * valid row indices, so any key outside [0, n_row) in the output is
+   * unambiguously corruption rather than a legitimate value.
+   */
+  std::mt19937 rng(params.seed);
+  std::uniform_int_distribution<value_idx> color_dist(0, params.n_colors - 1);
+  std::uniform_real_distribution<value_t> val_dist(1.0f, 1000.0f);
+
+  std::vector<value_idx> h_colors(n_row), h_nn_colors(n_row);
+  std::vector<KVP> h_kvp(n_row);
+  for (size_t i = 0; i < n_row; i++) {
+    h_colors[i]    = color_dist(rng);
+    h_nn_colors[i] = color_dist(rng);
+    h_kvp[i].key   = static_cast<value_idx>((i * 7919) % n_row);
+    h_kvp[i].value = val_dist(rng);
+  }
+
+  rmm::device_uvector<value_idx> colors(n_row, stream);
+  rmm::device_uvector<value_idx> nn_colors(n_row, stream);
+  rmm::device_uvector<value_idx> src_indices(n_row, stream);
+  rmm::device_uvector<KVP> kvp(n_row, stream);
+
+  raft::copy(colors.data(), h_colors.data(), n_row, stream);
+  raft::copy(nn_colors.data(), h_nn_colors.data(), n_row, stream);
+  raft::copy(kvp.data(), h_kvp.data(), n_row, stream);
+  raft::resource::sync_stream(handle, stream);
+
+  cuvs::sparse::neighbors::detail::sort_by_color<value_idx, value_t>(
+    handle, colors.data(), nn_colors.data(), kvp.data(), src_indices.data(), n_row);
+
+  std::vector<value_idx> out_colors(n_row), out_nn_colors(n_row), out_src(n_row);
+  std::vector<KVP> out_kvp(n_row);
+  raft::copy(out_colors.data(), colors.data(), n_row, stream);
+  raft::copy(out_nn_colors.data(), nn_colors.data(), n_row, stream);
+  raft::copy(out_src.data(), src_indices.data(), n_row, stream);
+  raft::copy(out_kvp.data(), kvp.data(), n_row, stream);
+  raft::resource::sync_stream(handle, stream);
+
+  // 1. src_indices is a permutation of [0, n_row). This is what fails when the
+  //    sort duplicates and drops elements.
+  std::vector<value_idx> sorted_src = out_src;
+  std::sort(sorted_src.begin(), sorted_src.end());
+  size_t n_not_perm = 0;
+  for (size_t i = 0; i < n_row; i++) {
+    if (sorted_src[i] != static_cast<value_idx>(i)) n_not_perm++;
+  }
+  ASSERT_EQ(n_not_perm, static_cast<size_t>(0))
+    << "src_indices is not a permutation of [0, " << n_row << "): " << n_not_perm
+    << " positions differ";
+
+  // 2. Every output row equals the input row named by src_indices.
+  size_t n_mismatched = 0;
+  std::string first_mismatch;
+  for (size_t i = 0; i < n_row; i++) {
+    value_idx src = out_src[i];
+    if (out_colors[i] == h_colors[src] && out_nn_colors[i] == h_nn_colors[src] &&
+        std::memcmp(&out_kvp[i], &h_kvp[src], sizeof(KVP)) == 0) {
+      continue;
+    }
+    if (n_mismatched == 0) {
+      // Report the key as a float too: a key that reads back as a plausible
+      // distance means a float landed in the int half of the pair.
+      float key_as_float;
+      std::memcpy(&key_as_float, &out_kvp[i].key, sizeof(float));
+      first_mismatch =
+        "row " + std::to_string(i) + " (src " + std::to_string(src) + "): got {" +
+        std::to_string(out_colors[i]) + ", " + std::to_string(out_nn_colors[i]) + ", {" +
+        std::to_string(out_kvp[i].key) + ", " + std::to_string(out_kvp[i].value) +
+        "}}, expected {" + std::to_string(h_colors[src]) + ", " + std::to_string(h_nn_colors[src]) +
+        ", {" + std::to_string(h_kvp[src].key) + ", " + std::to_string(h_kvp[src].value) +
+        "}}; key as float = " + std::to_string(key_as_float);
+    }
+    n_mismatched++;
+  }
+  ASSERT_EQ(n_mismatched, static_cast<size_t>(0))
+    << n_mismatched << " rows do not match the permutation in src_indices; first "
+    << first_mismatch;
+
+  // 3. Rows are ordered by color -> nn_color -> distance, which is what lets
+  //    min_components_by_color take the first entry of each run as the min.
+  for (size_t i = 1; i < n_row; i++) {
+    auto prev = std::make_tuple(out_colors[i - 1], out_nn_colors[i - 1], out_kvp[i - 1].value);
+    auto cur  = std::make_tuple(out_colors[i], out_nn_colors[i], out_kvp[i].value);
+    ASSERT_FALSE(cur < prev) << "output is not sorted by (color, nn_color, distance) at " << i;
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(SortByColorTest,
+                        SortByColorTestF_Int,
+                        ::testing::Values(SortByColorInputs{1, 1, 1234},
+                                          SortByColorInputs{10, 2, 1234},
+                                          SortByColorInputs{100, 4, 1234},
+                                          // below the n >= 1024 threshold
+                                          SortByColorInputs{1000, 2, 1234},
+                                          // at and above it, where the rocThrust
+                                          // zip sort defect appears
+                                          SortByColorInputs{1024, 2, 1234},
+                                          SortByColorInputs{1200, 2, 1},
+                                          SortByColorInputs{1200, 4, 1234},
+                                          // single component: every row ties on
+                                          // both color keys
+                                          SortByColorInputs{2048, 1, 1234},
+                                          SortByColorInputs{4096, 16, 5678},
+                                          SortByColorInputs{65536, 37, 1234},
+                                          SortByColorInputs{250000, 4, 1234}));
 
 };  // namespace sparse
 };  // end namespace cuvs
