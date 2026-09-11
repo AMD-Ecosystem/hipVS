@@ -36,7 +36,7 @@
 set -euxo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/_helpers.sh"
+source "${SCRIPT_DIR}/_activate-env.sh"
 require_envs PROJECT_ID SRC_DIR BUILD_DIR INSTALL_DIR ARTIFACTS_DIR \
     CMAKE_INSTALL_PREFIX \
     HIPVS_BENCHMARK_DATASET HIPVS_BENCHMARK_ALGORITHMS \
@@ -46,6 +46,11 @@ require_envs PROJECT_ID SRC_DIR BUILD_DIR INSTALL_DIR ARTIFACTS_DIR \
 if ! activate_hipvs_conda_env; then
     activate_hipvs_venv
 fi
+
+# TheRock-based ROCm installs hipBLASLt's Tensile kernels under a per-arch
+# subdir; point the runtime at them so hipBLASLt matmuls don't abort. Its
+# caller used to do this, and this script is now an entrypoint of its own.
+setup_hipblaslt_tensile_libpath
 
 pip install click "matplotlib>=3.9" pandas pyyaml requests scikit-learn h5py
 

@@ -21,6 +21,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# Shared helpers: environment validation and build-environment activation.
+# Meant to be sourced, not executed directly.
+#
+# Provides:
+#   require_envs()                    - fails with a clear error if any named
+#                                       variable is unset or empty
+#   activate_hipvs_venv()             - activates the dev venv build-dev.sh creates
+#   activate_hipvs_conda_env()        - activates HIPVS_CONDA_ENV when set
+#   setup_hipblaslt_tensile_libpath() - TheRock hipBLASLt layout workaround
+
 set -euo pipefail
 
 require_envs() {

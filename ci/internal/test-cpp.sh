@@ -21,22 +21,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# Run hipVS test suites based on environment variables.
+# Run the hipVS C++ and C test suites via ctest, and optionally the examples.
+#
+# Interpreter-independent, so the manylinux tester runs this once beside the
+# per-interpreter wheel matrix.
 #
 # Required environment variables:
 #   PROJECT_ID, BUILD_DIR, INSTALL_DIR
 #
-# Optional environment variables (each defaults to false):
-#   HIPVS_CPP_TESTS      -- run C++ and C tests via ctest
-#   HIPVS_PYTHON_TESTS   -- run Python tests via pytest
-#   HIPVS_RUST_TESTS     -- run Rust tests via cargo test
-#   HIPVS_RUN_BENCH_ANN  -- run ANN benchmarks
-#   HIPVS_RUN_EXAMPLES   -- run C and C++ examples
+# Optional environment variables:
+#   HIPVS_RUN_EXAMPLES -- also run the built C and C++ examples (default: false)
+#   HIPVS_CONDA_ENV, CONDA_DIR -- for conda-based environments
 
 set -euxo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/_helpers.sh"
+source "${SCRIPT_DIR}/_activate-env.sh"
 require_envs PROJECT_ID BUILD_DIR INSTALL_DIR
 
 printenv
@@ -52,44 +52,18 @@ setup_hipblaslt_tensile_libpath
 
 exit_code=0
 
-if [[ "${HIPVS_CPP_TESTS:-false}" == "true" ]]; then
-    echo "=== Running C++ tests ==="
-    (cd "${BUILD_DIR}/${PROJECT_ID}/cpp/build/tests" && ctest --output-on-failure .) || exit_code=$?
+echo "=== Running C++ tests ==="
+(cd "${BUILD_DIR}/${PROJECT_ID}/cpp/build/tests" && ctest --output-on-failure .) || exit_code=$?
 
-    # The C tests are registered in a sibling build dir (cpp/build/c/tests), so the
-    # C++ ctest invocation above does not pick them up. Run them here when present.
-    # They are only built when HIPVS_BUILD_TESTS=true (-> BUILD_C_TESTS=ON).
-    c_test_dir="${BUILD_DIR}/${PROJECT_ID}/cpp/build/c/tests"
-    if [[ -f "${c_test_dir}/CTestTestfile.cmake" ]]; then
-        echo "=== Running C tests ==="
-        (cd "${c_test_dir}" && ctest --output-on-failure .) || exit_code=$?
-    else
-        echo "=== Skipping C tests (not built; no ${c_test_dir}/CTestTestfile.cmake) ==="
-    fi
-fi
-
-if [[ "${HIPVS_PYTHON_TESTS:-false}" == "true" ]]; then
-    echo "=== Running Python tests ==="
-    pip install scikit-learn pytest-cov
-    (cd "${BUILD_DIR}/${PROJECT_ID}" && pytest -s -v python/cuvs/) || exit_code=$?
-fi
-
-if [[ "${HIPVS_RUN_BENCH_ANN:-false}" == "true" ]]; then
-    echo "=== Running ANN benchmarks ==="
-    bash "${SCRIPT_DIR}/bench.sh" || exit_code=$?
-fi
-
-if [[ "${HIPVS_RUST_TESTS:-false}" == "true" ]]; then
-    echo "=== Running Rust tests ==="
-    if [ -f "${HOME}/.cargo/env" ]; then
-        source "${HOME}/.cargo/env"
-    fi
-    rust_lib_prefix="${CMAKE_INSTALL_PREFIX:-/usr/local}"
-    if [[ "${rust_lib_prefix}" == "<conda-prefix>" ]]; then
-        rust_lib_prefix="${CONDA_PREFIX}"
-    fi
-    (cd "${BUILD_DIR}/${PROJECT_ID}/rust" && \
-        LD_LIBRARY_PATH="${rust_lib_prefix}/lib:${INSTALL_DIR}/lib:${LD_LIBRARY_PATH:-}" cargo test) || exit_code=$?
+# The C tests are registered in a sibling build dir (cpp/build/c/tests), so the
+# C++ ctest invocation above does not pick them up. Run them here when present.
+# They are only built when HIPVS_BUILD_TESTS=true (-> BUILD_C_TESTS=ON).
+c_test_dir="${BUILD_DIR}/${PROJECT_ID}/cpp/build/c/tests"
+if [[ -f "${c_test_dir}/CTestTestfile.cmake" ]]; then
+    echo "=== Running C tests ==="
+    (cd "${c_test_dir}" && ctest --output-on-failure .) || exit_code=$?
+else
+    echo "=== Skipping C tests (not built; no ${c_test_dir}/CTestTestfile.cmake) ==="
 fi
 
 if [[ "${HIPVS_RUN_EXAMPLES:-false}" == "true" ]]; then
