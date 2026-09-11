@@ -29,7 +29,7 @@
 set -euxo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/_helpers.sh"
+source "${SCRIPT_DIR}/_activate-env.sh"
 require_envs INSTALL_DIR CMAKE_VERSION
 
 os_id=$(. /etc/os-release; echo "$ID")
