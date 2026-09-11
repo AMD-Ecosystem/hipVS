@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # MIT License
 #
 # Copyright (c) 2026 Advanced Micro Devices, Inc.

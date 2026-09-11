@@ -46,7 +46,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_activate-env.sh"
 require_envs HIPVS_BUILD_TYPE PROJECT_ID SRC_DIR BUILD_DIR INSTALL_DIR ROCM_PATH AMDGPU_TARGETS BUILD_ARTIFACTS_DIR
 
+# shellcheck disable=SC2153  # BUILD_DIR and SRC_DIR are job mounts, not typos
 build_dir="${BUILD_DIR}/${PROJECT_ID}"
+# shellcheck disable=SC2153
 src_dir="${SRC_DIR}/${PROJECT_ID}"
 tests_tarball_name="${PROJECT_ID}-tests.tar.gz"
 
@@ -122,6 +124,6 @@ if [ -n "${create_tests_tarball:-}" ]; then
     [ -d "${dev_venv}" ] || dev_venv=""
 
     tar --exclude=.git -czf "${BUILD_ARTIFACTS_DIR}/${tests_tarball_name}" \
-        "${build_dir}" ${dev_venv}
+        "${build_dir}" ${dev_venv:+"${dev_venv}"}
     du -sh "${BUILD_ARTIFACTS_DIR}/${tests_tarball_name}"
 fi

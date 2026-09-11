@@ -120,7 +120,7 @@ echo "=============================================================="
 PATH="${python_bins[0]}:${base_path}" \
 BUILD_DIR="${BUILD_DIR}/libhipvs" \
 HIPVS_BUILD_TYPE="${HIPVS_BUILD_TYPE}" \
-HIPVS_BUILD_HIPVS= \
+HIPVS_BUILD_HIPVS="" \
   "${SCRIPT_DIR}/build-wheels.sh"
 
 for i in "${!python_versions[@]}"; do
@@ -135,7 +135,7 @@ for i in "${!python_versions[@]}"; do
   PATH="${python_bin}:${base_path}" \
   BUILD_DIR="${BUILD_DIR}/cp${python_version//./}" \
   HIPVS_BUILD_TYPE="${HIPVS_BUILD_TYPE}" \
-  HIPVS_BUILD_LIBHIPVS= \
+  HIPVS_BUILD_LIBHIPVS="" \
   USE_SABI="${sabi}" \
     "${SCRIPT_DIR}/build-wheels.sh"
 done

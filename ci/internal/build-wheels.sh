@@ -74,17 +74,17 @@ build_hipvs=${HIPVS_BUILD_HIPVS-1}
 if [ "${USE_SABI:-no}" = "no" ]; then
   hipvs_wheel_config=(--config-settings=skbuild.wheel.py-api=)
 else
-  hipvs_wheel_config=(--config-settings=skbuild.wheel.py-api=cp${USE_SABI//./})
+  hipvs_wheel_config=("--config-settings=skbuild.wheel.py-api=cp${USE_SABI//./}")
 fi
 
 src_dir=${SRC_DIR}/${PROJECT_ID}
 wheels_build_dir=${BUILD_DIR}/_WHEELS_/
 build_dir="${wheels_build_dir}/${PROJECT_ID}"
 
-mkdir -p ${wheels_build_dir}
-cp -va ${src_dir}/. ${build_dir}/
+mkdir -p "${wheels_build_dir}"
+cp -va "${src_dir}/." "${build_dir}/"
 
-cd ${build_dir}
+cd "${build_dir}"
     . "${SCRIPT_DIR}/_build-preamble.sh"
 
     cmake_args+=(
@@ -92,14 +92,15 @@ cd ${build_dir}
       "-DCMAKE_HIP_ARCHITECTURES=${AMDGPU_TARGETS}"
     )
 
-    export SKBUILD_CMAKE_ARGS="$(IFS=';'; echo "${cmake_args[*]}")"
+    SKBUILD_CMAKE_ARGS="$(IFS=';'; echo "${cmake_args[*]}")"
+    export SKBUILD_CMAKE_ARGS
     export HIP_PLATFORM=amd
     export RAPIDS_DISABLE_CUDA=true
     export WHEEL_BUILD_ROOT="${build_dir}"
 
     wheels_build_env=$(mktemp -d)
-    python3 -m venv ${wheels_build_env}
-    . ${wheels_build_env}/bin/activate
+    python3 -m venv "${wheels_build_env}"
+    . "${wheels_build_env}/bin/activate"
 
         . "${SCRIPT_DIR}/_install-build-deps.sh"
 
@@ -120,6 +121,6 @@ cd ${build_dir}
 
     # cleanup
     deactivate # deactivate venv
-    rm -rf ${wheels_build_env}
+    rm -rf "${wheels_build_env}"
 
-rm -rf ${build_dir}
+rm -rf "${build_dir}"

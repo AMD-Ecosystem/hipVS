@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # MIT License
 #
 # Copyright (c) 2026 Advanced Micro Devices, Inc.
@@ -73,6 +74,7 @@ fi
 
 # The dependency checkouts CPM resolves from instead of downloading. The paths
 # are the manifest's, and the dev pipelines use the same ones.
+# shellcheck disable=SC2034  # consumed by the script that sources this preamble
 cmake_args=(
     "-DCUVS_RAFT_CLONE_ON_PIN=OFF"
     ${no_use_versions_json:+"-DCPM_libhipcxx_SOURCE=${SRC_DIR}/libhipcxx"}

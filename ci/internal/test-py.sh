@@ -65,9 +65,9 @@ cd "${BUILD_DIR}/${PROJECT_ID}"
 
     TIMEOUT_PER_TEST_SEC=240
 
-    run_tests python/cuvs/cuvs/tests ${CSV_OUTPUT_DIR} ${TIMEOUT_PER_TEST_SEC}
+    run_tests python/cuvs/cuvs/tests "${CSV_OUTPUT_DIR}" "${TIMEOUT_PER_TEST_SEC}"
 
-    result=$(merge_test_results ${CSV_OUTPUT_DIR}) || test_failures=1
-    echo $result > ${ARTIFACTS_DIR}/${PROJECT_ID}-test-results-py.csv
+    result=$(merge_test_results "${CSV_OUTPUT_DIR}") || test_failures=1
+    echo "$result" > "${ARTIFACTS_DIR}/${PROJECT_ID}-test-results-py.csv"
 
-exit $test_failures
+exit "$test_failures"

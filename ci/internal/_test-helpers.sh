@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # MIT License
 #
 # Copyright (c) 2026 Advanced Micro Devices, Inc.
@@ -44,11 +45,11 @@ function run_tests() {
     set +e # continue on error
     local suffix=${5:-""}
     local id_suffix=${6:-""}
-    find $1 -name "test_*.py" \
+    find "$1" -name "test_*.py" \
       -printf "run_tests: found test file: %p\n" \
       -exec bash -c '
-        csv_file="$2/{}${5}.csv"
-        pytest $4 -v --timeout $3 {} \
+        csv_file="$2/$7${5}.csv"
+        pytest $4 -v --timeout $3 "$7" \
         --continue-on-collection-errors \
         --csv "$csv_file" --csv-columns file,id,status,message
         if [[ -n "$5" && -f "$csv_file" ]]; then
@@ -57,7 +58,7 @@ function run_tests() {
           tail -n +2 "$csv_file" | awk -F"," -v suffix="$6" "BEGIN{OFS=\",\"} {\$2=\$2 suffix; print}" >> "$temp_file"
           mv "$temp_file" "$csv_file"
         fi
-        ' _ "$1" "$2" "$3" "$4" "$suffix" "$id_suffix" \;
+        ' _ "$1" "$2" "$3" "$4" "$suffix" "$id_suffix" {} \;
     set -e
 }
 
@@ -76,26 +77,24 @@ function merge_test_results() {
     test_failures=0
     # first add results with no 'failed' or 'error' status (xfailed are included)
     i=0
-    for f in $(grep -rL "${FAILURE_EXPR}" --include="*.csv" $1); do
-        # echo $f
+    while IFS= read -r f; do
         if (( i == 0 )); then
-            result+=$(cat $f)
+            result+=$(cat "$f")
         else
-            result+=$(tail -n +2 $f)
+            result+=$(tail -n +2 "$f")
         fi
         i=1
-    done
+    done < <(grep -rL "${FAILURE_EXPR}" --include="*.csv" "$1")
     # second include results with failed
-    for f in $(grep -rl "${FAILURE_EXPR}" --include="*.csv" $1); do
+    while IFS= read -r f; do
         test_failures=1
-        # echo $f
         if (( i == 0 )); then
-            result+=$(cat $f)
+            result+=$(cat "$f")
         else
-            result+=$(tail -n +2 $f)
+            result+=$(tail -n +2 "$f")
         fi
         i=1
-    done
-    echo $result
+    done < <(grep -rl "${FAILURE_EXPR}" --include="*.csv" "$1")
+    echo "$result"
     return $test_failures
 }

@@ -49,8 +49,8 @@ source "${SCRIPT_DIR}/_wheel-helpers.sh"
 setup_hipblaslt_tensile_libpath
 
 wheels_test_env=$(mktemp -d)
-python3 -m venv ${wheels_test_env}
-. ${wheels_test_env}/bin/activate
+python3 -m venv "${wheels_test_env}"
+. "${wheels_test_env}/bin/activate"
 
   pip install --upgrade pip
   . "${SCRIPT_DIR}/_install-test-deps.sh"
@@ -62,19 +62,19 @@ python3 -m venv ${wheels_test_env}
     "amd_hipvs${HIPVS_VERSION:+==${HIPVS_VERSION}}"
 
   test_failures=0
-  cd ${BUILD_DIR}/${PROJECT_ID}
+  cd "${BUILD_DIR}/${PROJECT_ID}"
 
       results_suffix=${HIPVS_TEST_RESULTS_SUFFIX:+-${HIPVS_TEST_RESULTS_SUFFIX}}
       CSV_OUTPUT_DIR=${PROJECT_ID}_pytest_output${results_suffix}
 
       TIMEOUT_PER_TEST_SEC=240
 
-      run_tests python/cuvs/cuvs/tests ${CSV_OUTPUT_DIR} ${TIMEOUT_PER_TEST_SEC}
+      run_tests python/cuvs/cuvs/tests "${CSV_OUTPUT_DIR}" "${TIMEOUT_PER_TEST_SEC}"
 
-      result=$(merge_test_results ${CSV_OUTPUT_DIR}) || test_failures=1
-      echo $result > ${ARTIFACTS_DIR}/${PROJECT_ID}-test-results-py${results_suffix}.csv
+      result=$(merge_test_results "${CSV_OUTPUT_DIR}") || test_failures=1
+      echo "$result" > "${ARTIFACTS_DIR}/${PROJECT_ID}-test-results-py${results_suffix}.csv"
 
 deactivate
-rm -rf ${wheels_test_env}
+rm -rf "${wheels_test_env}"
 
-exit $test_failures
+exit "$test_failures"

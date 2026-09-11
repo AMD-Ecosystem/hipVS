@@ -32,6 +32,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_activate-env.sh"
 require_envs PROJECT_ID SRC_DIR BUILD_DIR INSTALL_DIR
 
+# shellcheck disable=SC2153  # BUILD_DIR is a job mount, not a typo
 build_dir="${BUILD_DIR}/${PROJECT_ID}"
 
 if [[ ! -d "${build_dir}" ]]; then
