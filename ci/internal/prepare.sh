@@ -53,13 +53,3 @@ fi
 pip install --upgrade pip
 pip install --force-reinstall cmake${CMAKE_VERSION:+==${CMAKE_VERSION}}
 pip install setuptools scikit-build-core auditwheel cython pytest "numba<0.62" fastrlock
-
-if [[ "${ROCM_SPECIFIER}" != "therock:"* ]]; then
-    if [[ "${os_id}" == *"ubuntu"* ]]; then
-        rocm_suffix=$(apt list --installed 2>/dev/null | grep rocm-core | grep -v rocm-core-asan | cut -d '/' -f1 | sed 's,rocm-core,,g')
-        apt install -y "rocthrust-dev${rocm_suffix}" "hipcub${rocm_suffix}" "hipblas${rocm_suffix}" "hipblas-dev${rocm_suffix}" "hipfft${rocm_suffix}" "hipsparse${rocm_suffix}" "hiprand${rocm_suffix}" "rocsolver${rocm_suffix}" "rocrand-dev${rocm_suffix}" "rccl-dev${rocm_suffix}" "hipsolver${rocm_suffix}"
-    elif [[ "${os_id_like}" == *"rhel"* ]]; then
-        rocm_suffix=$(rpm -qa | grep '^rocm-core[0-9]' | grep -v asan | head -1 | sed 's,rocm-core,,; s,-.*,,')
-        dnf install -y "rocthrust-devel${rocm_suffix}" "hipcub${rocm_suffix}" "hipblas${rocm_suffix}" "hipblas-devel${rocm_suffix}" "hipfft${rocm_suffix}" "hipsparse${rocm_suffix}" "hiprand${rocm_suffix}" "rocsolver${rocm_suffix}" "rocrand-devel${rocm_suffix}" "rccl-devel${rocm_suffix}" "hipsolver${rocm_suffix}"
-    fi
-fi
