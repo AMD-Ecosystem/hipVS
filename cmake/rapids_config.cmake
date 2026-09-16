@@ -41,6 +41,13 @@ set(RAPIDS_CMAKE_MODULE_PATH
 if(NOT "${RAPIDS_CMAKE_MODULE_PATH}" STREQUAL "")
   # Prefer the user-provided path to the default path
   list(APPEND CMAKE_MODULE_PATH "${RAPIDS_CMAKE_MODULE_PATH}")
+  # NOTE(HIP/AMD): normally rapids-cmake-dir is set by RAPIDS.cmake when it FetchContent-populates
+  # rapids-cmake. We skip that download and point at a local checkout instead, so nothing sets
+  # rapids-cmake-dir and cpm modules such as package_override.cmake resolve
+  # "${rapids-cmake-dir}/cpm/detail/..." to a bare "/cpm/detail/...". RAPIDS_CMAKE_MODULE_PATH
+  # already points at the rapids-cmake/ module dir that rapids-cmake-dir is meant to hold, so set
+  # it.
+  set(rapids-cmake-dir "${RAPIDS_CMAKE_MODULE_PATH}")
   include(rapids-cmake)
   return()
 endif()
