@@ -91,11 +91,29 @@ cd "${build_dir}"
 
     cmake_args+=(
       "-DCMAKE_CXX_COMPILER=hipcc"
-      "-DCMAKE_HIP_ARCHITECTURES=${AMDGPU_TARGETS}"
     )
 
     SKBUILD_CMAKE_ARGS="$(IFS=';'; echo "${cmake_args[*]}")"
     export SKBUILD_CMAKE_ARGS
+
+    ### the GPU architectures, which cannot travel in SKBUILD_CMAKE_ARGS
+    #
+    # scikit-build-core splits SKBUILD_CMAKE_ARGS on ';' and offers no escape,
+    # so a multi-arch list -- the ';'-separated form CMAKE_HIP_ARCHITECTURES
+    # itself wants -- is torn apart: "-DCMAKE_HIP_ARCHITECTURES=gfx90a;gfx942"
+    # arrives as "-DCMAKE_HIP_ARCHITECTURES=gfx90a" plus a stray "gfx942" that
+    # cmake ignores. The wheel then carries code objects for the first arch
+    # alone and every kernel launch on any other one fails at runtime with
+    # hipErrorInvalidImage / hipErrorInvalidKernelFile, a stage and a container
+    # after the build that caused it.
+    #
+    # CMAKE_ARGS is the env vehicle that survives: scikit-build-core shlex-
+    # splits it, i.e. on whitespace, so ';' passes through untouched. Normalize
+    # ',' and whitespace to ';' first, because AMDGPU_TARGETS is written in all
+    # three forms (see _activate-env.sh) and only ';' is a CMake list.
+    hip_architectures=$(echo "${AMDGPU_TARGETS}" | tr ',' ' ' | xargs | tr ' ' ';')
+    CMAKE_ARGS="${CMAKE_ARGS:+${CMAKE_ARGS} }-DCMAKE_HIP_ARCHITECTURES=${hip_architectures}"
+    export CMAKE_ARGS
     export HIP_PLATFORM=amd
     export RAPIDS_DISABLE_CUDA=true
     export WHEEL_BUILD_ROOT="${build_dir}"
