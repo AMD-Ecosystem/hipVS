@@ -46,7 +46,7 @@ channels:
 - conda-forge
 dependencies:
 - doxygen
-- cython=3.0.0
+- cython>=3.2.2
 - python=3.10
 - scikit-build-core>=0.10.0
 - scikit-learn
