@@ -37,7 +37,7 @@
 set -euo pipefail
 
 pip install --upgrade pip
-pip install numpy scipy scikit-learn
+pip install numpy scipy scikit-learn fastrlock
 pip install pytest pytest-cov pytest-csv pytest-timeout
 
 # hipVS wheels are installed separately by test-wheels.sh, which resolves their
@@ -51,4 +51,5 @@ pip install --no-deps \
     rocm-bindings-core \
     rocm-bindings-hip \
     rocm-bindings-compiler \
+    rocm-bindings-systems \
     hip-python-interop
