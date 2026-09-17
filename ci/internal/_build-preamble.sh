@@ -106,5 +106,19 @@ if [[ "${os_id}" == *"almalinux"* ]]; then
     export CMAKE_GENERATOR="Unix Makefiles"
 fi
 
-export PARALLEL_LEVEL=${MAX_JOBS:-1}
+# Build parallelism, in the two spellings it has to travel in.
+#
+# PARALLEL_LEVEL is the RAPIDS convention: build.sh reads it for its own
+# `cmake --build -j`, so the C++ build has always honoured it.
+#
+# CMAKE_BUILD_PARALLEL_LEVEL is the one CMake itself honours, and it is the
+# only one that reaches the wheel builds. scikit-build-core runs a bare
+# `cmake --build <dir>` with no -j of its own and ignores PARALLEL_LEVEL (and
+# classic scikit-build's SKBUILD_BUILD_OPTIONS, which build.sh still sets).
+# Combined with the AlmaLinux branch above selecting Unix Makefiles -- whose
+# default is one job, where Ninja would have defaulted to the host's core count
+# and hidden this -- the wheels were compiling single-threaded no matter what
+# MAX_JOBS said.
+export PARALLEL_LEVEL=${MAX_JOBS:-$(nproc)}
+export CMAKE_BUILD_PARALLEL_LEVEL=${PARALLEL_LEVEL}
 export CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH:-}:${install_prefix}:${ROCM_PATH}/lib/cmake"
