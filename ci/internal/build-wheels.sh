@@ -30,6 +30,8 @@
 #
 # Optional environment variables:
 #   HIPVS_BUILD_TYPE, CMAKE_VERSION
+#   HIPVS_ENABLE_CK_BACKEND -- build the Composable Kernel distance backend
+#                              (default: true); read by _build-preamble.sh
 #   HIPVS_VERSION   -- pins the wheels this build installs from BUILD_ARTIFACTS_DIR
 #   HIPMM_VERSION, HIPRAFT_VERSION -- pin the upstream wheels
 #                      _install-build-deps.sh resolves

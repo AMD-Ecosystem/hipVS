@@ -43,6 +43,9 @@
 #   SCCACHE_ENABLE, AMDGPU_TARGETS, MAX_JOBS
 #   CMAKE_INSTALL_PREFIX -- overrides INSTALL_DIR as the install prefix;
 #                           '<conda-prefix>' selects the active conda env
+#   HIPVS_ENABLE_CK_BACKEND -- build the Composable Kernel distance backend
+#                              (default: true); "false" passes
+#                              -DBUILD_CK_BACKEND=OFF
 
 set -euo pipefail
 
@@ -63,6 +66,8 @@ cmake --version && cpack --version && ctest --version
 [[ "${HIPVS_USE_VERSIONS_JSON:-false}" == "false" ]] && no_use_versions_json=1
 
 [[ "${SCCACHE_ENABLE:-false}" == "true" ]] && use_sccache=1
+
+[[ "${HIPVS_ENABLE_CK_BACKEND:-true}" == "false" ]] && disable_ck_backend=1
 
 # The job's install root is the prefix unless the caller overrides it, so a
 # build that only gets the mounts still installs where the job expects.
@@ -85,6 +90,7 @@ cmake_args=(
     ${use_sccache:+"-DCMAKE_HIP_COMPILER_LAUNCHER=sccache"}
     ${use_sccache:+"-DCMAKE_CXX_COMPILER_LAUNCHER=sccache"}
     ${use_sccache:+"-DCMAKE_C_COMPILER_LAUNCHER=sccache"}
+    ${disable_ck_backend:+"-DBUILD_CK_BACKEND=OFF"}
 )
 
 if [ -d "/opt/rh/gcc-toolset-$(g++ -dumpversion)" ]; then
