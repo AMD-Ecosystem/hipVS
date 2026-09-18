@@ -53,7 +53,7 @@ setup_hipblaslt_tensile_libpath
 exit_code=0
 
 echo "=== Running C++ tests ==="
-(cd "${BUILD_DIR}/${PROJECT_ID}/cpp/build/tests" && ctest --output-on-failure .) || exit_code=$?
+(cd "${BUILD_DIR}/${PROJECT_ID}/cpp/build/tests" && ctest -V .) || exit_code=$?
 
 # The C tests are registered in a sibling build dir (cpp/build/c/tests), so the
 # C++ ctest invocation above does not pick them up. Run them here when present.
@@ -61,7 +61,7 @@ echo "=== Running C++ tests ==="
 c_test_dir="${BUILD_DIR}/${PROJECT_ID}/cpp/build/c/tests"
 if [[ -f "${c_test_dir}/CTestTestfile.cmake" ]]; then
     echo "=== Running C tests ==="
-    (cd "${c_test_dir}" && ctest --output-on-failure .) || exit_code=$?
+    (cd "${c_test_dir}" && ctest -V .) || exit_code=$?
 else
     echo "=== Skipping C tests (not built; no ${c_test_dir}/CTestTestfile.cmake) ==="
 fi
