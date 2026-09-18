@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #include <gtest/gtest.h>
 
 #include <cuvs/neighbors/ivf_flat.hpp>
@@ -511,7 +535,22 @@ TEST(IvfFlatUdfInvalidSource, SearchThrowsWhenMetricUdfDoesNotCompile)
 __device__ void not_even_close_to_valid( { { {
 )__"};
 
-  EXPECT_THROW(ivf_flat::search(handle, sp, idx, q_view, out_idx, out_dist), raft::logic_error);
+  // Assert on the message, not just the exception type. Every failure along the JIT-LTO path
+  // -- compile, link, module load -- raises raft::logic_error, so a bare EXPECT_THROW here
+  // passes just as happily when the linker is completely broken, which is exactly how a dead
+  // UDF path once hid behind this test. Requiring the compiler's log pins it to the intended
+  // failure (see NVRTCLTOFragmentCompiler::compile).
+  EXPECT_THROW(
+    {
+      try {
+        ivf_flat::search(handle, sp, idx, q_view, out_idx, out_dist);
+      } catch (const raft::logic_error& e) {
+        EXPECT_NE(std::string{e.what()}.find("nvrtc compile error log"), std::string::npos)
+          << "expected an NVRTC compilation failure, got: " << e.what();
+        throw;
+      }
+    },
+    raft::logic_error);
 }
 
 }  // namespace cuvs::neighbors::ivf_flat

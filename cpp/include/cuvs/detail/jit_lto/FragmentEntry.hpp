@@ -29,6 +29,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <stdexcept>
 #include <string>
 #include <typeinfo>
@@ -86,6 +87,14 @@ struct FragmentEntry {
   virtual const char* get_key() const = 0;
 
 #ifdef __HIP_PLATFORM_AMD__
+  // Name handed to hiprtcLinkAddData, which forwards it to amd_comgr_set_data_name().
+  // comgr materializes each linker input as a file named after its data name, so this
+  // has to look like a filename: short, single-line, no path separators. That is not a
+  // constraint the cache key has to satisfy, hence the split -- see UDFFatbinFragment,
+  // whose key is the entire UDF source. nvJitLink takes the name as a free-form
+  // diagnostic label, so the NVIDIA path keeps using get_key() directly.
+  virtual const char* get_link_name() const { return get_key(); }
+
   // Select which pre-compiled per-family bitcode this fragment should expose via
   // get_data()/get_length(). No-op for fragments that are not family-specific
   // (e.g. runtime-compiled UDF fragments).
@@ -173,15 +182,43 @@ struct UDFFatbinFragment final : FatbinFragmentEntry {
   UDFFatbinFragment(std::string key, std::vector<uint8_t> bytes)
     : key_(std::move(key)), bytes_(std::move(bytes))
   {
+#ifdef __HIP_PLATFORM_AMD__
+    link_name_ = make_link_name(key_);
+#endif
   }
 
   const uint8_t* get_data() const override { return bytes_.data(); }
 
   size_t get_length() const override { return bytes_.size(); }
 
+  // The whole UDF source. Callers use this to key the launcher cache, so it must stay
+  // the full text: two different UDFs must never share a cache entry.
   const char* get_key() const override { return key_.c_str(); }
 
+#ifdef __HIP_PLATFORM_AMD__
+  const char* get_link_name() const override { return link_name_.c_str(); }
+#endif
+
  private:
+#ifdef __HIP_PLATFORM_AMD__
+  // The key is a multi-KB C++ source containing newlines, braces and slashes, which
+  // amd_comgr_set_data_name() rejects (it becomes a filename). Derive a short
+  // filename-safe label instead. This is a diagnostic label only -- correctness does not
+  // depend on it being collision-free, and a link never holds more than one UDF fragment.
+  static std::string make_link_name(const std::string& source)
+  {
+    constexpr char kHexDigits[] = "0123456789abcdef";
+    auto digest                 = std::hash<std::string>{}(source);
+
+    std::string name = "udf_";
+    for (int shift = static_cast<int>(sizeof(digest)) * 8 - 4; shift >= 0; shift -= 4) {
+      name.push_back(kHexDigits[(digest >> shift) & 0xf]);
+    }
+    return name;
+  }
+
+  std::string link_name_;
+#endif
   std::string key_;
   std::vector<uint8_t> bytes_;
 };
