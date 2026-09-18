@@ -30,6 +30,7 @@ import numpy as np
 
 cimport cuvs.common.cydlpack
 
+from cuvs.common.cydlpack import dl_data_type_to_numpy
 from cuvs.common.resources import auto_sync_resources
 
 from cython.operator cimport dereference as deref
@@ -82,6 +83,17 @@ cdef class Index:
     def trained(self):
         return self.trained
 
+    @property
+    def dtype(self):
+        """
+        The dtype of the dataset the index was built from, as a
+        ``numpy.dtype``. Queries passed to :func:`search` must have this
+        dtype. ``None`` until the index has been built or loaded.
+        """
+        if not self.trained:
+            return None
+        return np.dtype(dl_data_type_to_numpy(self.index.dtype))
+
     def __repr__(self):
         return "Index(type=BruteForce)"
 
@@ -94,9 +106,18 @@ def build(dataset, metric="sqeuclidean", metric_arg=2.0, resources=None):
     Parameters
     ----------
     dataset : CUDA array interface compliant matrix shape (n_samples, dim)
-        Supported dtype [float32, float16]
+        Supported dtype [float64, float32, float16]. A float64 dataset is
+        searched in double precision and yields float64 distances; float32
+        and float16 datasets yield float32 distances.
     metric : Distance metric to use. Default is sqeuclidean
     metric_arg : value of 'p' for Minkowski distances
+        Read only by the 'minkowski'/'lp' metrics, and carried as float32
+        below the Python layer. A 'p' that is not exactly representable in
+        float32 (2.1, say, unlike 2.0 or 1.5) is therefore rounded, and a
+        float64 search returns the exact Lp distances for the rounded 'p' --
+        around 1e-7 relative away from the ones asked for, so distance
+        values keep only float32 accuracy. Neighbor order is unaffected
+        unless two candidates are that close together.
     {resources_docstring}
 
     Returns
@@ -122,7 +143,8 @@ def build(dataset, metric="sqeuclidean", metric_arg=2.0, resources=None):
 
     dataset_ai = wrap_array(dataset)
     _check_input_array(dataset_ai,
-                       [np.dtype('float32'), np.dtype('float16')],
+                       [np.dtype('float64'), np.dtype('float32'),
+                        np.dtype('float16')],
                        exp_row_major=False)
 
     cdef cuvsResources_t res = <cuvsResources_t>resources.get_c_obj()
@@ -162,7 +184,8 @@ def search(Index index,
     index : Index
         Trained Brute Force index.
     queries : CUDA array interface compliant matrix shape (n_samples, dim)
-        Supported dtype [float32, float16]
+        Supported dtype [float64, float32, float16]. Must be exactly
+        ``index.dtype``; the queries are not cast for you.
     k : int
         The number of neighbors.
     neighbors : Optional CUDA array interface compliant matrix shape
@@ -171,6 +194,9 @@ def search(Index index,
     distances : Optional CUDA array interface compliant matrix shape
                 (n_queries, k) If supplied, the distances to the
                 neighbors will be written here in-place. (default None)
+                The distance dtype follows the index: float64 for a
+                float64 index, float32 for a float32 or float16 index.
+                Automatically allocated outputs use the same rule.
     prefilter : Optional, cuvs.neighbors.cuvsFilter
                 An optional filter to exclude certain query-neighbor
                 pairs using a bitmap or bitset. The filter function should
@@ -249,9 +275,14 @@ def search(Index index,
     cdef cuvsResources_t res = <cuvsResources_t>resources.get_c_obj()
 
     queries_cai = wrap_array(queries)
-    _check_input_array(queries_cai,
-                       [np.dtype('float32'), np.dtype('float16')],
-                       exp_row_major=False)
+    if queries_cai.dtype != index.dtype:
+        raise TypeError(
+            f"queries dtype {queries_cai.dtype} must match index dtype "
+            f"{index.dtype}"
+        )
+
+    distance_dtype = (np.dtype('float64') if index.dtype == np.dtype('float64')
+                      else np.dtype('float32'))
 
     cdef uint32_t n_queries = queries_cai.shape[0]
 
@@ -263,10 +294,10 @@ def search(Index index,
                        exp_rows=n_queries, exp_cols=k)
 
     if distances is None:
-        distances = device_ndarray.empty((n_queries, k), dtype='float32')
+        distances = device_ndarray.empty((n_queries, k), dtype=distance_dtype)
 
     distances_cai = wrap_array(distances)
-    _check_input_array(distances_cai, [np.dtype('float32')],
+    _check_input_array(distances_cai, [distance_dtype],
                        exp_rows=n_queries, exp_cols=k)
 
     cdef cydlpack.DLManagedTensor* queries_dlpack = \
@@ -349,6 +380,8 @@ def load(filename, resources=None):
     Returns
     -------
     index : Index
+        The dtype the index was built with (float64, float32 or float16) is
+        recorded in the file and restored in ``index.dtype``.
 
     Examples
     --------

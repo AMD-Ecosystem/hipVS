@@ -69,7 +69,8 @@ class AnnBruteForceTest : public ::testing::TestWithParam<AnnBruteForceInputs<Id
 
   void testBruteForce()
   {
-    size_t queries_size = ps.num_queries * ps.k;
+    size_t queries_size   = ps.num_queries * ps.k;
+    constexpr T tolerance = std::is_same_v<T, double> ? T{1e-9} : T{0.001};
 
     rmm::device_uvector<T> distances_naive_dev(queries_size, stream_);
     rmm::device_uvector<IdxT> indices_naive_dev(queries_size, stream_);
@@ -120,7 +121,7 @@ class AnnBruteForceTest : public ::testing::TestWithParam<AnnBruteForceInputs<Id
                                                       distances_bruteforce_dev.data(),
                                                       ps.num_queries,
                                                       ps.k,
-                                                      0.001f,
+                                                      tolerance,
                                                       stream_,
                                                       true));
 
@@ -143,7 +144,7 @@ class AnnBruteForceTest : public ::testing::TestWithParam<AnnBruteForceInputs<Id
                                                       distances_bruteforce_dev.data(),
                                                       ps.num_queries,
                                                       ps.k,
-                                                      0.001f,
+                                                      tolerance,
                                                       stream_,
                                                       true));
     }
@@ -155,7 +156,7 @@ class AnnBruteForceTest : public ::testing::TestWithParam<AnnBruteForceInputs<Id
     search_queries.resize(ps.num_queries * ps.dim, stream_);
 
     raft::random::RngState r(1234ULL);
-    if constexpr (std::is_same<DataT, float>{} || std::is_same<DataT, half>{}) {
+    if constexpr (std::is_floating_point_v<DataT> || std::is_same_v<DataT, half>) {
       raft::random::uniform(
         handle_, r, database.data(), ps.num_db_vecs * ps.dim, DataT(0.1), DataT(2.0));
       raft::random::uniform(

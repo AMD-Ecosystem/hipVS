@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -58,11 +58,12 @@ extern "C" void run_brute_force(int64_t n_rows,
                                 int64_t n_queries,
                                 int64_t n_dim,
                                 uint32_t n_neighbors,
-                                float* index_data,
-                                float* query_data,
+                                uint8_t dtype_bits,
+                                void* index_data,
+                                void* query_data,
                                 uint32_t* prefilter_data,
                                 enum cuvsFilterType filter_type,
-                                float* distances_data,
+                                void* distances_data,
                                 int64_t* neighbors_data,
                                 cuvsDistanceType metric);
 
@@ -424,13 +425,9 @@ void recall_eval_with_filter(T* query_data,
                                                min_recall));
 };
 
-TEST(BruteForceC, BuildSearch)
+template <typename T>
+void run_test_build_search(int64_t n_rows, int64_t n_queries, int64_t n_dim, uint32_t n_neighbors)
 {
-  int64_t n_rows       = 8096;
-  int64_t n_queries    = 128;
-  int64_t n_dim        = 32;
-  uint32_t n_neighbors = 8;
-
   raft::handle_t handle;
   auto stream = raft::resource::get_cuda_stream(handle);
 
@@ -438,10 +435,10 @@ TEST(BruteForceC, BuildSearch)
 
   uint32_t* filter_data = NULL;
 
-  rmm::device_uvector<float> index_data(n_rows * n_dim, stream);
-  rmm::device_uvector<float> query_data(n_queries * n_dim, stream);
+  rmm::device_uvector<T> index_data(n_rows * n_dim, stream);
+  rmm::device_uvector<T> query_data(n_queries * n_dim, stream);
   rmm::device_uvector<int64_t> neighbors_data(n_queries * n_neighbors, stream);
-  rmm::device_uvector<float> distances_data(n_queries * n_neighbors, stream);
+  rmm::device_uvector<T> distances_data(n_queries * n_neighbors, stream);
 
   generate_random_data(index_data.data(), n_rows * n_dim);
   generate_random_data(query_data.data(), n_queries * n_dim);
@@ -450,6 +447,7 @@ TEST(BruteForceC, BuildSearch)
                   n_queries,
                   n_dim,
                   n_neighbors,
+                  static_cast<uint8_t>(sizeof(T) * 8),
                   index_data.data(),
                   query_data.data(),
                   filter_data,
@@ -470,6 +468,11 @@ TEST(BruteForceC, BuildSearch)
               metric);
 }
 
+TEST(BruteForceC, BuildSearch) { run_test_build_search<float>(8096, 128, 32, 8); }
+
+TEST(BruteForceC, BuildSearchFloat64) { run_test_build_search<double>(8096, 128, 32, 8); }
+
+template <typename T>
 void run_test_with_filter(int64_t n_samples,
                           int64_t n_queries,
                           int64_t n_dim,
@@ -488,15 +491,15 @@ void run_test_with_filter(int64_t n_samples,
   cuvsDistanceType metric = L2Expanded;
   bool select_min         = cuvs::distance::is_min_close(static_cast<cuvs::distance::DistanceType>((int)metric));
 
-  std::vector<float> distances_ref_h(
+  std::vector<T> distances_ref_h(
     n_queries * n_neighbors,
-    select_min ? std::numeric_limits<float>::infinity() : std::numeric_limits<float>::lowest());
+    select_min ? std::numeric_limits<T>::infinity() : std::numeric_limits<T>::lowest());
   std::vector<int64_t> neighbors_ref_h(n_queries * n_neighbors, static_cast<int64_t>(0));
 
-  rmm::device_uvector<float> index_data(n_samples * n_dim, stream);
-  rmm::device_uvector<float> query_data(n_queries * n_dim, stream);
+  rmm::device_uvector<T> index_data(n_samples * n_dim, stream);
+  rmm::device_uvector<T> query_data(n_queries * n_dim, stream);
   rmm::device_uvector<int64_t> neighbors_data(n_queries * n_neighbors, stream);
-  rmm::device_uvector<float> distances_data(n_queries * n_neighbors, stream);
+  rmm::device_uvector<T> distances_data(n_queries * n_neighbors, stream);
   rmm::device_uvector<uint32_t> filter_data(n_filter, stream);
 
   raft::copy(neighbors_data.data(), neighbors_ref_h.data(), n_queries * n_neighbors, stream);
@@ -511,6 +514,7 @@ void run_test_with_filter(int64_t n_samples,
                   n_queries,
                   n_dim,
                   n_neighbors,
+                  static_cast<uint8_t>(sizeof(T) * 8),
                   index_data.data(),
                   query_data.data(),
                   filter_data.data(),
@@ -541,7 +545,17 @@ TEST(BruteForceC, BuildSearchWithBitmapFilter)
   int64_t n_dim        = 32;
   uint32_t n_neighbors = 8;
 
-  run_test_with_filter(n_rows, n_queries, n_dim, n_neighbors, BITMAP);
+  run_test_with_filter<float>(n_rows, n_queries, n_dim, n_neighbors, BITMAP);
+}
+
+TEST(BruteForceC, BuildSearchWithBitmapFilterFloat64)
+{
+  int64_t n_rows       = 8096;
+  int64_t n_queries    = 128;
+  int64_t n_dim        = 32;
+  uint32_t n_neighbors = 8;
+
+  run_test_with_filter<double>(n_rows, n_queries, n_dim, n_neighbors, BITMAP);
 }
 
 TEST(BruteForceC, BuildSearchWithBitsetFilter)
@@ -551,5 +565,15 @@ TEST(BruteForceC, BuildSearchWithBitsetFilter)
   int64_t n_dim        = 128;
   uint32_t n_neighbors = 100;
 
-  run_test_with_filter(n_rows, n_queries, n_dim, n_neighbors, BITSET);
+  run_test_with_filter<float>(n_rows, n_queries, n_dim, n_neighbors, BITSET);
+}
+
+TEST(BruteForceC, BuildSearchWithBitsetFilterFloat64)
+{
+  int64_t n_rows       = 2000;
+  int64_t n_queries    = 100;
+  int64_t n_dim        = 128;
+  uint32_t n_neighbors = 100;
+
+  run_test_with_filter<double>(n_rows, n_queries, n_dim, n_neighbors, BITSET);
 }

@@ -218,7 +218,7 @@ class lp_unexpanded_distances_t : public distances_t<value_t> {
     unexpanded_lp_distances<value_idx, value_t>(
       out_dists,
       config_,
-      raft::compose_op(raft::pow_const_op<value_t>(p), raft::sub_op()),
+      raft::compose_op(raft::pow_const_op<value_t>(p), raft::absdiff_op()),
       raft::add_op(),
       raft::atomic_add_op());
 

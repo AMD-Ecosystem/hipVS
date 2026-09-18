@@ -1102,6 +1102,48 @@ void fusedL2ExpKnn(IdxT m,
 }
 
 /**
+ * @brief Whether the fused L2 kNN kernels fit in this device's shared memory.
+ *
+ * The kernels stage both contraction smem pages of `Policy2x8<AccT>`, the row norms and the
+ * per-row top-k heap in shared memory. For `AccT == double` on a wave64 device that adds up to
+ * roughly 75 KB, more than the 64 KB of LDS a block can be given: occupancy then comes out as
+ * zero, `launchConfigGenerator` produces an empty grid and the launch fails with an invalid
+ * configuration error. Callers must fall back to another implementation (e.g. tiled pairwise
+ * distance + select_k) when this returns false.
+ *
+ * The L2-expanded requirement is used here since it is the larger of the two variants.
+ *
+ * @param[in] numOfNN number of nearest neighbors the kernel would be launched for
+ * @param[in] stream stream whose device the kernel would be launched on
+ */
+template <typename DataT, typename AccT, typename IdxT>
+bool fusedL2KnnFitsSharedMem(int numOfNN, cudaStream_t stream)
+{
+  using Pair = cub::KeyValuePair<uint32_t, AccT>;
+
+  // Mirrors the sharedMemSize computed in fusedL2ExpKnnImpl / fusedL2UnexpKnnImpl, which build
+  // their policy from Policy2x8<AccT, warp size, 1>.
+  auto required_smem = [numOfNN](auto policy) {
+    using Policy = decltype(policy);
+    return cuvs::distance::detail::ops::l2_exp_distance_op<DataT, AccT, IdxT>::
+             template shared_mem_size<Policy>() +
+           size_t(Policy::Mblk) * numOfNN * sizeof(Pair);
+  };
+
+  size_t required = (raft::host_warp_size(stream) == 64)
+                      ? required_smem(typename raft::linalg::Policy2x8<AccT, 64, 1>::Policy{})
+                      : required_smem(typename raft::linalg::Policy2x8<AccT, 32, 1>::Policy{});
+
+  int dev_id = 0;
+  RAFT_CUDA_TRY(cudaGetDevice(&dev_id));
+  int smem_per_block = 0;
+  RAFT_CUDA_TRY(
+    cudaDeviceGetAttribute(&smem_per_block, cudaDevAttrMaxSharedMemoryPerBlock, dev_id));
+
+  return required <= static_cast<size_t>(smem_per_block);
+}
+
+/**
  * Compute the k-nearest neighbors using L2 expanded/unexpanded distance.
 
  * @tparam value_idx

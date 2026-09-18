@@ -64,6 +64,16 @@ void serialize(raft::resources const& handle,
 }
 
 void serialize(raft::resources const& handle,
+               const std::string& filename,
+               const index<double, double>& index,
+               bool include_dataset)
+{
+  auto os = std::ofstream{filename, std::ios::out | std::ios::binary};
+  RAFT_EXPECTS(os, "Cannot open file %s", filename.c_str());
+  serialize<double, double>(handle, os, index, include_dataset);
+}
+
+void serialize(raft::resources const& handle,
                std::ostream& os,
                const index<half, float>& index,
                bool include_dataset)
@@ -77,6 +87,14 @@ void serialize(raft::resources const& handle,
                bool include_dataset)
 {
   serialize<float, float>(handle, os, index, include_dataset);
+}
+
+void serialize(raft::resources const& handle,
+               std::ostream& os,
+               const index<double, double>& index,
+               bool include_dataset)
+{
+  serialize<double, double>(handle, os, index, include_dataset);
 }
 
 template <typename T, typename DistT>
@@ -163,6 +181,16 @@ void deserialize(raft::resources const& handle,
 }
 
 void deserialize(raft::resources const& handle,
+                 const std::string& filename,
+                 cuvs::neighbors::brute_force::index<double, double>* index)
+{
+  auto is = std::ifstream{filename, std::ios::in | std::ios::binary};
+  RAFT_EXPECTS(is, "Cannot open file %s", filename.c_str());
+
+  *index = deserialize<double, double>(handle, is);
+}
+
+void deserialize(raft::resources const& handle,
                  std::istream& is,
                  cuvs::neighbors::brute_force::index<half, float>* index)
 {
@@ -174,6 +202,13 @@ void deserialize(raft::resources const& handle,
                  cuvs::neighbors::brute_force::index<float, float>* index)
 {
   *index = deserialize<float, float>(handle, is);
+}
+
+void deserialize(raft::resources const& handle,
+                 std::istream& is,
+                 cuvs::neighbors::brute_force::index<double, double>* index)
+{
+  *index = deserialize<double, double>(handle, is);
 }
 
 }  // namespace cuvs::neighbors::brute_force

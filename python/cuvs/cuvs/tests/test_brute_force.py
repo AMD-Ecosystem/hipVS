@@ -3,7 +3,7 @@
 #
 # MIT License
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ from cuvs.neighbors import brute_force, filters
 )
 @pytest.mark.parametrize("inplace", [True, False])
 @pytest.mark.parametrize("order", ["F", "C"])
-@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+@pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
 @pytest.mark.parametrize("serialize", [True, False])
 def test_brute_force_knn(
     n_index_rows,
@@ -79,8 +79,10 @@ def test_brute_force_knn(
         queries[queries < 0.5] = 0.0
         queries[queries >= 0.5] = 1.0
 
+    # The distance dtype follows the index: float64 index, float64 distances.
+    distance_dtype = np.float64 if dtype == np.float64 else np.float32
     indices = np.zeros((n_query_rows, k), dtype="int64")
-    distances = np.zeros((n_query_rows, k), dtype="float32")
+    distances = np.zeros((n_query_rows, k), dtype=distance_dtype)
 
     index_device = device_ndarray(index)
     queries_device = device_ndarray(queries)
@@ -155,7 +157,7 @@ def create_sparse_array(shape, sparsity):
     ],
 )
 @pytest.mark.parametrize("inplace", [True])
-@pytest.mark.parametrize("dtype", [np.float32])
+@pytest.mark.parametrize("dtype", [np.float64, np.float32])
 @pytest.mark.parametrize("filter_type", ["bitset", "bitmap"])
 def test_prefiltered_brute_force_knn(
     n_index_rows,

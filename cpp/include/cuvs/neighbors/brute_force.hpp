@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -65,6 +65,8 @@ struct search_params : cuvs::neighbors::search_params {};
  * The index stores the dataset and norms for the dataset in device memory.
  *
  * @tparam T data element type
+ * @tparam DistT distance and norm type. Supported combinations are half/float,
+ * float/float, and double/double.
  */
 template <typename T, typename DistT = T>
 struct index : cuvs::neighbors::index {
@@ -228,6 +230,11 @@ auto build(raft::resources const& handle,
            raft::device_matrix_view<const float, int64_t, raft::row_major> dataset)
   -> cuvs::neighbors::brute_force::index<float, float>;
 
+auto build(raft::resources const& handle,
+           const cuvs::neighbors::brute_force::index_params& index_params,
+           raft::device_matrix_view<const double, int64_t, raft::row_major> dataset)
+  -> cuvs::neighbors::brute_force::index<double, double>;
+
 /**
  * @brief Build the index from the dataset for efficient search.
  *
@@ -242,11 +249,22 @@ auto build(raft::resources const& handle,
            raft::host_matrix_view<const float, int64_t, raft::row_major> dataset)
   -> cuvs::neighbors::brute_force::index<float, float>;
 
+auto build(raft::resources const& handle,
+           const cuvs::neighbors::brute_force::index_params& index_params,
+           raft::host_matrix_view<const double, int64_t, raft::row_major> dataset)
+  -> cuvs::neighbors::brute_force::index<double, double>;
+
 [[deprecated]] auto build(
   raft::resources const& handle,
   raft::device_matrix_view<const float, int64_t, raft::row_major> dataset,
   cuvs::distance::DistanceType metric = cuvs::distance::DistanceType::L2Unexpanded,
   float metric_arg                    = 0) -> cuvs::neighbors::brute_force::index<float, float>;
+
+[[deprecated]] auto build(
+  raft::resources const& handle,
+  raft::device_matrix_view<const double, int64_t, raft::row_major> dataset,
+  cuvs::distance::DistanceType metric = cuvs::distance::DistanceType::L2Unexpanded,
+  double metric_arg                   = 0) -> cuvs::neighbors::brute_force::index<double, double>;
 /**
  * @brief Build the index from the dataset for efficient search.
  *
@@ -309,11 +327,22 @@ auto build(raft::resources const& handle,
            raft::device_matrix_view<const float, int64_t, raft::col_major> dataset)
   -> cuvs::neighbors::brute_force::index<float, float>;
 
+auto build(raft::resources const& handle,
+           const cuvs::neighbors::brute_force::index_params& index_params,
+           raft::device_matrix_view<const double, int64_t, raft::col_major> dataset)
+  -> cuvs::neighbors::brute_force::index<double, double>;
+
 [[deprecated]] auto build(
   raft::resources const& handle,
   raft::device_matrix_view<const float, int64_t, raft::col_major> dataset,
   cuvs::distance::DistanceType metric = cuvs::distance::DistanceType::L2Unexpanded,
   float metric_arg                    = 0) -> cuvs::neighbors::brute_force::index<float, float>;
+
+[[deprecated]] auto build(
+  raft::resources const& handle,
+  raft::device_matrix_view<const double, int64_t, raft::col_major> dataset,
+  cuvs::distance::DistanceType metric = cuvs::distance::DistanceType::L2Unexpanded,
+  double metric_arg                   = 0) -> cuvs::neighbors::brute_force::index<double, double>;
 
 /**
  * @brief Build the index from the dataset for efficient search.
@@ -408,11 +437,28 @@ void search(raft::resources const& handle,
             const cuvs::neighbors::filtering::base_filter& sample_filter =
               cuvs::neighbors::filtering::none_sample_filter{});
 
+void search(raft::resources const& handle,
+            const cuvs::neighbors::brute_force::search_params& params,
+            const cuvs::neighbors::brute_force::index<double, double>& index,
+            raft::device_matrix_view<const double, int64_t, raft::row_major> queries,
+            raft::device_matrix_view<int64_t, int64_t, raft::row_major> neighbors,
+            raft::device_matrix_view<double, int64_t, raft::row_major> distances,
+            const cuvs::neighbors::filtering::base_filter& sample_filter =
+              cuvs::neighbors::filtering::none_sample_filter{});
+
 [[deprecated]] void search(raft::resources const& handle,
                            const cuvs::neighbors::brute_force::index<float, float>& index,
                            raft::device_matrix_view<const float, int64_t, raft::row_major> queries,
                            raft::device_matrix_view<int64_t, int64_t, raft::row_major> neighbors,
                            raft::device_matrix_view<float, int64_t, raft::row_major> distances,
+                           const cuvs::neighbors::filtering::base_filter& sample_filter =
+                             cuvs::neighbors::filtering::none_sample_filter{});
+
+[[deprecated]] void search(raft::resources const& handle,
+                           const cuvs::neighbors::brute_force::index<double, double>& index,
+                           raft::device_matrix_view<const double, int64_t, raft::row_major> queries,
+                           raft::device_matrix_view<int64_t, int64_t, raft::row_major> neighbors,
+                           raft::device_matrix_view<double, int64_t, raft::row_major> distances,
                            const cuvs::neighbors::filtering::base_filter& sample_filter =
                              cuvs::neighbors::filtering::none_sample_filter{});
 
@@ -543,11 +589,28 @@ void search(raft::resources const& handle,
             const cuvs::neighbors::filtering::base_filter& sample_filter =
               cuvs::neighbors::filtering::none_sample_filter{});
 
+void search(raft::resources const& handle,
+            const cuvs::neighbors::brute_force::search_params& params,
+            const cuvs::neighbors::brute_force::index<double, double>& index,
+            raft::device_matrix_view<const double, int64_t, raft::col_major> queries,
+            raft::device_matrix_view<int64_t, int64_t, raft::row_major> neighbors,
+            raft::device_matrix_view<double, int64_t, raft::row_major> distances,
+            const cuvs::neighbors::filtering::base_filter& sample_filter =
+              cuvs::neighbors::filtering::none_sample_filter{});
+
 [[deprecated]] void search(raft::resources const& handle,
                            const cuvs::neighbors::brute_force::index<float, float>& index,
                            raft::device_matrix_view<const float, int64_t, raft::col_major> queries,
                            raft::device_matrix_view<int64_t, int64_t, raft::row_major> neighbors,
                            raft::device_matrix_view<float, int64_t, raft::row_major> distances,
+                           const cuvs::neighbors::filtering::base_filter& sample_filter =
+                             cuvs::neighbors::filtering::none_sample_filter{});
+
+[[deprecated]] void search(raft::resources const& handle,
+                           const cuvs::neighbors::brute_force::index<double, double>& index,
+                           raft::device_matrix_view<const double, int64_t, raft::col_major> queries,
+                           raft::device_matrix_view<int64_t, int64_t, raft::row_major> neighbors,
+                           raft::device_matrix_view<double, int64_t, raft::row_major> distances,
                            const cuvs::neighbors::filtering::base_filter& sample_filter =
                              cuvs::neighbors::filtering::none_sample_filter{});
 /**
@@ -692,6 +755,11 @@ auto build(raft::resources const& handle,
            raft::device_csr_matrix_view<const float, int, int, int> dataset,
            cuvs::distance::DistanceType metric = cuvs::distance::DistanceType::L2Unexpanded,
            float metric_arg = 0) -> cuvs::neighbors::brute_force::sparse_index<float, int>;
+
+auto build(raft::resources const& handle,
+           raft::device_csr_matrix_view<const double, int, int, int> dataset,
+           cuvs::distance::DistanceType metric = cuvs::distance::DistanceType::L2Unexpanded,
+           float metric_arg = 0) -> cuvs::neighbors::brute_force::sparse_index<double, int>;
 /**
  * @}
  */
@@ -722,6 +790,13 @@ void search(raft::resources const& handle,
             raft::device_csr_matrix_view<const float, int, int, int> dataset,
             raft::device_matrix_view<int, int64_t, raft::row_major> neighbors,
             raft::device_matrix_view<float, int64_t, raft::row_major> distances);
+
+void search(raft::resources const& handle,
+            const sparse_search_params& params,
+            const sparse_index<double, int>& index,
+            raft::device_csr_matrix_view<const double, int, int, int> dataset,
+            raft::device_matrix_view<int, int64_t, raft::row_major> neighbors,
+            raft::device_matrix_view<double, int64_t, raft::row_major> distances);
 /**
  * @}
  */
@@ -792,6 +867,11 @@ void serialize(raft::resources const& handle,
                const cuvs::neighbors::brute_force::index<float, float>& index,
                bool include_dataset = true);
 
+void serialize(raft::resources const& handle,
+               const std::string& filename,
+               const cuvs::neighbors::brute_force::index<double, double>& index,
+               bool include_dataset = true);
+
 /**
  * Write the index to an output stream
  * The serialization format can be subject to changes, therefore loading
@@ -848,6 +928,11 @@ void serialize(raft::resources const& handle,
                const cuvs::neighbors::brute_force::index<float, float>& index,
                bool include_dataset = true);
 
+void serialize(raft::resources const& handle,
+               std::ostream& os,
+               const cuvs::neighbors::brute_force::index<double, double>& index,
+               bool include_dataset = true);
+
 /**
  * Load index from file.
  * The serialization format can be subject to changes, therefore loading
@@ -902,6 +987,10 @@ void deserialize(raft::resources const& handle,
 void deserialize(raft::resources const& handle,
                  const std::string& filename,
                  cuvs::neighbors::brute_force::index<float, float>* index);
+
+void deserialize(raft::resources const& handle,
+                 const std::string& filename,
+                 cuvs::neighbors::brute_force::index<double, double>* index);
 /**
  * Load index from input stream
  * The serialization format can be subject to changes, therefore loading
@@ -956,6 +1045,10 @@ void deserialize(raft::resources const& handle,
 void deserialize(raft::resources const& handle,
                  std::istream& is,
                  cuvs::neighbors::brute_force::index<float, float>* index);
+
+void deserialize(raft::resources const& handle,
+                 std::istream& is,
+                 cuvs::neighbors::brute_force::index<double, double>* index);
 /**
  * @}
  */

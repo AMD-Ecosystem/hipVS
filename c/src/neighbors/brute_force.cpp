@@ -4,9 +4,34 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #include <cstdint>
 #include <dlpack/dlpack.h>
 #include <fstream>
+#include <memory>
 
 #include <raft/core/error.hpp>
 #include <raft/core/mdspan_types.hpp>
@@ -29,7 +54,7 @@ template <typename T, typename LayoutT = raft::row_major, typename DistT = float
 void* _build(cuvsResources_t res,
              DLManagedTensor* dataset_tensor,
              cuvsDistanceType metric,
-             T metric_arg)
+             float metric_arg)
 {
   auto res_ptr = reinterpret_cast<raft::resources*>(res);
 
@@ -110,9 +135,9 @@ template <typename T, typename DistT = float>
 void* _deserialize(cuvsResources_t res, const char* filename)
 {
   auto res_ptr = reinterpret_cast<raft::resources*>(res);
-  auto index   = new cuvs::neighbors::brute_force::index<T, DistT>(*res_ptr);
-  cuvs::neighbors::brute_force::deserialize(*res_ptr, std::string(filename), index);
-  return index;
+  auto index   = std::make_unique<cuvs::neighbors::brute_force::index<T, DistT>>(*res_ptr);
+  cuvs::neighbors::brute_force::deserialize(*res_ptr, std::string(filename), index.get());
+  return index.release();
 }
 }  // namespace
 
@@ -126,7 +151,9 @@ extern "C" cuvsError_t cuvsBruteForceIndexDestroy(cuvsBruteForceIndex_t index_c_
   return cuvs::core::translate_exceptions([=] {
     auto index = *index_c_ptr;
 
-    if ((index.dtype.code == kDLFloat) && index.dtype.bits == 32) {
+    if ((index.dtype.code == kDLFloat) && index.dtype.bits == 64) {
+      delete reinterpret_cast<cuvs::neighbors::brute_force::index<double, double>*>(index.addr);
+    } else if ((index.dtype.code == kDLFloat) && index.dtype.bits == 32) {
       auto index_ptr =
         reinterpret_cast<cuvs::neighbors::brute_force::index<float, float>*>(index.addr);
       delete index_ptr;
@@ -149,7 +176,17 @@ extern "C" cuvsError_t cuvsBruteForceBuild(cuvsResources_t res,
     auto dataset = dataset_tensor->dl_tensor;
     index->dtype = dataset.dtype;
 
-    if (dataset.dtype.code == kDLFloat && dataset.dtype.bits == 32) {
+    if (dataset.dtype.code == kDLFloat && dataset.dtype.bits == 64) {
+      if (cuvs::core::is_c_contiguous(dataset_tensor)) {
+        index->addr = reinterpret_cast<uintptr_t>(
+          _build<double, raft::row_major, double>(res, dataset_tensor, metric, metric_arg));
+      } else if (cuvs::core::is_f_contiguous(dataset_tensor)) {
+        index->addr = reinterpret_cast<uintptr_t>(
+          _build<double, raft::col_major, double>(res, dataset_tensor, metric, metric_arg));
+      } else {
+        RAFT_FAIL("dataset input to cuvsBruteForceBuild must be contiguous (non-strided)");
+      }
+    } else if (dataset.dtype.code == kDLFloat && dataset.dtype.bits == 32) {
       if (cuvs::core::is_c_contiguous(dataset_tensor)) {
         index->addr =
           reinterpret_cast<uintptr_t>(_build<float>(res, dataset_tensor, metric, metric_arg));
@@ -198,13 +235,26 @@ extern "C" cuvsError_t cuvsBruteForceSearch(cuvsResources_t res,
 
     RAFT_EXPECTS(neighbors.dtype.code == kDLInt && neighbors.dtype.bits == 64,
                  "neighbors should be of type int64_t");
-    RAFT_EXPECTS(distances.dtype.code == kDLFloat && distances.dtype.bits == 32,
-                 "distances should be of type float32");
-
     auto index = *index_c_ptr;
-    RAFT_EXPECTS(queries.dtype.code == index.dtype.code, "type mismatch between index and queries");
+    RAFT_EXPECTS(queries.dtype.code == index.dtype.code && queries.dtype.bits == index.dtype.bits &&
+                   queries.dtype.lanes == index.dtype.lanes,
+                 "type mismatch between index and queries");
+    auto distance_bits = index.dtype.bits == 64 ? 64 : 32;
+    RAFT_EXPECTS(distances.dtype.code == kDLFloat && distances.dtype.bits == distance_bits,
+                 "distances should be of type float%d",
+                 distance_bits);
 
-    if (queries.dtype.code == kDLFloat && queries.dtype.bits == 32) {
+    if (queries.dtype.code == kDLFloat && queries.dtype.bits == 64) {
+      if (cuvs::core::is_c_contiguous(queries_tensor)) {
+        _search<double, raft::row_major, double>(
+          res, index, queries_tensor, neighbors_tensor, distances_tensor, prefilter);
+      } else if (cuvs::core::is_f_contiguous(queries_tensor)) {
+        _search<double, raft::col_major, double>(
+          res, index, queries_tensor, neighbors_tensor, distances_tensor, prefilter);
+      } else {
+        RAFT_FAIL("queries input to cuvsBruteForceSearch must be contiguous (non-strided)");
+      }
+    } else if (queries.dtype.code == kDLFloat && queries.dtype.bits == 32) {
       if (cuvs::core::is_c_contiguous(queries_tensor)) {
         _search<float>(res, index, queries_tensor, neighbors_tensor, distances_tensor, prefilter);
       } else if (cuvs::core::is_f_contiguous(queries_tensor)) {
@@ -239,11 +289,15 @@ extern "C" cuvsError_t cuvsBruteForceDeserialize(cuvsResources_t res,
     std::ifstream is(filename, std::ios::in | std::ios::binary);
     if (!is) { RAFT_FAIL("Cannot open file %s", filename); }
     char dtype_string[4];
-    is.read(dtype_string, 4);
+    RAFT_EXPECTS(is.read(dtype_string, 4), "Failed to read brute force index dtype");
     auto dtype = raft::detail::numpy_serializer::parse_descr(std::string(dtype_string, 4));
 
-    index->dtype.bits = dtype.itemsize * 8;
-    if (dtype.kind == 'f' && dtype.itemsize == 4) {
+    index->dtype.bits  = dtype.itemsize * 8;
+    index->dtype.lanes = 1;
+    if (dtype.kind == 'f' && dtype.itemsize == 8) {
+      index->dtype.code = kDLFloat;
+      index->addr       = reinterpret_cast<uintptr_t>(_deserialize<double, double>(res, filename));
+    } else if (dtype.kind == 'f' && dtype.itemsize == 4) {
       index->dtype.code = kDLFloat;
       index->addr       = reinterpret_cast<uintptr_t>(_deserialize<float>(res, filename));
     } else if (dtype.kind == 'e' && dtype.itemsize == 2) {
@@ -260,7 +314,9 @@ extern "C" cuvsError_t cuvsBruteForceSerialize(cuvsResources_t res,
                                                cuvsBruteForceIndex_t index)
 {
   return cuvs::core::translate_exceptions([=] {
-    if (index->dtype.code == kDLFloat && index->dtype.bits == 32) {
+    if (index->dtype.code == kDLFloat && index->dtype.bits == 64) {
+      _serialize<double, double>(res, filename, *index);
+    } else if (index->dtype.code == kDLFloat && index->dtype.bits == 32) {
       _serialize<float>(res, filename, *index);
     } else if (index->dtype.code == kDLFloat && index->dtype.bits == 16) {
       _serialize<half>(res, filename, *index);

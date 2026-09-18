@@ -169,9 +169,9 @@ void haversine_knn(value_idx* out_inds,
                    cudaStream_t stream)
 {
   // ensure kernel does not breach shared memory limits
-  constexpr int kWarpQ = sizeof(value_t) > 4 ? 512 : 1024;
-  haversine_knn_kernel<value_idx, value_t, kWarpQ>
-    <<<n_query_rows, 128, 0, stream>>>(out_inds, out_dists, index, query, n_index_rows, k);
+  constexpr int kThreads = sizeof(distance_t) > 4 ? 64 : 128;
+  haversine_knn_kernel<value_idx, value_t, 1024, 8, kThreads, distance_t>
+    <<<n_query_rows, kThreads, 0, stream>>>(out_inds, out_dists, index, query, n_index_rows, k);
 }
 
 }  // namespace cuvs::neighbors::detail

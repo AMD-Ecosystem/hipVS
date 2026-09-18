@@ -3,6 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #pragma once
 
 #include <cuvs/core/c_api.h>
@@ -58,8 +82,15 @@ CUVS_EXPORT cuvsError_t cuvsBruteForceIndexDestroy(cuvsBruteForceIndex_t index);
  * @brief Build a BRUTEFORCE index with a `DLManagedTensor` which has underlying
  *        `DLDeviceType` equal to `kDLCUDA`, `kDLCUDAHost`, `kDLCUDAManaged`,
  *        or `kDLCPU`. Also, acceptable underlying types are:
- *        1. `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 32`
- *        2. `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 16`
+ *        1. `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 64`
+ *        2. `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 32`
+ *        3. `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 16`
+ *
+ *        Note that `metric_arg` is a `float` for every dataset type. It is read only by the
+ *        Minkowski (`LpUnexpanded`) metric, and a `p` that is not exactly representable in
+ *        float32 is rounded, so a float64 search returns the exact Lp distances for the rounded
+ *        `p` -- about 1e-7 relative away from the requested ones. Neighbor order is unaffected
+ *        unless two candidates are that close together.
  *
  * @code {.c}
  * #include <cuvs/core/c_api.h>
@@ -108,12 +139,12 @@ CUVS_EXPORT cuvsError_t cuvsBruteForceBuild(cuvsResources_t res,
  * @brief Search a BRUTEFORCE index with a `DLManagedTensor` which has underlying
  *        `DLDeviceType` equal to `kDLCUDA`, `kDLCUDAHost`, `kDLCUDAManaged`.
  *        It is also important to note that the BRUTEFORCE index must have been built
- *        with the same type of `queries`, such that `index.dtype.code ==
- *        queries.dl_tensor.dtype.code` Types for input are:
- *        1. `queries`: `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 32` or
- *          `kDLDataType.bits = 16`
- *        2. `neighbors`: `kDLDataType.code == kDLUInt` and `kDLDataType.bits = 32`
- *        3. `distances`: `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 32`
+ *        with the same type of `queries`, such that the `code`, `bits` and `lanes` of
+ *        `queries.dl_tensor.dtype` all match `index.dtype`. Types for input are:
+ *        1. `queries`: `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 64`, `32` or `16`
+ *        2. `neighbors`: `kDLDataType.code == kDLInt` and `kDLDataType.bits = 64`
+ *        3. `distances`: `kDLDataType.code == kDLFloat` and `kDLDataType.bits = 64` for a
+ *          float64 index, `kDLDataType.bits = 32` for a float32 or float16 index
  *
  * @code {.c}
  * #include <cuvs/core/c_api.h>
@@ -192,6 +223,10 @@ CUVS_EXPORT cuvsError_t cuvsBruteForceSerialize(cuvsResources_t res,
  * The serialization format can be subject to changes, therefore loading
  * an index saved with a previous version of cuvs is not guaranteed
  * to work.
+ *
+ * The dtype of the loaded index is read from the file: numpy descriptors `f8`, `f4` and `e2`
+ * restore a float64, float32 and float16 index respectively, and `index->dtype` is set
+ * accordingly.
  *
  * @code{.c}
  * #include <cuvs/neighbors/brute_force.h>

@@ -86,6 +86,7 @@ index<T, DistT>::index(raft::resources const& res,
     norms_(std::move(norms)),
     metric_arg_(metric_arg)
 {
+  if (norms_) { norms_view_ = raft::make_const_mdspan(norms_.value().view()); }
   // currently we don't support col_major inside tiled_brute_force_knn, because
   // of limitations of the pairwise_distance API:
   // 1) paiwise_distance takes a single 'isRowMajor' parameter - and we have
@@ -233,6 +234,7 @@ void index<T, DistT>::update_dataset(
 
 CUVS_INST_BFKNN(float, float);
 CUVS_INST_BFKNN(half, float);
+CUVS_INST_BFKNN(double, double);
 
 #undef CUVS_INST_BFKNN
 

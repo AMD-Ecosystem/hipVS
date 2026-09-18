@@ -475,11 +475,15 @@ void brute_force_knn_impl(
 
     auto stream = raft::resource::get_next_usable_stream(handle, i);
 
+    // The fused kernel needs its whole working set in shared memory, which fp64 exceeds on a
+    // wave64 device; fall through to the tiled pairwise-distance + select_k path when it does
+    // not fit. See fusedL2KnnFitsSharedMem.
     if (k <= 64 && rowMajorQuery == rowMajorIndex && rowMajorQuery == true &&
         (metric == cuvs::distance::DistanceType::L2Unexpanded ||
          metric == cuvs::distance::DistanceType::L2SqrtUnexpanded ||
          metric == cuvs::distance::DistanceType::L2Expanded ||
-         metric == cuvs::distance::DistanceType::L2SqrtExpanded)) {
+         metric == cuvs::distance::DistanceType::L2SqrtExpanded) &&
+        fusedL2KnnFitsSharedMem<value_t, DistType, IdxType>(k, stream)) {
       fusedL2Knn(D,
                  out_i_ptr,
                  out_d_ptr,
@@ -504,7 +508,7 @@ void brute_force_knn_impl(
         raft::linalg::map(
           handle,
           raft::make_device_vector_view<DistType, int64_t>(res_D, n * k),
-          [p] __device__(DistType input) { return powf(fabsf(input), p); },
+          [p] __device__(DistType input) { return raft::pow(raft::abs(input), p); },
           raft::make_const_mdspan(
             raft::make_device_vector_view<const DistType, int64_t>(res_D, n * k)));
       }
@@ -515,7 +519,7 @@ void brute_force_knn_impl(
                  "Haversine distance requires 2 dimensions "
                  "(latitude / longitude).");
 
-          haversine_knn(out_i_ptr, out_d_ptr, input[i], search_items, sizes[i], n, k, stream);
+          haversine_knn(out_i_ptr, out_d_ptr, input[i], search, sizes[i], n, k, stream);
           break;
         default:
           // Create a new handle with the current stream from the stream pool

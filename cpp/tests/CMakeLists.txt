@@ -136,7 +136,7 @@ endfunction()
 ConfigureTest(
   NAME NEIGHBORS_TEST
   PATH neighbors/brute_force.cu neighbors/brute_force_prefiltered.cu neighbors/sparse_brute_force.cu
-       neighbors/refine.cu neighbors/distance_nn.cu
+       neighbors/brute_force_fp64.cu neighbors/refine.cu neighbors/distance_nn.cu
   GPUS 1
   PERCENT 100
 )
@@ -196,6 +196,7 @@ ConfigureTest(
 ConfigureTest(
   NAME NEIGHBORS_ANN_BRUTE_FORCE_TEST
   PATH neighbors/ann_brute_force/test_float.cu neighbors/ann_brute_force/test_half.cu
+       neighbors/ann_brute_force/test_double.cu
   GPUS 1
   PERCENT 100
 )

@@ -3,21 +3,50 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// clang-format off
+// MIT License
+//
+// Modifications Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// clang-format on
+
 #include <cuvs/neighbors/brute_force.h>
 #include <stdint.h>
 
+// `dtype_bits` selects the dataset and query element type: 64 for double, 32 for float. The
+// distances follow the index, so they are float64 for a float64 index and float32 otherwise.
 void run_brute_force(int64_t n_rows,
                      int64_t n_queries,
                      int64_t n_dim,
                      uint32_t n_neighbors,
-                     float* index_data,
-                     float* query_data,
+                     uint8_t dtype_bits,
+                     void* index_data,
+                     void* query_data,
                      uint32_t* prefilter_data,
                      enum cuvsFilterType prefilter_type,
-                     float* distances_data,
+                     void* distances_data,
                      int64_t* neighbors_data,
                      cuvsDistanceType metric)
 {
+  uint8_t distance_bits = (dtype_bits == 64) ? 64 : 32;
+
   // create cuvsResources_t
   cuvsResources_t res;
   cuvsResourcesCreate(&res);
@@ -28,7 +57,7 @@ void run_brute_force(int64_t n_rows,
   dataset_tensor.dl_tensor.device.device_type = kDLCUDA;
   dataset_tensor.dl_tensor.ndim               = 2;
   dataset_tensor.dl_tensor.dtype.code         = kDLFloat;
-  dataset_tensor.dl_tensor.dtype.bits         = 32;
+  dataset_tensor.dl_tensor.dtype.bits         = dtype_bits;
   dataset_tensor.dl_tensor.dtype.lanes        = 1;
   int64_t dataset_shape[2]                    = {n_rows, n_dim};
   dataset_tensor.dl_tensor.shape              = dataset_shape;
@@ -47,7 +76,7 @@ void run_brute_force(int64_t n_rows,
   queries_tensor.dl_tensor.device.device_type = kDLCUDA;
   queries_tensor.dl_tensor.ndim               = 2;
   queries_tensor.dl_tensor.dtype.code         = kDLFloat;
-  queries_tensor.dl_tensor.dtype.bits         = 32;
+  queries_tensor.dl_tensor.dtype.bits         = dtype_bits;
   queries_tensor.dl_tensor.dtype.lanes        = 1;
   int64_t queries_shape[2]                    = {n_queries, n_dim};
   queries_tensor.dl_tensor.shape              = queries_shape;
@@ -71,7 +100,7 @@ void run_brute_force(int64_t n_rows,
   distances_tensor.dl_tensor.device.device_type = kDLCUDA;
   distances_tensor.dl_tensor.ndim               = 2;
   distances_tensor.dl_tensor.dtype.code         = kDLFloat;
-  distances_tensor.dl_tensor.dtype.bits         = 32;
+  distances_tensor.dl_tensor.dtype.bits         = distance_bits;
   distances_tensor.dl_tensor.dtype.lanes        = 1;
   int64_t distances_shape[2]                    = {n_queries, n_neighbors};
   distances_tensor.dl_tensor.shape              = distances_shape;

@@ -68,6 +68,7 @@ struct SparseKNNInputs {
   int batch_size_query = 2;
 
   cuvs::distance::DistanceType metric = cuvs::distance::DistanceType::L2SqrtExpanded;
+  float metric_arg                    = 3.0f;
 };
 
 template <typename value_idx, typename value_t>
@@ -105,7 +106,8 @@ class SparseKNNTest : public ::testing::TestWithParam<SparseKNNInputs<value_idx,
         indptr.data(), indices.data(), n_rows, params.n_cols, nnz);
     auto index_csr = raft::make_device_csr_matrix_view<const value_t>(data.data(), index_structure);
 
-    auto index = cuvs::neighbors::brute_force::build(handle, index_csr, params.metric);
+    auto index =
+      cuvs::neighbors::brute_force::build(handle, index_csr, params.metric, params.metric_arg);
 
     cuvs::neighbors::brute_force::sparse_search_params search_params;
     search_params.batch_size_index = params.batch_size_index;
@@ -188,7 +190,29 @@ const std::vector<SparseKNNInputs<int, float>> inputs_i32_f = {
    2,
    2,
    2,
-   cuvs::distance::DistanceType::L2SqrtExpanded}};
+   cuvs::distance::DistanceType::L2SqrtExpanded},
+  // Similarity merging must keep maxima; the final batch has fewer than k rows.
+  {1,
+   {0, 1, 2, 3, 4, 5},
+   {0, 0, 0, 0, 0},
+   {5, 1, 3, 2, 4},
+   {25, 20, 5, 4, 15, 12, 10, 8, 20, 16},
+   {0, 4, 0, 4, 0, 4, 0, 4, 0, 4},
+   2,
+   2,
+   2,
+   cuvs::distance::DistanceType::InnerProduct},
+  // Odd Minkowski exponents must apply to absolute differences.
+  {1,
+   {0, 1, 2, 3, 4, 5},
+   {0, 0, 0, 0, 0},
+   {0, 2, 5, 9, 14},
+   {0, 2, 0, 2, 0, 3, 0, 4, 0, 5},
+   {0, 1, 1, 0, 2, 1, 3, 2, 4, 3},
+   2,
+   2,
+   2,
+   cuvs::distance::DistanceType::LpUnexpanded}};
 typedef SparseKNNTest<int, float> SparseKNNTestF;
 TEST_P(SparseKNNTestF, Result) { compare(); }
 INSTANTIATE_TEST_CASE_P(SparseKNNTest, SparseKNNTestF, ::testing::ValuesIn(inputs_i32_f));

@@ -11,6 +11,7 @@
 #include <raft/core/device_mdspan.hpp>
 #include <raft/core/host_mdspan.hpp>
 #include <raft/core/resource/cuda_stream.hpp>
+#include <raft/linalg/map.cuh>
 
 #include <cuvs/neighbors/knn_merge_parts.hpp>
 #include <cuvs/selection/select_k.hpp>
@@ -300,6 +301,11 @@ class sparse_knn_t {
 
       // Copy final merged batch to output array
       auto batch_len = query_batcher.batch_rows() * k;
+      if (!cuvs::distance::is_min_close(metric)) {
+        auto values = raft::make_device_vector_view(merge_buffer_dists.data(), batch_len);
+        raft::linalg::map(
+          handle, values, [] __device__(value_t x) { return -x; }, raft::make_const_mdspan(values));
+      }
       raft::copy(handle,
                  raft::make_device_vector_view(output_indices + (rows_processed * k), batch_len),
                  raft::make_const_mdspan(
@@ -361,7 +367,16 @@ class sparse_knn_t {
     // want to adjust k.
     value_idx n_neighbors = std::min(static_cast<value_idx>(k), batch_cols);
 
-    bool ascending = cuvs::distance::is_min_close(metric);
+    // Every partition has a k-wide stride, including a final batch smaller than k.
+    // The padding and similarity-order adaptation below are required for all value_t
+    // types, not just fp64.
+    auto stream          = raft::resource::get_cuda_stream(handle);
+    const bool pad       = n_neighbors < k;
+    const bool ascending = cuvs::distance::is_min_close(metric);
+    rmm::device_uvector<value_t> selected_dists(pad ? batch_rows * n_neighbors : 0, stream);
+    rmm::device_uvector<value_idx> selected_indices(pad ? batch_rows * n_neighbors : 0, stream);
+    auto selected_d = pad ? selected_dists.data() : out_dists;
+    auto selected_i = pad ? selected_indices.data() : out_indices;
 
     // kernel to slice first (min) k cols and copy into batched merge buffer
     cuvs::selection::select_k(
@@ -369,10 +384,40 @@ class sparse_knn_t {
       raft::make_device_matrix_view<const value_t, int64_t>(batch_dists, batch_rows, batch_cols),
       raft::make_device_matrix_view<const value_idx, int64_t>(
         batch_indices, batch_rows, batch_cols),
-      raft::make_device_matrix_view<value_t, int64_t>(out_dists, batch_rows, n_neighbors),
-      raft::make_device_matrix_view<value_idx, int64_t>(out_indices, batch_rows, n_neighbors),
+      raft::make_device_matrix_view<value_t, int64_t>(selected_d, batch_rows, n_neighbors),
+      raft::make_device_matrix_view<value_idx, int64_t>(selected_i, batch_rows, n_neighbors),
       ascending,
       true);
+    if (pad) {
+      // Selection packs n_neighbors entries per query, but the merger reads k.
+      // Expand each row to stride k so it cannot read another query's results or
+      // unwritten slots. Fill missing entries with worst-ranking scores and invalid IDs.
+      auto width = k;
+      raft::linalg::map_offset(handle,
+                               raft::make_device_vector_view(out_dists, int64_t(batch_rows) * k),
+                               [=] __device__(int64_t i) {
+                                 return i % width < n_neighbors
+                                          ? selected_d[(i / width) * n_neighbors + i % width]
+                                          : (ascending ? std::numeric_limits<value_t>::max()
+                                                       : std::numeric_limits<value_t>::lowest());
+                               });
+      raft::linalg::map_offset(handle,
+                               raft::make_device_vector_view(out_indices, int64_t(batch_rows) * k),
+                               [=] __device__(int64_t i) {
+                                 return i % width < n_neighbors
+                                          ? selected_i[(i / width) * n_neighbors + i % width]
+                                          : value_idx{-1};
+                               });
+    }
+    // The partition merger selects minima, even for larger-is-better similarities.
+    // Negate only the selected scores (not the full pairwise matrix) to preserve
+    // their ranking during merging, then restore their sign in the final output.
+    // Negation also turns similarity padding from lowest() into max().
+    if (!ascending) {
+      auto values = raft::make_device_vector_view(out_dists, int64_t(batch_rows) * k);
+      raft::linalg::map(
+        handle, values, [] __device__(value_t x) { return -x; }, raft::make_const_mdspan(values));
+    }
   }
 
   void compute_distances(csr_batcher_t<value_idx, value_t>& idx_batcher,
