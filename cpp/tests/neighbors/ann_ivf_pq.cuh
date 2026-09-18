@@ -4,7 +4,7 @@
  */
 
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -36,6 +36,12 @@
 #include <rmm/cuda_stream_pool.hpp>
 #include <rmm/mr/managed_memory_resource.hpp>
 #include <thrust/sequence.h>
+
+#ifdef __HIP_PLATFORM_AMD__
+// ROCM_VERSION_MAJOR, used to gate the coarse_search_dtype cases below. Included explicitly
+// rather than relying on it arriving transitively through raft.
+#include <rocm-core/rocm_version.h>
+#endif
 
 namespace cuvs::neighbors::ivf_pq {
 
@@ -1064,18 +1070,22 @@ inline auto enum_variety() -> test_cases_t
     x.search_params.coarse_search_dtype = CUDA_R_16F;
     x.min_recall                        = 0.86;
   });
-// As of ROCm 7, hipblasLT does not support a coarse search dtype
-// of CUDA_R_8I, so we disable the test. This test will automatically
-// be enabled for new ROCm versions.
+// A CUDA_R_8I coarse search rotates the queries with a
+// legacy_matmul<float, int8_t, int8_t, float> (see "Rotate queries" in ivf_pq_search.cuh).
+// hipBLASLt and rocBLAS both implement i8xi8->i32 (COMPUTE_32I) but not i8xi8->f32
+// (COMPUTE_32F) -- see the supported-type table in hipblas.h -- so that GEMM has no
+// solution on AMD and the dtype is kept out of the test matrix.
+//
+// Note the gate is "<= last known-bad" and not "> last known-bad". The previous
+// `#if ROCM_VERSION_MAJOR > 7` was written to re-enable these cases automatically on the
+// next ROCm; it did exactly that when ROCm reached 10, and 60 tests went red with no
+// indication of why. Failing the build on the next major is the cheaper signal.
 #ifdef __HIP_PLATFORM_AMD__
-#if ROCM_VERSION_MAJOR > 7
-  add_test_case(xs, [](ivf_pq_inputs& x) {
-    x.search_params.coarse_search_dtype = CUDA_R_8I;
-    // 8-bit coarse search is experimental and there's no go guarantee of any recall
-    // if the data is not normalized. Especially for L2, because we store vector norms alongside the
-    // cluster centers.
-    x.min_recall = 0.1;
-  });
+#if ROCM_VERSION_MAJOR > 10
+  static_assert(false,
+                "Re-check whether hipBLASLt supports i8xi8->f32 (COMPUTE_32F) on this ROCm. "
+                "If it does, re-enable the CUDA_R_8I coarse_search_dtype case here and drop "
+                "the matching guard in ivf_pq_search.cuh.");
 #endif
 #else
   add_test_case(xs, [](ivf_pq_inputs& x) {

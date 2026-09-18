@@ -956,6 +956,27 @@ inline void search(raft::resources const& handle,
   RAFT_EXPECTS(params.lut_dtype == CUDA_R_16F || params.lut_dtype == CUDA_R_32F ||
                  params.lut_dtype == CUDA_R_8U,
                "lut_dtype must be CUDA_R_16F, CUDA_R_32F or CUDA_R_8U");
+#ifdef __HIP_PLATFORM_AMD__
+#if ROCM_VERSION_MAJOR <= 10
+  // Reject this up front rather than letting it fail deep inside the BLAS wrapper. An 8-bit
+  // coarse search rotates the queries with a legacy_matmul<float, int8_t, int8_t, float>
+  // (see "Rotate queries" below); hipBLASLt and rocBLAS implement i8xi8->i32 (COMPUTE_32I)
+  // but not i8xi8->f32 (COMPUTE_32F), so there is no solution for it on AMD. Supporting it
+  // would mean accumulating into an int32 scratch buffer and rescaling in a second pass.
+  //
+  // Erroring out beats silently downgrading to CUDA_R_16F: the dtype visibly changes recall,
+  // so a caller that asked for it needs to know it did not get it.
+  RAFT_EXPECTS(params.coarse_search_dtype != CUDA_R_8I,
+               "coarse_search_dtype = CUDA_R_8I is not supported on AMD GPUs: hipBLASLt "
+               "provides no i8xi8->f32 (COMPUTE_32F) matmul for the query rotation. Use "
+               "CUDA_R_32F or CUDA_R_16F.");
+#else
+  static_assert(false,
+                "Re-check whether hipBLASLt supports i8xi8->f32 (COMPUTE_32F) on this ROCm. "
+                "If it does, drop this guard and re-enable the CUDA_R_8I coarse_search_dtype "
+                "case in cpp/tests/neighbors/ann_ivf_pq.cuh.");
+#endif
+#endif
   RAFT_EXPECTS(k > 0, "parameter `k` in top-k must be positive.");
   RAFT_EXPECTS(
     k <= index.size(),
