@@ -43,12 +43,14 @@ set -euo pipefail
 # The 6th argument can be used to append a suffix to the test ID in CSV output.
 function run_tests() {
     set +e # continue on error
+    local pytest_args=${4:-""}
     local suffix=${5:-""}
     local id_suffix=${6:-""}
     find "$1" -name "test_*.py" \
       -printf "run_tests: found test file: %p\n" \
       -exec bash -c '
         csv_file="$2/$7${5}.csv"
+        mkdir -p "$(dirname "$csv_file")"
         pytest $4 -v --timeout $3 "$7" \
         --continue-on-collection-errors \
         --csv "$csv_file" --csv-columns file,id,status,message
@@ -58,7 +60,7 @@ function run_tests() {
           tail -n +2 "$csv_file" | awk -F"," -v suffix="$6" "BEGIN{OFS=\",\"} {\$2=\$2 suffix; print}" >> "$temp_file"
           mv "$temp_file" "$csv_file"
         fi
-        ' _ "$1" "$2" "$3" "$4" "$suffix" "$id_suffix" {} \;
+        ' _ "$1" "$2" "$3" "$pytest_args" "$suffix" "$id_suffix" {} \;
     set -e
 }
 
@@ -79,9 +81,9 @@ function merge_test_results() {
     i=0
     while IFS= read -r f; do
         if (( i == 0 )); then
-            result+=$(cat "$f")
+            result+=$(cat "$f")$'\n'
         else
-            result+=$(tail -n +2 "$f")
+            result+=$(tail -n +2 "$f")$'\n'
         fi
         i=1
     done < <(grep -rL "${FAILURE_EXPR}" --include="*.csv" "$1")
@@ -89,9 +91,9 @@ function merge_test_results() {
     while IFS= read -r f; do
         test_failures=1
         if (( i == 0 )); then
-            result+=$(cat "$f")
+            result+=$(cat "$f")$'\n'
         else
-            result+=$(tail -n +2 "$f")
+            result+=$(tail -n +2 "$f")$'\n'
         fi
         i=1
     done < <(grep -rl "${FAILURE_EXPR}" --include="*.csv" "$1")
