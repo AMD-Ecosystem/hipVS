@@ -64,7 +64,7 @@ void compute_eigenpairs(raft::resources const& handle,
   config.max_iterations = 10 * n_samples;
   RAFT_EXPECTS(n_samples - config.n_components > 0,
                "Please set `ncv` to a value in (0, n_samples)");
-  config.ncv = std::min(n_samples - config.n_components, std::max(2 * config.n_components + 1, 20));
+  config.ncv = std::min(n_samples - config.n_components, std::max(2 * config.n_components + 1, 64));
   config.tolerance = spectral_embedding_config.tolerance;
   config.which     = raft::sparse::solver::LANCZOS_WHICH::LA;
   config.seed      = spectral_embedding_config.seed;
