@@ -93,6 +93,11 @@ cmake_args=(
     ${disable_ck_backend:+"-DBUILD_CK_BACKEND=OFF"}
 )
 
+case "${ENABLE_CODE_COVERAGE:-${HIPVS_ENABLE_CODE_COVERAGE:-false}}" in
+    1|true|yes|on)
+        cmake_args+=("-DENABLE_CODE_COVERAGE=ON")
+        ;;
+esac
 if [ -d "/opt/rh/gcc-toolset-$(g++ -dumpversion)" ]; then
     toolchain="/opt/rh/gcc-toolset-$(g++ -dumpversion)/root/usr"
     export CCC_OVERRIDE_OPTIONS="+--gcc-toolchain=${toolchain}"

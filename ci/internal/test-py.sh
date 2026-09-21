@@ -67,6 +67,8 @@ cd "${BUILD_DIR}/${PROJECT_ID}"
 
     run_tests python/cuvs/cuvs/tests "${CSV_OUTPUT_DIR}" "${TIMEOUT_PER_TEST_SEC}"
 
+    run_pytest_cov cuvs python/cuvs/cuvs/tests || test_failures=1
+
     result=$(merge_test_results "${CSV_OUTPUT_DIR}") || test_failures=1
     echo "$result" > "${ARTIFACTS_DIR}/${PROJECT_ID}-test-results-py.csv"
 

@@ -37,7 +37,9 @@ set -euxo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_activate-env.sh"
+source "${SCRIPT_DIR}/_test-helpers.sh"
 require_envs PROJECT_ID BUILD_DIR INSTALL_DIR
+: "${ARTIFACTS_DIR:=/artifacts}"
 
 printenv
 
@@ -52,8 +54,11 @@ setup_hipblaslt_tensile_libpath
 
 exit_code=0
 
+cpp_build="${BUILD_DIR}/${PROJECT_ID}/cpp/build"
+begin_llvm_profiling "${cpp_build}/profiles"
+
 echo "=== Running C++ tests ==="
-(cd "${BUILD_DIR}/${PROJECT_ID}/cpp/build/tests" && ctest -V .) || exit_code=$?
+(cd "${cpp_build}/tests" && ctest -V .) || exit_code=$?
 
 # The C tests are registered in a sibling build dir (cpp/build/c/tests), so the
 # C++ ctest invocation above does not pick them up. Run them here when present.
@@ -75,5 +80,14 @@ if [[ "${HIPVS_RUN_EXAMPLES:-false}" == "true" ]]; then
         find . -maxdepth 1 -not -name "*.so*" -not -name "*VAMANA_EXAMPLE*" -type f -executable -exec {} \; && \
         ./VAMANA_EXAMPLE "${BUILD_DIR}/${PROJECT_ID}/examples/cpp/src/vamana_example_input.bin" output.bin float 64 128 0.06 1) || exit_code=$?
 fi
+
+llvm_objects=()
+[[ -e "${cpp_build}/libcuvs.so" ]] && llvm_objects+=("${cpp_build}/libcuvs.so")
+shopt -s nullglob
+llvm_objects+=("${cpp_build}/gtests"/*)
+shopt -u nullglob
+export_llvm_cov_json "${cpp_build}/profiles" \
+    "${COVERAGE_LLVM_JSON:-${ARTIFACTS_DIR}/llvm-cov_code_coverage.json}" \
+    "${llvm_objects[@]}"
 
 exit "${exit_code}"

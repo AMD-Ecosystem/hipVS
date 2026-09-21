@@ -27,6 +27,7 @@
 # Provides:
 #   run_tests()          -- runs pytest per test file with CSV output and timeout
 #   merge_test_results() -- merges per-file CSV results into a single file
+#   coverage_enabled / begin_llvm_profiling / export_llvm_cov_json / run_pytest_cov
 #
 # Prerequisites: pytest, pytest-csv, pytest-timeout must be installed.
 
@@ -99,4 +100,59 @@ function merge_test_results() {
     done < <(grep -rl "${FAILURE_EXPR}" --include="*.csv" "$1")
     echo "$result"
     return $test_failures
+}
+
+# Jenkins ENABLE_CODE_COVERAGE (or HIPVS_ENABLE_CODE_COVERAGE). Do not pass
+# --cov into run_tests: that helper is one pytest per file.
+coverage_enabled() {
+    case "${ENABLE_CODE_COVERAGE:-${HIPVS_ENABLE_CODE_COVERAGE:-0}}" in
+        1|true|yes|on) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+begin_llvm_profiling() {
+    coverage_enabled || return 0
+    mkdir -p "$1"
+    export LLVM_PROFILE_FILE="$1/%p.profraw"
+}
+
+export_llvm_cov_json() {
+    coverage_enabled || return 0
+    local profdir="$1" json="$2"
+    shift 2
+    mkdir -p "$(dirname "${json}")"
+    shopt -s nullglob
+    local raws=("${profdir}"/*.profraw)
+    shopt -u nullglob
+    if (( ${#raws[@]} == 0 )); then
+        echo "WARNING: no LLVM profraw files under ${profdir}; skipping llvm-cov export"
+        return 0
+    fi
+    llvm-profdata merge -sparse "${raws[@]}" -o "${profdir}/merged.profdata"
+    local objects=()
+    local o
+    for o in "$@"; do
+        [[ -e "${o}" ]] && objects+=(--object="${o}")
+    done
+    if (( ${#objects[@]} == 0 )); then
+        echo "WARNING: no instrumented objects for llvm-cov export"
+        return 0
+    fi
+    llvm-cov export "${objects[@]}" --Xdemangler=c++filt \
+        --instr-profile="${profdir}/merged.profdata" \
+        --ignore-filename-regex='_deps' \
+        > "${json}"
+}
+
+run_pytest_cov() {
+    coverage_enabled || return 0
+    local pkg="$1" tests="$2"
+    local json="${COVERAGE_PYTEST_JSON:-${ARTIFACTS_DIR}/pytest_code_coverage.json}"
+    mkdir -p "$(dirname "${json}")"
+    python -m pip install -q pytest-cov
+    local append=()
+    [[ -f "${json}" ]] && append+=(--cov-append)
+    pytest -q --cov="${pkg}" --cov-report="json:${json}" --cov-report=term-missing \
+        "${append[@]}" "${tests}"
 }
