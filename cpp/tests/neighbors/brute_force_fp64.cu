@@ -247,6 +247,78 @@ TEST_F(BruteForceFP64, MultipleColumnTiles)
     h_data, h_queries, dim, k, Metric::L2Unexpanded, ids.data_handle(), distances.data_handle());
 }
 
+TEST_F(BruteForceFP64, ManyQueriesCrossSelectKThreshold)
+{
+  // rows > 198 (with k > 2 and cols <= 22061) flips raft's select_k heuristic from
+  // kWarpImmediate to kWarpDistributedShm (see choose_select_k_algorithm). Pairing that
+  // with a forced column tile split exercises both the select_k row threshold and the
+  // column-tiling cutover for double in the same call.
+  constexpr int64_t n = 129, m = 199, dim = 2, k = 7;
+  auto h_data = data(n), h_queries = queries(m);
+  auto d_data = upload(h_data), d_queries = upload(h_queries);
+  auto ids       = raft::make_device_matrix<int64_t, int64_t>(res, m, k);
+  auto distances = raft::make_device_matrix<double, int64_t>(res, m, k);
+  cuvs::neighbors::detail::tiled_brute_force_knn<double, int64_t, double>(res,
+                                                                          d_queries.data_handle(),
+                                                                          d_data.data_handle(),
+                                                                          m,
+                                                                          n,
+                                                                          dim,
+                                                                          k,
+                                                                          distances.data_handle(),
+                                                                          ids.data_handle(),
+                                                                          Metric::L2Unexpanded,
+                                                                          2.0,
+                                                                          0,
+                                                                          32);
+  check(
+    h_data, h_queries, dim, k, Metric::L2Unexpanded, ids.data_handle(), distances.data_handle());
+}
+
+TEST_F(BruteForceFP64, MultiPartitionMerge)
+{
+  // The public build()/search() API always calls brute_force_knn_impl with a single dataset
+  // partition, so knn_merge_parts (which combines per-partition top-k results) never runs for
+  // double through that path. Call brute_force_knn_impl directly with two partitions to
+  // exercise it.
+  constexpr int64_t n = 129, n1 = 70, m = 5, dim = 2, k = 7;
+  auto h_data = data(n), h_queries = queries(m);
+  auto d_data = upload(h_data), d_queries = upload(h_queries);
+  std::vector<double*> input = {d_data.data_handle(), d_data.data_handle() + n1 * dim};
+  std::vector<int64_t> sizes = {n1, n - n1};
+  auto ids                   = raft::make_device_matrix<int64_t, int64_t>(res, m, k);
+  auto distances             = raft::make_device_matrix<double, int64_t>(res, m, k);
+  cuvs::neighbors::detail::brute_force_knn_impl<int64_t, int64_t, double, double>(
+    res,
+    input,
+    sizes,
+    dim,
+    d_queries.data_handle(),
+    m,
+    ids.data_handle(),
+    distances.data_handle(),
+    k,
+    true,
+    true,
+    nullptr,
+    Metric::L2Unexpanded,
+    2.0);
+  check(
+    h_data, h_queries, dim, k, Metric::L2Unexpanded, ids.data_handle(), distances.data_handle());
+}
+
+TEST_F(BruteForceFP64, FusedPathNeverSelectedForDouble)
+{
+  // hipRaft's Policy2x8<double, 32, *> contraction policy is documented as unused ("just for
+  // keeping compiler happy"), so fusedL2KnnFitsSharedMem must reject double regardless of the
+  // device's warp size, forcing every double brute-force search through the tiled path.
+  auto stream = raft::resource::get_cuda_stream(res);
+  for (int k : {1, 32, 64}) {
+    EXPECT_FALSE(
+      (cuvs::neighbors::detail::fusedL2KnnFitsSharedMem<double, double, int64_t>(k, stream)));
+  }
+}
+
 TEST_F(BruteForceFP64, FilteredPrecision)
 {
   constexpr int64_t n = 256, dim = 2, k = 3;

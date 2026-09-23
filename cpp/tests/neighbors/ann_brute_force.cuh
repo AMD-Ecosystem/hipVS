@@ -222,6 +222,12 @@ const std::vector<AnnBruteForceInputs<int64_t>> inputs = {
   {1000, 10000, 32, 50, cuvs::distance::DistanceType::L2Unexpanded},
   {10000, 40000, 32, 30, cuvs::distance::DistanceType::L2Unexpanded},
 
+  // straddle the fused (k <= 64) vs tiled (k > 64) cutover in fusedL2KnnFitsSharedMem
+  {1000, 10000, 16, 64, cuvs::distance::DistanceType::L2Expanded},
+  {1000, 10000, 16, 65, cuvs::distance::DistanceType::L2Expanded},
+  {1000, 10000, 16, 64, cuvs::distance::DistanceType::L2Unexpanded},
+  {1000, 10000, 16, 65, cuvs::distance::DistanceType::L2Unexpanded},
+
   // test tile
   {256, 512, 16, 8, cuvs::distance::DistanceType::L2Expanded},
   {256, 512, 16, 8, cuvs::distance::DistanceType::L2Unexpanded},

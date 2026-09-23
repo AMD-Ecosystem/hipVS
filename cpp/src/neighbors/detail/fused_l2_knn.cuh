@@ -37,6 +37,7 @@ using namespace hip_warp_primitives;
 #endif
 
 #include <limits>
+#include <type_traits>
 
 #include "../../distance/detail/distance.cuh"
 #include "../../distance/detail/distance_ops/l2_exp.cuh"
@@ -1111,6 +1112,12 @@ void fusedL2ExpKnn(IdxT m,
  * configuration error. Callers must fall back to another implementation (e.g. tiled pairwise
  * distance + select_k) when this returns false.
  *
+ * On wave32, the smem math for `AccT == double` happens to fit -- but hipRaft's
+ * `Policy2x8<double, 32, *>` contraction policy is explicitly documented as unused ("just for
+ * keeping compiler happy", raft/linalg/contractions.cuh) and isn't validated for real kernel
+ * launches. So double is unconditionally routed away from the fused path below, regardless of
+ * warp size, rather than trusting the smem size check alone.
+ *
  * The L2-expanded requirement is used here since it is the larger of the two variants.
  *
  * @param[in] numOfNN number of nearest neighbors the kernel would be launched for
@@ -1119,6 +1126,8 @@ void fusedL2ExpKnn(IdxT m,
 template <typename DataT, typename AccT, typename IdxT>
 bool fusedL2KnnFitsSharedMem(int numOfNN, cudaStream_t stream)
 {
+  if constexpr (std::is_same_v<AccT, double>) { return false; }
+
   using Pair = cub::KeyValuePair<uint32_t, AccT>;
 
   // Mirrors the sharedMemSize computed in fusedL2ExpKnnImpl / fusedL2UnexpKnnImpl, which build
