@@ -277,7 +277,11 @@ class hash_strategy : public coo_spmv_strategy<value_idx, value_t, tpb> {
 
   __device__ inline void insert(map_type& map_ref, const value_idx& key, const value_t& value)
   {
-    map_ref.insert(cuco::pair{key, value});
+    // Adding zero maps a stored -0.0 to +0.0 and is an exact no-op for every other value, so a
+    // stored zero can never be mistaken for the absent marker returned by find(). Do not fold
+    // this away: it is only a no-op under -ffast-math/-fno-signed-zeros, which
+    // coo_spmv_kernel.cuh rejects.
+    map_ref.insert(cuco::pair{key, value + value_t{0}});
   }
 
   // Note: init_find is now merged with init_map since the new API uses the same ref for both
@@ -287,7 +291,9 @@ class hash_strategy : public coo_spmv_strategy<value_idx, value_t, tpb> {
   {
     auto a_pair = map_ref.find(key);
 
-    value_t a_col = 0.0;
+    // -0.0 marks "column absent from this row", matching dense_smem_strategy so that the kernel
+    // guard stays strategy-agnostic. It is arithmetically identical to 0.0.
+    value_t a_col = -0.0;
     if (a_pair != map_ref.end()) { a_col = a_pair->second; }
     return a_col;
   }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -202,7 +202,10 @@ const std::vector<SparseKNNInputs<int, float>> inputs_i32_f = {
    2,
    2,
    cuvs::distance::DistanceType::InnerProduct},
-  // Odd Minkowski exponents must apply to absolute differences.
+  // Odd Minkowski exponents must apply to absolute differences. The leading element is an
+  // explicitly stored zero on purpose: the unexpanded metrics split the column union across a
+  // forward and a reverse spmv pass, and a stored zero must not be mistaken for a column absent
+  // from the other row and counted by both.
   {1,
    {0, 1, 2, 3, 4, 5},
    {0, 0, 0, 0, 0},
@@ -212,6 +215,34 @@ const std::vector<SparseKNNInputs<int, float>> inputs_i32_f = {
    2,
    2,
    2,
+   cuvs::distance::DistanceType::LpUnexpanded},
+  // As above, but the stored zero is negative. -0.0 is the marker the spmv kernel uses for an
+  // absent column, so the strategies must normalize it on insert to keep the two apart. Negating
+  // zero does not change any distance.
+  {1,
+   {0, 1, 2, 3, 4, 5},
+   {0, 0, 0, 0, 0},
+   {-0.0f, 2, 5, 9, 14},
+   {0, 2, 0, 2, 0, 3, 0, 4, 0, 5},
+   {0, 1, 1, 0, 2, 1, 3, 2, 4, 3},
+   2,
+   2,
+   2,
+   cuvs::distance::DistanceType::LpUnexpanded},
+  // Both of the above again, but wide enough (> the dense shared-memory column budget) that the
+  // spmv falls onto the hash strategy, which marks absent columns in its own way. Row 2 occupies
+  // a column the other rows lack, so the reverse pass has to distinguish a genuinely absent
+  // column from row 0's stored zero rather than skipping both. k covers every pair: without the
+  // reverse contribution d(1,2) comes out as 64^(1/3) = 4 instead of 72^(1/3).
+  {20000,
+   {0, 1, 2, 3},
+   {0, 0, 5000},
+   {-0.0f, 2, 4},
+   {0, 2, 4, 0, 2, 4.1601676, 0, 4, 4.1601676},
+   {0, 1, 2, 1, 0, 2, 2, 0, 1},
+   3,
+   3,
+   3,
    cuvs::distance::DistanceType::LpUnexpanded}};
 typedef SparseKNNTest<int, float> SparseKNNTestF;
 TEST_P(SparseKNNTestF, Result) { compare(); }

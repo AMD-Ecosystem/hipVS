@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -51,6 +51,16 @@ namespace cub = hipcub;
 #include <cub/warp/warp_reduce.cuh>
 #endif
 
+// The unexpanded metrics need a column union, so the reverse pass must contribute only for
+// columns present in one row and absent from the other. Absence is marked in the shared-memory
+// buffer with -0.0, which is arithmetically identical to 0.0 and therefore invisible to every
+// product/accum op, but distinguishable from a stored zero by its sign bit. Relaxing signed-zero
+// semantics would silently collapse that distinction and double-count stored zeros.
+#if defined(__FAST_MATH__) || defined(__NO_SIGNED_ZEROS__)
+#error \
+  "sparse coo_spmv distinguishes an absent column from a stored zero using IEEE signed zeros; do not build this with -ffast-math or -fno-signed-zeros"
+#endif
+
 namespace cuvs {
 namespace distance {
 namespace detail {
@@ -58,6 +68,19 @@ namespace sparse {
 __device__ __inline__ unsigned int get_lowest_peer(bitmask_type peer_group)
 {
   return raft::__FFS(peer_group) - 1;
+}
+
+/**
+ * @brief Test whether a value read out of the shared-memory row buffer marks an absent column,
+ * as opposed to a column that is present and holds an explicitly stored zero.
+ *
+ * Absent columns are marked with -0.0 by the strategies' init_map(), and insert() normalizes any
+ * stored -0.0 in the data to +0.0, so the two cases never collide.
+ */
+template <typename value_t>
+__device__ __inline__ bool is_absent(const value_t& v)
+{
+  return v == value_t{0} && signbit(v);
 }
 
 /**
@@ -80,8 +103,9 @@ __device__ __inline__ unsigned int get_lowest_peer(bitmask_type peer_group)
  * @tparam value_t value type
  * @tparam tpb threads per block configured on launch
  * @tparam rev if this is true, the reduce/accumulate functions are only
- *         executed when A[col] == 0.0. when executed before/after !rev
- *         and A & B are reversed, this allows the full symmetric difference
+ *         executed when col is absent from A, as reported by is_absent() -- note that a column
+ *         holding an explicitly stored zero is present, not absent. when executed before/after
+ *         !rev and A & B are reversed, this allows the full symmetric difference
  *         and intersection to be computed.
  * @tparam kv_t data type stored in shared mem cache
  * @tparam product_f reduce function type (semiring product() function).
@@ -205,7 +229,7 @@ RAFT_KERNEL balanced_coo_generalized_spmv_kernel(strategy_t strategy,
 
     if (in_bounds) {
       value_t a_col = strategy.find(map_ref, index_b);
-      if (!rev || a_col == 0.0) { c = product_func(a_col, dataB[ind]); }
+      if (!rev || is_absent(a_col)) { c = product_func(a_col, dataB[ind]); }
     }
   }
 
@@ -244,7 +268,7 @@ RAFT_KERNEL balanced_coo_generalized_spmv_kernel(strategy_t strategy,
       if (in_bounds) {
         value_t a_col = strategy.find(map_ref, index_b);
 
-        if (!rev || a_col == 0.0) { c = accum_func(c, product_func(a_col, dataB[ind])); }
+        if (!rev || is_absent(a_col)) { c = accum_func(c, product_func(a_col, dataB[ind])); }
       }
 
       cur_row_b = next_row_b;

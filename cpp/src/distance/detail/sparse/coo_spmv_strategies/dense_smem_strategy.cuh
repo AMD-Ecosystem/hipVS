@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+ * Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -108,14 +108,20 @@ class dense_smem_strategy : public coo_spmv_strategy<value_idx, value_t, tpb> {
   {
     auto cache = static_cast<value_t*>(storage);
     for (int k = threadIdx.x; k < cache_size; k += blockDim.x) {
-      cache[k] = 0.0;
+      // -0.0 marks "column absent from this row". It is arithmetically identical to 0.0, so it
+      // leaves every product/accum op below unchanged, but is_absent() can still tell it apart
+      // from a stored zero. See coo_spmv_kernel.cuh.
+      cache[k] = -0.0;
     }
     return cache;
   }
 
   __device__ inline void insert(map_type& cache, const value_idx& key, const value_t& value)
   {
-    cache[key] = value;
+    // Adding zero maps a stored -0.0 to +0.0 and is an exact no-op for every other value, so a
+    // stored zero can never be mistaken for the absent marker. Do not fold this away: it is only
+    // a no-op under -ffast-math/-fno-signed-zeros, which coo_spmv_kernel.cuh rejects.
+    cache[key] = value + value_t{0};
   }
 
   __device__ inline value_t find(map_type& cache, const value_idx& key) { return cache[key]; }
