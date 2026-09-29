@@ -24,33 +24,37 @@
 
 FROM quay.io/pypa/manylinux_2_28_x86_64
 
-ARG ROCM=7.2.4
+ARG ROCM=10.0.0
 
 RUN dnf install -y wget
 
-RUN bash -c 'cat > /amdgpu_install_wrapper.sh' <<'EOF'
+# ROCm 10 is no longer shipped through amdgpu-install; it comes from the
+# amdrocm dnf repo and installs into /opt/rocm/core-<major.minor>, with
+# update-alternatives symlinks for /opt/rocm/{bin,lib,include,llvm,...}.
+RUN bash -c 'cat > /rocm_install_wrapper.sh' <<'EOF'
 #!/usr/bin/env bash
 set -exo pipefail
 
-function get_os_property() {
-  grep "^$1=" /etc/os-release | cut -d "=" -f 2 | tr -d "\"" | tr -d "'"
-}
+rocm_series=${ROCM%.*}
 
-rhel_version_id=$(get_os_property VERSION_ID)
-rhel_version_major=$(echo ${rhel_version_id} | cut -d '.' -f 1)
+tee /etc/yum.repos.d/amdrocm-stable.repo <<REPO
+[amdrocm-stable]
+name=ROCm ${ROCM}
+baseurl=https://stable.repo.amd.com/rocm/core/packages/rhel8/x86_64
+enabled=1
+gpgcheck=1
+gpgkey=https://stable.repo.amd.com/rocm/gpg/packages.gpg
+REPO
+dnf clean all
 
-wget -np -r -nH --cut-dirs=4 -A "amdgpu-install*el${rhel_version_major}.noarch.rpm" https://repo.radeon.com/amdgpu-install/${ROCM}/rhel/${rhel_version_id}
-yum clean all
-yum install -y ./amdgpu-install*.rpm
-rm ./amdgpu-install*.rpm
-
-amdgpu-install -y --usecase="rocm,rocmdev,rocmdevtools,opencl,hip,openclsdk,hiplibsdk,openmpsdk,lrt,mllib,mlsdk" --no-dkms
+dnf install -y libatomic libquadmath
+dnf install -y "amdrocm-core-sdk${rocm_series}-${ROCM}"
 # make ld aware about rocm install dir
 echo "/opt/rocm/lib" > /etc/ld.so.conf.d/ROCM-MANUAL-INSTALL.conf
 ldconfig
 EOF
 
-RUN export ROCM=${ROCM} && bash /amdgpu_install_wrapper.sh
+RUN export ROCM=${ROCM} && bash /rocm_install_wrapper.sh
 
 RUN dnf install -y sudo \
         vim \

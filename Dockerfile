@@ -26,8 +26,8 @@
 # SOFTWARE.
 
 ARG UBUNTU="24.04"
-ARG ROCM=7.2.4
-ARG BASE=rocm/dev-ubuntu-${UBUNTU}:${ROCM}-complete
+ARG ROCM=10.0.0
+ARG BASE=rocm/dev-ubuntu-${UBUNTU}:${ROCM}-full
 FROM ${BASE}
 
 ENV ROCM=${ROCM}
