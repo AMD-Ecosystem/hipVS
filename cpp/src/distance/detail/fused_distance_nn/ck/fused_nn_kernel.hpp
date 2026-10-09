@@ -197,7 +197,10 @@ class FusedDistanceNNComposableKernel {
     : elfunc_(elfunc), red_op_(red_op), pair_red_op_(pair_red_op)
   {
   }
-  __device__ void operator()(KernelArgs kargs) const
+  // Excluded from coverage instrumentation: the profile data record would take this function's
+  // address, and the AMDGPU backend would then allocate smem_ptr_0 in every kernel of the TU
+  // (overflowing LDS under ENABLE_CODE_COVERAGE). A no-op otherwise.
+  __attribute__((no_profile_instrument_function)) __device__ void operator()(KernelArgs kargs) const
   {
     auto const [i_m, i_n] = get_tile_indices(kargs);
 

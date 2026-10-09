@@ -249,7 +249,10 @@ struct PairwiseDistanceCkKernel {
     return HelperKernel::IsSupportedArgument(kargs_adapted);
   }
 
-  __device__ void operator()(KernelArgs kargs) const
+  // Excluded from coverage instrumentation: the profile data record would take this function's
+  // address, and the AMDGPU backend would then allocate smem_ptr_0 in every kernel of the TU
+  // (overflowing LDS under ENABLE_CODE_COVERAGE). A no-op otherwise.
+  __attribute__((no_profile_instrument_function)) __device__ void operator()(KernelArgs kargs) const
   {
     const auto [i_m, i_n]     = get_tile_indices(kargs);
     const auto universal_args = to_universal_args(kargs);

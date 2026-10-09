@@ -258,8 +258,15 @@ include(cmake/modules/generate_string_matrix.cmake)
 # ##################################################################################################
 # * code coverage ------------------------------------------------------------
 if(ENABLE_CODE_COVERAGE)
-  add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
-  add_link_options(-fprofile-instr-generate -fcoverage-mapping)
+  # ROCm clang also instruments device code: the new offload driver is needed to link the device
+  # profile runtime, and the anchor gives TUs without device code the sections lld expects. CXX is
+  # included because build.sh compiles CXX sources with hipcc. C is excluded: the C API tests are
+  # compiled by the system C compiler, which may be GCC, and they only exercise the instrumented
+  # libraries.
+  add_compile_options(
+    "$<$<COMPILE_LANGUAGE:HIP,CXX>:-fprofile-instr-generate;-fcoverage-mapping;--offload-new-driver;-include;${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/coverage_anchor.h>"
+  )
+  add_link_options(-fprofile-instr-generate -fcoverage-mapping --offload-new-driver)
 endif()
 
 # ##################################################################################################

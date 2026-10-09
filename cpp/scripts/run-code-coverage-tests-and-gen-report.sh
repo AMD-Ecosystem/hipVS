@@ -21,7 +21,7 @@
 
 
 #-------------------------------------------------------------------------------------------------
-# This script runs the C++ tests to collect code coverage data and generates an HTML report using
+# This script runs the C++ and C API tests to collect code coverage data and generates an HTML report using
 # `llvm-profdata` and `llvm-cov`. To enable code coverage instrumentation, build with the CMake
 # option `ENABLE_CODE_COVERAGE=ON`. Run this script from inside the build directory, or set the
 # environment variable `HIPVS_BUILD_DIR` to point to the build directory. The generated profile
@@ -39,31 +39,35 @@ HIPVS_COVERAGE_REPORT_PATH=${HIPVS_BUILD_DIR}/coverage_report
 
 mkdir -p "$HIPVS_PROFILES_DIR"
 
-# Run C++ tests
-BINARIES=("${HIPVS_BUILD_DIR}/libcuvs.so" "${HIPVS_BUILD_DIR}/libcuvs_c.so")
-GTEST_DIR="${HIPVS_BUILD_DIR}/gtests"
-if [ -d "${GTEST_DIR}" ]; then
-    cd "${GTEST_DIR}"
-    for test_exec in *; do
-        if [[ -x "$test_exec" ]]; then
-            echo "Running ./${test_exec} ..."
-            BINARIES+=("${GTEST_DIR}/${test_exec}")
-            export LLVM_PROFILE_FILE="${HIPVS_PROFILES_DIR}/${test_exec}.profraw"
-            if ! ./"$test_exec"; then
-                echo "Test ${test_exec} failed"
-                have_failures=1
+# Run the C++ and C API tests
+BINARIES=("${HIPVS_BUILD_DIR}/libcuvs.so" "${HIPVS_BUILD_DIR}/c/libcuvs_c.so")
+for GTEST_DIR in "${HIPVS_BUILD_DIR}/gtests" "${HIPVS_BUILD_DIR}/c/gtests"; do
+    if [ -d "${GTEST_DIR}" ]; then
+        cd "${GTEST_DIR}"
+        for test_exec in *; do
+            if [[ -x "$test_exec" ]]; then
+                echo "Running ./${test_exec} ..."
+                BINARIES+=("${GTEST_DIR}/${test_exec}")
+                export LLVM_PROFILE_FILE="${HIPVS_PROFILES_DIR}/${test_exec}.profraw"
+                if ! ./"$test_exec"; then
+                    echo "Test ${test_exec} failed"
+                    have_failures=1
+                fi
+            else
+                echo "Skipping non-executable file: ${test_exec}"
             fi
-        else
-            echo "Skipping non-executable file: ${test_exec}"
-        fi
-    done
-else
-    echo "C++ test directory not found at ${GTEST_DIR}"
-    # shellcheck disable=SC2034
-    have_failures=1
-fi
+        done
+    else
+        echo "Test directory not found at ${GTEST_DIR}"
+        # shellcheck disable=SC2034
+        have_failures=1
+    fi
+done
 
 set -x
+
+# Use the LLVM tools matching ROCm's clang, which wrote the profiles.
+export PATH="${ROCM_PATH:-/opt/rocm}/lib/llvm/bin:${PATH}"
 
 llvm-profdata merge -sparse "${HIPVS_PROFILES_DIR}"/*.profraw -o "${HIPVS_COVERAGE_DATA}"
 
