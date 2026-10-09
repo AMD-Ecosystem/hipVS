@@ -21,12 +21,17 @@
 
 
 #-------------------------------------------------------------------------------------------------
-# This script runs the C++ and C API tests to collect code coverage data and generates an HTML report using
-# `llvm-profdata` and `llvm-cov`. To enable code coverage instrumentation, build with the CMake
-# option `ENABLE_CODE_COVERAGE=ON`. Run this script from inside the build directory, or set the
-# environment variable `HIPVS_BUILD_DIR` to point to the build directory. The generated profile
-# data will be located under `${HIPVS_BUILD_DIR}/profiles`, and the HTML report will be saved to
-# `${HIPVS_BUILD_DIR}/coverage_report`.
+# This script runs the C++ and C API tests to collect code coverage data and generates an HTML
+# report using `llvm-profdata` and `llvm-cov`. To enable code coverage instrumentation, build with
+# the CMake option `ENABLE_CODE_COVERAGE=ON`. Run this script from inside the build directory, or
+# set the environment variable `HIPVS_BUILD_DIR` to point to the build directory. The generated
+# profile data will be located under `${HIPVS_BUILD_DIR}/profiles`, and the HTML report will be
+# saved to `${HIPVS_BUILD_DIR}/coverage_report`.
+#
+# Set `HIPVS_COVERAGE_RESUME=1` to continue an interrupted run: tests that already wrote a
+# non-empty profile are skipped and only the remaining ones are run before the report is
+# generated. A test's profile is written when it exits, so a test that was killed mid-run leaves
+# an empty profile and is run again.
 #-------------------------------------------------------------------------------------------------
 
 
@@ -36,6 +41,7 @@ HIPVS_BUILD_DIR=${HIPVS_BUILD_DIR:="${PWD}"}
 HIPVS_PROFILES_DIR=${HIPVS_BUILD_DIR}/profiles
 HIPVS_COVERAGE_DATA=${HIPVS_BUILD_DIR}/hipvs-coverage.profdata
 HIPVS_COVERAGE_REPORT_PATH=${HIPVS_BUILD_DIR}/coverage_report
+HIPVS_COVERAGE_RESUME=${HIPVS_COVERAGE_RESUME:-0}
 
 mkdir -p "$HIPVS_PROFILES_DIR"
 
@@ -46,9 +52,14 @@ for GTEST_DIR in "${HIPVS_BUILD_DIR}/gtests" "${HIPVS_BUILD_DIR}/c/gtests"; do
         cd "${GTEST_DIR}"
         for test_exec in *; do
             if [[ -x "$test_exec" ]]; then
-                echo "Running ./${test_exec} ..."
                 BINARIES+=("${GTEST_DIR}/${test_exec}")
-                export LLVM_PROFILE_FILE="${HIPVS_PROFILES_DIR}/${test_exec}.profraw"
+                profile="${HIPVS_PROFILES_DIR}/${test_exec}.profraw"
+                if [[ "${HIPVS_COVERAGE_RESUME}" == 1 && -s "${profile}" ]]; then
+                    echo "Skipping ./${test_exec}: profile already collected"
+                    continue
+                fi
+                echo "Running ./${test_exec} ..."
+                export LLVM_PROFILE_FILE="${profile}"
                 if ! ./"$test_exec"; then
                     echo "Test ${test_exec} failed"
                     have_failures=1
