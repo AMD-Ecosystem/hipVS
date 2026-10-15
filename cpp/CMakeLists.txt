@@ -262,9 +262,10 @@ if(ENABLE_CODE_COVERAGE)
   # profile runtime, and the anchor gives TUs without device code the sections lld expects. CXX is
   # included because build.sh compiles CXX sources with hipcc. C is excluded: the C API tests are
   # compiled by the system C compiler, which may be GCC, and they only exercise the instrumented
-  # libraries.
+  # libraries. The profile list keeps device functions that use __shared__ uninstrumented, see the
+  # file for why.
   add_compile_options(
-    "$<$<COMPILE_LANGUAGE:HIP,CXX>:-fprofile-instr-generate;-fcoverage-mapping;--offload-new-driver;-include;${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/coverage_anchor.h>"
+    "$<$<COMPILE_LANGUAGE:HIP,CXX>:-fprofile-instr-generate;-fcoverage-mapping;-fprofile-list=${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/coverage_profile_list.txt;--offload-new-driver;-include;${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/coverage_anchor.h>"
   )
   add_link_options(-fprofile-instr-generate -fcoverage-mapping --offload-new-driver)
 endif()

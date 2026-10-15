@@ -1,0 +1,39 @@
+# MIT License
+#
+# Copyright (c) 2026 Advanced Micro Devices, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# Passed to -fprofile-list by ENABLE_CODE_COVERAGE.
+#
+# Device profiling stores each instrumented function's address in its __llvm_prf_data record, so
+# every instrumented device function counts as address-taken. AMDGPU's LDS lowering then allocates
+# the __shared__ variables of all address-taken functions in every kernel that makes an unknown
+# call (inline asm counts), which pushes kernels past the 64 KiB LDS limit. Keep non-kernel device
+# functions that use __shared__ directly out of the instrumentation. Use the forbid form (!fun:);
+# "=skip" still emits the data record.
+[clang]
+default:allow
+# Same list as hipRAFT's cpp/cmake/modules/coverage_profile_list.txt.
+!fun:_Z*4raft6matrix6detail6select5radix4impl20filter_and_histogram*
+!fun:_Z*4raft6matrix6detail6select5radix4impl4scan*
+!fun:_Z*4raft6matrix6detail6select5radix4impl18vectorized_process*
+!fun:_Z*7rocprim*segmented_warp_sort_helper*
+# hipVS additions.
+!fun:_Z*4raft6linalg6detail6reduce*
