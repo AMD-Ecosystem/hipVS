@@ -30,8 +30,8 @@
 
 
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(RAFT_FORK "AMD-AIOSS")
-set(RAFT_PINNED_TAG "amd-integration")
+set(RAFT_FORK "AMD-Ecosystem")
+set(RAFT_PINNED_TAG "release/26.09")
 
 function(find_and_configure_raft)
     set(oneValueArgs VERSION FORK PINNED_TAG BUILD_STATIC_DEPS ENABLE_NVTX ENABLE_MNMG_DEPENDENCIES CLONE_ON_PIN)
@@ -68,7 +68,7 @@ function(find_and_configure_raft)
             COMPONENTS          ${RAFT_COMPONENTS}
             CPM_ARGS
               EXCLUDE_FROM_ALL TRUE
-              GIT_REPOSITORY        https://$ENV{GITHUB_PASS}@github.com/${PKG_FORK}/hipRaft.git
+              GIT_REPOSITORY        https://github.com/${PKG_FORK}/hipRaft.git
               GIT_TAG               ${PKG_PINNED_TAG}
               SOURCE_SUBDIR         cpp
               OPTIONS

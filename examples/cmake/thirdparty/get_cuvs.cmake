@@ -11,7 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 #
-# Modifications Copyright (c) 2025 Advanced Micro Devices, Inc.
+# Modifications Copyright (c) 2025-2026 Advanced Micro Devices, Inc.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -31,7 +31,7 @@
 
 # Use RAPIDS_VERSION_MAJOR_MINOR from cmake/rapids_config.cmake
 set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(CUVS_FORK "AMD-AIOSS")
+set(CUVS_FORK "AMD-Ecosystem")
 set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
 
 function(find_and_configure_cuvs)
@@ -39,7 +39,7 @@ function(find_and_configure_cuvs)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
             "${multiValueArgs}" ${ARGN} )
 
-    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "amd-integration")
+    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "release/26.09")
         message(STATUS "CUVS pinned tag found: ${PKG_PINNED_TAG}. Cloning locally.")
         set(CPM_DOWNLOAD_cuvs ON)
     endif()
@@ -57,7 +57,7 @@ function(find_and_configure_cuvs)
             INSTALL_EXPORT_SET  cuvs-examples-exports
             COMPONENTS ${CUVS_COMPONENTS}
             CPM_ARGS
-            GIT_REPOSITORY https://$ENV{GITHUB_PASS}@github.com/${PKG_FORK}/hipVS.git
+            GIT_REPOSITORY https://github.com/${PKG_FORK}/hipVS.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
