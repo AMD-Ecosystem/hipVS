@@ -71,6 +71,9 @@ python3 -m venv "${wheels_test_env}"
 
       run_tests python/cuvs/cuvs/tests "${CSV_OUTPUT_DIR}" "${TIMEOUT_PER_TEST_SEC}"
 
+      # One interpreter's coverage is enough: skip once an earlier pass wrote it.
+      [ -f "${COVERAGE_PYTEST_JSON:-}" ] || run_pytest_cov cuvs python/cuvs/cuvs/tests || test_failures=1
+
       result=$(merge_test_results "${CSV_OUTPUT_DIR}") || test_failures=1
       echo "$result" > "${ARTIFACTS_DIR}/${PROJECT_ID}-test-results-py${results_suffix}.csv"
 
