@@ -65,7 +65,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # them without exporting would otherwise hand it nothing.
 export PROJECT_ID BUILD_DIR BUILD_ARTIFACTS_DIR ARTIFACTS_DIR
 
-test_pythons=${HIPVS_TEST_PYTHONS:-"3.11 3.12 3.13"}
+# shellcheck source=ci/internal/_coverage.sh
+source "${BASH_SOURCE[0]%/*}/_coverage.sh"
+test_pythons=${HIPVS_TEST_PYTHONS:-"$(coverage_python_versions "3.11 3.12 3.13")"}
 
 base_path=${PATH}
 

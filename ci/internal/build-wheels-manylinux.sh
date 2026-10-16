@@ -80,14 +80,19 @@ mkdir -p "${BUILD_ARTIFACTS_DIR}"
 # A version this image does not carry should fail in seconds rather than after
 # the first pass has spent an hour compiling.
 
-python_versions=(3.11 3.12)
-sabi_floors=(no 3.12)
-expected_tags=(cp311-cp311 cp312-abi3)
-
-python_bins=(
-  /opt/python/cp311-cp311/bin
-  /opt/python/cp312-cp312/bin
-)
+# shellcheck source=ci/internal/_coverage.sh
+source "${BASH_SOURCE[0]%/*}/_coverage.sh"
+if coverage_enabled; then
+  python_versions=(3.12)
+  sabi_floors=(3.12)
+  expected_tags=(cp312-abi3)
+  python_bins=(/opt/python/cp312-cp312/bin)
+else
+  python_versions=(3.11 3.12)
+  sabi_floors=(no 3.12)
+  expected_tags=(cp311-cp311 cp312-abi3)
+  python_bins=(/opt/python/cp311-cp311/bin /opt/python/cp312-cp312/bin)
+fi
 
 for python_bin in "${python_bins[@]}"; do
   if [ ! -x "${python_bin}/python" ]; then
