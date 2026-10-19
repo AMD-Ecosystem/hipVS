@@ -31,7 +31,7 @@
 hipVS documentation
 ********************************************************************
 
-hipVS is a GPU-accelerated vector search library for AMD GPUs, enabling high-performance approximate and exact nearest-neighbor (ANN) search and clustering workloads. It is part of the AMD Data Science toolkit, an open-source software collection for high-performance data science applications. Forked from the RAPIDS® cuVS project and aligned with RAPIDS 26.04, hipVS brings state-of-the-art vector similarity capabilities to the :doc:`ROCm <rocm:index>`/:doc:`HIP <hip:index>` software stack and AMD platforms. It is designed to minimize porting friction for users familiar with cuVS by maintaining consistent directory structure, file organization, and API naming. For more information, see :doc:`What is hipVS? <./what-is-hipVS>`
+hipVS is a GPU-accelerated vector search library for AMD GPUs, enabling high-performance approximate and exact nearest-neighbor (ANN) search and clustering workloads. It is part of the AMD Data Science toolkit, an open-source software collection for high-performance data science applications. Forked from the RAPIDS® cuVS project and aligned with RAPIDS 26.06, hipVS brings state-of-the-art vector similarity capabilities to the :doc:`ROCm <rocm:index>`/:doc:`HIP <hip:index>` software stack and AMD platforms. It is designed to minimize porting friction for users familiar with cuVS by maintaining consistent directory structure, file organization, and API naming. For more information, see :doc:`What is hipVS? <./what-is-hipVS>`
 
 Key Features in hipVS v2.0.0:
 
@@ -50,7 +50,7 @@ Key Features in hipVS v2.0.0:
 * Optimized GPU performance for fast index building, low-latency queries, and high-throughput search.
 * Interoperability with other AMD Data Science components such as hipRAFT, hipDF, and hipGRAPH for end-to-end data-science and AI pipelines.
 
-New in v2.0.0 (aligned with RAPIDS 26.04):
+New in v2.0.0 (aligned with RAPIDS 26.06):
 
 * **New algorithms and capabilities**
 
