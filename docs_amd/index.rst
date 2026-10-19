@@ -44,7 +44,7 @@ Key Features in hipVS v1.0.0:
 * C++, C, Python, and Rust interfaces for integration in both production systems and rapid-prototyping environments.
 * API compatibility with RAPIDS cuVS, enabling drop-in portability for existing workflows on AMD hardware.
 * Optimized GPU performance for fast index building, low-latency queries, and high-throughput search.
-* Interoperability with other ROCm-DS components such as hipRAFT, hipDF, and hipGRAPH for end-to-end data-science and AI pipelines.
+* Interoperability with other AMD Data Science components such as hipRAFT, hipDF, and hipGRAPH for end-to-end data-science and AI pipelines.
 
 The hipVS code is open and hosted at `https://github.com/AMD-Ecosystem/hipVS <https://github.com/AMD-Ecosystem/hipVS>`_.
 
@@ -69,6 +69,6 @@ The hipVS code is open and hosted at `https://github.com/AMD-Ecosystem/hipVS <ht
     * :ref:`Rust API reference <hipvs-rust>`
 
 
-To contribute to the documentation refer to `Contributing to AMD Data Science  <https://rocm.docs.amd.com/projects/rocm-ds/en/latest/contribute/contributing.html>`_.
+To contribute to the documentation refer to `Contributing to AMD Data Science  <https://rocm.docs.amd.com/projects/datascience/en/latest/contribute/contributing.html>`_.
 
-You can find licensing information on the `Licensing <https://rocm.docs.amd.com/projects/rocm-ds/en/latest/about/license.html>`_ page.
+You can find licensing information on the `Licensing <https://rocm.docs.amd.com/projects/datascience/en/latest/about/license.html>`_ page.
