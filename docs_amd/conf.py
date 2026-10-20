@@ -46,7 +46,7 @@ all_article_info_author = ""
 external_projects_current_project = "hipVS"
 
 html_context = {
-    "docs_header_version": "26.03"
+    "docs_header_version": "26.10"
 }
 html_theme = "rocm_docs_theme"
 html_theme_options = {"flavor": "rocm-ds", "repository_url": "https://github.com/AMD-Ecosystem/hipVS/"}
