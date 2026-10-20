@@ -41,7 +41,7 @@ This topic lists the system requirements for using hipVS.
   - MI325X / MI300X (GPU target gfx942)
   - MI250 / MI210 (GPU target gfx90a)
 
-* Python versions: 3.10, 3.11, 3.12, 3.13
+* Python versions: 3.11, 3.12, 3.13
 
 Conda virtual environment
 -------------------------
