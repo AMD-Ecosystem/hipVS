@@ -113,6 +113,8 @@ coverage_enabled() {
 
 begin_llvm_profiling() {
     coverage_enabled || return 0
+    # Reduce host thread overhead and variability during coverage collection.
+    export OMP_NUM_THREADS=1
     mkdir -p "$1"
     export LLVM_PROFILE_FILE="$1/%p.profraw"
 }
@@ -147,6 +149,8 @@ export_llvm_cov_json() {
 
 run_pytest_cov() {
     coverage_enabled || return 0
+    # Reduce host thread overhead and variability during coverage collection.
+    export OMP_NUM_THREADS=1
     local pkg="$1" tests="$2"
     local json="${COVERAGE_PYTEST_JSON:-${ARTIFACTS_DIR}/pytest_code_coverage.json}"
     mkdir -p "$(dirname "${json}")"
