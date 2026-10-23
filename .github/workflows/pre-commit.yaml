@@ -25,7 +25,7 @@ name: Pre-commit Checks
 on:
   pull_request:
     branches:
-      - release/26.09
+      - release/26.10
   workflow_dispatch:
 
 permissions:

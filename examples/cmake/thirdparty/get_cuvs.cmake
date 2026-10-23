@@ -39,7 +39,7 @@ function(find_and_configure_cuvs)
     cmake_parse_arguments(PKG "${options}" "${oneValueArgs}"
             "${multiValueArgs}" ${ARGN} )
 
-    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "release/26.09")
+    if( NOT cuvs_ROOT AND NOT CPM_cuvs_SOURCE AND PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "release/26.10")
         message(STATUS "CUVS pinned tag found: ${PKG_PINNED_TAG}. Cloning locally.")
         set(CPM_DOWNLOAD_cuvs ON)
     endif()
