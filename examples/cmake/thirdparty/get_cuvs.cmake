@@ -32,7 +32,7 @@
 # Use RAPIDS_VERSION_MAJOR_MINOR from cmake/rapids_config.cmake
 set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
 set(CUVS_FORK "AMD-AIOSS")
-set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
+set(CUVS_PINNED_TAG "release/26.10")
 
 function(find_and_configure_cuvs)
     set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN ENABLE_NVTX BUILD_CUVS_C_LIBRARY)

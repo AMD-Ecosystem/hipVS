@@ -107,7 +107,7 @@ New in v2.0.0 (aligned with RAPIDS 26.06):
   - Updated FAISS dependency to 1.13.0
   - HNSW GPU hierarchy is now the default build behavior
 
-The hipVS code is open and hosted at `https://github.com/AMD-Ecosystem/hipVS <https://github.com/AMD-Ecosystem/hipVS>`_.
+The hipVS code is open and hosted at `https://github.com/AMD-AIOSS/hipVS <https://github.com/AMD-AIOSS/hipVS>`_.
 
 .. grid:: 2
   :gutter: 3

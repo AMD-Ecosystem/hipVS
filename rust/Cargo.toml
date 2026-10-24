@@ -13,8 +13,8 @@ resolver = "2"
 [workspace.package]
 version = "2.0.0"
 edition = "2024"
-repository = "https://github.com/AMD-Ecosystem/hipVS"
-homepage = "https://github.com/AMD-Ecosystem/hipVS"
+repository = "https://github.com/AMD-AIOSS/hipVS"
+homepage = "https://github.com/AMD-AIOSS/hipVS"
 description = "AMD HIP Vector Search library"
 authors = ["NVIDIA Corporation", "Advanced Micro Devices, Inc."]
 license = "MIT AND Apache-2.0"
