@@ -32,7 +32,7 @@
 # Use RAPIDS_VERSION_MAJOR_MINOR from cmake/rapids_config.cmake
 # TODO(AMD/HIP): Update the default values
 set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(CUVS_FORK "AMD-Ecosystem")
+set(CUVS_FORK "AMD-AIOSS")
 #set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
 set(CUVS_PINNED_TAG "release/26.10")
 
@@ -55,7 +55,7 @@ function(find_and_configure_cuvs)
             INSTALL_EXPORT_SET  cuvs-bench-exports
             COMPONENTS          cuvs
             CPM_ARGS
-              GIT_REPOSITORY        https://github.com/${PKG_FORK}/cuvs.git
+              GIT_REPOSITORY        https://github.com/${PKG_FORK}/hipVS.git
               GIT_TAG               ${PKG_PINNED_TAG}
               SOURCE_SUBDIR         cpp
               OPTIONS

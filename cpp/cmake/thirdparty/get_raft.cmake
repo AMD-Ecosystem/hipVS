@@ -30,7 +30,7 @@
 
 
 set(RAFT_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(RAFT_FORK "AMD-Ecosystem")
+set(RAFT_FORK "AMD-AIOSS")
 set(RAFT_PINNED_TAG "release/26.10")
 
 function(find_and_configure_raft)

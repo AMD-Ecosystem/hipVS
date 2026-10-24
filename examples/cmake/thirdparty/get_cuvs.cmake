@@ -31,7 +31,7 @@
 
 # Use RAPIDS_VERSION_MAJOR_MINOR from cmake/rapids_config.cmake
 set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(CUVS_FORK "AMD-Ecosystem")
+set(CUVS_FORK "AMD-AIOSS")
 set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
 
 function(find_and_configure_cuvs)
