@@ -32,7 +32,7 @@
 # Use RAPIDS_VERSION_MAJOR_MINOR from cmake/rapids_config.cmake
 # TODO(AMD/HIP): Update the default values
 set(CUVS_VERSION "${RAPIDS_VERSION_MAJOR_MINOR}")
-set(CUVS_FORK "AMD-AIOSS")
+set(CUVS_FORK "AMD-Ecosystem")
 #set(CUVS_PINNED_TAG "branch-${RAPIDS_VERSION_MAJOR_MINOR}")
 set(CUVS_PINNED_TAG "release/26.10")
 

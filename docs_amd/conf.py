@@ -49,7 +49,7 @@ html_context = {
     "docs_header_version": "26.10"
 }
 html_theme = "rocm_docs_theme"
-html_theme_options = {"flavor": "rocm-ds", "repository_url": "https://github.com/AMD-AIOSS/hipVS/"}
+html_theme_options = {"flavor": "rocm-ds", "repository_url": "https://github.com/AMD-Ecosystem/hipVS/"}
 
 extensions = [
     "rocm_docs",

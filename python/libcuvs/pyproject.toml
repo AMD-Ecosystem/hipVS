@@ -50,9 +50,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/AMD-AIOSS/hipVS"
+Homepage = "https://github.com/AMD-Ecosystem/hipVS"
 Documentation = "https://rocm.docs.amd.com/projects/hipVS/en/latest/"
-"Issue Tracker" = "https://github.com/AMD-AIOSS/hipVS/issues"
+"Issue Tracker" = "https://github.com/AMD-Ecosystem/hipVS/issues"
 
 [project.entry-points."cmake.prefix"]
 libcuvs = "libcuvs"

@@ -49,7 +49,7 @@ if(NOT rapids-cmake-repo)
     set(rapids-cmake-repo $ENV{RAPIDS_CMAKE_REPO})
   else()
     # Define a default repo if the user doesn't set one
-    set(rapids-cmake-repo "AMD-AIOSS/ROCmDS-cmake")
+    set(rapids-cmake-repo "AMD-Ecosystem/ROCmDS-cmake")
   endif()
 endif()
 
