@@ -25,8 +25,7 @@ version: 2
 sphinx:
   configuration: docs_amd/conf.py
 
-formats:
-  - htmlzip
+formats: []
 
 python:
   install:
