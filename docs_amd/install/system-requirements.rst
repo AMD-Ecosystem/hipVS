@@ -33,7 +33,7 @@ System requirements
 
 This topic lists the system requirements for using hipVS.
 
-* ROCm version: `10.0.0 <https://rocm.docs.amd.com/projects/install-on-linux/en/docs-10.0.0/>`__
+* ROCm version: `10.0.0 <https://rocm.docs.amd.com/en/docs-10.0.0/install/rocm.html>`__
 * Operating Systems: Ubuntu 24.04 and 22.04
 * AMD Instinct GPUs:
 

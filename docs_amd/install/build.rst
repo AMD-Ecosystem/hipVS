@@ -52,17 +52,17 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
      - ≥ 3.31.0
    * - `ninja <https://ninja-build.org/>`_
      - ≥ 1.11.1
-   * - `hipsolver <https://rocm.docs.amd.com/projects/hipSOLVER/en/latest/>`_
+   * - `hipsolver <https://rocm.docs.amd.com/projects/hipSOLVER/en/docs-10.0.0/>`_
      - Version that comes bundled with ROCm ≥ 10.0.0
-   * - `hipblas <https://rocm.docs.amd.com/projects/hipBLAS/en/latest/>`_
+   * - `hipblas <https://rocm.docs.amd.com/projects/hipBLAS/en/docs-10.0.0/>`_
      - Version that comes bundled with ROCm ≥ 10.0.0
-   * - `hipblaslt <https://rocm.docs.amd.com/projects/hipBLASLt/en/latest/>`_
+   * - `hipblaslt <https://rocm.docs.amd.com/projects/hipBLASLt/en/docs-10.0.0/>`_
      - Version that comes bundled with ROCm ≥ 10.0.0
-   * - `hiprand <https://rocm.docs.amd.com/projects/hipRAND/en/latest/>`_
+   * - `hiprand <https://rocm.docs.amd.com/projects/hipRAND/en/docs-10.0.0/>`_
      - Version that comes bundled with ROCm ≥ 10.0.0
-   * - `hipsparse <https://rocm.docs.amd.com/projects/hipSPARSE/en/latest/>`_
+   * - `hipsparse <https://rocm.docs.amd.com/projects/hipSPARSE/en/docs-10.0.0/>`_
      - Version that comes bundled with ROCm ≥ 10.0.0
-   * - `libblas-dev <https://www.netlib.org/lapack/>`_
+   * - `libblas-dev <https://www.netlib.org/blas/>`_
      - Tested with 3.12.0
    * - `liblapack-dev <https://www.netlib.org/lapack/>`_
      - Tested with 3.12.0
@@ -86,7 +86,7 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
      - Version that comes bundled with ROCm ≥ 10.0.0
    * - **Optional Dependencies**
      -
-   * - `RCCL <https://github.com/ROCm/rccl>`_
+   * - `RCCL <https://rocm.docs.amd.com/projects/rccl/en/docs-10.0.0/>`_
      - Version that comes bundled with ROCm ≥ 10.0.0
    * - `UCX <https://github.com/openucx/ucx>`_
      - ≥ 1.18.0
