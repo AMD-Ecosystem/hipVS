@@ -47,21 +47,23 @@ channels:
 dependencies:
 - doxygen
 - cython>=3.2.2
-- python=3.10
-- scikit-build-core>=0.10.0
+- python=3.11
+- scikit-build-core>=0.11.0
 - scikit-learn
 - pip
 - pip-tools
 - pytest==7.*
 - pip:
-  - --extra-index-url https://pypi.amd.com/rocm-7.2.4/simple/
+  - --index-url https://pypi.amd.com/rocm-10.0.0/simple/
+  - --extra-index-url https://pypi.org/simple/
   - --pre
-  - amd-cupy==13.5.1
-  - amd-hipmm==4.0.0
-  - amd-libhipmm==4.0.0
-  - hip-python~=7.2.0
-  - hip-python-as-cuda~=7.2.0
-  - amd-libraft==1.0.0
-  - amd-pylibraft==1.0.0
+  - amd-cupy==14.1.1
+  - amd-hipmm==5.*
+  - amd-libhipmm==5.*
+  - rocm-bindings-hip~=10.0.0
+  - hip-python-interop~=10.0.0
+  - amd-libraft==2.0.*
+  - amd-pylibraft==2.0.*
+  - amd-rocmds-logger==2.0.*
 
 name: all_rocm_arch-x86_64

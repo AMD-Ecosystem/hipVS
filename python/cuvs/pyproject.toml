@@ -24,8 +24,8 @@ build-backend = "scikit_build_core.build"
 requires = [
     "cython>=3.2.2",
     "scikit-build-core[pyproject]>=0.11.0",
-    "amd-hipmm",
-    "amd-libhipmm",
+    "amd-hipmm==5.*",
+    "amd-libhipmm==5.*",
 ]
 
 [project]
@@ -42,12 +42,12 @@ requires-python = ">=3.11"
 dependencies = [
     "amd-libhipvs==2.0.*",
     "numpy>=1.23,<3.0",
-    "amd_hipmm~=5.0",
+    "amd-hipmm==5.*",
     # NOTE(HIP/AMD): AMD substitutes upstream `cuda-python` with the AMD pair
     # `rocm-bindings-hip` + `hip-python-interop` (the latter exposes a `cuda.*`
     # namespace backed by HIP).
-    "hip-python-interop>=7.2.3",
-    "rocm-bindings-hip>=7.2.3",
+    "hip-python-interop~=10.0.0",
+    "rocm-bindings-hip~=10.0.0",
     "amd-libraft==2.0.*",
     "amd-pylibraft==2.0.*",
 ]
@@ -62,7 +62,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = [
-    "amd-cupy",
+    "amd-cupy==14.1.1",
     "pytest",
     "pytest-cov",
     "pytest<9.0.0",

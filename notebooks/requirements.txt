@@ -1,9 +1,10 @@
-amd-cupy>=13.5.1
-hip-python~=7.2.0
-amd-libhipmm==5.0.0
-amd-hipmm==5.0.0
-amd-libraft==2.0.0
-amd-pylibraft==2.0.0
+amd-cupy==14.1.1
+rocm-bindings-hip~=10.0.0
+hip-python-interop~=10.0.0
+amd-libhipmm==5.*
+amd-hipmm==5.*
+amd-libraft==2.0.*
+amd-pylibraft==2.0.*
 amd-libhipvs==2.0.*
 amd-hipvs==2.0.*
 jupyter

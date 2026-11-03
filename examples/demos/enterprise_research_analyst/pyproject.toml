@@ -3,19 +3,19 @@ name = "hipvs-demo"
 version = "1.0.0"
 description = "Enterprise Research Analyst -- Agentic Multi-Document RAG powered by hipVS on AMD Instinct GPUs"
 readme = "README.md"
-requires-python = ">=3.10,<=3.13"
+requires-python = ">=3.11,<3.14"
 license = { text = "MIT" }
 authors = [
     { name = "Advanced Micro Devices, Inc." },
 ]
 dependencies = [
-    "amd-hipvs>=2.0.0",
-    "amd-cupy>=13.5.1",
-    "amd-libraft>=2.0.0",
-    "amd-pylibraft>=2.0.0",
+    "amd-hipvs==2.0.*",
+    "amd-cupy==14.1.1",
+    "amd-libraft==2.0.*",
+    "amd-pylibraft==2.0.*",
     "amd-rocmds-logger==2.0.*",
-    "torch>=2.9.0",
-    "torchvision>=0.24.0",
+    "torch==2.15.0+rocm10.0",
+    "torchvision==0.29.2+rocm10.0",
     "sentence-transformers>=5.0.0",
     "numpy>=2.0.0",
     "gradio>=6.0.0",
@@ -24,11 +24,11 @@ dependencies = [
 
 [[tool.uv.index]]
 name = "pytorch-rocm"
-url = "https://download.pytorch.org/whl/rocm7.2"
+url = "https://download.pytorch.org/whl/rocm10.0"
 
 [[tool.uv.index]]
 name = "amd-pypi"
-url = "https://pypi.amd.com/rocm-7.2.4/simple/"
+url = "https://pypi.amd.com/rocm-10.0.0/simple/"
 
 [tool.uv.sources]
 torch = { index = "pytorch-rocm" }
