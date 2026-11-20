@@ -62,14 +62,8 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
      - Version that comes bundled with ROCm ≥ 10.0.0
    * - `hipsparse <https://rocm.docs.amd.com/projects/hipSPARSE/en/docs-10.0.0/>`_
      - Version that comes bundled with ROCm ≥ 10.0.0
-   * - `libblas-dev <https://www.netlib.org/blas/>`_
-     - Tested with 3.12.0
-   * - `liblapack-dev <https://www.netlib.org/lapack/>`_
-     - Tested with 3.12.0
    * - `SuiteSparse <https://github.com/DrTimothyAldenDavis/SuiteSparse>`_
      - Tested with 7.6.1
-   * - `libopenblas-dev <https://github.com/OpenMathLib/OpenBLAS>`_
-     - Tested with 0.3.26
    * - **Additional Required Dependencies**
      -
    * - **\*** `hipMM <https://github.com/AMD-Ecosystem/hipMM>`_
@@ -94,6 +88,8 @@ hipVS builds against the AMD ROCm software stack, that is, the ROCm runtime, HIP
      - ≥ 1.13.0
    * - `Googlebench <https://github.com/google/benchmark>`_
      - ≥ 1.13.0
+   * - `OpenBLAS <https://github.com/OpenMathLib/OpenBLAS>`_
+     - Tested with 0.3.26. Required to build the ANN benchmarks (``bench-ann``), where FAISS uses it for host BLAS/LAPACK.
    * - `Doxygen <https://github.com/doxygen/doxygen>`_
      - ≥ 1.8.20
 

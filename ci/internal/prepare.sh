@@ -36,7 +36,7 @@ os_id=$(. /etc/os-release; echo "$ID")
 os_id_like=$(. /etc/os-release; echo "$ID_LIKE")
 
 if [[ "${os_id}" == *"ubuntu"* ]]; then
-    apt install -y libblas-dev liblapack-dev ninja-build libsuitesparse-dev patchelf libclang-dev curl
+    apt install -y libopenblas-dev ninja-build libsuitesparse-dev patchelf libclang-dev curl
 elif [[ "${os_id_like}" == *"rhel"* ]]; then
     dnf install -y openblas-devel lapack-devel ninja-build suitesparse-devel patchelf clang-devel curl
 fi

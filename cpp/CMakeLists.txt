@@ -1322,25 +1322,16 @@ building the full set instead. Set CUVS_JIT_LTO_ARCH_FAMILIES to override."
   find_package(hipblaslt CONFIG PATHS "/opt/rocm/")
   find_package(hiprand CONFIG PATHS "/opt/rocm/")
   find_package(hipsparse CONFIG PATHS "/opt/rocm/")
-  find_package(BLAS REQUIRED)
-  find_package(LAPACK REQUIRED)
 
   set(CUVS_CUSOLVER_DEPENDENCY hipsolver${_ctk_static_suffix})
   set(CUVS_CUBLAS_DEPENDENCY hipblas${_ctk_static_suffix})
   set(CUVS_CUBLASLT_DEPENDENCY hipblaslt${_ctk_static_suffix})
   set(CUVS_CURAND_DEPENDENCY hiprand${_ctk_static_suffix})
   set(CUVS_CUSPARSE_DEPENDENCY hipsparse${_ctk_static_suffix})
-  set(CUVS_BLAS_DEPENDENCY ${BLAS_LIBRARIES}${_ctk_static_suffix})
-  set(CUVS_LAPACK_DEPENDENCY ${LAPACK_LIBRARIES}${_ctk_static_suffix})
 
   set(CUVS_CTK_MATH_DEPENDENCIES
-      ${CUVS_CUBLAS_DEPENDENCY}
-      ${CUVS_CUSOLVER_DEPENDENCY}
-      ${CUVS_CUSPARSE_DEPENDENCY}
-      ${CUVS_CURAND_DEPENDENCY}
-      ${CUVS_CUBLASLT_DEPENDENCY}
-      ${CUVS_BLAS_DEPENDENCY}
-      ${CUVS_LAPACK_DEPENDENCY}
+      ${CUVS_CUBLAS_DEPENDENCY} ${CUVS_CUSOLVER_DEPENDENCY} ${CUVS_CUSPARSE_DEPENDENCY}
+      ${CUVS_CURAND_DEPENDENCY} ${CUVS_CUBLASLT_DEPENDENCY}
   )
 
   if(NOT cuvs_compile_mode STREQUAL "static_only")

@@ -38,9 +38,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         git-all \
         bash-completion \
         ninja-build \
-        libblas-dev \
         libopenblas-dev \
-        liblapack-dev \
         wget \
         ca-certificates \
         clang-format \
